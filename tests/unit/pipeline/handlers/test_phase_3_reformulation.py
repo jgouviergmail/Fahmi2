@@ -81,7 +81,7 @@ def test_execute_includes_top_k_glossary_terms_in_prompt(
     # On vérifie que le LLM a été appelé avec un user prompt qui mentionne PIB
     fake_llm = ctx.llm_provider
     assert hasattr(fake_llm, "calls")
-    last_messages = fake_llm.calls[-1]["messages"]  # type: ignore[index]
+    last_messages = fake_llm.calls[-1]["messages"]
     user_content = next(m.content for m in last_messages if m.role == "user")
     assert "PIB" in user_content
 

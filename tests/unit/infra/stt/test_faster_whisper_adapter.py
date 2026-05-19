@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import faster_whisper
 import pytest
 
 from fahmi2.core.errors.exceptions import STTError
@@ -39,8 +40,6 @@ def test_transcribe_raises_when_model_load_fails(
 
     def _raise(*_: object, **__: object) -> object:
         raise RuntimeError("simulated model load failure")
-
-    import faster_whisper
 
     monkeypatch.setattr(faster_whisper, "WhisperModel", _raise)
     audio = tmp_path / "x.wav"

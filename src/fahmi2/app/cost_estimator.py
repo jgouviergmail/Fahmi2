@@ -4,8 +4,8 @@ L'estimation s'appuie sur :
 
 - La durée audio totale des vidéos (via ffprobe).
 - Le provider STT choisi (gratuit en local, 0.006 USD/min en cloud).
-- Le modèle LLM choisi et les phases activées (heuristique sur le ratio
-  tokens d'entrée / sortie).
+- Le modèle LLM choisi et la configuration par phase, incluant le mode
+  ``thinking`` et le niveau ``reasoning_effort``.
 
 Méthodologie heuristique pour les LLM (calibrée pour DeepSeek v4) :
 
@@ -13,6 +13,10 @@ Méthodologie heuristique pour les LLM (calibrée pour DeepSeek v4) :
 - Pour chaque vidéo, on estime ``tokens_per_video = duration_minutes * 150 * 1.3``.
 - Pour chaque phase, on applique un ``input_multiplier`` et un
   ``output_multiplier`` empirique relatifs au contenu vidéo.
+- Si la phase a ``thinking_enabled = True``, le nombre de tokens de
+  sortie est multiplié par un facteur empirique selon ``reasoning_effort``
+  (le modèle « raisonne » avant de répondre et ces tokens de raisonnement
+  sont facturés au tarif output standard).
 
 Ces multiplicateurs sont des estimations grossières — l'objectif est de
 fournir un ordre de grandeur fiable, pas une prédiction au cent près.
@@ -22,13 +26,42 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from fahmi2.domain.enums import LLMModel, PhaseId, SttProvider
+from fahmi2.domain.enums import LLMModel, PhaseId, ReasoningEffort, SttProvider
+from fahmi2.domain.phase import PhaseConfig
 from fahmi2.infra.llm._pricing import get_pricing
 
 _USD_PER_MINUTE_OPENAI_WHISPER = 0.006
 _SECONDS_PER_MINUTE = 60.0
 _WORDS_PER_MINUTE_ORAL = 150.0
 _TOKENS_PER_WORD = 1.3
+
+# Multiplicateurs empiriques appliqués aux tokens de **sortie** quand le mode
+# thinking est activé. Les tokens de raisonnement sont facturés au tarif
+# output standard, ce qui explique le surcoût important du mode thinking.
+_THINKING_OUTPUT_MULTIPLIER_DEFAULT = 2.5
+_THINKING_OUTPUT_MULTIPLIER_HIGH = 3.5
+_THINKING_OUTPUT_MULTIPLIER_MAX = 6.0
+
+
+def _thinking_output_multiplier(config: PhaseConfig | None) -> float:
+    """Retourne le multiplicateur de tokens de sortie pour une phase.
+
+    Args:
+        config: Configuration de la phase, ou ``None`` pour ignorer le
+            thinking (estimation conservatrice « sans thinking »).
+
+    Returns:
+        Multiplicateur à appliquer aux ``completion_tokens`` estimés
+        (``1.0`` si thinking désactivé, sinon un facteur entre 2.5 et 6
+        selon le ``reasoning_effort``).
+    """
+    if config is None or not config.thinking_enabled:
+        return 1.0
+    if config.reasoning_effort is ReasoningEffort.MAX:
+        return _THINKING_OUTPUT_MULTIPLIER_MAX
+    if config.reasoning_effort is ReasoningEffort.HIGH:
+        return _THINKING_OUTPUT_MULTIPLIER_HIGH
+    return _THINKING_OUTPUT_MULTIPLIER_DEFAULT
 
 
 @dataclass(frozen=True)
@@ -129,6 +162,7 @@ class CostEstimator:
         llm_model: LLMModel,
         active_target_languages_count: int = 1,
         translation_languages_count: int = 0,
+        phases_config: dict[PhaseId, PhaseConfig] | None = None,
     ) -> CostEstimation:
         """Estime le coût total.
 
@@ -139,6 +173,11 @@ class CostEstimator:
             active_target_languages_count: Nombre total de langues de sortie.
             translation_languages_count: Nombre de langues nécessitant une
                 traduction (langues ≠ source).
+            phases_config: Configuration par phase (notamment
+                ``thinking_enabled`` et ``reasoning_effort``). Si ``None``,
+                l'estimation est faite **sans** thinking, ce qui sous-estime
+                significativement le coût quand le projet active le
+                raisonnement étendu.
 
         Returns:
             ``CostEstimation`` avec détails STT/LLM/total.
@@ -152,6 +191,7 @@ class CostEstimator:
             llm_model=llm_model,
             target_languages_count=active_target_languages_count,
             translation_languages_count=translation_languages_count,
+            phases_config=phases_config or {},
         )
         return CostEstimation(
             stt_usd=stt_cost,
@@ -183,6 +223,7 @@ class CostEstimator:
         llm_model: LLMModel,
         target_languages_count: int,
         translation_languages_count: int,
+        phases_config: dict[PhaseId, PhaseConfig],
     ) -> float:
         """Calcule le coût LLM cumulé sur toutes les phases.
 
@@ -192,6 +233,7 @@ class CostEstimator:
             llm_model: Modèle.
             target_languages_count: Nombre de langues de sortie.
             translation_languages_count: Nombre de langues nécessitant traduction.
+            phases_config: Configuration des phases (mapping vide si non fourni).
 
         Returns:
             Coût USD cumulé.
@@ -206,6 +248,7 @@ class CostEstimator:
 
         total = 0.0
         for phase_id, factor in _LOAD_FACTORS.items():
+            thinking_mult = _thinking_output_multiplier(phases_config.get(phase_id))
             if factor.is_per_video:
                 multiplier = (
                     translation_languages_count
@@ -220,7 +263,9 @@ class CostEstimator:
                 )
                 total += pricing.cost_for(
                     prompt_tokens=int(phase_input * multiplier),
-                    completion_tokens=int(phase_output * multiplier),
+                    completion_tokens=int(
+                        phase_output * multiplier * thinking_mult
+                    ),
                     cached_prompt_tokens=0,
                 )
             else:
@@ -241,7 +286,9 @@ class CostEstimator:
                 )
                 total += pricing.cost_for(
                     prompt_tokens=int(batch_input * multiplier),
-                    completion_tokens=int(batch_output * multiplier),
+                    completion_tokens=int(
+                        batch_output * multiplier * thinking_mult
+                    ),
                     cached_prompt_tokens=0,
                 )
                 if factor.sub_loop_per_video is not None:
@@ -253,7 +300,7 @@ class CostEstimator:
                     sub_output = 0.1 * base_tokens_per_video * n_videos
                     total += pricing.cost_for(
                         prompt_tokens=int(sub_input),
-                        completion_tokens=int(sub_output),
+                        completion_tokens=int(sub_output * thinking_mult),
                         cached_prompt_tokens=0,
                     )
         return total

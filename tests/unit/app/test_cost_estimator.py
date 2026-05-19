@@ -3,7 +3,25 @@
 import pytest
 
 from fahmi2.app.cost_estimator import CostEstimation, CostEstimator
-from fahmi2.domain.enums import LLMModel, SttProvider
+from fahmi2.domain.enums import LLMModel, PhaseId, ReasoningEffort, SttProvider
+from fahmi2.domain.phase import PhaseConfig
+
+
+def _all_phases_thinking(effort: ReasoningEffort | None) -> dict[PhaseId, PhaseConfig]:
+    """Construit un mapping de PhaseConfig avec thinking actif sur toutes les phases LLM."""
+    phases = (
+        PhaseId.TERM_EXTRACTION,
+        PhaseId.GLOSSARY_RECONCILIATION,
+        PhaseId.REFORMULATION,
+        PhaseId.STRUCTURATION,
+        PhaseId.CONSOLIDATION,
+        PhaseId.TRANSLATION,
+        PhaseId.COHERENCE,
+    )
+    return {
+        pid: PhaseConfig(thinking_enabled=True, reasoning_effort=effort)
+        for pid in phases
+    }
 
 
 def test_stt_local_is_free() -> None:
@@ -96,3 +114,104 @@ def test_empty_videos_returns_zero() -> None:
     )
     assert est.total_usd == 0.0
     assert est.total_audio_seconds == 0.0
+
+
+# --- Prise en compte du mode thinking ---------------------------------------
+
+
+def test_thinking_off_matches_no_phases_config() -> None:
+    """Un mapping vide ou un thinking off doivent donner le même résultat."""
+    estimator = CostEstimator()
+    base = estimator.estimate(
+        videos_durations_seconds=[600.0],
+        stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
+        llm_model=LLMModel.DEEPSEEK_V4_FLASH,
+    )
+    with_off_config = estimator.estimate(
+        videos_durations_seconds=[600.0],
+        stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
+        llm_model=LLMModel.DEEPSEEK_V4_FLASH,
+        phases_config={
+            PhaseId.REFORMULATION: PhaseConfig(thinking_enabled=False),
+        },
+    )
+    assert with_off_config.llm_usd == pytest.approx(base.llm_usd)
+
+
+def test_thinking_enabled_increases_cost() -> None:
+    estimator = CostEstimator()
+    no_thinking = estimator.estimate(
+        videos_durations_seconds=[600.0],
+        stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
+        llm_model=LLMModel.DEEPSEEK_V4_FLASH,
+    )
+    with_thinking = estimator.estimate(
+        videos_durations_seconds=[600.0],
+        stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
+        llm_model=LLMModel.DEEPSEEK_V4_FLASH,
+        phases_config=_all_phases_thinking(None),
+    )
+    assert with_thinking.llm_usd > no_thinking.llm_usd
+
+
+def test_thinking_high_costs_more_than_default() -> None:
+    estimator = CostEstimator()
+    default_effort = estimator.estimate(
+        videos_durations_seconds=[600.0],
+        stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
+        llm_model=LLMModel.DEEPSEEK_V4_FLASH,
+        phases_config=_all_phases_thinking(None),
+    )
+    high_effort = estimator.estimate(
+        videos_durations_seconds=[600.0],
+        stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
+        llm_model=LLMModel.DEEPSEEK_V4_FLASH,
+        phases_config=_all_phases_thinking(ReasoningEffort.HIGH),
+    )
+    assert high_effort.llm_usd > default_effort.llm_usd
+
+
+def test_thinking_max_costs_more_than_high() -> None:
+    estimator = CostEstimator()
+    high_effort = estimator.estimate(
+        videos_durations_seconds=[600.0],
+        stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
+        llm_model=LLMModel.DEEPSEEK_V4_FLASH,
+        phases_config=_all_phases_thinking(ReasoningEffort.HIGH),
+    )
+    max_effort = estimator.estimate(
+        videos_durations_seconds=[600.0],
+        stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
+        llm_model=LLMModel.DEEPSEEK_V4_FLASH,
+        phases_config=_all_phases_thinking(ReasoningEffort.MAX),
+    )
+    assert max_effort.llm_usd > high_effort.llm_usd
+
+
+def test_thinking_only_on_one_phase_partially_increases_cost() -> None:
+    """Activer thinking sur une seule phase ne doit augmenter le coût que de
+    cette phase, pas autant que sur toutes les phases."""
+    estimator = CostEstimator()
+    no_thinking = estimator.estimate(
+        videos_durations_seconds=[600.0],
+        stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
+        llm_model=LLMModel.DEEPSEEK_V4_FLASH,
+    )
+    one_phase = estimator.estimate(
+        videos_durations_seconds=[600.0],
+        stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
+        llm_model=LLMModel.DEEPSEEK_V4_FLASH,
+        phases_config={
+            PhaseId.REFORMULATION: PhaseConfig(
+                thinking_enabled=True,
+                reasoning_effort=ReasoningEffort.HIGH,
+            ),
+        },
+    )
+    all_phases = estimator.estimate(
+        videos_durations_seconds=[600.0],
+        stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
+        llm_model=LLMModel.DEEPSEEK_V4_FLASH,
+        phases_config=_all_phases_thinking(ReasoningEffort.HIGH),
+    )
+    assert no_thinking.llm_usd < one_phase.llm_usd < all_phases.llm_usd

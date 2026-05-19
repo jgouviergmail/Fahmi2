@@ -441,6 +441,7 @@ class RunController(QObject):
             llm_model=settings.llm_model,
             active_target_languages_count=len(settings.output_languages),
             translation_languages_count=translation_langs,
+            phases_config=settings.phases_config,
         )
         _show_cost_estimation_dialog(
             self._main_window,
@@ -814,7 +815,8 @@ def _show_cost_estimation_dialog(
         "<br>".join(lines)
         + "<br><br><i>Estimation indicative basée sur des heuristiques "
         "DeepSeek (≈ 150 mots/min, ≈ 1.3 tokens/mot, multiplicateurs "
-        "empiriques par phase).</i>"
+        "empiriques par phase, et coût additionnel du mode thinking par "
+        "phase selon le niveau de raisonnement choisi).</i>"
     )
     msg = QMessageBox(parent)
     msg.setWindowTitle("Estimation du coût")

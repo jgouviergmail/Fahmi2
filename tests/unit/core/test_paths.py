@@ -1,10 +1,16 @@
 """Tests de la résolution des chemins standards Windows."""
 
+import sys
 from pathlib import Path
 
 import pytest
 
-from fahmi2.core.config.paths import AppPaths
+from fahmi2.core.config.paths import (
+    AppPaths,
+    resolve_bundled_ffmpeg_dir,
+    resolve_ffmpeg_binary_or_none,
+    resolve_ffprobe_binary_or_none,
+)
 
 
 def test_paths_uses_env_appdata(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -72,3 +78,24 @@ def test_paths_missing_appdata_falls_back(
     monkeypatch.setenv("USERPROFILE", str(tmp_path / "user"))
     paths = AppPaths.default()
     assert paths.appdata == tmp_path / "user" / "AppData" / "Roaming" / "Fahmi2"
+
+
+def test_resolve_bundled_ffmpeg_dir_returns_none_in_dev(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sys, "frozen", False, raising=False)
+    assert resolve_bundled_ffmpeg_dir() is None
+    assert resolve_ffmpeg_binary_or_none() is None
+    assert resolve_ffprobe_binary_or_none() is None
+
+
+def test_resolve_bundled_ffmpeg_dir_returns_path_when_bundled(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    (tmp_path / "ffmpeg.exe").write_bytes(b"x")
+    (tmp_path / "ffprobe.exe").write_bytes(b"x")
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
+    assert resolve_bundled_ffmpeg_dir() == tmp_path
+    assert resolve_ffmpeg_binary_or_none() == str(tmp_path / "ffmpeg.exe")
+    assert resolve_ffprobe_binary_or_none() == str(tmp_path / "ffprobe.exe")

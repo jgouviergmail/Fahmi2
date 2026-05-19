@@ -13,7 +13,12 @@ from PySide6.QtWidgets import QApplication
 from fahmi2.app.hardware_probe import probe_hardware
 from fahmi2.app.project_service import ProjectService
 from fahmi2.app.secrets_service import SecretsService
-from fahmi2.core.config.paths import AppPaths
+from fahmi2.core.config.paths import (
+    AppPaths,
+    resolve_ffmpeg_binary_or_none,
+    resolve_ffprobe_binary_or_none,
+)
+from fahmi2.infra.audio.ffmpeg_extractor import FFmpegExtractor
 from fahmi2.infra.secrets.interface import InMemorySecretsStore, SecretsStore
 from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.ui.dialogs.global_settings_dialog import GlobalSettingsDialog
@@ -21,6 +26,19 @@ from fahmi2.ui.dialogs.new_project_dialog import NewProjectDialog
 from fahmi2.ui.main_window import MainWindow
 
 _DB_FILENAME = "projects.db"
+
+
+def build_ffmpeg_extractor() -> FFmpegExtractor:
+    """Construit un ``FFmpegExtractor`` qui utilise les binaires bundlés.
+
+    Returns:
+        Un extracteur configuré : binaires bundlés en mode packagé, ``PATH``
+        système sinon.
+    """
+    return FFmpegExtractor(
+        ffmpeg_binary=resolve_ffmpeg_binary_or_none(),
+        ffprobe_binary=resolve_ffprobe_binary_or_none(),
+    )
 
 
 def _build_secrets_store() -> SecretsStore:
@@ -51,6 +69,9 @@ def main() -> int:
     secrets_service = SecretsService(secrets_store)
     project_service = ProjectService(state)
     hardware = probe_hardware()
+    # ffmpeg : binaire bundle (mode packagé) ou PATH système (dev)
+    _ffmpeg_extractor = build_ffmpeg_extractor()
+    del _ffmpeg_extractor  # branché aux contextes de run lors d'un démarrage de Run
 
     app = QApplication.instance() or QApplication(sys.argv)
     window = MainWindow()

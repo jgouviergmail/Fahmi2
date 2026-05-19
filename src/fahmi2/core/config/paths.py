@@ -113,3 +113,52 @@ class AppPaths:
             self.backups_dir,
         ):
             path.mkdir(parents=True, exist_ok=True)
+
+
+def resolve_bundled_ffmpeg_dir() -> Path | None:
+    """Retourne le dossier contenant les binaires ffmpeg bundlés, si présent.
+
+    Lorsque l'application est packagée par PyInstaller, ``sys._MEIPASS`` pointe
+    sur le dossier d'exécution et ``sys.frozen`` est vrai. Dans ce cas les
+    binaires ``ffmpeg.exe`` et ``ffprobe.exe`` se trouvent à la racine du
+    bundle. En mode développement (lancement depuis source), on retourne
+    ``None`` pour laisser le binaire système du PATH s'appliquer.
+
+    Returns:
+        Le dossier des binaires si bundlés, sinon ``None``.
+    """
+    import sys  # noqa: PLC0415 — local pour découplage de l'API publique
+
+    if not getattr(sys, "frozen", False):
+        return None
+    bundle_root_str = getattr(sys, "_MEIPASS", None) or str(Path(sys.executable).parent)
+    bundle_root = Path(bundle_root_str)
+    ffmpeg = bundle_root / "ffmpeg.exe"
+    if ffmpeg.exists():
+        return bundle_root
+    return None
+
+
+def resolve_ffmpeg_binary_or_none() -> str | None:
+    """Retourne le chemin absolu de ``ffmpeg.exe`` bundlé, ou ``None``.
+
+    Returns:
+        Chemin absolu si binaire bundlé détecté, ``None`` sinon (le PATH
+        système est alors utilisé).
+    """
+    bundle_dir = resolve_bundled_ffmpeg_dir()
+    if bundle_dir is None:
+        return None
+    return str(bundle_dir / "ffmpeg.exe")
+
+
+def resolve_ffprobe_binary_or_none() -> str | None:
+    """Retourne le chemin absolu de ``ffprobe.exe`` bundlé, ou ``None``.
+
+    Returns:
+        Chemin absolu si binaire bundlé détecté, ``None`` sinon.
+    """
+    bundle_dir = resolve_bundled_ffmpeg_dir()
+    if bundle_dir is None:
+        return None
+    return str(bundle_dir / "ffprobe.exe")

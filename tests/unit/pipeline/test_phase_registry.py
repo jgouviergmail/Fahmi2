@@ -2,8 +2,8 @@
 
 import pytest
 
-from fahmi2.domain.enums import PhaseId
-from fahmi2.domain.phase import PhaseExecution, PhaseStatus
+from fahmi2.domain.enums import PhaseId, PhaseStatus
+from fahmi2.domain.phase import PhaseExecution
 from fahmi2.pipeline.phase_handler import PhaseContext, PhaseHandler
 from fahmi2.pipeline.phase_registry import PhaseRegistry
 

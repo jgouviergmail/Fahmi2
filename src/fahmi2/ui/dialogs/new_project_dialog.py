@@ -1,7 +1,8 @@
 """Dialogue ``NewProjectDialog`` — création d'un projet.
 
-Assistant 1-page minimal pour saisir : nom, dossier d'entrée, langue source,
-langues de sortie, style, providers, modèle LLM, plafond budget.
+Assistant 1-page pour saisir : nom, dossier d'entrée, langues, style,
+directives stylistiques (multi-ligne), providers, modèle LLM, plafond
+budget, et configuration détaillée des 7 phases LLM.
 """
 
 from __future__ import annotations
@@ -20,6 +21,8 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QScrollArea,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -28,12 +31,15 @@ from fahmi2.app.hardware_probe import HardwareInfo
 from fahmi2.domain.enums import (
     Language,
     LLMModel,
-    PhaseId,
     SttProvider,
     StylePreset,
 )
-from fahmi2.domain.phase import PhaseConfig
 from fahmi2.domain.project import ParallelismConfig, ProjectSettings
+from fahmi2.ui.widgets.phase_configs_widget import PhaseConfigsWidget
+
+_DEFAULT_DIRECTIVES_HEIGHT_PX = 90
+_DIALOG_INITIAL_HEIGHT_PX = 700
+_DIALOG_INITIAL_WIDTH_PX = 720
 
 
 class NewProjectDialog(QDialog):
@@ -52,11 +58,21 @@ class NewProjectDialog(QDialog):
         """
         super().__init__(parent)
         self.setWindowTitle("Nouveau projet")
+        self.resize(_DIALOG_INITIAL_WIDTH_PX, _DIALOG_INITIAL_HEIGHT_PX)
         self._hardware = hardware
         self._result_settings: ProjectSettings | None = None
 
-        layout = QVBoxLayout(self)
-        form = QFormLayout()
+        outer_layout = QVBoxLayout(self)
+
+        # Zone scrollable pour le formulaire (gère les petits écrans)
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        scroll_content = QWidget(scroll)
+        scroll.setWidget(scroll_content)
+        outer_layout.addWidget(scroll, stretch=1)
+
+        form = QFormLayout(scroll_content)
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
 
         self._name_input = QLineEdit(self)
         form.addRow("Nom :", self._name_input)
@@ -82,6 +98,7 @@ class NewProjectDialog(QDialog):
             cb.setChecked(lang is Language.FR)
             self._output_langs[lang] = cb
             langs_row.addWidget(cb)
+        langs_row.addStretch(1)
         form.addRow("Langues de sortie :", langs_row)
 
         self._style_combo = QComboBox(self)
@@ -89,7 +106,15 @@ class NewProjectDialog(QDialog):
             self._style_combo.addItem(style.value, style)
         form.addRow("Style :", self._style_combo)
 
-        self._style_directives_input = QLineEdit(self)
+        # Champ multi-ligne pour les directives stylistiques (saisie confortable)
+        self._style_directives_input = QTextEdit(self)
+        self._style_directives_input.setPlaceholderText(
+            "Directives libres pour orienter la reformulation. Ex : « ton "
+            "chaleureux mais rigoureux, exemples concrets, éviter le jargon "
+            "inutile, conserver la voix professorale »."
+        )
+        self._style_directives_input.setFixedHeight(_DEFAULT_DIRECTIVES_HEIGHT_PX)
+        self._style_directives_input.setAcceptRichText(False)
         form.addRow("Directives stylistiques :", self._style_directives_input)
 
         self._stt_combo = QComboBox(self)
@@ -111,15 +136,18 @@ class NewProjectDialog(QDialog):
         self._cost_ceiling_input.setSpecialValueText("Pas de plafond")
         form.addRow("Plafond budget :", self._cost_ceiling_input)
 
-        layout.addLayout(form)
+        # Config détaillée par phase
+        self._phase_configs_widget = PhaseConfigsWidget(self)
+        form.addRow(self._phase_configs_widget)
 
+        # Boutons OK / Annuler (hors zone scrollable)
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
             parent=self,
         )
         buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
+        outer_layout.addWidget(buttons)
 
     def get_settings(self) -> ProjectSettings | None:
         """Retourne les settings construits, ou ``None`` si annulation.
@@ -178,10 +206,8 @@ class NewProjectDialog(QDialog):
             if self._cost_ceiling_input.value() > 0
             else None
         )
+        directives = self._style_directives_input.toPlainText().strip()
 
-        phases_config: dict[PhaseId, PhaseConfig] = {
-            pid: PhaseConfig() for pid in PhaseId if pid is not PhaseId.STT
-        }
         self._result_settings = ProjectSettings(
             name=name,
             input_folder=Path(input_folder_text),
@@ -189,10 +215,10 @@ class NewProjectDialog(QDialog):
             source_language=source_lang,
             output_languages=output_langs,
             style_preset=style,
-            style_directives=self._style_directives_input.text().strip(),
+            style_directives=directives,
             stt_provider=stt_provider,
             llm_model=llm_model,
-            phases_config=phases_config,
+            phases_config=self._phase_configs_widget.get_phase_configs(),
             cost_ceiling_usd=cost_ceiling,
             parallelism=ParallelismConfig(),
             delete_audio_after_stt=True,

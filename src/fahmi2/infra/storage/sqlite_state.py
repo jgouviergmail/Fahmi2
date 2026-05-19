@@ -545,15 +545,16 @@ class SqliteState:
         self._get_connection().execute(
             """
             INSERT INTO glossary_terms (
-                run_id, language, term, definition, acronym,
+                run_id, language, term, definition, acronym, acronym_expansion,
                 sources_json, aliases_json, cross_lang_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(run_id, language, term) DO UPDATE SET
-                definition      = excluded.definition,
-                acronym         = excluded.acronym,
-                sources_json    = excluded.sources_json,
-                aliases_json    = excluded.aliases_json,
-                cross_lang_json = excluded.cross_lang_json
+                definition         = excluded.definition,
+                acronym            = excluded.acronym,
+                acronym_expansion  = excluded.acronym_expansion,
+                sources_json       = excluded.sources_json,
+                aliases_json       = excluded.aliases_json,
+                cross_lang_json    = excluded.cross_lang_json
             """,
             (
                 run_id.value,
@@ -561,6 +562,7 @@ class SqliteState:
                 term.term,
                 term.definition,
                 term.acronym,
+                term.acronym_expansion,
                 json.dumps([s.value for s in term.sources], ensure_ascii=False),
                 json.dumps(list(term.aliases), ensure_ascii=False),
                 json.dumps(
@@ -582,8 +584,8 @@ class SqliteState:
             Liste des termes ordonnée par ``term`` croissant.
         """
         rows = self._get_connection().execute(
-            "SELECT term, definition, acronym, sources_json, aliases_json, "
-            "cross_lang_json FROM glossary_terms "
+            "SELECT term, definition, acronym, acronym_expansion, sources_json, "
+            "aliases_json, cross_lang_json FROM glossary_terms "
             "WHERE run_id = ? AND language = ? ORDER BY term",
             (run_id.value, str(language)),
         ).fetchall()
@@ -637,6 +639,10 @@ class SqliteState:
         }
         if "acronym" not in existing_cols:
             conn.execute("ALTER TABLE glossary_terms ADD COLUMN acronym TEXT")
+        if "acronym_expansion" not in existing_cols:
+            conn.execute(
+                "ALTER TABLE glossary_terms ADD COLUMN acronym_expansion TEXT"
+            )
 
         # Nettoyage rétroactif : SQLite a permis l'accumulation de doublons sur
         # les phases batch (video_id NULL) tant que upsert_phase_execution ne
@@ -724,6 +730,7 @@ class SqliteState:
             term_str,
             definition,
             acronym,
+            acronym_expansion,
             sources_json,
             aliases_json,
             cross_lang_json,
@@ -735,6 +742,7 @@ class SqliteState:
             term=term_str,
             definition=definition,
             acronym=acronym,
+            acronym_expansion=acronym_expansion,
             sources=tuple(VideoId(value=sid) for sid in sources),
             aliases=tuple(aliases),
             cross_lang={Language(k): v for k, v in cross_lang_raw.items()},

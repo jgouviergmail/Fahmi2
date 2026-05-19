@@ -19,6 +19,13 @@ class Term:
         definition: Définition contextuelle produite par les phases LLM.
         acronym: Acronyme officiel associé au terme (ex: « PIB »), ou
             ``None`` si le terme n'en a pas.
+        acronym_expansion: Signification littérale de l'acronyme dans sa
+            langue d'origine (ex: « ROI » → « Return On Investment »,
+            « PIB » → « Produit Intérieur Brut »). Ce champ est intrinsèque
+            à l'acronyme : il n'est jamais traduit (les acronymes
+            techniques gardent leur signification dans leur langue
+            d'origine quelle que soit la langue du glossaire). ``None``
+            si l'acronyme n'a pas d'expansion connue.
         sources: Vidéos d'où le terme a été extrait.
         aliases: Variantes orthographiques ou rédactionnelles connues
             (différentes de l'acronyme).
@@ -28,6 +35,7 @@ class Term:
     term: str
     definition: str
     acronym: str | None = None
+    acronym_expansion: str | None = None
     sources: tuple[VideoId, ...] = ()
     aliases: tuple[str, ...] = ()
     cross_lang: dict[Language, str] = field(default_factory=dict)

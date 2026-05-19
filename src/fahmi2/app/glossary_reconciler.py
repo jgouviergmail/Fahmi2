@@ -8,7 +8,9 @@ phase 2 :
 - Exposer le glossaire d'un run sous forme d'entité domaine ``Glossary`` pour
   l'UI / l'export.
 - Rendre le glossaire au format Markdown sous forme de tableau
-  ``| Terme | Acronyme | Définition |`` trié alphabétiquement.
+  ``| Terme | Acronyme | Signification | Définition |`` trié
+  alphabétiquement. La colonne *Signification* contient l'expansion
+  littérale de l'acronyme dans sa langue d'origine.
 
 L'injection top-K dans les prompts LLM est gérée plus bas par le
 :py:class:`~fahmi2.core.retrieval.interface.GlossaryRetriever` (TF-IDF en v1).
@@ -29,9 +31,9 @@ _TITLE_BY_LANGUAGE: dict[Language, str] = {
     Language.FR: "Glossaire",
     Language.EN: "Glossary",
 }
-_HEADERS_BY_LANGUAGE: dict[Language, tuple[str, str, str]] = {
-    Language.FR: ("Terme", "Acronyme", "Définition"),
-    Language.EN: ("Term", "Acronym", "Definition"),
+_HEADERS_BY_LANGUAGE: dict[Language, tuple[str, str, str, str]] = {
+    Language.FR: ("Terme", "Acronyme", "Signification", "Définition"),
+    Language.EN: ("Term", "Acronym", "Meaning", "Definition"),
 }
 
 
@@ -118,11 +120,13 @@ class GlossaryReconciler:
             aliases_raw = raw.get("aliases", []) or []
             cross_lang_raw = raw.get("cross_lang", {}) or {}
             acronym = raw.get("acronym")
+            expansion = raw.get("acronym_expansion")
             result.append(
                 Term(
                     term=str(raw.get("term", "")),
                     definition=str(raw.get("definition", "")),
                     acronym=str(acronym) if acronym else None,
+                    acronym_expansion=str(expansion) if expansion else None,
                     sources=tuple(VideoId(value=str(s)) for s in sources_raw),
                     aliases=tuple(str(a) for a in aliases_raw),
                     cross_lang={
@@ -141,6 +145,14 @@ def render_glossary_markdown_table(
 ) -> str:
     """Rend une liste de ``Term`` au format tableau Markdown.
 
+    Le tableau a 4 colonnes :
+    ``| Terme | Acronyme | Signification | Définition |`` en français, et
+    ``| Term | Acronym | Meaning | Definition |`` en anglais. La colonne
+    *Signification* / *Meaning* contient l'expansion littérale de
+    l'acronyme dans sa langue d'origine (ex. *ROI* → *Return On Investment*
+    en anglais même dans un glossaire en français). Elle reste vide si
+    le terme n'a pas d'acronyme.
+
     Args:
         title: Titre H1 du document.
         language: Langue (pour les libellés d'en-têtes).
@@ -151,13 +163,19 @@ def render_glossary_markdown_table(
     """
     headers = _HEADERS_BY_LANGUAGE.get(language, _HEADERS_BY_LANGUAGE[Language.EN])
     lines: list[str] = [f"# {title}", ""]
-    lines.append(f"| {headers[0]} | {headers[1]} | {headers[2]} |")
-    lines.append("|---|---|---|")
+    lines.append(
+        f"| {headers[0]} | {headers[1]} | {headers[2]} | {headers[3]} |"
+    )
+    lines.append("|---|---|---|---|")
     for term in terms:
         acronym = term.acronym or ""
+        expansion = term.acronym_expansion or ""
         # Échappement des pipes dans les contenus pour ne pas casser le tableau
         term_cell = term.term.replace("|", "\\|")
         acronym_cell = acronym.replace("|", "\\|")
+        expansion_cell = expansion.replace("|", "\\|").replace("\n", " ")
         def_cell = term.definition.replace("|", "\\|").replace("\n", " ")
-        lines.append(f"| {term_cell} | {acronym_cell} | {def_cell} |")
+        lines.append(
+            f"| {term_cell} | {acronym_cell} | {expansion_cell} | {def_cell} |"
+        )
     return "\n".join(lines) + "\n"

@@ -115,18 +115,19 @@ def test_render_markdown_in_english(tmp_path: Path, make_settings: Any) -> None:
                 {
                     "term": "Gross domestic product",
                     "acronym": "GDP",
+                    "acronym_expansion": "Gross Domestic Product",
                     "definition": "Total monetary value of finished goods and services.",
                 }
             ]
         },
     )
     md = reconciler.render_markdown(run_id, Language.EN)
-    # Titre + en-têtes localisées
+    # Titre + en-têtes localisées (4 colonnes : Term / Acronym / Meaning / Definition)
     assert md.startswith("# Glossary")
-    assert "| Term | Acronym | Definition |" in md
+    assert "| Term | Acronym | Meaning | Definition |" in md
     # Ligne du tableau pour GDP
     assert (
-        "| Gross domestic product | GDP | "
+        "| Gross domestic product | GDP | Gross Domestic Product | "
         "Total monetary value of finished goods and services. |"
     ) in md
 
@@ -144,6 +145,7 @@ def test_render_markdown_table_format_in_french(
                 {
                     "term": "Produit intérieur brut",
                     "acronym": "PIB",
+                    "acronym_expansion": "Produit Intérieur Brut",
                     "definition": "Indicateur agrégé de richesse produite.",
                 },
                 {
@@ -154,8 +156,45 @@ def test_render_markdown_table_format_in_french(
         },
     )
     md = reconciler.render_markdown(run_id, Language.FR)
-    assert "| Terme | Acronyme | Définition |" in md
-    assert "|---|---|---|" in md
-    assert "| Produit intérieur brut | PIB |" in md
-    # Pas d'acronyme pour Inflation : cellule vide
-    assert "| Inflation |  | Hausse soutenue des prix. |" in md
+    assert "| Terme | Acronyme | Signification | Définition |" in md
+    assert "|---|---|---|---|" in md
+    assert (
+        "| Produit intérieur brut | PIB | Produit Intérieur Brut |"
+        in md
+    )
+    # Pas d'acronyme pour Inflation : cellules Acronyme + Signification vides
+    assert "| Inflation |  |  | Hausse soutenue des prix. |" in md
+
+
+def test_acronym_expansion_is_language_invariant(
+    tmp_path: Path, make_settings: Any
+) -> None:
+    """L'expansion d'acronyme reste dans sa langue d'origine quelle que soit
+    la langue du glossaire (un glossaire FR peut donc contenir
+    'Return On Investment' pour ROI)."""
+    state, run_id = _setup_run(tmp_path, make_settings)
+    reconciler = GlossaryReconciler(state)
+    reconciler.import_master_payload(
+        run_id=run_id,
+        language=Language.FR,
+        payload={
+            "terms": [
+                {
+                    "term": "Retour sur investissement",
+                    "acronym": "ROI",
+                    "acronym_expansion": "Return On Investment",
+                    "definition": "Indicateur de rentabilité d'un investissement.",
+                }
+            ]
+        },
+    )
+    md = reconciler.render_markdown(run_id, Language.FR)
+    # En-têtes localisées FR
+    assert "| Terme | Acronyme | Signification | Définition |" in md
+    # Mais l'expansion reste anglaise telle quelle
+    assert "Return On Investment" in md
+    # Et le Term reconstitué côté DB porte bien le champ
+    glossary = reconciler.load_glossary(run_id, Language.FR)
+    roi = glossary.find("Retour sur investissement")
+    assert roi is not None
+    assert roi.acronym_expansion == "Return On Investment"

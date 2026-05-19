@@ -283,6 +283,8 @@ def test_upsert_and_list_glossary_terms(
         term = Term(
             term="PIB",
             definition="produit intérieur brut",
+            acronym="PIB",
+            acronym_expansion="Produit Intérieur Brut",
             sources=(vid,),
             aliases=("Produit Intérieur Brut",),
             cross_lang={Language.EN: "GDP"},
@@ -292,6 +294,8 @@ def test_upsert_and_list_glossary_terms(
         assert len(terms) == 1
         loaded = terms[0]
         assert loaded.term == "PIB"
+        assert loaded.acronym == "PIB"
+        assert loaded.acronym_expansion == "Produit Intérieur Brut"
         assert loaded.aliases == ("Produit Intérieur Brut",)
         assert loaded.cross_lang == {Language.EN: "GDP"}
         assert loaded.sources == (vid,)

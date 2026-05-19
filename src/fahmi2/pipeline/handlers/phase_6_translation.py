@@ -298,13 +298,18 @@ def _glossary_terms_for_template(
 def _render_glossary_md(payload: dict[str, Any], language: Language) -> str:
     """Rend le glossaire master en tableau Markdown pour une langue donnée.
 
+    L'``acronym_expansion`` est intentionnellement conservée dans sa langue
+    d'origine — c'est l'invariant produit par la phase 1 et préservé par la
+    phase 2. Ce rendu se contente de la recopier dans la colonne
+    *Signification* / *Meaning*.
+
     Args:
         payload: JSON master.
         language: Langue cible (utilisée pour le titre H1 et les en-têtes).
 
     Returns:
-        Le glossaire au format tableau Markdown
-        ``| Terme | Acronyme | Définition |``.
+        Le glossaire au format tableau Markdown ``| Terme | Acronyme |
+        Signification | Définition |``.
     """
     from fahmi2.app.glossary_reconciler import render_glossary_markdown_table  # noqa: PLC0415
     from fahmi2.domain.glossary import Term  # noqa: PLC0415
@@ -316,6 +321,11 @@ def _render_glossary_md(payload: dict[str, Any], language: Language) -> str:
             term=str(raw.get("term", "")),
             definition=str(raw.get("definition", "")),
             acronym=str(raw["acronym"]) if raw.get("acronym") else None,
+            acronym_expansion=(
+                str(raw["acronym_expansion"])
+                if raw.get("acronym_expansion")
+                else None
+            ),
         )
         for raw in raw_terms
     ]

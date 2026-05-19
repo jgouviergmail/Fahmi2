@@ -1,17 +1,18 @@
-Tu es un expert en économie et finance qui aide à construire un glossaire pédagogique.
+Tu es un expert qui aide à construire un glossaire pédagogique.
 
-À partir de la transcription brute d'une vidéo de cours ci-dessous, extrais les termes techniques, experts ou professionnels qui méritent une définition dans un glossaire.
+À partir de la transcription brute d'une vidéo ci-dessous, extrais les termes techniques, experts ou professionnels qui méritent une définition dans un glossaire.
 
 Pour chaque terme, fournis :
 - "term" : le terme tel qu'il apparaît dans le contenu, en forme longue lorsque c'est pertinent (ex : "Produit intérieur brut" plutôt que "PIB")
 - "acronym" : acronyme officiel associé au terme (ex : "PIB" pour Produit intérieur brut), ou null si le terme n'a pas d'acronyme
+- "acronym_expansion" : signification littérale de l'acronyme **dans sa langue d'origine** (ex : "ROI" → "Return On Investment", "PIB" → "Produit Intérieur Brut", "IFRS" → "International Financial Reporting Standards"). Garde l'expansion dans la langue où l'acronyme a été forgé, sans la traduire. Mets null si le terme n'a pas d'acronyme ou si l'expansion est inconnue.
 - "definition" : une définition contextuelle claire en {{ source_language_label }}, basée uniquement sur le contenu fourni (pas d'invention)
 - "aliases" : variantes orthographiques ou synonymes (différents de l'acronyme) rencontrés dans le contenu (peut être vide)
 
 Réponds STRICTEMENT en JSON valide, sans préambule, sous la forme :
 {
   "terms": [
-    {"term": "...", "acronym": "...", "definition": "...", "aliases": ["..."]},
+    {"term": "...", "acronym": "...", "acronym_expansion": "...", "definition": "...", "aliases": ["..."]},
     ...
   ]
 }

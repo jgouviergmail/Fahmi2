@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from fahmi2.domain.enums import PhaseStatus, RunStatus
 from fahmi2.domain.run import Run
@@ -18,11 +19,16 @@ class StatsSnapshot:
         run_status: Statut global du Run.
         videos_total: Nombre total de vidéos.
         videos_completed: Vidéos dont toutes les phases per-video sont
-            ``SUCCEEDED``.
+            ``SUCCEEDED`` ou ``SKIPPED``.
         phases_total: Nombre total de phases enregistrées.
-        phases_completed: Nombre de phases ayant atteint ``SUCCEEDED``.
+        phases_completed: Nombre de phases ayant atteint ``SUCCEEDED`` ou
+            ``SKIPPED``.
         cost_usd_so_far: Coût cumulé en USD.
         cost_ceiling_usd: Plafond éventuel.
+        started_at: Date de démarrage du Run.
+        finished_at: Date de fin (``None`` si le Run n'est pas terminé).
+        elapsed_seconds: Durée écoulée en secondes (figée à ``finished_at -
+            started_at`` si le Run est terminé, sinon ``now - started_at``).
     """
 
     run_status: RunStatus
@@ -32,6 +38,9 @@ class StatsSnapshot:
     phases_completed: int
     cost_usd_so_far: float
     cost_ceiling_usd: float | None
+    started_at: datetime
+    finished_at: datetime | None
+    elapsed_seconds: float
 
 
 class StatsStripViewModel:
@@ -82,6 +91,9 @@ class StatsStripViewModel:
         )
         cost = sum(e.cost_usd for e in executions)
 
+        end_ts = run.finished_at if run.finished_at is not None else datetime.now(tz=UTC)
+        elapsed = max(0.0, (end_ts - run.started_at).total_seconds())
+
         return StatsSnapshot(
             run_status=run.status,
             videos_total=videos_total,
@@ -90,4 +102,7 @@ class StatsStripViewModel:
             phases_completed=phases_completed,
             cost_usd_so_far=cost,
             cost_ceiling_usd=run.settings_snapshot.cost_ceiling_usd,
+            started_at=run.started_at,
+            finished_at=run.finished_at,
+            elapsed_seconds=elapsed,
         )

@@ -1,14 +1,148 @@
-"""Widget ``StatsStripWidget`` — barre de stats agrégées d'un Run."""
+"""Widget ``StatsStripWidget`` — bandeau d'indicateurs agrégés d'un Run.
+
+Présenté sous forme de 5 cartes côte-à-côte (Statut, Vidéos, Phases, Durée,
+Coût). Chaque carte affiche une icône, un titre, une valeur principale en gros
+et une sous-information. Un ``QTimer`` interne incrémente l'affichage de la
+durée pendant que le Run est ``RUNNING`` ou ``PAUSED`` sans solliciter le
+viewmodel (la valeur est calculée à partir du dernier snapshot connu).
+"""
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QWidget
+from datetime import UTC, datetime
 
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QVBoxLayout,
+    QWidget,
+)
+
+from fahmi2.domain.enums import RunStatus
 from fahmi2.ui.viewmodels.stats_strip import StatsSnapshot
+
+_LIVE_REFRESH_INTERVAL_MS = 1000
+_COST_WARNING_RATIO = 0.8
+_COST_DANGER_RATIO = 1.0
+
+_RUN_STATUS_LABEL: dict[RunStatus, str] = {
+    RunStatus.CREATED: "Créé",
+    RunStatus.RUNNING: "En cours",
+    RunStatus.PAUSED: "En pause",
+    RunStatus.COMPLETED: "Terminé",
+    RunStatus.FAILED: "Échec",
+    RunStatus.CANCELLED: "Annulé",
+}
+
+_RUN_STATUS_ICON: dict[RunStatus, str] = {
+    RunStatus.CREATED: "⏳",
+    RunStatus.RUNNING: "▶",
+    RunStatus.PAUSED: "⏸",
+    RunStatus.COMPLETED: "✓",
+    RunStatus.FAILED: "✗",
+    RunStatus.CANCELLED: "⊘",
+}
+
+_LIVE_STATUSES: frozenset[RunStatus] = frozenset(
+    {RunStatus.RUNNING, RunStatus.PAUSED}
+)
+
+
+def _format_duration(seconds: float) -> str:
+    """Formate une durée en ``HH:MM:SS`` (ou ``MM:SS`` si < 1 h).
+
+    Args:
+        seconds: Durée en secondes (peut être 0 ou négative — clampée à 0).
+
+    Returns:
+        Chaîne lisible adaptée à l'affichage compact dans une carte.
+    """
+    total = int(max(0.0, seconds))
+    hours, remainder = divmod(total, 3600)
+    minutes, secs = divmod(remainder, 60)
+    if hours:
+        return f"{hours:d}:{minutes:02d}:{secs:02d}"
+    return f"{minutes:02d}:{secs:02d}"
+
+
+class _StatCard(QFrame):
+    """Carte d'indicateur (icône + titre + valeur principale + sous-info)."""
+
+    def __init__(
+        self,
+        *,
+        icon: str,
+        title: str,
+        parent: QWidget | None = None,
+    ) -> None:
+        """Construit la carte.
+
+        Args:
+            icon: Glyphe Unicode décoratif.
+            title: Libellé court de l'indicateur.
+            parent: Parent Qt optionnel.
+        """
+        super().__init__(parent)
+        self.setObjectName("statCard")
+        self.setFrameShape(QFrame.Shape.NoFrame)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(14, 10, 14, 10)
+        layout.setSpacing(2)
+
+        header = QHBoxLayout()
+        header.setSpacing(6)
+        self._icon_label = QLabel(icon, self)
+        self._icon_label.setObjectName("statCardIcon")
+        self._title_label = QLabel(title, self)
+        self._title_label.setObjectName("statCardTitle")
+        header.addWidget(self._icon_label)
+        header.addWidget(self._title_label)
+        header.addStretch(1)
+        layout.addLayout(header)
+
+        self._value_label = QLabel("—", self)
+        self._value_label.setObjectName("statCardValue")
+        self._value_label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.NoTextInteraction
+        )
+        layout.addWidget(self._value_label)
+
+        self._sub_label = QLabel(" ", self)
+        self._sub_label.setObjectName("statCardSub")
+        layout.addWidget(self._sub_label)
+
+    def set_value(self, value: str, sub: str = "") -> None:
+        """Met à jour la valeur principale et la sous-info.
+
+        Args:
+            value: Texte de la valeur principale.
+            sub: Texte secondaire (peut être vide).
+        """
+        self._value_label.setText(value)
+        # On garde un espace insécable si vide pour éviter un saut de hauteur.
+        self._sub_label.setText(sub or " ")
+
+    def set_accent(self, kind: str) -> None:
+        """Force une variante d'accent visuelle via une propriété Qt.
+
+        Args:
+            kind: ``"neutral"``, ``"running"``, ``"success"``, ``"warning"``,
+                ``"danger"``. La feuille de style globale tient compte de cette
+                propriété pour adapter la couleur de la valeur.
+        """
+        self._value_label.setProperty("accent", kind)
+        # Force une re-évaluation du style dynamique.
+        style = self._value_label.style()
+        if style is not None:
+            style.unpolish(self._value_label)
+            style.polish(self._value_label)
 
 
 class StatsStripWidget(QWidget):
-    """Affiche une bande de statistiques en haut de la vue Run."""
+    """Bandeau d'indicateurs (Statut, Vidéos, Phases, Durée, Coût)."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Construit le widget.
@@ -17,35 +151,141 @@ class StatsStripWidget(QWidget):
             parent: Parent Qt optionnel.
         """
         super().__init__(parent)
+        self.setObjectName("statsStrip")
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(8, 4, 8, 4)
-        self._status_label = QLabel("Run : -", self)
-        self._videos_label = QLabel("0 / 0 vidéos", self)
-        self._phases_label = QLabel("0 / 0 phases", self)
-        self._cost_label = QLabel("$0.00", self)
-        for label in (
-            self._status_label,
-            self._videos_label,
-            self._phases_label,
-            self._cost_label,
+        layout.setContentsMargins(12, 8, 12, 8)
+        layout.setSpacing(10)
+
+        self._card_status = _StatCard(icon="●", title="Statut", parent=self)
+        self._card_videos = _StatCard(icon="🎬", title="Vidéos", parent=self)
+        self._card_phases = _StatCard(icon="▤", title="Phases", parent=self)
+        self._card_duration = _StatCard(icon="⏱", title="Durée", parent=self)
+        self._card_cost = _StatCard(icon="$", title="Coût", parent=self)
+
+        for card in (
+            self._card_status,
+            self._card_videos,
+            self._card_phases,
+            self._card_duration,
+            self._card_cost,
         ):
-            layout.addWidget(label)
-        layout.addStretch(1)
+            layout.addWidget(card, stretch=1)
+
+        self._last_snapshot: StatsSnapshot | None = None
+        self._timer = QTimer(self)
+        self._timer.setInterval(_LIVE_REFRESH_INTERVAL_MS)
+        self._timer.timeout.connect(self._on_tick)
 
     def apply_snapshot(self, snapshot: StatsSnapshot) -> None:
-        """Met à jour les labels avec un nouveau snapshot.
+        """Met à jour les cartes avec un nouveau snapshot.
 
         Args:
-            snapshot: Snapshot agrégé.
+            snapshot: Snapshot agrégé du Run courant.
         """
-        self._status_label.setText(f"Run : {snapshot.run_status.value}")
-        self._videos_label.setText(
-            f"{snapshot.videos_completed} / {snapshot.videos_total} vidéos"
+        self._last_snapshot = snapshot
+        self._render(snapshot)
+        if snapshot.run_status in _LIVE_STATUSES:
+            if not self._timer.isActive():
+                self._timer.start()
+        elif self._timer.isActive():
+            self._timer.stop()
+
+    def _on_tick(self) -> None:
+        """Met à jour uniquement la carte « Durée » entre deux snapshots.
+
+        Reste sans effet si aucun snapshot n'a encore été reçu.
+        """
+        if self._last_snapshot is None:
+            return
+        snapshot = self._last_snapshot
+        live_elapsed = snapshot.elapsed_seconds
+        if snapshot.run_status in _LIVE_STATUSES:
+            live_elapsed = max(
+                0.0,
+                (datetime.now(tz=UTC) - snapshot.started_at).total_seconds(),
+            )
+        self._card_duration.set_value(
+            _format_duration(live_elapsed),
+            _RUN_STATUS_LABEL.get(snapshot.run_status, snapshot.run_status.value),
         )
-        self._phases_label.setText(
-            f"{snapshot.phases_completed} / {snapshot.phases_total} phases"
+
+    def _render(self, snapshot: StatsSnapshot) -> None:
+        """Met à jour les 5 cartes à partir d'un snapshot complet.
+
+        Args:
+            snapshot: Snapshot à rendre.
+        """
+        status_label = _RUN_STATUS_LABEL.get(
+            snapshot.run_status, snapshot.run_status.value
         )
-        cost_text = f"${snapshot.cost_usd_so_far:.2f}"
+        status_icon = _RUN_STATUS_ICON.get(snapshot.run_status, "●")
+        self._card_status.set_value(f"{status_icon} {status_label}")
+        self._card_status.set_accent(_accent_for_status(snapshot.run_status))
+
+        self._card_videos.set_value(
+            f"{snapshot.videos_completed} / {snapshot.videos_total}",
+            "vidéos terminées",
+        )
+        self._card_videos.set_accent("neutral")
+
+        self._card_phases.set_value(
+            f"{snapshot.phases_completed} / {snapshot.phases_total}",
+            "phases terminées",
+        )
+        self._card_phases.set_accent("neutral")
+
+        self._card_duration.set_value(
+            _format_duration(snapshot.elapsed_seconds),
+            "terminé" if snapshot.finished_at is not None else status_label,
+        )
+        self._card_duration.set_accent("neutral")
+
+        cost_value = f"${snapshot.cost_usd_so_far:.2f}"
         if snapshot.cost_ceiling_usd is not None:
-            cost_text += f" / ${snapshot.cost_ceiling_usd:.2f}"
-        self._cost_label.setText(cost_text)
+            cost_sub = f"plafond ${snapshot.cost_ceiling_usd:.2f}"
+        else:
+            cost_sub = "sans plafond"
+        self._card_cost.set_value(cost_value, cost_sub)
+        self._card_cost.set_accent(_accent_for_cost(snapshot))
+
+
+def _accent_for_status(status: RunStatus) -> str:
+    """Mappe un ``RunStatus`` vers une clé d'accent visuel.
+
+    Args:
+        status: Statut du Run.
+
+    Returns:
+        Clé d'accent (``neutral`` / ``running`` / ``success`` / ``warning`` /
+        ``danger``).
+    """
+    if status is RunStatus.RUNNING:
+        return "running"
+    if status is RunStatus.PAUSED:
+        return "warning"
+    if status is RunStatus.COMPLETED:
+        return "success"
+    if status in (RunStatus.FAILED, RunStatus.CANCELLED):
+        return "danger"
+    return "neutral"
+
+
+def _accent_for_cost(snapshot: StatsSnapshot) -> str:
+    """Renvoie un accent visuel pour la carte « Coût » selon le plafond.
+
+    Args:
+        snapshot: Snapshot courant.
+
+    Returns:
+        ``"warning"`` si on est à >80 % du plafond, ``"danger"`` si on l'a
+        dépassé, ``"neutral"`` sinon.
+    """
+    ceiling = snapshot.cost_ceiling_usd
+    if ceiling is None or ceiling <= 0:
+        return "neutral"
+    ratio = snapshot.cost_usd_so_far / ceiling
+    if ratio >= _COST_DANGER_RATIO:
+        return "danger"
+    if ratio >= _COST_WARNING_RATIO:
+        return "warning"
+    return "neutral"

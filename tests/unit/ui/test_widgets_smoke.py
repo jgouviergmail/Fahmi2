@@ -25,6 +25,7 @@ from fahmi2.ui.widgets.stats_strip import StatsStripWidget
 def test_stats_strip_renders_snapshot(qtbot: QtBot) -> None:
     widget = StatsStripWidget()
     qtbot.addWidget(widget)
+    started = datetime.now(tz=UTC)
     snapshot = StatsSnapshot(
         run_status=RunStatus.RUNNING,
         videos_total=10,
@@ -33,6 +34,9 @@ def test_stats_strip_renders_snapshot(qtbot: QtBot) -> None:
         phases_completed=1,
         cost_usd_so_far=0.42,
         cost_ceiling_usd=5.0,
+        started_at=started,
+        finished_at=None,
+        elapsed_seconds=12.5,
     )
     widget.apply_snapshot(snapshot)
 

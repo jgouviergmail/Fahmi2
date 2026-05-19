@@ -23,6 +23,7 @@ from fahmi2.ui.dialogs.global_settings_dialog import GlobalSettingsDialog
 from fahmi2.ui.dialogs.new_project_dialog import NewProjectDialog
 from fahmi2.ui.main_window import MainWindow
 from fahmi2.ui.run_controller import RunController
+from fahmi2.ui.theme import apply_theme
 
 _DB_FILENAME = "projects.db"
 
@@ -57,6 +58,7 @@ def main() -> int:  # noqa: PLR0915, C901
     hardware = probe_hardware()
 
     app = QApplication.instance() or QApplication(sys.argv)
+    apply_theme(app)  # type: ignore[arg-type]
     window = MainWindow()
     window.projects_sidebar.set_projects(project_service.list_projects())
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
 
 
@@ -22,17 +22,23 @@ class ProjectHeaderBar(QWidget):
             parent: Parent Qt optionnel.
         """
         super().__init__(parent)
+        self.setObjectName("projectHeaderBar")
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(8, 4, 8, 4)
-        self._title_label = QLabel("Projet : -", self)
+        layout.setContentsMargins(16, 10, 16, 10)
+        layout.setSpacing(8)
+
+        self._title_label = QLabel("Projet : —", self)
+        self._title_label.setObjectName("projectHeaderBarTitle")
         layout.addWidget(self._title_label)
         layout.addStretch(1)
 
-        self._start_button = QPushButton("▶ Lancer", self)
-        self._pause_button = QPushButton("⏸ Pause", self)
-        self._resume_button = QPushButton("▶ Reprendre", self)
-        self._cancel_button = QPushButton("✕ Annuler", self)
-        self._open_output_button = QPushButton("📂 Ouvrir le dossier de sortie", self)
+        self._start_button = self._make_button("▶  Lancer", role="primary")
+        self._pause_button = self._make_button("⏸  Pause", role="default")
+        self._resume_button = self._make_button("▶  Reprendre", role="primary")
+        self._cancel_button = self._make_button("✕  Annuler", role="danger")
+        self._open_output_button = self._make_button(
+            "📂  Dossier de sortie", role="default"
+        )
         self._open_output_button.setToolTip(
             "Ouvre dans l'explorateur le dossier contenant les fichiers Markdown "
             "produits (consolidated, glossary, per-video par langue)."
@@ -44,12 +50,32 @@ class ProjectHeaderBar(QWidget):
         self._cancel_button.clicked.connect(self.cancel_requested)
         self._open_output_button.clicked.connect(self.open_output_requested)
 
-        layout.addWidget(self._start_button)
-        layout.addWidget(self._pause_button)
-        layout.addWidget(self._resume_button)
-        layout.addWidget(self._cancel_button)
-        layout.addWidget(self._open_output_button)
+        for btn in (
+            self._start_button,
+            self._pause_button,
+            self._resume_button,
+            self._cancel_button,
+            self._open_output_button,
+        ):
+            layout.addWidget(btn)
         self.set_idle()
+
+    def _make_button(self, text: str, *, role: str) -> QPushButton:
+        """Crée un ``QPushButton`` avec une propriété ``role`` pour le QSS.
+
+        Args:
+            text: Libellé du bouton.
+            role: ``primary``, ``default`` ou ``danger``. Utilisé par la
+                feuille de style globale pour différencier visuellement les
+                actions.
+
+        Returns:
+            Le bouton instancié, sans connexion (à brancher par l'appelant).
+        """
+        btn = QPushButton(text, self)
+        btn.setProperty("role", role)
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        return btn
 
     def set_title(self, title: str) -> None:
         """Met à jour le titre.
@@ -60,7 +86,7 @@ class ProjectHeaderBar(QWidget):
         self._title_label.setText(f"Projet : {title}")
 
     def set_open_output_enabled(self, enabled: bool) -> None:
-        """Active ou désactive le bouton « Ouvrir le dossier de sortie ».
+        """Active ou désactive le bouton « Dossier de sortie ».
 
         Args:
             enabled: ``True`` si un dossier de sortie est disponible (typiquement

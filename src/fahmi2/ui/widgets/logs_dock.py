@@ -1,13 +1,21 @@
-"""Widget ``LogsDock`` — panneau ancré affichant les logs live du run."""
+"""Widget ``LogsDock`` — panneau ancré affichant les logs live du run.
+
+Chaque ligne de log est rendue en HTML (texte enrichi) pour pouvoir colorer
+les éléments par sévérité, conserver la mise en forme monospace de la zone
+horodate / code / message, et faciliter le suivi visuel en cours de run.
+"""
 
 from __future__ import annotations
+
+from html import escape
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QDockWidget,
     QHBoxLayout,
-    QPlainTextEdit,
+    QLabel,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -17,9 +25,17 @@ from fahmi2.core.logging.event import LogEvent
 
 _SEVERITY_CHOICES = [Severity.INFO, Severity.WARNING, Severity.ERROR, Severity.FATAL]
 
+# Couleurs et libellés FR par sévérité — alignés sur le thème Clair Fluent.
+_SEVERITY_STYLE: dict[Severity, tuple[str, str]] = {
+    Severity.INFO: ("#57606a", "INFO"),
+    Severity.WARNING: ("#b45309", "WARN"),
+    Severity.ERROR: ("#cf222e", "ERREUR"),
+    Severity.FATAL: ("#a30713", "FATAL"),
+}
+
 
 class LogsDock(QDockWidget):
-    """Panneau de logs (filtrage par sévérité)."""
+    """Panneau de logs (filtrage par sévérité, rendu HTML coloré)."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Construit le dock.
@@ -35,21 +51,27 @@ class LogsDock(QDockWidget):
         self._min_severity = Severity.INFO
 
         container = QWidget(self)
+        container.setObjectName("logsDockContainer")
         layout = QVBoxLayout(container)
-        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(6)
 
         header_row = QHBoxLayout()
+        header_row.setSpacing(8)
+        header_row.addWidget(QLabel("Niveau minimum :", container))
         self._level_combo = QComboBox(container)
         for sev in _SEVERITY_CHOICES:
-            self._level_combo.addItem(sev.name, sev)
+            self._level_combo.addItem(_SEVERITY_STYLE[sev][1], sev)
         self._level_combo.setCurrentIndex(0)
         self._level_combo.currentIndexChanged.connect(self._on_level_changed)
         header_row.addWidget(self._level_combo)
         header_row.addStretch(1)
         layout.addLayout(header_row)
 
-        self._text = QPlainTextEdit(container)
+        self._text = QTextEdit(container)
+        self._text.setObjectName("logsDockArea")
         self._text.setReadOnly(True)
+        self._text.setAcceptRichText(True)
         layout.addWidget(self._text)
         self.setWidget(container)
 
@@ -61,11 +83,17 @@ class LogsDock(QDockWidget):
         """
         if event.severity < self._min_severity:
             return
-        line = (
-            f"{event.timestamp.isoformat()} {event.severity.name:<7} "
-            f"{event.code} — {event.message}"
+        color, label = _SEVERITY_STYLE.get(
+            event.severity, _SEVERITY_STYLE[Severity.INFO]
         )
-        self._text.appendPlainText(line)
+        time_str = event.timestamp.strftime("%H:%M:%S")
+        html = (
+            f'<span style="color:#8b95a1;">{escape(time_str)}</span> '
+            f'<span style="color:{color}; font-weight:600;">{escape(label):<7}</span> '
+            f'<span style="color:#0a4f93;">{escape(event.code)}</span> '
+            f'<span style="color:#1f2328;">— {escape(event.message)}</span>'
+        )
+        self._text.append(html)
 
     def _on_level_changed(self, index: int) -> None:
         """Slot interne : met à jour le filtre de sévérité minimale.

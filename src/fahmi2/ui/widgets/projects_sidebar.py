@@ -80,12 +80,17 @@ class ProjectsSidebar(QListWidget):
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:  # noqa: N802
         """Affiche le menu contextuel (Modifier / Supprimer) sur clic droit.
 
+        ``QListWidget.itemAt`` attend des coordonnées du viewport interne, pas
+        du widget complet : on convertit donc explicitement la position globale
+        du clic avant de chercher l'item ciblé, pour rester insensible au
+        padding éventuel posé par la feuille de style.
+
         Args:
-            event: Événement Qt (la position locale du clic est utilisée
-                pour déterminer le projet ciblé).
+            event: Événement Qt (sa position globale est utilisée pour
+                identifier l'item visé).
         """
-        pos: QPoint = event.pos()
-        item = self.itemAt(pos)
+        viewport_pos: QPoint = self.viewport().mapFromGlobal(event.globalPos())
+        item = self.itemAt(viewport_pos)
         if item is None:
             return
         value = item.data(_PROJECT_ID_ROLE)

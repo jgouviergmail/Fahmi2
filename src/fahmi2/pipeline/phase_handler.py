@@ -1,0 +1,96 @@
+"""Interface ``PhaseHandler`` et ``PhaseContext`` (injection de dépendances).
+
+Chaque phase du pipeline (0..7) est implémentée par une sous-classe de
+``PhaseHandler``. Le ``PhaseContext`` regroupe toutes les dépendances injectées
+(state SQLite, artifacts FS, providers STT/LLM, pause token, event bus,
+workspace) pour limiter le couplage aux interfaces et faciliter les tests.
+"""
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from pathlib import Path
+
+from fahmi2.core.retrieval.interface import GlossaryRetriever
+from fahmi2.domain.enums import PhaseId
+from fahmi2.domain.phase import PhaseExecution
+from fahmi2.domain.project import ProjectSettings
+from fahmi2.domain.run import Run
+from fahmi2.domain.video import VideoExecution
+from fahmi2.infra.audio.ffmpeg_extractor import FFmpegExtractor
+from fahmi2.infra.llm.interface import LLMProvider
+from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
+from fahmi2.infra.storage.sqlite_state import SqliteState
+from fahmi2.infra.stt.interface import STTProvider
+from fahmi2.pipeline.event_bus import EventBus
+from fahmi2.pipeline.pause_token import PauseToken
+
+
+@dataclass(frozen=True)
+class PhaseContext:
+    """Dépendances injectées à un ``PhaseHandler``.
+
+    Attributes:
+        run: Run en cours.
+        settings: Snapshot des paramètres du projet.
+        workspace: Dossier de travail du run (artefacts intermédiaires).
+        output_dir: Dossier des livrables finaux.
+        state: Accès SQLite à l'état du pipeline.
+        artifacts: Helper d'écriture atomique d'artefacts FS.
+        stt_provider: Provider STT à utiliser pour la phase 0.
+        llm_provider: Provider LLM utilisé par les phases 1..7.
+        ffmpeg: Extracteur ``ffmpeg``.
+        retriever: Retriever du glossaire pour les phases 3, 4, 5, 6, 7.
+        pause_token: Jeton coopératif pause/cancel.
+        event_bus: Bus d'événements (peut être ``None`` pour les tests).
+    """
+
+    run: Run
+    settings: ProjectSettings
+    workspace: Path
+    output_dir: Path
+    state: SqliteState
+    artifacts: FsArtifactStore
+    stt_provider: STTProvider
+    llm_provider: LLMProvider
+    ffmpeg: FFmpegExtractor
+    retriever: GlossaryRetriever
+    pause_token: PauseToken
+    event_bus: EventBus
+
+
+class PhaseHandler(ABC):
+    """Base abstraite d'un handler de phase."""
+
+    @property
+    @abstractmethod
+    def phase_id(self) -> PhaseId:
+        """Identifiant de la phase implémentée."""
+
+    @property
+    @abstractmethod
+    def is_per_video(self) -> bool:
+        """Indique si la phase tourne par vidéo (``True``) ou en batch (``False``)."""
+
+    @abstractmethod
+    def execute(
+        self,
+        ctx: PhaseContext,
+        *,
+        video: VideoExecution | None,
+    ) -> PhaseExecution:
+        """Exécute la phase pour le contexte donné.
+
+        Args:
+            ctx: Contexte d'exécution.
+            video: Vidéo ciblée (``None`` pour les phases batch).
+
+        Returns:
+            ``PhaseExecution`` finale avec ``status``, ``artifact_path``,
+            ``cost_usd``, ``started_at``, ``finished_at``.
+
+        Raises:
+            Fahmi2Error: Toute exception levée doit être typée (sous-classe de
+                ``Fahmi2Error``). Le moteur la capturera pour la retry policy.
+        """

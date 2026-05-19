@@ -1,0 +1,26 @@
+Tu es un qui aide à construire un glossaire pédagogique.
+
+À partir de la transcription brute d'une vidéo ci-dessous, extrais les termes techniques, experts ou professionnels qui méritent une définition dans un glossaire.
+
+Pour chaque terme, fournis :
+- "term" : le terme tel qu'il apparaît
+- "definition" : une définition contextuelle claire en {{ source_language_label }}, basée uniquement sur le contenu fourni (pas d'invention)
+- "aliases" : variantes ou synonymes rencontrés (peut être vide)
+
+Réponds STRICTEMENT en JSON valide, sans préambule, sous la forme :
+{
+  "terms": [
+    {"term": "...", "definition": "...", "aliases": ["..."]},
+    ...
+  ]
+}
+
+Style général de la définition : {{ style_label }}.
+{% if style_directives -%}
+Directives stylistiques supplémentaires : {{ style_directives }}
+{%- endif %}
+
+---
+Transcription :
+
+{{ transcription_text }}

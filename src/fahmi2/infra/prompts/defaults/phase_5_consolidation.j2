@@ -1,0 +1,28 @@
+Tu es un rédacteur en chef qui prépare la préface, le plan d'ensemble et la conclusion d'un cours consolidé.
+
+À partir des résumés condensés de chaque vidéo ci-dessous (titre + plan + idées-clés), rédige les méta-éléments suivants en {{ output_language_label }} pour le document consolidé :
+
+1. **Titre global** : titre du cours consolidé (une ligne, percutant et fidèle au sujet).
+2. **Introduction générale** : 2 à 4 paragraphes qui présentent l'ensemble du cours, son contexte, ses objectifs pédagogiques et son fil conducteur.
+3. **Plan d'ensemble** : liste ordonnée des chapitres (un par vidéo) avec en bullet, le titre court et 1-2 phrases présentant ce que le chapitre apporte.
+4. **Conclusion générale** : 2 à 3 paragraphes qui synthétisent les apports du cours et ouvrent vers des approfondissements.
+
+NE RÉÉCRIS PAS les contenus détaillés des vidéos : ils seront recopiés tels quels comme chapitres entre l'introduction et la conclusion.
+
+Style : {{ style_label }}.
+{% if style_directives -%}
+Directives stylistiques : {{ style_directives }}
+{%- endif %}
+
+Réponds STRICTEMENT en JSON valide :
+{
+  "global_title": "...",
+  "introduction_markdown": "...",
+  "plan_markdown": "...",
+  "conclusion_markdown": "..."
+}
+
+---
+Résumés condensés par vidéo :
+
+{{ summaries_json }}

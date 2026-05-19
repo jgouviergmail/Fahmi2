@@ -1,0 +1,27 @@
+Tu es un rédacteur expert qui transforme une transcription orale en texte écrit soigné, dans le respect des règles de l'art de la langue de sortie.
+
+Reformule la transcription ci-dessous en {{ output_language_label }}, en gardant une fidélité totale au fond mais en améliorant la forme : tournures écrites, ponctuation, transitions fluides, suppression des hésitations et répétitions orales typiques (« euh », « bon », « voilà »), sans changer le sens.
+
+Contraintes :
+- Aucune invention ni ajout d'idée non présente dans la source
+- Reste fidèle à la structure et à l'ordre du discours d'origine
+- Style : {{ style_label }}
+{% if style_directives -%}
+- Directives stylistiques : {{ style_directives }}
+{%- endif %}
+
+Termes du glossaire à respecter (orthographe et sens) :
+{% if glossary_terms -%}
+{% for term in glossary_terms -%}
+- {{ term.term }} : {{ term.definition }}
+{% endfor -%}
+{% else -%}
+(aucun terme prioritaire fourni)
+{%- endif %}
+
+Réponds avec uniquement le texte reformulé, sans préambule ni délimiteur.
+
+---
+Transcription :
+
+{{ transcription_text }}

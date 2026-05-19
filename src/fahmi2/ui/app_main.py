@@ -124,7 +124,10 @@ def main() -> int:  # noqa: PLR0915, C901
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
-        if reply is QMessageBox.StandardButton.Yes:
+        # QMessageBox.question retourne un IntEnum reconstruit cote C++ -> Python a
+        # chaque appel : l'identite ('is') avec QMessageBox.StandardButton.Yes n'est
+        # pas garantie. On compare donc explicitement avec '=='.
+        if reply == QMessageBox.StandardButton.Yes:
             project_service.delete_project(project_id)
             _refresh_sidebar()
 

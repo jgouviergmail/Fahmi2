@@ -14,6 +14,7 @@ class ProjectHeaderBar(QWidget):
     resume_requested = Signal()
     cancel_requested = Signal()
     open_output_requested = Signal()
+    estimate_cost_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Construit la barre.
@@ -32,6 +33,13 @@ class ProjectHeaderBar(QWidget):
         layout.addWidget(self._title_label)
         layout.addStretch(1)
 
+        self._estimate_cost_button = self._make_button(
+            "💵  Estimer le coût", role="default"
+        )
+        self._estimate_cost_button.setToolTip(
+            "Estime à l'avance le coût total du Run en analysant la durée "
+            "des vidéos du dossier d'entrée (STT + LLM)."
+        )
         self._start_button = self._make_button("▶  Lancer", role="primary")
         self._pause_button = self._make_button("⏸  Pause", role="default")
         self._resume_button = self._make_button("▶  Reprendre", role="primary")
@@ -44,6 +52,7 @@ class ProjectHeaderBar(QWidget):
             "produits (consolidated, glossary, per-video par langue)."
         )
 
+        self._estimate_cost_button.clicked.connect(self.estimate_cost_requested)
         self._start_button.clicked.connect(self.start_requested)
         self._pause_button.clicked.connect(self.pause_requested)
         self._resume_button.clicked.connect(self.resume_requested)
@@ -51,6 +60,7 @@ class ProjectHeaderBar(QWidget):
         self._open_output_button.clicked.connect(self.open_output_requested)
 
         for btn in (
+            self._estimate_cost_button,
             self._start_button,
             self._pause_button,
             self._resume_button,

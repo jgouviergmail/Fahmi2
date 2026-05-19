@@ -186,6 +186,22 @@ class FFmpegExtractor:
                 technical_details={"video_path": str(video_path)},
             )
 
+    def probe_duration_seconds(self, media_path: Path) -> float:
+        """Lit la durée totale d'un fichier média (vidéo ou audio) via ffprobe.
+
+        Cette méthode est exposée pour les pré-calculs côté UI (ex. estimation
+        de coût avant lancement d'un Run). Elle est silencieuse : si le
+        binaire est indisponible ou si la sortie ne peut pas être parsée,
+        elle renvoie ``0.0`` au lieu de lever.
+
+        Args:
+            media_path: Chemin du fichier à inspecter.
+
+        Returns:
+            Durée en secondes (``0.0`` si indéterminable).
+        """
+        return self._probe_duration(media_path)
+
     def _probe_duration(self, audio_path: Path) -> float:
         """Lit la durée d'un fichier audio via ffprobe.
 

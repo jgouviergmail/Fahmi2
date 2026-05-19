@@ -22,6 +22,15 @@ def test_main_window_constructs_and_shows(qtbot: QtBot) -> None:
     assert window.logs_dock is not None
 
 
+def test_main_window_exposes_prompts_editor_callback(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+    received: list[str] = []
+    window.set_on_open_prompts_editor(lambda: received.append("open"))
+    window._open_prompts_action.triggered.emit()  # noqa: SLF001
+    assert received == ["open"]
+
+
 def test_qt_event_bus_publishes_and_emits(qtbot: QtBot) -> None:
     bus = QtEventBus()
     received_python: list[object] = []

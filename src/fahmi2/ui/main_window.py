@@ -127,6 +127,14 @@ class MainWindow(QMainWindow):
         """
         self._open_settings_action.triggered.connect(callback)
 
+    def set_on_open_prompts_editor(self, callback: Callable[[], None]) -> None:
+        """Définit le callback du menu Édition > Modifier les prompts.
+
+        Args:
+            callback: Fonction sans argument.
+        """
+        self._open_prompts_action.triggered.connect(callback)
+
     def set_on_new_project(self, callback: Callable[[], None]) -> None:
         """Définit le callback du menu Fichier > Nouveau projet.
 
@@ -153,6 +161,8 @@ class MainWindow(QMainWindow):
         assert edit_menu is not None
         self._open_settings_action = QAction("Paramètres globaux…", self)
         edit_menu.addAction(self._open_settings_action)
+        self._open_prompts_action = QAction("Modifier les prompts…", self)
+        edit_menu.addAction(self._open_prompts_action)
 
         help_menu = menubar.addMenu("?")
         assert help_menu is not None

@@ -13,6 +13,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 
 from fahmi2.app.hardware_probe import probe_hardware
 from fahmi2.app.project_service import ProjectService
+from fahmi2.app.prompts_service import PromptsService
 from fahmi2.app.secrets_service import SecretsService
 from fahmi2.core.config.paths import AppPaths
 from fahmi2.domain.ids import ProjectId
@@ -21,6 +22,7 @@ from fahmi2.infra.secrets.interface import InMemorySecretsStore, SecretsStore
 from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.ui.dialogs.global_settings_dialog import GlobalSettingsDialog
 from fahmi2.ui.dialogs.new_project_dialog import NewProjectDialog
+from fahmi2.ui.dialogs.prompts_editor_dialog import PromptsEditorDialog
 from fahmi2.ui.main_window import MainWindow
 from fahmi2.ui.run_controller import RunController
 from fahmi2.ui.theme import apply_theme
@@ -55,6 +57,7 @@ def main() -> int:  # noqa: PLR0915, C901
     secrets_store = _build_secrets_store()
     secrets_service = SecretsService(secrets_store)
     project_service = ProjectService(state)
+    prompts_service = PromptsService(override_dir=paths.prompts_override_dir)
     hardware = probe_hardware()
 
     app = QApplication.instance() or QApplication(sys.argv)
@@ -76,6 +79,10 @@ def main() -> int:  # noqa: PLR0915, C901
 
     def _open_settings() -> None:
         dialog = GlobalSettingsDialog(secrets_service, parent=window)
+        dialog.exec()
+
+    def _open_prompts_editor() -> None:
+        dialog = PromptsEditorDialog(prompts_service, parent=window)
         dialog.exec()
 
     def _open_new_project() -> None:
@@ -134,6 +141,7 @@ def main() -> int:  # noqa: PLR0915, C901
     window.projects_sidebar.set_on_edit_requested(_edit_project)
     window.projects_sidebar.set_on_delete_requested(_delete_project)
     window.set_on_open_settings(_open_settings)
+    window.set_on_open_prompts_editor(_open_prompts_editor)
     window.set_on_new_project(_open_new_project)
     # Garde une référence pour éviter la collection par le GC PySide
     window._run_controller = run_controller  # type: ignore[attr-defined]  # noqa: SLF001

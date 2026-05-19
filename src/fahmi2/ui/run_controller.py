@@ -22,14 +22,16 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 
-from PySide6.QtCore import QObject, QThread, QUrl, Signal
-from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import QMessageBox
+from PySide6.QtCore import QObject, Qt, QThread, QUrl, Signal
+from PySide6.QtGui import QCursor, QDesktopServices
+from PySide6.QtWidgets import QApplication, QMessageBox
 
+from fahmi2.app.cost_estimator import CostEstimation, CostEstimator
 from fahmi2.app.hardware_probe import HardwareInfo
 from fahmi2.app.project_service import ProjectService
 from fahmi2.app.run_orchestrator import RunOrchestrator
 from fahmi2.app.secrets_service import SecretsService
+from fahmi2.app.video_scanner import scan_input_folder
 from fahmi2.core.config.paths import AppPaths
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.exceptions import Fahmi2Error
@@ -204,6 +206,9 @@ class RunController(QObject):
         self._main_window.header_bar.cancel_requested.connect(self.cancel_run)
         self._main_window.header_bar.open_output_requested.connect(
             self.open_output_folder
+        )
+        self._main_window.header_bar.estimate_cost_requested.connect(
+            self.estimate_cost
         )
 
     # ------------------------------------------------------------------ project
@@ -391,6 +396,59 @@ class RunController(QObject):
             )
             return
         _open_in_file_explorer(output_dir)
+
+    def estimate_cost(self) -> None:
+        """Slot : pré-estime le coût total du Run et affiche un rapport.
+
+        Scanne le dossier d'entrée du projet, lit la durée de chaque vidéo
+        via ``ffprobe`` et délègue le calcul à :py:class:`CostEstimator`.
+        Le probe est exécuté sur le thread UI avec un curseur d'attente :
+        pour 10 à 50 vidéos l'opération reste sous la dizaine de secondes.
+        """
+        if self._current_project is None:
+            QMessageBox.warning(
+                self._main_window,
+                "Aucun projet sélectionné",
+                "Sélectionne un projet dans la sidebar avant d'estimer.",
+            )
+            return
+        settings = self._current_project.settings
+        try:
+            videos = scan_input_folder(settings.input_folder)
+        except Fahmi2Error as exc:
+            QMessageBox.warning(
+                self._main_window,
+                "Dossier d'entrée invalide",
+                f"{exc.code}\n\n{exc.user_message}",
+            )
+            return
+
+        ffmpeg = build_ffmpeg_from_runtime()
+        QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
+        try:
+            durations = [
+                ffmpeg.probe_duration_seconds(v.source_path) for v in videos
+            ]
+        finally:
+            QApplication.restoreOverrideCursor()
+
+        translation_langs = sum(
+            1 for lang in settings.output_languages if lang is not settings.source_language
+        )
+        estimation = CostEstimator().estimate(
+            videos_durations_seconds=durations,
+            stt_provider=settings.stt_provider,
+            llm_model=settings.llm_model,
+            active_target_languages_count=len(settings.output_languages),
+            translation_languages_count=translation_langs,
+        )
+        _show_cost_estimation_dialog(
+            self._main_window,
+            project_name=settings.name,
+            n_videos=len(videos),
+            estimation=estimation,
+            cost_ceiling_usd=settings.cost_ceiling_usd,
+        )
 
     def _current_output_dir(self) -> Path | None:
         """Retourne le ``output_dir`` du projet sélectionné, ou ``None``.
@@ -694,6 +752,76 @@ def _open_in_file_explorer(path: Path) -> None:
     QDesktopServices.openUrl(  # type: ignore[unreachable]
         QUrl.fromLocalFile(str(path))
     )
+
+
+def _format_duration_label(total_seconds: float) -> str:
+    """Met en forme une durée en ``H h M min`` (ou ``M min S s`` si < 1 h).
+
+    Args:
+        total_seconds: Durée totale en secondes.
+
+    Returns:
+        Libellé lisible pour le dialogue d'estimation.
+    """
+    total = int(max(0.0, total_seconds))
+    hours, remainder = divmod(total, 3600)
+    minutes, secs = divmod(remainder, 60)
+    if hours:
+        return f"{hours} h {minutes:02d} min"
+    return f"{minutes} min {secs:02d} s"
+
+
+def _show_cost_estimation_dialog(
+    parent: MainWindow,
+    *,
+    project_name: str,
+    n_videos: int,
+    estimation: CostEstimation,
+    cost_ceiling_usd: float | None,
+) -> None:
+    """Affiche un ``QMessageBox`` détaillant l'estimation de coût.
+
+    Args:
+        parent: Fenêtre parente.
+        project_name: Nom du projet.
+        n_videos: Nombre de vidéos détectées dans l'input.
+        estimation: Résultat du ``CostEstimator``.
+        cost_ceiling_usd: Plafond budget du projet, le cas échéant.
+    """
+    duration_label = _format_duration_label(estimation.total_audio_seconds)
+    lines = [
+        f"<b>Projet :</b> {project_name}",
+        f"<b>Vidéos détectées :</b> {n_videos}",
+        f"<b>Durée totale audio :</b> {duration_label}",
+        "",
+        f"<b>Coût STT :</b> ${estimation.stt_usd:.4f}",
+        f"<b>Coût LLM :</b> ${estimation.llm_usd:.4f}",
+        f"<b>Total estimé :</b> ${estimation.total_usd:.4f}",
+    ]
+    if cost_ceiling_usd is not None:
+        margin = cost_ceiling_usd - estimation.total_usd
+        if margin >= 0:
+            lines.append(
+                f"<b>Plafond :</b> ${cost_ceiling_usd:.2f} "
+                f"<span style='color:#1a7f37;'>(marge ${margin:.2f})</span>"
+            )
+        else:
+            lines.append(
+                f"<b>Plafond :</b> ${cost_ceiling_usd:.2f} "
+                f"<span style='color:#cf222e;'>(dépassement ${-margin:.2f})</span>"
+            )
+    body = (
+        "<br>".join(lines)
+        + "<br><br><i>Estimation indicative basée sur des heuristiques "
+        "DeepSeek (≈ 150 mots/min, ≈ 1.3 tokens/mot, multiplicateurs "
+        "empiriques par phase).</i>"
+    )
+    msg = QMessageBox(parent)
+    msg.setWindowTitle("Estimation du coût")
+    msg.setIcon(QMessageBox.Icon.Information)
+    msg.setTextFormat(Qt.TextFormat.RichText)
+    msg.setText(body)
+    msg.exec()
 
 
 __all__ = ["RunController", "build_default_registry", "build_ffmpeg_from_runtime"]

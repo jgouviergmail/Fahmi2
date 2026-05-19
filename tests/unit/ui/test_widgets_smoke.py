@@ -57,6 +57,15 @@ def test_project_header_bar_signals_emit(qtbot: QtBot) -> None:
     assert received == ["start"]
 
 
+def test_project_header_bar_emits_estimate_cost(qtbot: QtBot) -> None:
+    widget = ProjectHeaderBar()
+    qtbot.addWidget(widget)
+    received: list[str] = []
+    widget.estimate_cost_requested.connect(lambda: received.append("estimate"))
+    widget.estimate_cost_requested.emit()
+    assert received == ["estimate"]
+
+
 def test_projects_sidebar_select_callback(qtbot: QtBot) -> None:
     widget = ProjectsSidebar()
     qtbot.addWidget(widget)

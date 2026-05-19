@@ -1,130 +1,89 @@
 # Fahmi2
 
-Application desktop Windows qui transforme des vidéos de cours oraux (MP4) en
-documents Markdown structurés (fidélité au discours, reformulation soignée,
-glossaire, document consolidé multilingue FR/EN).
+> Transformez des vidéos de cours oraux (MP4) en documents Markdown
+> structurés, glossaire compris, multilingue, en quelques heures et sans
+> intervention manuelle.
 
-> **Statut** : v1 en cours de développement. Voir
-> [docs/superpowers/specs/](docs/superpowers/specs/) pour le design détaillé
-> et [docs/superpowers/plans/](docs/superpowers/plans/) pour les plans
-> d'implémentation.
-
-## Public visé
-
-- Un enseignant produisant régulièrement des vidéos de cours et souhaitant
-  les transformer en supports écrits structurés réutilisables.
-- Utilisateur non-expert : tout est paramétrable via l'interface graphique,
-  aucune édition de fichier n'est nécessaire au quotidien.
+Application desktop Windows, mono-utilisateur, **installation en double-clic**
+(aucune dépendance système à installer, ffmpeg bundlé). Pipeline en 8 phases
+(transcription Whisper + 7 phases LLM DeepSeek v4), entièrement
+paramétrable via l'interface graphique.
 
 ## Capacités v1
 
-- Pipeline **8 phases** robuste (extraction audio → STT → 7 phases LLM
-  cohérentes) avec **checkpointing fin** : aucun travail perdu en cas
-  d'interruption.
-- 2 providers STT : **faster-whisper-large-v3-turbo** local (GPU NVIDIA
-  requis) ou **OpenAI Whisper** cloud.
-- 2 modèles LLM **DeepSeek v4** : `deepseek-v4-flash` (rapide/économique) ou
-  `deepseek-v4-pro` (capacité supérieure). Activation du mode `thinking` et
-  température configurables **par phase**.
-- 2 langues de sortie supportées : **FR** et **EN** — le document est
-  produit dans la langue source puis traduit pour les autres.
+- 2 langues de sortie : **français** et **anglais**.
+- 2 providers STT : **faster-whisper-large-v3-turbo** local (GPU NVIDIA) ou
+  **OpenAI Whisper** cloud.
+- 2 modèles LLM : **DeepSeek v4 Flash** (économique) ou **Pro** (capacité
+  supérieure). Mode raisonnement + température configurables par phase.
 - 4 styles de rendu : décontracté / standard / professionnel / académique +
   directives libres.
-- **Estimation pré-run** du coût + **plafond budget** avec arrêt propre.
+- **Estimation de coût pré-run** + **plafond budget** avec arrêt propre.
+- **Checkpointing fin par phase** : aucun travail perdu en cas de pause,
+  annulation ou crash.
 - **Concept de Projet persistant** avec historique de runs et reprise.
-- **Stockage chiffré** des clés API via Windows DPAPI.
-- **Logs structurés** JSONL + panneau temps réel filtrable.
+- **Stockage chiffré** des clés API (Windows DPAPI).
 
-## Installation (utilisateur final)
+## Documentation
 
-1. Télécharger `Fahmi2-<version>-win64.zip` (cf. [Packaging](#packaging))
-2. Décompresser dans un dossier de votre choix (ex: `C:\Apps\Fahmi2\`)
-3. Double-cliquer sur `Fahmi2.exe`
-4. Au 1er lancement, **SmartScreen** Windows affichera un avertissement :
-   cliquer *« Plus d'infos »* → *« Exécuter quand même »* (une seule fois)
+| Document | Pour qui ? |
+|----------|------------|
+| [Présentation fonctionnelle](docs/01-presentation-fonctionnelle.md) | Décideur / utilisateur souhaitant comprendre la valeur |
+| [Présentation technique](docs/02-presentation-technique.md) | Architecte / développeur souhaitant comprendre l'implémentation |
+| [Installation](docs/03-installation.md) | Utilisateur final + développeur |
+| [Paramétrage](docs/04-parametrage.md) | Utilisateur final (configuration complète) |
+| [Exploitation](docs/05-exploitation.md) | Utilisateur quotidien (suivi, incidents, livrables) |
+| [Procédures techniques](docs/06-procedures-techniques.md) | Développeur / mainteneur |
+| [Guide utilisateur](docs/07-guide-utilisateur.md) | Utilisateur final non-technicien (démarrage rapide) |
+| [CHANGELOG](CHANGELOG.md) | Historique des versions |
+| [Spec design v1](docs/superpowers/specs/2026-05-19-fahmi2-design.md) | Architecture détaillée |
+| [Plans d'implémentation](docs/superpowers/plans/) | Détail des 12 jalons |
+| [Packaging](packaging/README.md) | Build et distribution |
 
-Les données (projets, paramètres, clés API chiffrées) sont stockées
-automatiquement dans `%APPDATA%/Fahmi2/`. Aucune installation système requise.
+## Démarrage rapide (utilisateur final)
 
-## Démarrage rapide
+1. Téléchargez `Fahmi2-X.Y.Z-win64.zip`.
+2. Décompressez où vous voulez (ex: `C:\Apps\Fahmi2\`).
+3. Double-cliquez sur `Fahmi2.exe`.
+4. Au 1er lancement, cliquez sur *« Plus d'infos »* → *« Exécuter quand
+   même »* lorsque SmartScreen le demande.
+5. **Édition → Paramètres globaux** : saisir vos clés API (DeepSeek
+   obligatoire, OpenAI optionnel).
+6. **Fichier → Nouveau projet** : choisir le dossier contenant vos vidéos,
+   les langues, le style, valider.
+7. Cliquer sur **▶ Lancer**. Récupérer les livrables Markdown à la fin
+   dans `<dossier_entrée>/.fahmi2/output/`.
 
-1. **Configurer les clés API** : menu *Édition* → *Paramètres globaux* :
-   - Clé OpenAI (pour STT cloud)
-   - Clé DeepSeek (pour les phases LLM)
-2. **Créer un projet** : menu *Fichier* → *Nouveau projet* :
-   - Nom du projet
-   - Dossier d'entrée contenant les vidéos MP4
-   - Langue source du contenu (FR/EN)
-   - Langues de sortie demandées (cochez celles désirées)
-   - Style de rendu + directives libres
-   - Provider STT (cloud recommandé sans GPU NVIDIA)
-   - Modèle LLM (flash recommandé pour démarrer)
-   - Plafond budget optionnel
-3. **Lancer le projet** : sélectionner le projet dans la sidebar, cliquer
-   sur *« ▶ Lancer »*. La matrice vidéos × phases se remplit en temps réel.
-4. **Récupérer les livrables** : à la fin du run, ouvrir le dossier de sortie
-   (par défaut `<dossier_entrée>/.fahmi2/output/`). On y trouve :
-   - `consolidated.{lang}.md` — document consolidé par langue
-   - `glossary.{lang}.md` — glossaire par langue
-   - `per-video/{lang}/{video_id}.md` — un document par vidéo et par langue
+Voir [docs/07-guide-utilisateur.md](docs/07-guide-utilisateur.md) pour le
+guide détaillé.
 
-## Mise à jour
-
-1. Télécharger la nouvelle version `.zip`
-2. Fermer Fahmi2 si ouvert
-3. Décompresser le nouveau `.zip` (peut écraser l'ancien dossier)
-4. Relancer `Fahmi2.exe`
-
-Les données utilisateur sont automatiquement préservées et migrées si
-nécessaire.
-
-## Pour les développeurs
-
-### Pré-requis
-
-- Python **3.11 ou 3.12** (pas 3.13 pour l'instant)
-- Windows 11 (10 minimum) pour tester DPAPI
-- ffmpeg dans le PATH (pour les tests qui touchent à l'extraction audio)
-- GPU NVIDIA + CUDA (optionnel, pour tester STT local)
-
-### Installation
+## Démarrage rapide (développeur)
 
 ```powershell
-git clone <url>
+# Cloner et préparer
+git clone <url> Fahmi2
 cd Fahmi2
-python -m venv .venv
+py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
+pip install pyinstaller>=6.10
 pre-commit install
-```
 
-### Tests
-
-```powershell
-pytest                                  # toute la suite
-pytest tests/unit                       # unitaires
-pytest tests/e2e                        # end-to-end
-pytest --cov=src/fahmi2 --cov-report=html  # couverture
-```
-
-### Linter / type checker
-
-```powershell
+# Vérifier
+pytest
 ruff check .
-ruff format .
 mypy src tests
-```
 
-### Lancer l'app en mode dev
-
-```powershell
+# Lancer en mode dev
 python -m fahmi2.ui.app_main
+
+# Builder le .zip portable
+.\packaging\build.ps1
+.\packaging\make-portable-zip.ps1
 ```
 
-## Packaging
-
-Cf. [packaging/README.md](packaging/README.md) pour la procédure complète
-(PyInstaller `--onedir`, bundle ffmpeg, génération du `.zip` portable).
+Voir [docs/06-procedures-techniques.md](docs/06-procedures-techniques.md)
+pour le détail.
 
 ## Architecture
 
@@ -132,16 +91,23 @@ Architecture en couches inspirée des principes hexagonaux :
 
 ```
 src/fahmi2/
-├── core/         # logging, errors, retry, config, migrations, retrieval, ids
-├── domain/       # entités pures (Project, Run, PhaseExecution, Glossary, …)
-├── pipeline/     # PipelineEngine + 8 handlers de phase
-├── infra/        # adapters (STT, LLM, ffmpeg, SQLite WAL, DPAPI, prompts)
-├── app/          # use-cases (ProjectService, RunOrchestrator, CostEstimator…)
-└── ui/           # PySide6 (MainWindow, widgets, dialogues, QtEventBus)
+├── core/         logging, errors, retry, config, migrations, retrieval, ids
+├── domain/       entités pures (Project, Run, PhaseExecution, Glossary, …)
+├── pipeline/     PipelineEngine + 8 handlers de phase
+├── infra/        adapters (STT, LLM, ffmpeg, SQLite WAL, DPAPI, prompts)
+├── app/          use-cases (ProjectService, RunOrchestrator, CostEstimator…)
+└── ui/           PySide6 (MainWindow, widgets, dialogues, QtEventBus)
 ```
 
-Voir [docs/superpowers/specs/2026-05-19-fahmi2-design.md](docs/superpowers/specs/2026-05-19-fahmi2-design.md)
-pour le design complet.
+Voir [docs/02-presentation-technique.md](docs/02-presentation-technique.md)
+pour le détail complet.
+
+## Statut
+
+**v0.1.0** (alpha) — pipeline complet fonctionnel, UI cockpit dense,
+packaging Windows portable opérationnel. Cf. [CHANGELOG.md](CHANGELOG.md).
+
+405+ tests passants, couverture ≥ 87 %, `mypy --strict` et `ruff` propres.
 
 ## Licence
 

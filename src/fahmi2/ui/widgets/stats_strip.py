@@ -26,6 +26,9 @@ from fahmi2.ui.viewmodels.stats_strip import StatsSnapshot
 _LIVE_REFRESH_INTERVAL_MS = 1000
 _COST_WARNING_RATIO = 0.8
 _COST_DANGER_RATIO = 1.0
+# Tolérance pour considérer deux ``started_at`` identiques (réception de
+# deux snapshots successifs du même Run sans décalage suspect).
+_SAME_RUN_TIMESTAMP_TOLERANCE_S = 0.1
 
 _RUN_STATUS_LABEL: dict[RunStatus, str] = {
     RunStatus.CREATED: "Créé",
@@ -45,9 +48,7 @@ _RUN_STATUS_ICON: dict[RunStatus, str] = {
     RunStatus.CANCELLED: "⊘",
 }
 
-_LIVE_STATUSES: frozenset[RunStatus] = frozenset(
-    {RunStatus.RUNNING, RunStatus.PAUSED}
-)
+_LIVE_STATUSES: frozenset[RunStatus] = frozenset({RunStatus.RUNNING})
 
 
 def _format_duration(seconds: float) -> str:
@@ -172,6 +173,12 @@ class StatsStripWidget(QWidget):
             layout.addWidget(card, stretch=1)
 
         self._last_snapshot: StatsSnapshot | None = None
+        # Tracking local des pauses : l'horodatage d'entrée dans la pause
+        # courante (None si pas en pause), et le cumul du temps déjà passé en
+        # pause depuis le démarrage de la session UI. On retire ce cumul du
+        # temps écoulé absolu pour afficher la durée « active » réelle.
+        self._paused_at: datetime | None = None
+        self._paused_offset_seconds: float = 0.0
         self._timer = QTimer(self)
         self._timer.setInterval(_LIVE_REFRESH_INTERVAL_MS)
         self._timer.timeout.connect(self._on_tick)
@@ -182,32 +189,91 @@ class StatsStripWidget(QWidget):
         Args:
             snapshot: Snapshot agrégé du Run courant.
         """
+        self._update_pause_tracking(snapshot)
         self._last_snapshot = snapshot
         self._render(snapshot)
-        if snapshot.run_status in _LIVE_STATUSES:
+        if snapshot.run_status is RunStatus.RUNNING:
             if not self._timer.isActive():
                 self._timer.start()
         elif self._timer.isActive():
             self._timer.stop()
 
-    def _on_tick(self) -> None:
-        """Met à jour uniquement la carte « Durée » entre deux snapshots.
+    def _update_pause_tracking(self, snapshot: StatsSnapshot) -> None:
+        """Met à jour le compteur local de temps en pause à chaque snapshot.
 
-        Reste sans effet si aucun snapshot n'a encore été reçu.
+        Logique :
+
+        - Changement de Run (``started_at`` différent à l'epsilon près) →
+          reset complet du tracking.
+        - Entrée dans ``PAUSED`` (snapshot en pause, ``_paused_at`` absent) →
+          mémorise l'horodatage local de pause.
+        - Sortie de ``PAUSED`` (snapshot non-pause, ``_paused_at`` présent) →
+          cumule la durée de pause dans ``_paused_offset_seconds`` et
+          libère ``_paused_at``.
+
+        Args:
+            snapshot: Snapshot reçu.
         """
+        prev = self._last_snapshot
+        if prev is not None:
+            delta = abs((snapshot.started_at - prev.started_at).total_seconds())
+            if delta > _SAME_RUN_TIMESTAMP_TOLERANCE_S:
+                self._paused_at = None
+                self._paused_offset_seconds = 0.0
+
+        now = datetime.now(tz=UTC)
+        if snapshot.run_status is RunStatus.PAUSED:
+            if self._paused_at is None:
+                self._paused_at = now
+        elif self._paused_at is not None:
+            elapsed_paused = (now - self._paused_at).total_seconds()
+            self._paused_offset_seconds += max(0.0, elapsed_paused)
+            self._paused_at = None
+
+    def _on_tick(self) -> None:
+        """Met à jour la carte « Durée » entre deux snapshots (Run actif)."""
         if self._last_snapshot is None:
             return
         snapshot = self._last_snapshot
-        live_elapsed = snapshot.elapsed_seconds
-        if snapshot.run_status in _LIVE_STATUSES:
-            live_elapsed = max(
-                0.0,
-                (datetime.now(tz=UTC) - snapshot.started_at).total_seconds(),
-            )
+        elapsed = self._compute_displayed_elapsed(snapshot, datetime.now(tz=UTC))
         self._card_duration.set_value(
-            _format_duration(live_elapsed),
+            _format_duration(elapsed),
             _RUN_STATUS_LABEL.get(snapshot.run_status, snapshot.run_status.value),
         )
+
+    def _compute_displayed_elapsed(
+        self, snapshot: StatsSnapshot, now: datetime
+    ) -> float:
+        """Calcule la durée à afficher à l'instant ``now``.
+
+        - ``RUNNING`` : ``(now - started_at) - paused_offset`` (temps actif
+          live, croissant).
+        - ``PAUSED`` : figé à l'instant d'entrée en pause, en retirant les
+          pauses cumulées avant celle-ci.
+        - ``COMPLETED`` / ``FAILED`` / ``CANCELLED`` : ``elapsed_seconds``
+          du snapshot moins l'offset cumulé (approximé : la précision
+          dépend de la durée des transitions vues par le widget).
+        - ``CREATED`` : 0.
+
+        Args:
+            snapshot: Snapshot.
+            now: Horodatage de référence (typiquement ``datetime.now``).
+
+        Returns:
+            La durée à afficher (>= 0), en secondes.
+        """
+        if snapshot.run_status is RunStatus.RUNNING:
+            absolute = (now - snapshot.started_at).total_seconds()
+            return max(0.0, absolute - self._paused_offset_seconds)
+        if snapshot.run_status is RunStatus.PAUSED:
+            pause_start = self._paused_at or now
+            absolute = (pause_start - snapshot.started_at).total_seconds()
+            return max(0.0, absolute - self._paused_offset_seconds)
+        if snapshot.run_status is RunStatus.CREATED:
+            return 0.0
+        # Terminé (COMPLETED, FAILED, CANCELLED) : valeur du snapshot
+        # corrigée du temps en pause cumulé pendant la session.
+        return max(0.0, snapshot.elapsed_seconds - self._paused_offset_seconds)
 
     def _render(self, snapshot: StatsSnapshot) -> None:
         """Met à jour les 5 cartes à partir d'un snapshot complet.
@@ -234,9 +300,17 @@ class StatsStripWidget(QWidget):
         )
         self._card_phases.set_accent("neutral")
 
+        duration_seconds = self._compute_displayed_elapsed(
+            snapshot, datetime.now(tz=UTC)
+        )
+        if snapshot.finished_at is not None:
+            duration_sub = "terminé"
+        elif snapshot.run_status is RunStatus.PAUSED:
+            duration_sub = "en pause (figée)"
+        else:
+            duration_sub = status_label
         self._card_duration.set_value(
-            _format_duration(snapshot.elapsed_seconds),
-            "terminé" if snapshot.finished_at is not None else status_label,
+            _format_duration(duration_seconds), duration_sub
         )
         self._card_duration.set_accent("neutral")
 

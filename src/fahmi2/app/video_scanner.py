@@ -2,10 +2,17 @@
 
 Identifie les fichiers vidéo supportés (extensions configurées) et produit
 les ``VideoExecution`` initiaux pour un ``Run``.
+
+Le tri d'entrée est **naturel** : on extrait le premier token purement
+numérique du nom (après suppression de l'extension et découpage sur les
+séparateurs usuels ``[\\s\\-_]+``), ce qui permet de gérer correctement
+des nommages préfixés du type ``V.1 - 1 - Intro.mp4`` ou ``doc 01 - X.mp4``.
 """
 
 from __future__ import annotations
 
+import math
+import re
 from pathlib import Path
 
 from fahmi2.core.errors.exceptions import ConfigError, StorageError
@@ -16,6 +23,8 @@ from fahmi2.domain.video import VideoExecution
 _SUPPORTED_EXTENSIONS: frozenset[str] = frozenset(
     {".mp4", ".m4v", ".mkv", ".mov", ".webm"}
 )
+
+_TOKEN_SPLIT_RE = re.compile(r"[\s\-_]+")
 
 
 def supported_extensions() -> frozenset[str]:
@@ -57,7 +66,7 @@ def scan_input_folder(input_folder: Path) -> list[VideoExecution]:
             for p in input_folder.iterdir()
             if p.is_file() and p.suffix.lower() in _SUPPORTED_EXTENSIONS
         ),
-        key=lambda p: p.name.casefold(),
+        key=_natural_sort_key,
     )
 
     if not candidates:
@@ -75,3 +84,43 @@ def scan_input_folder(input_folder: Path) -> list[VideoExecution]:
         )
 
     return [VideoExecution(video_id=VideoId.new(), source_path=p) for p in candidates]
+
+
+def _natural_sort_key(path: Path) -> tuple[float, str]:
+    """Construit une clé de tri naturel à partir du nom de fichier.
+
+    L'algorithme :
+
+    1. Retire l'extension.
+    2. Découpe le nom sur les séparateurs ``[\\s\\-_]+`` (espaces,
+       tirets, underscores).
+    3. Cherche le **premier token purement numérique**. C'est typiquement
+       le numéro de séquence, ce qui permet d'ignorer un éventuel
+       préfixe descriptif comme ``V.1`` (les points ne sont pas des
+       séparateurs, donc ``V.1`` reste un token non-numérique).
+    4. Si trouvé, retourne ``(int(token), nom_complet_casefold)``.
+    5. Sinon, retourne ``(+∞, nom_complet_casefold)`` pour rejeter en
+       fin de liste les fichiers sans préfixe numérique, en conservant
+       un ordre alphabétique stable entre eux.
+
+    Exemples de comportement :
+
+    - ``"V.1 - 1 - Intro.mp4"``  → ``(1, …)``
+    - ``"V.1 - 10 - Conclusion.mp4"`` → ``(10, …)``
+    - ``"V.i - 01 - X.mp4"`` → ``(1, …)``
+    - ``"doc 1 partie 2.mp4"`` → ``(1, …)`` (premier token numérique)
+    - ``"intro.mp4"`` → ``(+∞, …)``
+
+    Args:
+        path: Chemin du fichier.
+
+    Returns:
+        Tuple ``(numero_extrait, nom_normalise)`` utilisable comme clé
+        de ``sorted()``.
+    """
+    base = path.stem
+    tokens = _TOKEN_SPLIT_RE.split(base)
+    for token in tokens:
+        if token.isdigit():
+            return (float(int(token)), base.casefold())
+    return (math.inf, base.casefold())

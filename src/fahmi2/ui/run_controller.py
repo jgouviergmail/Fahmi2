@@ -195,6 +195,10 @@ class RunController(QObject):
         self._worker: _RunWorker | None = None
         self._thread: QThread | None = None
         self._registry = build_default_registry()
+        # Drapeau levé par cancel_run pour déclencher le nettoyage des
+        # livrables (suppression de l'output_dir + reset du cockpit) une fois
+        # que le worker confirme la fin du Run.
+        self._cleanup_after_cancel_requested: bool = False
 
         # Branchements UI ---------------------------------------------------
         self._main_window.projects_sidebar.set_on_project_selected(
@@ -374,9 +378,34 @@ class RunController(QObject):
         self._main_window.header_bar.set_running()
 
     def cancel_run(self) -> None:
-        """Slot : demande l'annulation du run en cours."""
+        """Slot : demande l'annulation du run en cours, après confirmation.
+
+        Demande confirmation à l'utilisateur, signale le PauseToken pour
+        sortir proprement de la boucle de pipeline, et planifie le
+        nettoyage post-annulation (suppression des livrables générés et
+        remise à zéro du cockpit) une fois que le worker confirme la fin.
+        """
         if self._current_pause_token is None:
             return
+        reply = QMessageBox.question(
+            self._main_window,
+            "Annuler le run ?",
+            (
+                "Annuler le run en cours ?\n\n"
+                "Le pipeline s'arrêtera à la prochaine frontière sûre. "
+                "Le dossier de sortie sera ensuite **supprimé** "
+                "(livrables Markdown générés jusqu'ici) et le cockpit "
+                "réinitialisé.\n\n"
+                "Cette action ne supprime pas les fichiers vidéo "
+                "originaux ni les artefacts intermédiaires de "
+                "« workspace »."
+            ),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        self._cleanup_after_cancel_requested = True
         self._current_pause_token.request_cancel()
 
     def open_output_folder(self) -> None:
@@ -474,6 +503,18 @@ class RunController(QObject):
             if reloaded is not None:
                 self._current_run = reloaded
                 self._refresh_views(reloaded)
+
+        # Annulation utilisateur : nettoyer les livrables et remettre le
+        # cockpit à zéro maintenant que le worker a fini proprement.
+        if self._cleanup_after_cancel_requested:
+            self._cleanup_after_cancel_requested = False
+            self._purge_output_dir_after_cancel()
+            self._reset_views()
+            self._main_window.header_bar.set_idle()
+            self._main_window.header_bar.set_open_output_enabled(False)
+            self._cleanup_thread()
+            return
+
         # Active le bouton « Ouvrir le dossier de sortie » + ajoute une ligne
         # de log avec le chemin pour que l'utilisateur sache où aller.
         output_dir = self._current_output_dir()
@@ -489,6 +530,42 @@ class RunController(QObject):
             )
         self._cleanup_thread()
 
+    def _purge_output_dir_after_cancel(self) -> None:
+        """Supprime récursivement le dossier de sortie du projet courant.
+
+        Idempotent : ne fait rien si le projet n'a pas de dossier de sortie
+        ou si celui-ci n'existe pas. Toute erreur d'I/O est isolée et
+        rapportée via un log warning, sans interrompre le reset du cockpit.
+        """
+        output_dir = self._current_output_dir()
+        if output_dir is None or not output_dir.exists():
+            return
+        try:
+            shutil.rmtree(output_dir)
+        except OSError as exc:
+            self._main_window.logs_dock.append_event(
+                LogEvent(
+                    timestamp=datetime.now(tz=UTC),
+                    severity=Severity.WARNING,
+                    code="CLEANUP_OUTPUT_FAILED",
+                    message=(
+                        f"Échec de la suppression du dossier de sortie "
+                        f"après annulation : {output_dir} ({exc})"
+                    ),
+                )
+            )
+            return
+        self._main_window.logs_dock.append_event(
+            LogEvent(
+                timestamp=datetime.now(tz=UTC),
+                severity=Severity.INFO,
+                code="OUTPUT_CLEANED",
+                message=(
+                    f"Run annulé — dossier de sortie supprimé : {output_dir}"
+                ),
+            )
+        )
+
     def _on_worker_failed(self, error_message: str) -> None:
         """Slot : run terminé sur exception non gérée."""
         QMessageBox.critical(
@@ -497,6 +574,10 @@ class RunController(QObject):
             error_message,
         )
         self._main_window.header_bar.set_finished()
+        # Si l'utilisateur avait demandé une annulation, on ne purge pas
+        # dans cette branche (le pipeline a planté) — on laisse l'artefact
+        # tel quel pour diagnostic.
+        self._cleanup_after_cancel_requested = False
         self._cleanup_thread()
 
     def _cleanup_thread(self) -> None:

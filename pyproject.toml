@@ -81,5 +81,13 @@ disallow_untyped_decorators = true
 files = ["src/fahmi2", "tests"]
 
 [[tool.mypy.overrides]]
-module = ["pywin32.*", "win32crypt.*", "ffmpeg.*", "faster_whisper.*", "sklearn.*"]
+module = [
+  "pywin32.*",
+  "win32crypt.*",
+  "ffmpeg.*",
+  "faster_whisper.*",
+  "sklearn.*",
+  "torch.*",
+  "ctranslate2.*",
+]
 ignore_missing_imports = true

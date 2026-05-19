@@ -67,3 +67,14 @@ class LLMModel(StrEnum):
 
     DEEPSEEK_V4_FLASH = "deepseek-v4-flash"
     DEEPSEEK_V4_PRO = "deepseek-v4-pro"
+
+
+class ReasoningEffort(StrEnum):
+    """Niveau d'effort de raisonnement (DeepSeek ``reasoning_effort``).
+
+    Utilisé conjointement à ``thinking_enabled`` : si le thinking est désactivé,
+    ce champ est ignoré et n'est pas envoyé à l'API.
+    """
+
+    HIGH = "high"
+    MAX = "max"

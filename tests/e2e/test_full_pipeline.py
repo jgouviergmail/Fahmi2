@@ -142,6 +142,7 @@ class _RotatingFakeLLM(FakeLLMProvider):
         messages: Any,
         model: str,
         thinking: bool,
+        reasoning_effort: str | None = None,
         temperature: float,
         max_tokens: int | None = None,
     ) -> LLMResponse:

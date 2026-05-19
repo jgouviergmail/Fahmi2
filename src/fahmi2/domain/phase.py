@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fahmi2.core.errors.error_info import ErrorInfo
-from fahmi2.domain.enums import PhaseId, PhaseStatus
+from fahmi2.domain.enums import PhaseId, PhaseStatus, ReasoningEffort
 
 _TEMPERATURE_MIN = 0.0
 _TEMPERATURE_MAX = 2.0
@@ -19,13 +19,25 @@ _DEFAULT_MAX_RETRIES = 5
 class PhaseConfig:
     """Paramètres LLM d'une phase (configurable par projet).
 
+    Le mode raisonnement DeepSeek est représenté par deux champs distincts
+    correspondant aux deux clés de l'API DeepSeek :
+
+    - ``thinking_enabled`` : active ``{"thinking": {"type": "enabled"}}``
+      (sinon ``{"thinking": {"type": "disabled"}}``).
+    - ``reasoning_effort`` : envoyé en ``{"reasoning_effort": "<niveau>"}``
+      uniquement si ``thinking_enabled`` est ``True``. ``None`` signifie
+      « laisser le serveur choisir la valeur par défaut ».
+
     Attributes:
-        enabled_thinking: Active ou non le mode raisonnement DeepSeek.
+        thinking_enabled: Active le mode raisonnement DeepSeek.
+        reasoning_effort: Niveau d'effort de raisonnement (``HIGH`` ou ``MAX``).
+            Ignoré si ``thinking_enabled`` est ``False``.
         temperature: Température LLM dans ``[0.0, 2.0]``.
         max_retries: Nombre maximal de tentatives (>= 0).
     """
 
-    enabled_thinking: bool = False
+    thinking_enabled: bool = False
+    reasoning_effort: ReasoningEffort | None = None
     temperature: float = _DEFAULT_TEMPERATURE
     max_retries: int = _DEFAULT_MAX_RETRIES
 

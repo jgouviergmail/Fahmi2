@@ -86,6 +86,7 @@ class DeepSeekAdapter:
         messages: list[Message],
         model: str,
         thinking: bool,
+        reasoning_effort: str | None = None,
         temperature: float,
         max_tokens: int | None = None,
     ) -> LLMResponse:
@@ -94,7 +95,9 @@ class DeepSeekAdapter:
         Args:
             messages: Conversation.
             model: Identifiant du modèle DeepSeek.
-            thinking: Mode raisonnement.
+            thinking: Active ``{"thinking": {"type": "enabled"}}``.
+            reasoning_effort: Si ``thinking`` est ``True``, envoyé en
+                ``{"reasoning_effort": <valeur>}``. Ignoré sinon.
             temperature: Température.
             max_tokens: Limite de tokens en sortie (None = défaut modèle).
 
@@ -111,8 +114,13 @@ class DeepSeekAdapter:
         }
         if max_tokens is not None:
             kwargs["max_tokens"] = max_tokens
-        if thinking:
-            kwargs["extra_body"] = {"thinking": True}
+
+        extra_body: dict[str, Any] = {
+            "thinking": {"type": "enabled" if thinking else "disabled"}
+        }
+        if thinking and reasoning_effort is not None:
+            extra_body["reasoning_effort"] = reasoning_effort
+        kwargs["extra_body"] = extra_body
 
         try:
             response = self._client.chat.completions.create(**kwargs)

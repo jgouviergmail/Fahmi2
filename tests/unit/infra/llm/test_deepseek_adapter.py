@@ -84,10 +84,11 @@ def test_chat_invokes_client_with_messages() -> None:
         {"role": "user", "content": "u"},
     ]
     assert call.kwargs["temperature"] == 0.3
-    assert "extra_body" not in call.kwargs
+    # extra_body est toujours présent (au minimum thinking.type=disabled)
+    assert call.kwargs["extra_body"] == {"thinking": {"type": "disabled"}}
 
 
-def test_chat_passes_thinking_via_extra_body() -> None:
+def test_chat_thinking_enabled_sends_correct_extra_body() -> None:
     mock_client = MagicMock()
     response_mock = MagicMock()
     response_mock.model_dump.return_value = _chat_payload()
@@ -101,7 +102,63 @@ def test_chat_passes_thinking_via_extra_body() -> None:
         temperature=0.3,
     )
     call = mock_client.chat.completions.create.call_args
-    assert call.kwargs["extra_body"] == {"thinking": True}
+    assert call.kwargs["extra_body"] == {"thinking": {"type": "enabled"}}
+
+
+def test_chat_thinking_disabled_sends_disabled_extra_body() -> None:
+    mock_client = MagicMock()
+    response_mock = MagicMock()
+    response_mock.model_dump.return_value = _chat_payload()
+    mock_client.chat.completions.create.return_value = response_mock
+
+    adapter = DeepSeekAdapter(api_key="dummy", client=mock_client)
+    adapter.chat(
+        messages=[Message(role="user", content="u")],
+        model="deepseek-v4-flash",
+        thinking=False,
+        temperature=0.3,
+    )
+    call = mock_client.chat.completions.create.call_args
+    assert call.kwargs["extra_body"] == {"thinking": {"type": "disabled"}}
+
+
+def test_chat_reasoning_effort_sent_only_when_thinking_enabled() -> None:
+    mock_client = MagicMock()
+    response_mock = MagicMock()
+    response_mock.model_dump.return_value = _chat_payload()
+    mock_client.chat.completions.create.return_value = response_mock
+
+    adapter = DeepSeekAdapter(api_key="dummy", client=mock_client)
+    adapter.chat(
+        messages=[Message(role="user", content="u")],
+        model="deepseek-v4-flash",
+        thinking=True,
+        reasoning_effort="max",
+        temperature=0.3,
+    )
+    call = mock_client.chat.completions.create.call_args
+    assert call.kwargs["extra_body"] == {
+        "thinking": {"type": "enabled"},
+        "reasoning_effort": "max",
+    }
+
+
+def test_chat_reasoning_effort_ignored_when_thinking_disabled() -> None:
+    mock_client = MagicMock()
+    response_mock = MagicMock()
+    response_mock.model_dump.return_value = _chat_payload()
+    mock_client.chat.completions.create.return_value = response_mock
+
+    adapter = DeepSeekAdapter(api_key="dummy", client=mock_client)
+    adapter.chat(
+        messages=[Message(role="user", content="u")],
+        model="deepseek-v4-flash",
+        thinking=False,
+        reasoning_effort="max",
+        temperature=0.3,
+    )
+    call = mock_client.chat.completions.create.call_args
+    assert call.kwargs["extra_body"] == {"thinking": {"type": "disabled"}}
 
 
 def test_chat_passes_max_tokens_when_specified() -> None:

@@ -55,6 +55,7 @@ class LLMProvider(Protocol):
         messages: list[Message],
         model: str,
         thinking: bool,
+        reasoning_effort: str | None = None,
         temperature: float,
         max_tokens: int | None = None,
     ) -> LLMResponse:
@@ -63,7 +64,11 @@ class LLMProvider(Protocol):
         Args:
             messages: Liste ordonnée des messages.
             model: Identifiant du modèle (ex: ``deepseek-v4-flash``).
-            thinking: Active le mode raisonnement.
+            thinking: Active le mode raisonnement (envoie côté DeepSeek
+                ``{"thinking": {"type": "enabled"}}``).
+            reasoning_effort: Niveau d'effort de raisonnement
+                (ex: ``"high"`` ou ``"max"`` côté DeepSeek). Pris en compte
+                uniquement si ``thinking`` est ``True``. ``None`` = défaut serveur.
             temperature: Température LLM.
             max_tokens: Borne supérieure de tokens en sortie (None = défaut modèle).
 

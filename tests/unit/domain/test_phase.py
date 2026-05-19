@@ -6,15 +6,22 @@ import pytest
 
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.severity import Severity
-from fahmi2.domain.enums import PhaseId, PhaseStatus
+from fahmi2.domain.enums import PhaseId, PhaseStatus, ReasoningEffort
 from fahmi2.domain.phase import PhaseConfig, PhaseExecution
 
 
 def test_phase_config_defaults() -> None:
     cfg = PhaseConfig()
-    assert cfg.enabled_thinking is False
+    assert cfg.thinking_enabled is False
+    assert cfg.reasoning_effort is None
     assert cfg.temperature == 0.3
     assert cfg.max_retries == 5
+
+
+def test_phase_config_with_reasoning_effort() -> None:
+    cfg = PhaseConfig(thinking_enabled=True, reasoning_effort=ReasoningEffort.MAX)
+    assert cfg.thinking_enabled is True
+    assert cfg.reasoning_effort is ReasoningEffort.MAX
 
 
 def test_phase_config_validates_temperature() -> None:

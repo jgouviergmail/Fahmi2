@@ -7,6 +7,7 @@ from fahmi2.domain.enums import (
     LLMModel,
     PhaseId,
     PhaseStatus,
+    ReasoningEffort,
     RunStatus,
     SttProvider,
     StylePreset,
@@ -62,6 +63,10 @@ def test_stt_provider_values() -> None:
 
 def test_llm_model_values() -> None:
     assert {m.value for m in LLMModel} == {"deepseek-v4-flash", "deepseek-v4-pro"}
+
+
+def test_reasoning_effort_values() -> None:
+    assert {e.value for e in ReasoningEffort} == {"high", "max"}
 
 
 def test_enum_from_str() -> None:

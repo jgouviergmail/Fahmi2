@@ -35,6 +35,7 @@ from fahmi2.domain.enums import (
     LLMModel,
     PhaseId,
     PhaseStatus,
+    ReasoningEffort,
     RunStatus,
     SttProvider,
     StylePreset,
@@ -82,7 +83,12 @@ def _serialize_settings(settings: ProjectSettings) -> str:
         "llm_model": str(settings.llm_model),
         "phases_config": {
             str(pid): {
-                "enabled_thinking": cfg.enabled_thinking,
+                "thinking_enabled": cfg.thinking_enabled,
+                "reasoning_effort": (
+                    str(cfg.reasoning_effort)
+                    if cfg.reasoning_effort is not None
+                    else None
+                ),
                 "temperature": cfg.temperature,
                 "max_retries": cfg.max_retries,
             }
@@ -102,7 +108,14 @@ def _deserialize_settings(raw: str) -> ProjectSettings:
     payload: dict[str, Any] = json.loads(raw)
     phases_config = {
         PhaseId(pid_str): PhaseConfig(
-            enabled_thinking=cfg["enabled_thinking"],
+            thinking_enabled=bool(
+                cfg.get("thinking_enabled", cfg.get("enabled_thinking", False))
+            ),
+            reasoning_effort=(
+                ReasoningEffort(cfg["reasoning_effort"])
+                if cfg.get("reasoning_effort")
+                else None
+            ),
             temperature=cfg["temperature"],
             max_retries=cfg["max_retries"],
         )

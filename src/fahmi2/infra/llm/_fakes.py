@@ -83,6 +83,7 @@ class FakeLLMProvider:
         messages: list[Message],
         model: str,
         thinking: bool,
+        reasoning_effort: str | None = None,
         temperature: float,
         max_tokens: int | None = None,
     ) -> LLMResponse:
@@ -92,6 +93,8 @@ class FakeLLMProvider:
             messages: Conversation.
             model: Modèle.
             thinking: Mode raisonnement.
+            reasoning_effort: Niveau d'effort de raisonnement (enregistré
+                dans ``calls`` pour les assertions des tests).
             temperature: Température.
             max_tokens: Ignoré (présent pour respecter l'interface).
 
@@ -114,6 +117,7 @@ class FakeLLMProvider:
                 "messages": messages,
                 "model": model,
                 "thinking": thinking,
+                "reasoning_effort": reasoning_effort,
                 "temperature": temperature,
             }
         )

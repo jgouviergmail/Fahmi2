@@ -84,10 +84,14 @@ def invoke_llm(
     if system_prompt:
         messages.append(Message(role="system", content=system_prompt))
     messages.append(Message(role="user", content=user_prompt))
+    reasoning_effort_str = (
+        str(config.reasoning_effort) if config.reasoning_effort else None
+    )
     return ctx.llm_provider.chat(
         messages=messages,
         model=str(ctx.settings.llm_model),
-        thinking=config.enabled_thinking,
+        thinking=config.thinking_enabled,
+        reasoning_effort=reasoning_effort_str,
         temperature=config.temperature,
         max_tokens=max_tokens,
     )

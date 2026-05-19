@@ -1,0 +1,82 @@
+# Brainstorming companion (Superpowers)
+.superpowers/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+build/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Test & coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.tox/
+.nox/
+.cache
+nosetests.xml
+
+# Type checking
+.mypy_cache/
+.ruff_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# Application runtime artifacts (jamais commités)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+events.jsonl
+secrets.dat
+workspace/
+output/
+
+# Modèles téléchargés (jamais dans le repo, voir spec section 10.2)
+models/
+
+# Logs
+*.log
+logs/
+
+# Build artifacts
+*.exe
+*.zip
+*.msi
+*.spec
+!fahmi2-pyinstaller.spec

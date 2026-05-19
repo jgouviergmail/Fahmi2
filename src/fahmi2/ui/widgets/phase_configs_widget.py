@@ -148,7 +148,8 @@ class PhaseConfigsWidget(QGroupBox):
         result: dict[PhaseId, PhaseConfig] = {}
         for phase_id, (cb, effort_combo, temp_sb, retries_sb) in self._rows.items():
             thinking = cb.isChecked()
-            effort_value = effort_combo.currentData() if thinking else None
+            raw_effort = effort_combo.currentData() if thinking else None
+            effort_value = _coerce_reasoning_effort(raw_effort)
             result[phase_id] = PhaseConfig(
                 thinking_enabled=thinking,
                 reasoning_effort=effort_value,
@@ -156,3 +157,53 @@ class PhaseConfigsWidget(QGroupBox):
                 max_retries=retries_sb.value(),
             )
         return result
+
+    def set_phase_configs(self, configs: dict[PhaseId, PhaseConfig]) -> None:
+        """Pré-remplit le widget à partir d'un mapping ``PhaseId → PhaseConfig``.
+
+        Args:
+            configs: Configurations existantes (typiquement issues d'un projet
+                à éditer). Les phases absentes du mapping conservent les
+                valeurs courantes du widget.
+        """
+        for phase_id, cfg in configs.items():
+            row = self._rows.get(phase_id)
+            if row is None:
+                continue
+            cb, effort_combo, temp_sb, retries_sb = row
+            cb.setChecked(cfg.thinking_enabled)
+            effort_combo.setEnabled(cfg.thinking_enabled)
+            target_index = effort_combo.findData(cfg.reasoning_effort)
+            if target_index >= 0:
+                effort_combo.setCurrentIndex(target_index)
+            else:
+                # Repasser sur "(défaut serveur)"
+                effort_combo.setCurrentIndex(0)
+            temp_sb.setValue(cfg.temperature)
+            retries_sb.setValue(cfg.max_retries)
+
+
+def _coerce_reasoning_effort(value: object) -> ReasoningEffort | None:
+    """Convertit la valeur sortie de ``QComboBox.currentData()`` en enum.
+
+    Qt peut « dégrader » un ``StrEnum`` en ``str`` lors du stockage interne
+    de la valeur d'un item. On restaure le type pour que les dataclasses
+    consomment toujours un ``ReasoningEffort`` propre.
+
+    Args:
+        value: Valeur brute issue de ``currentData()``.
+
+    Returns:
+        Le ``ReasoningEffort`` correspondant, ou ``None`` si valeur absente
+        ou non reconnue.
+    """
+    if value is None:
+        return None
+    if isinstance(value, ReasoningEffort):
+        return value
+    if isinstance(value, str):
+        try:
+            return ReasoningEffort(value)
+        except ValueError:
+            return None
+    return None

@@ -62,6 +62,20 @@ def test_projects_sidebar_select_callback(qtbot: QtBot) -> None:
     widget.set_projects([])
 
 
+def test_projects_sidebar_edit_and_delete_callbacks_attachable(
+    qtbot: QtBot,
+) -> None:
+    widget = ProjectsSidebar()
+    qtbot.addWidget(widget)
+    edited: list[str] = []
+    deleted: list[str] = []
+    widget.set_on_edit_requested(lambda pid: edited.append(pid.value))
+    widget.set_on_delete_requested(lambda pid: deleted.append(pid.value))
+    widget.set_projects([])
+    assert edited == []
+    assert deleted == []
+
+
 def test_logs_dock_appends_within_threshold(qtbot: QtBot) -> None:
     dock = LogsDock()
     qtbot.addWidget(dock)

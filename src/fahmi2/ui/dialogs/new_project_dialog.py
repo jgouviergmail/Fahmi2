@@ -1,8 +1,12 @@
-"""Dialogue ``NewProjectDialog`` — création d'un projet.
+"""Dialogue ``NewProjectDialog`` — création ou édition d'un projet.
 
-Assistant 1-page pour saisir : nom, dossier d'entrée, langues, style,
-directives stylistiques (multi-ligne), providers, modèle LLM, plafond
-budget, et configuration détaillée des 7 phases LLM.
+Assistant 1-page utilisé en deux modes :
+
+- **Création** (``initial_settings=None``) : tous les champs vides, titre
+  « Nouveau projet ». Sortie : nouveau ``ProjectSettings``.
+- **Édition** (``initial_settings`` fourni) : pré-remplissage de tous les
+  champs depuis le projet existant, titre « Modifier le projet ». Sortie :
+  ``ProjectSettings`` modifié.
 """
 
 from __future__ import annotations
@@ -43,21 +47,28 @@ _DIALOG_INITIAL_WIDTH_PX = 720
 
 
 class NewProjectDialog(QDialog):
-    """Assistant 1-page pour créer un Projet."""
+    """Assistant 1-page pour créer ou éditer un Projet."""
 
     def __init__(  # noqa: PLR0915
         self,
         hardware: HardwareInfo,
         parent: QWidget | None = None,
+        *,
+        initial_settings: ProjectSettings | None = None,
     ) -> None:
         """Construit le dialogue.
 
         Args:
             hardware: Info matérielle (pour bloquer STT local si pas CUDA).
             parent: Parent Qt optionnel.
+            initial_settings: Si fourni, le dialogue s'ouvre en mode édition
+                avec tous les champs pré-remplis. Sinon, mode création.
         """
         super().__init__(parent)
-        self.setWindowTitle("Nouveau projet")
+        self._is_edit_mode = initial_settings is not None
+        self.setWindowTitle(
+            "Modifier le projet" if self._is_edit_mode else "Nouveau projet"
+        )
         self.resize(_DIALOG_INITIAL_WIDTH_PX, _DIALOG_INITIAL_HEIGHT_PX)
         self._hardware = hardware
         self._result_settings: ProjectSettings | None = None
@@ -140,14 +151,23 @@ class NewProjectDialog(QDialog):
         self._phase_configs_widget = PhaseConfigsWidget(self)
         form.addRow(self._phase_configs_widget)
 
-        # Boutons OK / Annuler (hors zone scrollable)
+        # Boutons OK / Save / Annuler (hors zone scrollable)
+        button_label = (
+            QDialogButtonBox.StandardButton.Save
+            if self._is_edit_mode
+            else QDialogButtonBox.StandardButton.Ok
+        )
         buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
+            button_label | QDialogButtonBox.StandardButton.Cancel,
             parent=self,
         )
         buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
         outer_layout.addWidget(buttons)
+
+        # Pré-remplissage si édition
+        if initial_settings is not None:
+            self._populate_from_settings(initial_settings)
 
     def get_settings(self) -> ProjectSettings | None:
         """Retourne les settings construits, ou ``None`` si annulation.
@@ -156,6 +176,43 @@ class NewProjectDialog(QDialog):
             ``ProjectSettings`` ou ``None``.
         """
         return self._result_settings
+
+    def _populate_from_settings(self, settings: ProjectSettings) -> None:
+        """Pré-remplit tous les champs depuis un ``ProjectSettings`` existant.
+
+        Args:
+            settings: Settings du projet à éditer.
+        """
+        self._name_input.setText(settings.name)
+        self._input_folder_input.setText(str(settings.input_folder))
+
+        src_idx = self._source_lang_combo.findData(settings.source_language)
+        if src_idx >= 0:
+            self._source_lang_combo.setCurrentIndex(src_idx)
+
+        for lang, cb in self._output_langs.items():
+            cb.setChecked(lang in settings.output_languages)
+
+        style_idx = self._style_combo.findData(settings.style_preset)
+        if style_idx >= 0:
+            self._style_combo.setCurrentIndex(style_idx)
+
+        self._style_directives_input.setPlainText(settings.style_directives)
+
+        stt_idx = self._stt_combo.findData(settings.stt_provider)
+        if stt_idx >= 0:
+            self._stt_combo.setCurrentIndex(stt_idx)
+
+        llm_idx = self._llm_combo.findData(settings.llm_model)
+        if llm_idx >= 0:
+            self._llm_combo.setCurrentIndex(llm_idx)
+
+        if settings.cost_ceiling_usd is not None:
+            self._cost_ceiling_input.setValue(settings.cost_ceiling_usd)
+        else:
+            self._cost_ceiling_input.setValue(0.0)
+
+        self._phase_configs_widget.set_phase_configs(settings.phases_config)
 
     def _browse_input_folder(self) -> None:
         """Ouvre un sélecteur de dossier d'entrée."""

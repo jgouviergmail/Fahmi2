@@ -1,0 +1,72 @@
+{
+  "LLM.AUTH_INVALID": {
+    "title": "Clé DeepSeek invalide",
+    "body": "La clé API DeepSeek est refusée par le serveur. Vérifie-la dans Paramètres › Clés API.",
+    "actions": [{"label": "Ouvrir les paramètres", "action": "open_settings"}]
+  },
+  "LLM.RATE_LIMIT": {
+    "title": "Limite de débit DeepSeek atteinte",
+    "body": "Trop de requêtes en peu de temps. L'application réessaie automatiquement avec un délai croissant.",
+    "actions": []
+  },
+  "LLM.SERVER_ERROR": {
+    "title": "Erreur serveur DeepSeek",
+    "body": "Le service DeepSeek est temporairement indisponible. Reprise automatique en cours.",
+    "actions": []
+  },
+  "LLM.BAD_REQUEST": {
+    "title": "Requête DeepSeek rejetée",
+    "body": "La requête envoyée à DeepSeek est invalide. Consulte les logs pour le détail technique.",
+    "actions": [{"label": "Ouvrir les logs", "action": "open_logs"}]
+  },
+  "STT.MODEL_LOAD_FAILED": {
+    "title": "Échec de chargement du modèle Whisper",
+    "body": "Le modèle faster-whisper-large-v3-turbo n'a pas pu être chargé. Vérifie que ton GPU est disponible et que le téléchargement du modèle est complet.",
+    "actions": []
+  },
+  "STT.GPU_OOM": {
+    "title": "Mémoire GPU insuffisante",
+    "body": "Le GPU manque de mémoire pour traiter cette vidéo. Ferme les autres applications qui utilisent le GPU et reprends.",
+    "actions": []
+  },
+  "STT.GPU_UNAVAILABLE": {
+    "title": "GPU NVIDIA introuvable",
+    "body": "Le mode de transcription local nécessite un GPU NVIDIA compatible CUDA. Passe sur le mode OpenAI cloud dans les paramètres du projet.",
+    "actions": [{"label": "Ouvrir les paramètres du projet", "action": "open_project_settings"}]
+  },
+  "FFMPEG.NO_AUDIO_STREAM": {
+    "title": "Vidéo sans piste audio",
+    "body": "Cette vidéo MP4 ne contient pas de piste audio détectable. Elle a été marquée en échec et le run continue avec les autres vidéos.",
+    "actions": []
+  },
+  "STORAGE.NO_SPACE": {
+    "title": "Espace disque insuffisant",
+    "body": "Le disque ne contient plus assez d'espace pour stocker les artefacts. Libère de la place et reprends.",
+    "actions": []
+  },
+  "STORAGE.READ_DENIED": {
+    "title": "Lecture refusée",
+    "body": "L'application ne peut pas lire le dossier d'entrée. Vérifie les permissions ou choisis un autre dossier.",
+    "actions": []
+  },
+  "CONFIG.INPUT_FOLDER_EMPTY": {
+    "title": "Dossier d'entrée vide",
+    "body": "Le dossier d'entrée ne contient aucune vidéo prise en charge (.mp4, .m4v, .mkv, .mov, .webm).",
+    "actions": []
+  },
+  "BUDGET.EXCEEDED": {
+    "title": "Plafond de budget atteint",
+    "body": "Le plafond de coût défini pour ce projet a été atteint. Le run a été mis en pause à la prochaine frontière sûre.",
+    "actions": [{"label": "Relever le plafond et reprendre", "action": "raise_budget"}]
+  },
+  "RUN.PAUSED": {
+    "title": "Run en pause",
+    "body": "Le run est en pause à la demande de l'utilisateur. Reprise possible à tout moment.",
+    "actions": [{"label": "Reprendre", "action": "resume_run"}]
+  },
+  "PROMPT.INVALID_OVERRIDE": {
+    "title": "Surcouche de prompt invalide",
+    "body": "Le fichier de prompt personnalisé contient une erreur de syntaxe Jinja2. L'application est revenue au template par défaut. Consulte les logs.",
+    "actions": [{"label": "Ouvrir l'éditeur de prompts", "action": "open_prompt_editor"}]
+  }
+}

@@ -45,6 +45,7 @@ from fahmi2.domain.ids import ProjectId, RunId, VideoId
 from fahmi2.domain.phase import PhaseConfig, PhaseExecution
 from fahmi2.domain.project import ParallelismConfig, Project, ProjectSettings
 from fahmi2.domain.run import Run
+from fahmi2.domain.video import VideoExecution
 
 SCHEMA_VERSION = 1
 
@@ -281,12 +282,13 @@ class SqliteState:
     # --------------------------------------------------------------------- runs
 
     def upsert_run(self, run: Run) -> None:
-        """Insère ou met à jour un Run.
+        """Insère ou met à jour un Run et ses ``VideoExecution`` associées.
 
         Args:
             run: Run à persister.
         """
-        self._get_connection().execute(
+        conn = self._get_connection()
+        conn.execute(
             """
             INSERT INTO runs (
                 id, project_id, status, started_at, finished_at, cost_usd,
@@ -308,7 +310,23 @@ class SqliteState:
                 _serialize_settings(run.settings_snapshot),
             ),
         )
-        self._get_connection().commit()
+        for video in run.videos:
+            conn.execute(
+                """
+                INSERT INTO videos (id, run_id, source_path, detected_language)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    source_path       = excluded.source_path,
+                    detected_language = excluded.detected_language
+                """,
+                (
+                    video.video_id.value,
+                    run.id.value,
+                    str(video.source_path),
+                    str(video.detected_language) if video.detected_language else None,
+                ),
+            )
+        conn.commit()
 
     def get_run(self, run_id: RunId) -> Run | None:
         """Récupère un Run par son identifiant.
@@ -326,7 +344,7 @@ class SqliteState:
         ).fetchone()
         if row is None:
             return None
-        return self._row_to_run(row)
+        return self._hydrate_run(self._row_to_run(row))
 
     def list_runs_for_project(self, project_id: ProjectId) -> list[Run]:
         """Liste tous les Runs liés à un Projet.
@@ -343,7 +361,49 @@ class SqliteState:
             "ORDER BY started_at",
             (project_id.value,),
         ).fetchall()
-        return [self._row_to_run(row) for row in rows]
+        return [self._hydrate_run(self._row_to_run(row)) for row in rows]
+
+    def _hydrate_run(self, run: Run) -> Run:
+        """Recharge les ``VideoExecution`` associées à un ``Run`` depuis SQLite.
+
+        Args:
+            run: Run sans vidéos hydratées (sortie directe de ``_row_to_run``).
+
+        Returns:
+            Un ``Run`` immutable avec ses ``VideoExecution`` rechargées dans
+            l'ordre de persistance.
+        """
+        rows = self._get_connection().execute(
+            "SELECT id, source_path, detected_language FROM videos "
+            "WHERE run_id = ? ORDER BY rowid",
+            (run.id.value,),
+        ).fetchall()
+        videos = tuple(self._row_to_video_execution(row) for row in rows)
+        if not videos:
+            return run
+        return replace(run, videos=videos)
+
+    @staticmethod
+    def _row_to_video_execution(row: tuple[Any, ...]) -> VideoExecution:
+        """Construit une ``VideoExecution`` depuis une ligne SQL.
+
+        Args:
+            row: ``(id, source_path, detected_language)``.
+
+        Returns:
+            ``VideoExecution`` reconstituée (sans ses phase_executions, qui
+            sont accédées séparément via les méthodes ``get_phase_status`` /
+            ``list_phase_executions``).
+        """
+        video_id_str, source_path_str, detected_language_str = row
+        detected_language = (
+            Language(detected_language_str) if detected_language_str else None
+        )
+        return VideoExecution(
+            video_id=VideoId(value=video_id_str),
+            source_path=Path(source_path_str),
+            detected_language=detected_language,
+        )
 
     # ----------------------------------------------------------- phase_executions
 

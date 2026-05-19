@@ -1,4 +1,4 @@
-"""Widget ``ProjectHeaderBar`` — barre titre du Run + boutons Lancer/Pause/Annuler."""
+"""Widget ``ProjectHeaderBar`` — barre titre du Run + boutons principaux."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ class ProjectHeaderBar(QWidget):
     pause_requested = Signal()
     resume_requested = Signal()
     cancel_requested = Signal()
+    open_output_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Construit la barre.
@@ -31,14 +32,23 @@ class ProjectHeaderBar(QWidget):
         self._pause_button = QPushButton("⏸ Pause", self)
         self._resume_button = QPushButton("▶ Reprendre", self)
         self._cancel_button = QPushButton("✕ Annuler", self)
+        self._open_output_button = QPushButton("📂 Ouvrir le dossier de sortie", self)
+        self._open_output_button.setToolTip(
+            "Ouvre dans l'explorateur le dossier contenant les fichiers Markdown "
+            "produits (consolidated, glossary, per-video par langue)."
+        )
+
         self._start_button.clicked.connect(self.start_requested)
         self._pause_button.clicked.connect(self.pause_requested)
         self._resume_button.clicked.connect(self.resume_requested)
         self._cancel_button.clicked.connect(self.cancel_requested)
+        self._open_output_button.clicked.connect(self.open_output_requested)
+
         layout.addWidget(self._start_button)
         layout.addWidget(self._pause_button)
         layout.addWidget(self._resume_button)
         layout.addWidget(self._cancel_button)
+        layout.addWidget(self._open_output_button)
         self.set_idle()
 
     def set_title(self, title: str) -> None:
@@ -48,6 +58,15 @@ class ProjectHeaderBar(QWidget):
             title: Texte du titre.
         """
         self._title_label.setText(f"Projet : {title}")
+
+    def set_open_output_enabled(self, enabled: bool) -> None:
+        """Active ou désactive le bouton « Ouvrir le dossier de sortie ».
+
+        Args:
+            enabled: ``True`` si un dossier de sortie est disponible (typiquement
+                quand un run a déjà été lancé pour ce projet).
+        """
+        self._open_output_button.setEnabled(enabled)
 
     def set_idle(self) -> None:
         """Affichage état idle (avant démarrage)."""

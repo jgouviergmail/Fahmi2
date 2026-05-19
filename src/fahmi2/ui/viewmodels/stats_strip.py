@@ -61,12 +61,15 @@ class StatsStripViewModel:
         ]
         videos_total = len(run.videos)
         videos_completed = 0
+        # Une phase per-video est considérée comme terminée si elle est
+        # SUCCEEDED ou SKIPPED (skip = succès d'un run précédent).
+        completed_statuses = {PhaseStatus.SUCCEEDED, PhaseStatus.SKIPPED}
         for video in run.videos:
             done = all(
                 self._state.get_phase_status(
                     run.id, phase_id, video_id=video.video_id
                 )
-                is PhaseStatus.SUCCEEDED
+                in completed_statuses
                 for phase_id in per_video_phase_ids
             )
             if done and per_video_phase_ids:
@@ -75,7 +78,7 @@ class StatsStripViewModel:
         executions = self._state.list_phase_executions(run.id)
         phases_total = len(executions)
         phases_completed = sum(
-            1 for e in executions if e.status is PhaseStatus.SUCCEEDED
+            1 for e in executions if e.status in completed_statuses
         )
         cost = sum(e.cost_usd for e in executions)
 

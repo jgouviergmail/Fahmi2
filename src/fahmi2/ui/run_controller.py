@@ -15,11 +15,15 @@ Cette classe :
 
 from __future__ import annotations
 
+import shutil
+import subprocess
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 
-from PySide6.QtCore import QObject, QThread, Signal
+from PySide6.QtCore import QObject, QThread, QUrl, Signal
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QMessageBox
 
 from fahmi2.app.hardware_probe import HardwareInfo
@@ -198,6 +202,9 @@ class RunController(QObject):
         self._main_window.header_bar.pause_requested.connect(self.pause_run)
         self._main_window.header_bar.resume_requested.connect(self.resume_run)
         self._main_window.header_bar.cancel_requested.connect(self.cancel_run)
+        self._main_window.header_bar.open_output_requested.connect(
+            self.open_output_folder
+        )
 
     # ------------------------------------------------------------------ project
 
@@ -209,6 +216,12 @@ class RunController(QObject):
         self._current_project = project
         self._main_window.header_bar.set_title(project.settings.name)
         self._main_window.header_bar.set_idle()
+        # Le bouton « Ouvrir le dossier de sortie » est actif si un dossier
+        # output a déjà été produit (c'est-à-dire : au moins un run a tourné).
+        output_dir = self._current_output_dir()
+        self._main_window.header_bar.set_open_output_enabled(
+            output_dir is not None and output_dir.exists()
+        )
         self._refresh_views_with_last_run()
 
     def _refresh_views_with_last_run(self) -> None:
@@ -330,6 +343,36 @@ class RunController(QObject):
             return
         self._current_pause_token.request_cancel()
 
+    def open_output_folder(self) -> None:
+        """Slot : ouvre le dossier de sortie du projet sélectionné.
+
+        Sur Windows, déléguer à ``explorer.exe`` (commande native, non
+        bloquante). Sur les autres plateformes, on s'appuie sur
+        ``QDesktopServices.openUrl`` qui gère ``file://`` URIs.
+        """
+        output_dir = self._current_output_dir()
+        if output_dir is None or not output_dir.exists():
+            QMessageBox.information(
+                self._main_window,
+                "Aucun dossier de sortie",
+                "Le dossier de sortie n'existe pas encore. Lancez d'abord "
+                "un run pour ce projet.",
+            )
+            return
+        _open_in_file_explorer(output_dir)
+
+    def _current_output_dir(self) -> Path | None:
+        """Retourne le ``output_dir`` du projet sélectionné, ou ``None``.
+
+        Returns:
+            Le chemin du dossier de sortie tel que défini par
+            ``settings.workspace_folder / output``, ou ``None`` si aucun
+            projet n'est sélectionné.
+        """
+        if self._current_project is None:
+            return None
+        return self._current_project.settings.workspace_folder / "output"
+
     # ---------------------------------------------------------- end-of-run
 
     def _on_worker_finished(self, final_status: object) -> None:
@@ -341,6 +384,19 @@ class RunController(QObject):
             if reloaded is not None:
                 self._current_run = reloaded
                 self._refresh_views(reloaded)
+        # Active le bouton « Ouvrir le dossier de sortie » + ajoute une ligne
+        # de log avec le chemin pour que l'utilisateur sache où aller.
+        output_dir = self._current_output_dir()
+        if output_dir is not None and output_dir.exists():
+            self._main_window.header_bar.set_open_output_enabled(True)
+            self._main_window.logs_dock.append_event(
+                LogEvent(
+                    timestamp=datetime.now(tz=UTC),
+                    severity=Severity.INFO,
+                    code="OUTPUT_AVAILABLE",
+                    message=f"Livrables disponibles dans : {output_dir}",
+                )
+            )
         self._cleanup_thread()
 
     def _on_worker_failed(self, error_message: str) -> None:
@@ -587,6 +643,26 @@ def _severity_for_phase_finished(event: PhaseFinished) -> Severity:
     if event.final_status is PhaseStatus.FAILED:
         return Severity.ERROR
     return Severity.INFO
+
+
+def _open_in_file_explorer(path: Path) -> None:
+    """Ouvre ``path`` dans l'explorateur de fichiers natif.
+
+    Sur Windows, utilise ``explorer.exe`` qui est non bloquant. Sur les
+    autres plateformes, fallback sur ``QDesktopServices.openUrl(file://)``.
+
+    Args:
+        path: Chemin du dossier à ouvrir.
+    """
+    if sys.platform == "win32":
+        explorer = shutil.which("explorer.exe") or "explorer.exe"
+        subprocess.Popen(  # noqa: S603
+            [explorer, str(path)], close_fds=True
+        )
+        return
+    QDesktopServices.openUrl(  # type: ignore[unreachable]
+        QUrl.fromLocalFile(str(path))
+    )
 
 
 __all__ = ["RunController", "build_default_registry", "build_ffmpeg_from_runtime"]

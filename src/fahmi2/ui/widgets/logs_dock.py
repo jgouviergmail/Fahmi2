@@ -78,6 +78,11 @@ class LogsDock(QDockWidget):
     def append_event(self, event: LogEvent) -> None:
         """Ajoute un événement de log s'il dépasse le seuil de sévérité.
 
+        Les sauts de ligne (``\\n``) dans le message sont convertis en
+        ``<br>`` pour préserver la lisibilité quand un événement a un
+        détail multi-ligne (typiquement une erreur de phase avec code,
+        user_message et technical_details).
+
         Args:
             event: Événement à afficher.
         """
@@ -87,11 +92,12 @@ class LogsDock(QDockWidget):
             event.severity, _SEVERITY_STYLE[Severity.INFO]
         )
         time_str = event.timestamp.strftime("%H:%M:%S")
+        message_html = escape(event.message).replace("\n", "<br>")
         html = (
             f'<span style="color:#8b95a1;">{escape(time_str)}</span> '
             f'<span style="color:{color}; font-weight:600;">{escape(label):<7}</span> '
             f'<span style="color:#0a4f93;">{escape(event.code)}</span> '
-            f'<span style="color:#1f2328;">— {escape(event.message)}</span>'
+            f'<span style="color:#1f2328;">— {message_html}</span>'
         )
         self._text.append(html)
 

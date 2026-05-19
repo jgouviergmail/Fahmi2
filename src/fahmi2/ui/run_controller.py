@@ -715,7 +715,25 @@ class RunController(QObject):
         )
 
     def _on_worker_failed(self, error_message: str) -> None:
-        """Slot : run terminé sur exception non gérée."""
+        """Slot : run terminé sur exception non gérée.
+
+        On logge le détail de l'erreur dans le panneau Logs (visible et
+        archivé dans ``events.jsonl``) et on affiche aussi un dialogue
+        critique pour que l'utilisateur soit notifié de manière non
+        ambiguë.
+        """
+        self._main_window.logs_dock.append_event(
+            LogEvent(
+                timestamp=datetime.now(tz=UTC),
+                severity=Severity.FATAL,
+                code="WORKER_FAILED",
+                message=(
+                    "Le worker du pipeline s'est terminé sur une exception "
+                    f"non gérée : {error_message}"
+                ),
+                extra={"raw_error": error_message},
+            )
+        )
         QMessageBox.critical(
             self._main_window,
             "Le run s'est terminé sur une erreur inattendue",
@@ -929,18 +947,40 @@ def _to_log_event(event: PipelineEvent) -> LogEvent:
             video_id=event.video_id.value if event.video_id else None,
         )
     if isinstance(event, PhaseFinished):
+        base_message = (
+            f"{event.phase_id.value} → {event.final_status.value} "
+            f"(coût ${event.cost_usd:.4f})"
+        )
+        if event.error is not None:
+            # Phase en échec : on annexe le détail au message lisible et on
+            # remonte les technical_details + traceback dans ``extra`` pour
+            # le fichier JSONL.
+            base_message = (
+                f"{base_message}\n"
+                f"    └─ {event.error.code} : {event.error.user_message}"
+            )
+            tech = _format_technical_details(event.error.technical_details)
+            if tech:
+                base_message = f"{base_message}\n    └─ détails : {tech}"
+            extra: dict[str, object] = {
+                "cost_usd": event.cost_usd,
+                "error_code": event.error.code,
+                "error_user_message": event.error.user_message,
+                "error_technical_details": dict(event.error.technical_details),
+            }
+            if event.error.traceback:
+                extra["error_traceback"] = event.error.traceback
+        else:
+            extra = {"cost_usd": event.cost_usd}
         return LogEvent(
             timestamp=event.timestamp,
             severity=_severity_for_phase_finished(event),
             code="PHASE_FINISHED",
-            message=(
-                f"{event.phase_id.value} → {event.final_status.value} "
-                f"(coût ${event.cost_usd:.4f})"
-            ),
+            message=base_message,
             run_id=event.run_id.value,
             phase_id=str(event.phase_id),
             video_id=event.video_id.value if event.video_id else None,
-            extra={"cost_usd": event.cost_usd},
+            extra=extra,
         )
     if isinstance(event, RetryAttempt):
         return LogEvent(
@@ -949,12 +989,18 @@ def _to_log_event(event: PipelineEvent) -> LogEvent:
             code="RETRY_ATTEMPT",
             message=(
                 f"{event.phase_id.value} retry #{event.attempt} "
-                f"dans {event.delay_seconds:.1f}s ({event.error.code})"
+                f"dans {event.delay_seconds:.1f}s "
+                f"({event.error.code} : {event.error.user_message})"
             ),
             run_id=event.run_id.value,
             phase_id=str(event.phase_id),
             video_id=event.video_id.value if event.video_id else None,
-            extra={"attempt": event.attempt},
+            extra={
+                "attempt": event.attempt,
+                "error_code": event.error.code,
+                "error_user_message": event.error.user_message,
+                "error_technical_details": dict(event.error.technical_details),
+            },
         )
     # Fallback (n'arrive pas en pratique)
     return LogEvent(
@@ -979,6 +1025,34 @@ def _severity_for_phase_finished(event: PhaseFinished) -> Severity:
     if event.final_status is PhaseStatus.FAILED:
         return Severity.ERROR
     return Severity.INFO
+
+
+_TECHNICAL_DETAIL_MAX_LEN = 200
+_TECHNICAL_DETAIL_TRUNCATE_LEN = 197
+
+
+def _format_technical_details(details: dict[str, object]) -> str:
+    """Met en forme les ``technical_details`` d'un ``ErrorInfo`` pour les logs.
+
+    Représentation compacte ``k1=v1 k2=v2`` ; les valeurs trop longues
+    sont tronquées (le détail complet reste accessible dans le fichier
+    JSONL via ``error_technical_details``).
+
+    Args:
+        details: Mapping des détails techniques.
+
+    Returns:
+        Chaîne compacte ou ``""`` si vide.
+    """
+    if not details:
+        return ""
+    parts: list[str] = []
+    for key, value in details.items():
+        text = str(value)
+        if len(text) > _TECHNICAL_DETAIL_MAX_LEN:
+            text = text[:_TECHNICAL_DETAIL_TRUNCATE_LEN] + "…"
+        parts.append(f"{key}={text}")
+    return " ".join(parts)
 
 
 def _open_in_file_explorer(path: Path) -> None:

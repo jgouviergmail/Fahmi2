@@ -98,6 +98,10 @@ QListWidget::item:selected {
     background-color: #ffffff;
     border-bottom: 1px solid #e5e7eb;
 }
+/* Pas de bande grise derrière les QLabel de la header bar. */
+#projectHeaderBar QLabel {
+    background-color: transparent;
+}
 #projectHeaderBarTitle {
     font-size: 17px;
     font-weight: 600;
@@ -173,6 +177,11 @@ QListWidget::item:selected {
     background-color: #ffffff;
     border: 1px solid #e5e7eb;
     border-radius: 10px;
+}
+/* Les QLabel placés dans une carte sont sur fond blanc :
+ * on les force en transparent pour qu'aucune bande grise ne déborde. */
+#statCard QLabel {
+    background-color: transparent;
 }
 
 #statCardIcon {
@@ -259,6 +268,9 @@ QDockWidget::title {
 #logsDockContainer {
     background-color: #ffffff;
 }
+#logsDockContainer QLabel {
+    background-color: transparent;
+}
 #logsDockArea {
     background-color: #fbfcfe;
     border: 1px solid #eef0f4;
@@ -304,6 +316,33 @@ QDoubleSpinBox:disabled {
 QCheckBox {
     spacing: 8px;
     color: #1f2328;
+    background-color: transparent;
+}
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border: 1px solid #b6bec8;
+    border-radius: 4px;
+    background-color: #ffffff;
+}
+QCheckBox::indicator:hover {
+    border-color: #0078d4;
+}
+QCheckBox::indicator:checked {
+    background-color: #0078d4;
+    border-color: #0078d4;
+    /* SVG checkmark blanc embarqué en data URL pour rester sans ressource
+       externe. Qt désactive le rendering natif dès qu'une règle QSS touche
+       l'indicator, donc on dessine la coche nous-mêmes. */
+    image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M3.5 8L7 11.5L12.5 5'/></svg>");
+}
+QCheckBox::indicator:checked:hover {
+    background-color: #1086e8;
+    border-color: #1086e8;
+}
+QCheckBox::indicator:disabled {
+    background-color: #f0f3f7;
+    border-color: #d6dae0;
 }
 
 QGroupBox {
@@ -321,6 +360,19 @@ QGroupBox::title {
     padding: 0 6px;
     background-color: transparent;
     color: #0a4f93;
+}
+/* Les labels / cases / radios placés DANS un QGroupBox sont sur fond blanc :
+ * on bloque l'héritage du fond gris global pour éviter les bandes grises. */
+QGroupBox QLabel,
+QGroupBox QCheckBox,
+QGroupBox QRadioButton {
+    background-color: transparent;
+}
+
+/* Idem dans les dialogues (NewProjectDialog, GlobalSettingsDialog) où le fond
+ * principal reste #f5f7fb mais les sous-groupes blancs doivent rester nets. */
+QDialog QLabel {
+    background-color: transparent;
 }
 
 /* ===== Boutons génériques (dialogs) ===== */

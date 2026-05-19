@@ -203,6 +203,31 @@ def test_phase_execution_upsert_updates_status(
         )
 
 
+def test_phase_execution_batch_upsert_replaces_previous_row(
+    tmp_path: Path, make_settings: Any
+) -> None:
+    """Reg : SQLite traite NULL comme distinct -> upsert batch doit gerer NULL."""
+    with SqliteState(tmp_path / "t.db") as state:
+        project = _make_project(make_settings)
+        state.upsert_project(project)
+        run = _make_run(project)
+        state.upsert_run(run)
+        pe1 = PhaseExecution(
+            phase_id=PhaseId.CONSOLIDATION, status=PhaseStatus.RUNNING
+        )
+        pe2 = PhaseExecution(
+            phase_id=PhaseId.CONSOLIDATION, status=PhaseStatus.SUCCEEDED
+        )
+        state.upsert_phase_execution(run.id, pe1, video_id=None)
+        state.upsert_phase_execution(run.id, pe2, video_id=None)
+        executions = [
+            e for e in state.list_phase_executions(run.id)
+            if e.phase_id is PhaseId.CONSOLIDATION
+        ]
+        assert len(executions) == 1
+        assert executions[0].status is PhaseStatus.SUCCEEDED
+
+
 def test_phase_execution_with_error_round_trip(
     tmp_path: Path, make_settings: Any
 ) -> None:

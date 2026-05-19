@@ -416,46 +416,73 @@ class SqliteState:
     ) -> None:
         """Insère ou met à jour une PhaseExecution.
 
+        SQLite traite ``NULL`` comme distinct dans les contraintes ``UNIQUE``
+        : un ``ON CONFLICT(run_id, phase_id, video_id)`` ne se déclenche
+        donc jamais pour les phases batch (où ``video_id IS NULL``), ce qui
+        accumulerait silencieusement plusieurs lignes. On gère explicitement
+        les deux cas : ``ON CONFLICT`` quand ``video_id`` est défini,
+        ``DELETE + INSERT`` quand il est ``NULL``.
+
         Args:
             run_id: Run propriétaire.
             phase_execution: État de la phase.
             video_id: Vidéo associée (``None`` pour les phases batch 2 & 5).
         """
-        self._get_connection().execute(
-            """
-            INSERT INTO phase_executions (
-                run_id, phase_id, video_id, status, started_at, finished_at,
-                artifact_path, retry_count, cost_usd, error_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(run_id, phase_id, video_id) DO UPDATE SET
-                status        = excluded.status,
-                started_at    = excluded.started_at,
-                finished_at   = excluded.finished_at,
-                artifact_path = excluded.artifact_path,
-                retry_count   = excluded.retry_count,
-                cost_usd      = excluded.cost_usd,
-                error_json    = excluded.error_json
-            """,
-            (
-                run_id.value,
-                str(phase_execution.phase_id),
-                video_id.value if video_id else None,
-                str(phase_execution.status),
-                _datetime_to_iso(phase_execution.started_at)
-                if phase_execution.started_at
-                else None,
-                _datetime_to_iso(phase_execution.finished_at)
-                if phase_execution.finished_at
-                else None,
-                str(phase_execution.artifact_path)
-                if phase_execution.artifact_path
-                else None,
-                phase_execution.retry_count,
-                phase_execution.cost_usd,
-                _serialize_error_info(phase_execution.error),
-            ),
+        conn = self._get_connection()
+        params = (
+            run_id.value,
+            str(phase_execution.phase_id),
+            video_id.value if video_id else None,
+            str(phase_execution.status),
+            _datetime_to_iso(phase_execution.started_at)
+            if phase_execution.started_at
+            else None,
+            _datetime_to_iso(phase_execution.finished_at)
+            if phase_execution.finished_at
+            else None,
+            str(phase_execution.artifact_path)
+            if phase_execution.artifact_path
+            else None,
+            phase_execution.retry_count,
+            phase_execution.cost_usd,
+            _serialize_error_info(phase_execution.error),
         )
-        self._get_connection().commit()
+        if video_id is None:
+            # Phase batch : on garantit l'unicité par (run_id, phase_id, NULL)
+            # avec un DELETE explicite, l'INSERT suit toujours.
+            conn.execute(
+                "DELETE FROM phase_executions "
+                "WHERE run_id = ? AND phase_id = ? AND video_id IS NULL",
+                (run_id.value, str(phase_execution.phase_id)),
+            )
+            conn.execute(
+                """
+                INSERT INTO phase_executions (
+                    run_id, phase_id, video_id, status, started_at, finished_at,
+                    artifact_path, retry_count, cost_usd, error_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                params,
+            )
+        else:
+            conn.execute(
+                """
+                INSERT INTO phase_executions (
+                    run_id, phase_id, video_id, status, started_at, finished_at,
+                    artifact_path, retry_count, cost_usd, error_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(run_id, phase_id, video_id) DO UPDATE SET
+                    status        = excluded.status,
+                    started_at    = excluded.started_at,
+                    finished_at   = excluded.finished_at,
+                    artifact_path = excluded.artifact_path,
+                    retry_count   = excluded.retry_count,
+                    cost_usd      = excluded.cost_usd,
+                    error_json    = excluded.error_json
+                """,
+                params,
+            )
+        conn.commit()
 
     def get_phase_status(
         self,
@@ -610,6 +637,22 @@ class SqliteState:
         }
         if "acronym" not in existing_cols:
             conn.execute("ALTER TABLE glossary_terms ADD COLUMN acronym TEXT")
+
+        # Nettoyage rétroactif : SQLite a permis l'accumulation de doublons sur
+        # les phases batch (video_id NULL) tant que upsert_phase_execution ne
+        # gérait pas explicitement le NULL. On garde uniquement la ligne la
+        # plus récente (id MAX) par (run_id, phase_id) avec video_id NULL.
+        conn.execute(
+            """
+            DELETE FROM phase_executions
+            WHERE video_id IS NULL
+              AND id NOT IN (
+                SELECT MAX(id) FROM phase_executions
+                WHERE video_id IS NULL
+                GROUP BY run_id, phase_id
+              )
+            """
+        )
 
     @staticmethod
     def _load_schema_ddl() -> str:

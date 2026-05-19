@@ -225,14 +225,45 @@ class RunController(QObject):
         self._refresh_views_with_last_run()
 
     def _refresh_views_with_last_run(self) -> None:
-        """Rafraîchit matrice + stats avec le dernier run du projet courant."""
+        """Rafraîchit matrice + stats avec le dernier run du projet courant.
+
+        Si le projet ne contient aucun run, on remet à zéro les vues pour
+        éviter d'afficher l'état d'un Run appartenant à un autre projet.
+        """
         if self._current_project is None:
             return
         last_run = self._project_service.get_last_run(self._current_project.id)
         if last_run is None:
+            self._current_run = None
+            self._reset_views()
             return
         self._current_run = last_run
         self._refresh_views(last_run)
+
+    def _reset_views(self) -> None:
+        """Vide la matrice et la bande de stats (état neutre 'pas de run')."""
+        from fahmi2.domain.ids import RunId  # noqa: PLC0415
+        from fahmi2.ui.viewmodels.run_matrix import MatrixSnapshot  # noqa: PLC0415
+        from fahmi2.ui.viewmodels.stats_strip import StatsSnapshot  # noqa: PLC0415
+
+        empty_matrix = MatrixSnapshot(
+            run_id=RunId.new(), phases_in_order=(), rows=()
+        )
+        self._main_window.run_matrix.apply_snapshot(empty_matrix)
+        now = datetime.now(tz=UTC)
+        empty_stats = StatsSnapshot(
+            run_status=RunStatus.CREATED,
+            videos_total=0,
+            videos_completed=0,
+            phases_total=0,
+            phases_completed=0,
+            cost_usd_so_far=0.0,
+            cost_ceiling_usd=None,
+            started_at=now,
+            finished_at=now,
+            elapsed_seconds=0.0,
+        )
+        self._main_window.stats_strip.apply_snapshot(empty_stats)
 
     # ---------------------------------------------------------------- run start
 

@@ -14,12 +14,16 @@ l'UI qui ne voit qu'un bloc dans la matrice) :
 Le document final ``workspace/consolidated_master.md`` est assemblé à partir
 de ces méta-éléments **plus** les contenus structurés de chaque vidéo
 **recopiés tels quels** : aucune perte de fidélité, le LLM ne réécrit jamais
-les contenus.
+les contenus. Le module renumérote ensuite les titres (``#``, ``##``, ``###``)
+de manière hiérarchique (1, 1.1, 1.1.1…) et construit un sommaire déterministe
+avec ancres GitHub-compatibles.
 """
 
 from __future__ import annotations
 
 import json
+import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +46,51 @@ _STRUCTURED_SUBDIR = "structured"
 _CONSOLIDATED_MASTER_FILENAME = "consolidated_master.md"
 _TEMPLATE_VIDEO_SUMMARY = "phase_5_video_summary"
 _TEMPLATE_CONSOLIDATION = "phase_5_consolidation"
+
+# Profondeur maximale incluse dans le sommaire et dans la numérotation.
+# (les ####+ restent dans le corps mais ne sont ni numérotés ni listés.)
+_TOC_MAX_DEPTH = 3
+
+_RE_CODE_FENCE = re.compile(r"^\s*```")
+_RE_H1 = re.compile(r"^#\s+(.+?)\s*$")
+_RE_H2 = re.compile(r"^##\s+(.+?)\s*$")
+_RE_H3 = re.compile(r"^###\s+(.+?)\s*$")
+# Préfixe numérotation déjà présent (ex: "1. ", "1.2 ", "1.2.3 - ", "1) ").
+# La numérotation est suivie d'au moins un séparateur (point, tiret,
+# parenthèse fermante ou whitespace), répété autant que nécessaire.
+_RE_EXISTING_NUMBERING = re.compile(r"^\d+(?:\.\d+)*[.\-)\s]+")
+
+
+@dataclass(frozen=True)
+class _Subheading:
+    """Sous-titre détecté dans le corps d'un chapitre.
+
+    Attributes:
+        level: ``2`` pour ``##``, ``3`` pour ``###``.
+        number: Numérotation hiérarchique (``"1.2"``, ``"1.2.3"``).
+        title: Texte du titre, débarrassé de toute numérotation existante.
+    """
+
+    level: int
+    number: str
+    title: str
+
+
+@dataclass(frozen=True)
+class _Chapter:
+    """Chapitre consolidé : titre numéroté + corps renuméroté + sous-titres.
+
+    Attributes:
+        index: Numéro du chapitre (1, 2, …).
+        title: Titre du chapitre (sans le préfixe ``"N. "``).
+        body: Corps Markdown du chapitre, déjà renuméroté.
+        subheadings: Liste ordonnée des sous-titres ## et ### du chapitre.
+    """
+
+    index: int
+    title: str
+    body: str
+    subheadings: tuple[_Subheading, ...]
 
 
 class Phase5ConsolidationHandler(PhaseHandler):
@@ -197,20 +246,22 @@ def _assemble_consolidated(
     Le document final est structuré ainsi :
 
     1. ``# <titre global>``
-    2. ``## Introduction générale`` (texte narratif du LLM)
-    3. ``## Sommaire`` (liste numérotée avec ancres Markdown vers chaque chapitre)
-    4. Chapitres : ``# 1. <titre>``, ``# 2. <titre>``…  Le contenu de chaque
-       chapitre est le Markdown structuré produit par la phase 4, dont le
-       titre H1 d'origine est promu en H2 « Présentation » pour éviter la
-       collision avec le H1 numéroté du chapitre.
-    5. ``## Conclusion générale``
+    2. ``## Introduction générale`` (texte narratif du LLM, non numéroté)
+    3. ``## Sommaire`` (liste hiérarchique avec ancres GitHub vers chaque
+       titre numéroté : chapitres + sections ## et sous-sections ###)
+    4. Chapitres : ``# 1. <titre>``, ``# 2. <titre>``…  À l'intérieur d'un
+       chapitre, les ``##`` deviennent ``## N.M <titre>`` et les ``###``
+       deviennent ``### N.M.P <titre>``. Les numérotations posées
+       précédemment par le LLM (« 1. », « 1.1 »…) sont systématiquement
+       décapées avant d'écrire la nouvelle.
+    5. ``## Conclusion générale`` (non numéroté)
 
     Args:
         meta: Méta-éléments produits par la consolidation (title, intro,
-            plan, conclusion). ``plan_markdown`` est ignoré ici : on
-            préfère générer un sommaire déterministe avec ancres
-            cliquables.
-        structured_by_video: Documents structurés par vidéo.
+            plan, conclusion). ``plan_markdown`` est ignoré : le sommaire
+            est déterministe.
+        structured_by_video: Documents structurés par vidéo (ordre = ordre
+            des chapitres).
         summaries: Résumés (utilisés pour les titres de chapitres).
 
     Returns:
@@ -219,39 +270,155 @@ def _assemble_consolidated(
     title = str(meta.get("global_title", "Document consolidé"))
     introduction = str(meta.get("introduction_markdown", "")).strip()
     conclusion = str(meta.get("conclusion_markdown", "")).strip()
-
     titles_by_video = {s.get("video_id", ""): s.get("title", "") for s in summaries}
 
-    # Construire la liste des chapitres numérotés avec leur titre effectif
-    chapters: list[tuple[int, str, str]] = []
-    for index, (video_id, structured) in enumerate(structured_by_video.items(), start=1):
-        chapter_title = str(titles_by_video.get(video_id, "")).strip()
-        if not chapter_title:
-            chapter_title = f"Chapitre {index}"
-        chapters.append((index, chapter_title, structured))
+    chapters = _build_chapters(structured_by_video, titles_by_video)
 
     parts: list[str] = [f"# {title}", ""]
     if introduction:
         parts.extend(["## Introduction générale", "", introduction, ""])
 
-    # Sommaire généré automatiquement avec ancres slug déterministes
     if chapters:
         parts.append("## Sommaire")
         parts.append("")
-        for idx, chap_title, _ in chapters:
-            anchor = _slugify(f"{idx}. {chap_title}")
-            parts.append(f"{idx}. [{chap_title}](#{anchor})")
+        parts.extend(_build_toc_lines(chapters))
         parts.append("")
 
-    for idx, chap_title, structured in chapters:
-        parts.append(f"# {idx}. {chap_title}")
+    for chapter in chapters:
+        parts.append(f"# {chapter.index}. {chapter.title}")
         parts.append("")
-        parts.append(_demote_chapter_h1(structured))
-        parts.append("")
+        if chapter.body:
+            parts.append(chapter.body)
+            parts.append("")
 
     if conclusion:
         parts.extend(["## Conclusion générale", "", conclusion, ""])
     return "\n".join(parts).rstrip() + "\n"
+
+
+def _build_chapters(
+    structured_by_video: dict[str, str],
+    titles_by_video: dict[str, Any],
+) -> list[_Chapter]:
+    """Construit la liste ordonnée des chapitres consolidés et renumérotés.
+
+    Args:
+        structured_by_video: Markdown structuré par vidéo (ordre préservé).
+        titles_by_video: Titres extraits des résumés (clé = video_id).
+
+    Returns:
+        Liste de ``_Chapter`` prêts à être sérialisés.
+    """
+    chapters: list[_Chapter] = []
+    for index, (video_id, structured) in enumerate(
+        structured_by_video.items(), start=1
+    ):
+        raw_title = str(titles_by_video.get(video_id, "")).strip()
+        title = _strip_existing_numbering(raw_title) or f"Chapitre {index}"
+        demoted = _demote_chapter_h1(structured)
+        renumbered_body, subheadings = _renumber_subheadings(demoted, index)
+        chapters.append(
+            _Chapter(
+                index=index,
+                title=title,
+                body=renumbered_body,
+                subheadings=tuple(subheadings),
+            )
+        )
+    return chapters
+
+
+def _build_toc_lines(chapters: list[_Chapter]) -> list[str]:
+    """Construit la table des matières (chapitres + sous-titres numérotés).
+
+    Args:
+        chapters: Liste des chapitres déjà renumérotés.
+
+    Returns:
+        Liste de lignes Markdown (sans saut de ligne final).
+    """
+    lines: list[str] = []
+    for chap in chapters:
+        anchor = _slugify(f"{chap.index}. {chap.title}")
+        lines.append(f"{chap.index}. [{chap.title}](#{anchor})")
+        for sub in chap.subheadings:
+            if sub.level > _TOC_MAX_DEPTH:
+                continue
+            sub_anchor = _slugify(f"{sub.number} {sub.title}")
+            indent = "    " * (sub.level - 1)
+            lines.append(
+                f"{indent}- [{sub.number} {sub.title}](#{sub_anchor})"
+            )
+    return lines
+
+
+def _renumber_subheadings(
+    body: str, chapter_index: int
+) -> tuple[str, list[_Subheading]]:
+    """Renumérote les ``##`` et ``###`` d'un chapitre selon ``chapter_index``.
+
+    Les numérotations préexistantes en tête de titre sont supprimées avant
+    écriture de la nouvelle. Les blocs ``fence`` (``\\`\\`\\``) sont laissés
+    intacts pour éviter de réécrire du code qui contiendrait ``##``.
+
+    Args:
+        body: Corps du chapitre (sans son H1, déjà ``_demote_chapter_h1``).
+        chapter_index: Numéro du chapitre racine (1, 2, …).
+
+    Returns:
+        ``(body_renumeroté, sous-titres détectés)``.
+    """
+    h2_counter = 0
+    h3_counter = 0
+    in_code_block = False
+    subheadings: list[_Subheading] = []
+    out_lines: list[str] = []
+    for line in body.splitlines():
+        if _RE_CODE_FENCE.match(line):
+            in_code_block = not in_code_block
+            out_lines.append(line)
+            continue
+        if in_code_block:
+            out_lines.append(line)
+            continue
+        m_h3 = _RE_H3.match(line)
+        m_h2 = _RE_H2.match(line) if not m_h3 else None
+        if m_h2 is not None:
+            h2_counter += 1
+            h3_counter = 0
+            clean_title = _strip_existing_numbering(m_h2.group(1))
+            number = f"{chapter_index}.{h2_counter}"
+            out_lines.append(f"## {number} {clean_title}")
+            subheadings.append(_Subheading(level=2, number=number, title=clean_title))
+        elif m_h3 is not None:
+            h3_counter += 1
+            clean_title = _strip_existing_numbering(m_h3.group(1))
+            # Si un ### apparaît avant tout ##, on l'accroche au chapitre racine.
+            parent = h2_counter if h2_counter > 0 else 0
+            if parent == 0:
+                h2_counter = 1
+                parent = 1
+            number = f"{chapter_index}.{parent}.{h3_counter}"
+            out_lines.append(f"### {number} {clean_title}")
+            subheadings.append(_Subheading(level=3, number=number, title=clean_title))
+        else:
+            out_lines.append(line)
+    return "\n".join(out_lines), subheadings
+
+
+def _strip_existing_numbering(title: str) -> str:
+    """Retire une éventuelle numérotation hiérarchique en tête de titre.
+
+    Exemples : ``"1. Titre"`` → ``"Titre"`` ; ``"1.2 Titre"`` → ``"Titre"`` ;
+    ``"1.2.3 - Titre"`` → ``"Titre"``.
+
+    Args:
+        title: Titre brut, possiblement déjà numéroté par le LLM.
+
+    Returns:
+        Titre débarrassé de sa numérotation.
+    """
+    return _RE_EXISTING_NUMBERING.sub("", title.strip()).strip()
 
 
 def _slugify(text: str) -> str:
@@ -267,37 +434,32 @@ def _slugify(text: str) -> str:
     Returns:
         Slug ancre (sans le ``#``).
     """
-    import re  # noqa: PLC0415
-
     cleaned = text.lower().strip()
-    # Espaces et caractères de ponctuation usuels → tirets
     cleaned = re.sub(r"[\s/]+", "-", cleaned)
-    # Supprime tout caractère non alphanumérique sauf tirets et caractères
-    # accentués (qui sont préservés par GFM).
     cleaned = re.sub(r"[^\w\-]+", "", cleaned, flags=re.UNICODE)
-    # Compacte les tirets consécutifs
     cleaned = re.sub(r"-+", "-", cleaned).strip("-")
     return cleaned
 
 
 def _demote_chapter_h1(structured_markdown: str) -> str:
-    """Supprime ou démote le premier H1 du chapitre.
+    """Supprime le premier H1 du chapitre.
 
     Le chapitre a déjà reçu son propre H1 numéroté lors de l'assemblage ;
     on retire le premier titre H1 d'origine pour éviter la duplication
-    visuelle. Les H2/H3 suivants sont conservés.
+    visuelle. Les H2/H3 suivants sont conservés tels quels (la
+    renumérotation a lieu après).
 
     Args:
         structured_markdown: Markdown du chapitre produit par la phase 4.
 
     Returns:
-        Le Markdown avec le premier H1 supprimé (les sous-titres restent).
+        Le Markdown avec le premier H1 supprimé.
     """
     lines = structured_markdown.splitlines()
     skipped_h1 = False
     out: list[str] = []
     for line in lines:
-        if not skipped_h1 and line.startswith("# ") and not line.startswith("## "):
+        if not skipped_h1 and _RE_H1.match(line):
             skipped_h1 = True
             continue
         out.append(line)

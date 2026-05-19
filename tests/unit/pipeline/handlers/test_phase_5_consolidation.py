@@ -12,7 +12,12 @@ from fahmi2.domain.ids import VideoId
 from fahmi2.domain.video import VideoExecution
 from fahmi2.infra.llm._fakes import FakeLLMProvider
 from fahmi2.infra.llm.interface import LLMResponse
-from fahmi2.pipeline.handlers.phase_5_consolidation import Phase5ConsolidationHandler
+from fahmi2.pipeline.handlers.phase_5_consolidation import (
+    Phase5ConsolidationHandler,
+    _assemble_consolidated,
+    _renumber_subheadings,
+    _strip_existing_numbering,
+)
 from tests.unit.pipeline.handlers._helpers import build_phase_context
 
 
@@ -151,3 +156,114 @@ def test_execute_raises_when_structured_missing(
     with pytest.raises(StorageError) as exc_info:
         handler.execute(ctx, video=None)
     assert exc_info.value.code == "STORAGE.STRUCTURED_MISSING"
+
+
+# --- Tests unitaires de la renumerotation hierarchique ----------------------
+
+
+def test_strip_existing_numbering_handles_various_formats() -> None:
+    assert _strip_existing_numbering("1. Section") == "Section"
+    assert _strip_existing_numbering("1.2 Section") == "Section"
+    assert _strip_existing_numbering("1.2.3 - Section") == "Section"
+    assert _strip_existing_numbering("Section") == "Section"
+    assert _strip_existing_numbering("  1)  Section  ") == "Section"
+
+
+def test_renumber_subheadings_assigns_hierarchical_numbers() -> None:
+    body = (
+        "## Section A\n"
+        "texte A\n"
+        "### Sous-section A1\n"
+        "texte\n"
+        "### Sous-section A2\n"
+        "texte\n"
+        "## Section B\n"
+        "### Sous-section B1\n"
+    )
+    renumbered, subs = _renumber_subheadings(body, chapter_index=2)
+    assert "## 2.1 Section A" in renumbered
+    assert "### 2.1.1 Sous-section A1" in renumbered
+    assert "### 2.1.2 Sous-section A2" in renumbered
+    assert "## 2.2 Section B" in renumbered
+    assert "### 2.2.1 Sous-section B1" in renumbered
+    assert [s.number for s in subs] == ["2.1", "2.1.1", "2.1.2", "2.2", "2.2.1"]
+
+
+def test_renumber_subheadings_strips_llm_existing_numbering() -> None:
+    body = "## 1. Section LLM\n## 2.1 Autre section\n### 2.1.3 - Detail\n"
+    renumbered, subs = _renumber_subheadings(body, chapter_index=1)
+    assert "## 1.1 Section LLM" in renumbered
+    assert "## 1.2 Autre section" in renumbered
+    assert "### 1.2.1 Detail" in renumbered
+    assert [s.title for s in subs] == ["Section LLM", "Autre section", "Detail"]
+
+
+def test_renumber_subheadings_skips_code_blocks() -> None:
+    body = (
+        "## Vraie section\n"
+        "```python\n"
+        "## ce n'est pas un titre\n"
+        "### non plus\n"
+        "```\n"
+        "### Reelle sous-section\n"
+    )
+    renumbered, subs = _renumber_subheadings(body, chapter_index=1)
+    assert "## 1.1 Vraie section" in renumbered
+    assert "## ce n'est pas un titre" in renumbered
+    assert "### 1.1.1 Reelle sous-section" in renumbered
+    # Le titre "ce n'est pas un titre" est dans un fence -> pas dans subs
+    assert [s.title for s in subs] == ["Vraie section", "Reelle sous-section"]
+
+
+def test_assemble_consolidated_includes_subheadings_in_toc() -> None:
+    structured_by_video = {
+        "v1": (
+            "# Chapitre Un\n"
+            "## Premiere section\n"
+            "texte\n"
+            "### Detail un\n"
+            "texte\n"
+            "## Deuxieme section\n"
+        ),
+        "v2": (
+            "# Chapitre Deux\n"
+            "## Section unique\n"
+        ),
+    }
+    summaries = [
+        {"video_id": "v1", "title": "Chapitre Un"},
+        {"video_id": "v2", "title": "Chapitre Deux"},
+    ]
+    meta = {
+        "global_title": "Mon Cours",
+        "introduction_markdown": "Intro.",
+        "conclusion_markdown": "Conclusion.",
+    }
+    md = _assemble_consolidated(meta, structured_by_video, summaries)
+    # En-tetes numerotes presents dans le corps
+    assert "# 1. Chapitre Un" in md
+    assert "## 1.1 Premiere section" in md
+    assert "### 1.1.1 Detail un" in md
+    assert "## 1.2 Deuxieme section" in md
+    assert "# 2. Chapitre Deux" in md
+    assert "## 2.1 Section unique" in md
+    # Sommaire avec ancres
+    assert "[Chapitre Un](#1-chapitre-un)" in md
+    assert "[1.1 Premiere section](#11-premiere-section)" in md
+    assert "[1.1.1 Detail un](#111-detail-un)" in md
+    assert "[1.2 Deuxieme section](#12-deuxieme-section)" in md
+    assert "[2.1 Section unique](#21-section-unique)" in md
+
+
+def test_assemble_consolidated_strips_llm_numbering_in_chapter_title() -> None:
+    structured_by_video = {"v1": "# Vrai contenu\n## Section\n"}
+    summaries = [{"video_id": "v1", "title": "1. Chapitre Pre-Numerote"}]
+    meta = {
+        "global_title": "T",
+        "introduction_markdown": "",
+        "conclusion_markdown": "",
+    }
+    md = _assemble_consolidated(meta, structured_by_video, summaries)
+    # Le "1. " du LLM est decape, puis le chapitre est renumerote "1. ..."
+    assert "# 1. Chapitre Pre-Numerote" in md
+    assert "# 1. 1. " not in md

@@ -12,8 +12,8 @@ def test_severity_ordering() -> None:
 
 
 def test_severity_from_string() -> None:
-    assert Severity("warning") is Severity.WARNING
+    assert Severity("warning") is Severity.WARNING  # type: ignore[arg-type]
 
 
 def test_severity_case_insensitive_from_string() -> None:
-    assert Severity("WARNING") is Severity.WARNING
+    assert Severity("WARNING") is Severity.WARNING  # type: ignore[arg-type]

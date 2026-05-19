@@ -189,7 +189,12 @@ class RunController(QObject):
         self._state = state
         self._app_paths = app_paths
 
+        # « projet affiché » dans le dashboard et la sidebar.
         self._current_project: Project | None = None
+        # « projet du worker actif » — distinct du projet affiché : permet de
+        # garder le pipeline en cours sur un projet pendant que l'utilisateur
+        # parcourt d'autres projets dans la sidebar.
+        self._active_worker_project_id: ProjectId | None = None
         self._current_run: Run | None = None
         self._current_pause_token: PauseToken | None = None
         self._worker: _RunWorker | None = None
@@ -218,13 +223,22 @@ class RunController(QObject):
     # ------------------------------------------------------------------ project
 
     def _on_project_selected(self, project_id: ProjectId) -> None:
-        """Slot : met à jour l'état UI à la sélection d'un projet."""
+        """Slot : met à jour l'état UI à la sélection d'un projet.
+
+        Trois cas se distinguent côté boutons d'action :
+
+        - Le projet sélectionné est celui d'un worker actif → l'état du
+          header reflète ``running`` ou ``paused`` (selon le ``PauseToken``).
+        - Le projet sélectionné a déjà un Run terminé → header en
+          ``finished`` (Lancer ré-actif, Pause / Annuler désactivés).
+        - Autres cas (projet neuf ou sans Run) → header en ``idle``.
+        """
         project = self._project_service.get_project(project_id)
         if project is None:
             return
         self._current_project = project
         self._main_window.header_bar.set_title(project.settings.name)
-        self._main_window.header_bar.set_idle()
+        self._sync_header_for_selected_project()
         # Le bouton « Ouvrir le dossier de sortie » est actif si un dossier
         # output a déjà été produit (c'est-à-dire : au moins un run a tourné).
         output_dir = self._current_output_dir()
@@ -232,6 +246,53 @@ class RunController(QObject):
             output_dir is not None and output_dir.exists()
         )
         self._refresh_views_with_last_run()
+
+    @property
+    def current_project_id(self) -> ProjectId | None:
+        """Identifiant du projet actuellement affiché dans le dashboard.
+
+        Returns:
+            ``ProjectId`` ou ``None`` si aucun projet n'est sélectionné.
+        """
+        return self._current_project.id if self._current_project is not None else None
+
+    def clear_current_project(self) -> None:
+        """Désélectionne le projet courant et réinitialise le cockpit.
+
+        À appeler typiquement lorsque le projet affiché vient d'être
+        supprimé : on remet le titre à un placeholder, le header en
+        ``idle``, et vide la matrice / les stats. Ne touche pas au
+        worker éventuellement actif (qui reste suivi via
+        ``_active_worker_project_id``).
+        """
+        self._current_project = None
+        self._current_run = None
+        self._main_window.header_bar.set_title("—")
+        self._main_window.header_bar.set_idle()
+        self._main_window.header_bar.set_open_output_enabled(False)
+        self._reset_views()
+
+    def _sync_header_for_selected_project(self) -> None:
+        """Aligne l'état des boutons du header sur la situation réelle.
+
+        Distingue le cas où le projet sélectionné a un worker actif
+        (running/paused) du cas où on regarde simplement un projet
+        terminé ou neuf (idle).
+        """
+        if self._current_project is None:
+            self._main_window.header_bar.set_idle()
+            return
+        if (
+            self._active_worker_project_id is not None
+            and self._active_worker_project_id == self._current_project.id
+        ):
+            token = self._current_pause_token
+            if token is not None and token.is_paused():
+                self._main_window.header_bar.set_paused()
+            else:
+                self._main_window.header_bar.set_running()
+            return
+        self._main_window.header_bar.set_idle()
 
     def _refresh_views_with_last_run(self) -> None:
         """Rafraîchit matrice + stats avec le dernier run du projet courant.
@@ -384,6 +445,7 @@ class RunController(QObject):
             return
 
         self._current_run = run
+        self._active_worker_project_id = self._current_project.id
         self._current_pause_token = PauseToken()
         event_bus = self._build_event_bus()
 
@@ -438,14 +500,14 @@ class RunController(QObject):
         if self._current_pause_token is None:
             return
         self._current_pause_token.request_pause()
-        self._main_window.header_bar.set_paused()
+        self._sync_header_for_selected_project()
 
     def resume_run(self) -> None:
         """Slot : reprend le run en pause."""
         if self._current_pause_token is None:
             return
         self._current_pause_token.resume()
-        self._main_window.header_bar.set_running()
+        self._sync_header_for_selected_project()
 
     def cancel_run(self) -> None:
         """Slot : demande l'annulation du run en cours, après confirmation.
@@ -565,29 +627,45 @@ class RunController(QObject):
     # ---------------------------------------------------------- end-of-run
 
     def _on_worker_finished(self, final_status: object) -> None:
-        """Slot : run terminé normalement (statut final transmis)."""
+        """Slot : run terminé normalement (statut final transmis).
+
+        Ne met à jour le header et le dashboard que si l'utilisateur est
+        toujours sur le projet du worker (sinon on respecterait pas sa
+        navigation). Les artefacts (cleanup post-cancel, OUTPUT_AVAILABLE)
+        sont en revanche traités systématiquement côté disque.
+        """
         del final_status
-        self._main_window.header_bar.set_finished()
-        if self._current_run is not None:
-            reloaded = self._project_service.get_run(self._current_run.id)
-            if reloaded is not None:
-                self._current_run = reloaded
-                self._refresh_views(reloaded)
+        worker_was_on_current_project = (
+            self._active_worker_project_id is not None
+            and self._current_project is not None
+            and self._active_worker_project_id == self._current_project.id
+        )
+
+        if worker_was_on_current_project:
+            self._main_window.header_bar.set_finished()
+            if self._current_run is not None:
+                reloaded = self._project_service.get_run(self._current_run.id)
+                if reloaded is not None:
+                    self._current_run = reloaded
+                    self._refresh_views(reloaded)
 
         # Annulation utilisateur : nettoyer les livrables et remettre le
         # cockpit à zéro maintenant que le worker a fini proprement.
         if self._cleanup_after_cancel_requested:
             self._cleanup_after_cancel_requested = False
             self._purge_output_dir_after_cancel()
-            self._reset_views()
-            self._main_window.header_bar.set_idle()
-            self._main_window.header_bar.set_open_output_enabled(False)
+            if worker_was_on_current_project:
+                self._reset_views()
+                self._main_window.header_bar.set_idle()
+                self._main_window.header_bar.set_open_output_enabled(False)
             self._cleanup_thread()
             return
 
         # Active le bouton « Ouvrir le dossier de sortie » + ajoute une ligne
         # de log avec le chemin pour que l'utilisateur sache où aller.
-        output_dir = self._current_output_dir()
+        output_dir = (
+            self._current_output_dir() if worker_was_on_current_project else None
+        )
         if output_dir is not None and output_dir.exists():
             self._main_window.header_bar.set_open_output_enabled(True)
             self._main_window.logs_dock.append_event(
@@ -655,6 +733,7 @@ class RunController(QObject):
         self._worker = None
         self._thread = None
         self._current_pause_token = None
+        self._active_worker_project_id = None
 
     # ---------------------------------------------------------- providers DI
 
@@ -767,15 +846,31 @@ class RunController(QObject):
         return bus
 
     def _on_pipeline_event(self, event: object) -> None:
-        """Slot : reçoit chaque ``PipelineEvent`` côté UI thread."""
+        """Slot : reçoit chaque ``PipelineEvent`` côté UI thread.
+
+        Les logs sont **toujours** ajoutés (utiles même si l'utilisateur
+        regarde un autre projet — il garde la trace de ce qui se passe).
+        En revanche le rafraîchissement matrice / stats ne se déclenche
+        que si le projet actuellement affiché est bien celui du worker
+        actif : sinon on écraserait le dashboard d'un autre projet avec
+        les données d'un Run qui ne le concerne pas.
+        """
         pipeline_event = cast("PipelineEvent", event)
         self._main_window.logs_dock.append_event(_to_log_event(pipeline_event))
-        if isinstance(pipeline_event, PhaseFinished | RunFinished):
-            if self._current_run is not None:
-                reloaded = self._project_service.get_run(self._current_run.id)
-                if reloaded is not None:
-                    self._current_run = reloaded
-                    self._refresh_views(reloaded)
+        if not isinstance(pipeline_event, PhaseFinished | RunFinished):
+            return
+        if self._current_run is None:
+            return
+        if (
+            self._current_project is None
+            or self._active_worker_project_id is None
+            or self._current_project.id != self._active_worker_project_id
+        ):
+            return
+        reloaded = self._project_service.get_run(self._current_run.id)
+        if reloaded is not None:
+            self._current_run = reloaded
+            self._refresh_views(reloaded)
 
     # ----------------------------------------------------------- view refresh
 

@@ -117,6 +117,10 @@ def main() -> int:  # noqa: PLR0915, C901
             )
             project_service.update_project(updated)
             _refresh_sidebar()
+            # Re-sélectionne pour refresh la prévisualisation
+            # (le dossier d'entrée a peut-être changé) et conserver la
+            # cohérence visuelle.
+            window.projects_sidebar.select_project(updated.id)
 
     def _delete_project(project_id: ProjectId) -> None:
         project = project_service.get_project(project_id)
@@ -139,8 +143,11 @@ def main() -> int:  # noqa: PLR0915, C901
         # chaque appel : l'identite ('is') avec QMessageBox.StandardButton.Yes n'est
         # pas garantie. On compare donc explicitement avec '=='.
         if reply == QMessageBox.StandardButton.Yes:
+            was_current = run_controller.current_project_id == project_id
             project_service.delete_project(project_id)
             _refresh_sidebar()
+            if was_current:
+                run_controller.clear_current_project()
 
     window.projects_sidebar.set_on_edit_requested(_edit_project)
     window.projects_sidebar.set_on_delete_requested(_delete_project)

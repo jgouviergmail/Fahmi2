@@ -161,3 +161,46 @@ def utc_now() -> datetime:
         ``datetime`` UTC aware.
     """
     return datetime.now(tz=UTC)
+
+
+def load_glossary_master(workspace: Path) -> list[dict[str, Any]]:
+    """Charge le glossaire master produit par la phase 2.
+
+    Args:
+        workspace: Dossier de travail du run.
+
+    Returns:
+        Liste des termes (dict). Liste vide si le master n'existe pas encore.
+    """
+    master_path = workspace / "glossary_master.json"
+    if not master_path.exists():
+        return []
+    payload = json.loads(master_path.read_text(encoding="utf-8"))
+    terms = payload.get("terms", [])
+    return [dict(t) for t in terms]
+
+
+def select_top_glossary_terms(
+    master_terms: list[dict[str, Any]],
+    *,
+    query: str,
+    retriever: Any,  # noqa: ANN401 — Protocol GlossaryRetriever
+    top_k: int,
+) -> list[dict[str, Any]]:
+    """Sélectionne les ``top_k`` termes du glossaire master pertinents à ``query``.
+
+    Args:
+        master_terms: Termes du glossaire master.
+        query: Texte de référence.
+        retriever: ``GlossaryRetriever``.
+        top_k: Borne supérieure.
+
+    Returns:
+        Sous-liste des termes (mêmes dicts que ``master_terms``).
+    """
+    if not master_terms:
+        return []
+    term_strings = [str(t["term"]) for t in master_terms]
+    ranked = retriever.retrieve(query=query, terms=term_strings, top_k=top_k)
+    by_term = {str(t["term"]): t for t in master_terms}
+    return [by_term[r] for r in ranked if r in by_term]

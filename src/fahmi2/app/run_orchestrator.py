@@ -33,6 +33,14 @@ from fahmi2.pipeline.engine import PipelineEngine
 from fahmi2.pipeline.pause_token import PauseToken
 from fahmi2.pipeline.phase_handler import PhaseContext
 
+# Statuts pour lesquels le dernier Run d'un projet est considéré comme
+# « inachevé » et donc reprenable au prochain clic ``Lancer``. Les Runs
+# terminés (COMPLETED) ou explicitement annulés (CANCELLED) ne sont
+# jamais repris : un nouveau Run vierge est créé à la place.
+_RESUMABLE_RUN_STATUSES: frozenset[RunStatus] = frozenset(
+    {RunStatus.FAILED, RunStatus.PAUSED, RunStatus.RUNNING}
+)
+
 
 class RunOrchestrator:
     """Pilote le lifecycle d'un Run et coordonne avec le ``PipelineEngine``."""
@@ -79,6 +87,44 @@ class RunOrchestrator:
         )
         self._state.upsert_run(run)
         return run
+
+    def resume_or_create_run(self, project: Project) -> tuple[Run, bool]:
+        """Crée un nouveau Run, ou reprend le dernier Run inachevé du projet.
+
+        Politique : on **reprend** le dernier Run s'il est dans un état
+        considéré comme reprenable :
+
+        - ``FAILED`` : une phase a échoué, l'utilisateur veut reprendre où
+          ça s'est arrêté. Les phases ``SUCCEEDED`` seront skippées par
+          le ``PipelineEngine``, la phase ``FAILED`` sera réessayée.
+        - ``PAUSED`` : crash applicatif pendant une pause utilisateur, ou
+          fermeture volontaire de l'app avec un run en pause. Idem :
+          reprise transparente.
+        - ``RUNNING`` : crash app pendant un Run actif (statut resté
+          coincé en RUNNING dans la DB). On considère que c'est
+          reprenable.
+
+        Sinon (``CANCELLED`` / ``COMPLETED`` / pas de Run du tout) on
+        crée un nouveau Run vierge avec un nouveau ``RunId`` et un
+        re-scan du dossier d'entrée.
+
+        Args:
+            project: Projet propriétaire.
+
+        Returns:
+            ``(run, is_resumed)`` où ``is_resumed`` vaut ``True`` si on
+            a repris un Run existant.
+
+        Raises:
+            StorageError: Si le scan d'un nouveau Run échoue.
+            ConfigError: Si le dossier d'entrée est vide pour un nouveau Run.
+        """
+        existing_runs = self._state.list_runs_for_project(project.id)
+        if existing_runs:
+            latest = existing_runs[-1]
+            if latest.status in _RESUMABLE_RUN_STATUSES:
+                return latest, True
+        return self.create_run(project), False
 
     def execute(self, *, run: Run, ctx: PhaseContext) -> RunStatus:
         """Exécute le pipeline pour un Run et persiste le statut final.

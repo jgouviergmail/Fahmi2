@@ -13,6 +13,7 @@ _RUN_TRANSITIONS: dict[RunStatus, frozenset[RunStatus]] = {
     RunStatus.CREATED: frozenset({RunStatus.RUNNING}),
     RunStatus.RUNNING: frozenset(
         {
+            RunStatus.RUNNING,  # idempotent (héritage crash app)
             RunStatus.PAUSED,
             RunStatus.CANCELLED,
             RunStatus.COMPLETED,
@@ -20,9 +21,12 @@ _RUN_TRANSITIONS: dict[RunStatus, frozenset[RunStatus]] = {
         }
     ),
     RunStatus.PAUSED: frozenset({RunStatus.RUNNING, RunStatus.CANCELLED}),
+    # FAILED -> RUNNING permet la reprise après une erreur de phase : le
+    # PipelineEngine skippera automatiquement les phases déjà SUCCEEDED et
+    # réessaiera la phase qui a planté (et celles suivantes).
+    RunStatus.FAILED: frozenset({RunStatus.RUNNING}),
     RunStatus.CANCELLED: frozenset(),
     RunStatus.COMPLETED: frozenset(),
-    RunStatus.FAILED: frozenset(),
 }
 
 

@@ -157,3 +157,134 @@ def test_execute_updates_project_last_run_at(
     assert reloaded is not None
     assert reloaded.last_run_at is not None
     assert reloaded.last_run_at >= before
+
+
+# --- resume_or_create_run -----------------------------------------------
+
+
+def test_resume_or_create_creates_new_when_no_run_exists(
+    tmp_path: Path, make_settings: Any
+) -> None:
+    orchestrator, _, project_service = _build_orchestrator(tmp_path)
+    input_folder = _seed_input_folder(tmp_path)
+    project = project_service.create_project(make_settings(input_folder=input_folder))
+    run, is_resumed = orchestrator.resume_or_create_run(project)
+    assert is_resumed is False
+    assert run.status is RunStatus.CREATED
+
+
+def test_resume_or_create_resumes_failed_run(
+    tmp_path: Path, make_settings: Any
+) -> None:
+    orchestrator, state, project_service = _build_orchestrator(tmp_path)
+    input_folder = _seed_input_folder(tmp_path)
+    project = project_service.create_project(make_settings(input_folder=input_folder))
+    # Premier passage : crée un Run, le marque FAILED en DB
+    failed_run = orchestrator.create_run(project).with_status(RunStatus.FAILED)
+    state.upsert_run(failed_run)
+
+    resumed, is_resumed = orchestrator.resume_or_create_run(project)
+    assert is_resumed is True
+    assert resumed.id == failed_run.id
+    assert resumed.status is RunStatus.FAILED
+
+
+def test_resume_or_create_resumes_paused_run(
+    tmp_path: Path, make_settings: Any
+) -> None:
+    orchestrator, state, project_service = _build_orchestrator(tmp_path)
+    input_folder = _seed_input_folder(tmp_path)
+    project = project_service.create_project(make_settings(input_folder=input_folder))
+    paused = orchestrator.create_run(project).with_status(RunStatus.PAUSED)
+    state.upsert_run(paused)
+
+    resumed, is_resumed = orchestrator.resume_or_create_run(project)
+    assert is_resumed is True
+    assert resumed.id == paused.id
+
+
+def test_resume_or_create_resumes_running_orphan(
+    tmp_path: Path, make_settings: Any
+) -> None:
+    """Reg : si l'app a crashé pendant un Run RUNNING, le statut reste à
+    RUNNING en DB. Au prochain Lancer on doit reprendre, pas tout refaire."""
+    orchestrator, state, project_service = _build_orchestrator(tmp_path)
+    input_folder = _seed_input_folder(tmp_path)
+    project = project_service.create_project(make_settings(input_folder=input_folder))
+    orphan = orchestrator.create_run(project).with_status(RunStatus.RUNNING)
+    state.upsert_run(orphan)
+
+    resumed, is_resumed = orchestrator.resume_or_create_run(project)
+    assert is_resumed is True
+    assert resumed.id == orphan.id
+
+
+def test_resume_or_create_does_not_resume_completed(
+    tmp_path: Path, make_settings: Any
+) -> None:
+    orchestrator, state, project_service = _build_orchestrator(tmp_path)
+    input_folder = _seed_input_folder(tmp_path)
+    project = project_service.create_project(make_settings(input_folder=input_folder))
+    completed = orchestrator.create_run(project).with_status(RunStatus.COMPLETED)
+    state.upsert_run(completed)
+
+    new_run, is_resumed = orchestrator.resume_or_create_run(project)
+    assert is_resumed is False
+    assert new_run.id != completed.id
+    assert new_run.status is RunStatus.CREATED
+
+
+def test_resume_or_create_does_not_resume_cancelled(
+    tmp_path: Path, make_settings: Any
+) -> None:
+    orchestrator, state, project_service = _build_orchestrator(tmp_path)
+    input_folder = _seed_input_folder(tmp_path)
+    project = project_service.create_project(make_settings(input_folder=input_folder))
+    cancelled = orchestrator.create_run(project).with_status(RunStatus.CANCELLED)
+    state.upsert_run(cancelled)
+
+    new_run, is_resumed = orchestrator.resume_or_create_run(project)
+    assert is_resumed is False
+    assert new_run.id != cancelled.id
+
+
+def test_execute_can_resume_failed_run_skipping_succeeded_phases(
+    tmp_path: Path, make_settings: Any
+) -> None:
+    """Reg : reprendre un Run FAILED skip les phases SUCCEEDED et
+    retente celle qui avait echoue."""
+    orchestrator, state, project_service = _build_orchestrator(tmp_path)
+    input_folder = _seed_input_folder(tmp_path)
+    project = project_service.create_project(make_settings(input_folder=input_folder))
+
+    # Premier passage : Run cree + persiste comme FAILED apres une phase
+    # marquee SUCCEEDED pour la 1ere video et FAILED pour la 2eme.
+    run = orchestrator.create_run(project)
+    state.upsert_phase_execution(
+        run.id,
+        PhaseExecution(phase_id=PhaseId.STT, status=PhaseStatus.SUCCEEDED),
+        video_id=run.videos[0].video_id,
+    )
+    state.upsert_phase_execution(
+        run.id,
+        PhaseExecution(phase_id=PhaseId.STT, status=PhaseStatus.FAILED),
+        video_id=run.videos[1].video_id,
+    )
+    state.upsert_run(run.with_status(RunStatus.FAILED))
+
+    # Reprise : on doit retomber sur le meme Run + il se termine en SUCCESS
+    # car _NoOpHandler reussit toujours.
+    resumed_run, is_resumed = orchestrator.resume_or_create_run(project)
+    assert is_resumed is True
+    final = orchestrator.execute(run=resumed_run, ctx=_build_ctx(tmp_path, resumed_run))
+    assert final is RunStatus.COMPLETED
+    # La phase video[0] doit etre passee a SKIPPED (deja SUCCEEDED) ; la
+    # phase video[1] doit etre repassee a SUCCEEDED apres reexecution.
+    s0 = state.get_phase_status(
+        resumed_run.id, PhaseId.STT, video_id=run.videos[0].video_id
+    )
+    s1 = state.get_phase_status(
+        resumed_run.id, PhaseId.STT, video_id=run.videos[1].video_id
+    )
+    assert s0 is PhaseStatus.SKIPPED
+    assert s1 is PhaseStatus.SUCCEEDED

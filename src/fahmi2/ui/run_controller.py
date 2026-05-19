@@ -428,7 +428,9 @@ class RunController(QObject):
 
         try:
             orchestrator = self._build_orchestrator()
-            run = orchestrator.create_run(self._current_project)
+            run, is_resumed = orchestrator.resume_or_create_run(
+                self._current_project
+            )
         except Fahmi2Error as exc:
             QMessageBox.critical(
                 self._main_window,
@@ -443,6 +445,21 @@ class RunController(QObject):
                 f"{type(exc).__name__} : {exc}",
             )
             return
+
+        if is_resumed:
+            self._main_window.logs_dock.append_event(
+                LogEvent(
+                    timestamp=datetime.now(tz=UTC),
+                    severity=Severity.INFO,
+                    code="RUN_RESUMED",
+                    message=(
+                        f"Reprise du Run {run.id.value[:8]}… "
+                        f"(statut précédent : {run.status.value}). Les phases "
+                        "déjà terminées seront passées en SKIPPED."
+                    ),
+                    run_id=run.id.value,
+                )
+            )
 
         self._current_run = run
         self._active_worker_project_id = self._current_project.id

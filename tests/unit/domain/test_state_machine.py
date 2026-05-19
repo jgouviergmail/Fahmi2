@@ -27,8 +27,13 @@ from fahmi2.domain.state_machine import (
         (RunStatus.PAUSED, RunStatus.COMPLETED, False),
         (RunStatus.COMPLETED, RunStatus.RUNNING, False),
         (RunStatus.CANCELLED, RunStatus.RUNNING, False),
-        (RunStatus.FAILED, RunStatus.RUNNING, False),
-        (RunStatus.RUNNING, RunStatus.RUNNING, False),
+        # Reprise après erreur : FAILED -> RUNNING désormais autorisé.
+        (RunStatus.FAILED, RunStatus.RUNNING, True),
+        # Idempotent pour gérer le cas crash app avec statut bloqué à RUNNING.
+        (RunStatus.RUNNING, RunStatus.RUNNING, True),
+        # COMPLETED / CANCELLED restent terminaux.
+        (RunStatus.COMPLETED, RunStatus.CANCELLED, False),
+        (RunStatus.CANCELLED, RunStatus.COMPLETED, False),
     ],
 )
 def test_run_transitions(from_s: RunStatus, to_s: RunStatus, expected: bool) -> None:

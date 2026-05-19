@@ -89,6 +89,29 @@ def test_projects_sidebar_edit_and_delete_callbacks_attachable(
     assert deleted == []
 
 
+def test_projects_sidebar_select_project_triggers_callback(
+    qtbot: QtBot, tmp_path: object, make_settings: object
+) -> None:
+    """``select_project`` doit declencher le signal de selection."""
+    from datetime import UTC as _UTC  # noqa: PLC0415
+    from datetime import datetime as _dt  # noqa: PLC0415
+
+    from fahmi2.domain.ids import ProjectId  # noqa: PLC0415
+    from fahmi2.domain.project import Project  # noqa: PLC0415
+
+    settings = make_settings()  # type: ignore[operator]
+    p1 = Project(id=ProjectId.new(), settings=settings, created_at=_dt.now(tz=_UTC))
+    p2 = Project(id=ProjectId.new(), settings=settings, created_at=_dt.now(tz=_UTC))
+
+    widget = ProjectsSidebar()
+    qtbot.addWidget(widget)
+    received: list[str] = []
+    widget.set_on_project_selected(lambda pid: received.append(pid.value))
+    widget.set_projects([p1, p2])
+    widget.select_project(p2.id)
+    assert received[-1] == p2.id.value
+
+
 def test_logs_dock_appends_within_threshold(qtbot: QtBot) -> None:
     dock = LogsDock()
     qtbot.addWidget(dock)

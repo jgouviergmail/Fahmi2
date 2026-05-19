@@ -90,8 +90,12 @@ def main() -> int:  # noqa: PLR0915, C901
         if dialog.exec() == NewProjectDialog.DialogCode.Accepted:
             settings = dialog.get_settings()
             if settings is not None:
-                project_service.create_project(settings)
+                created = project_service.create_project(settings)
                 _refresh_sidebar()
+                # Sélectionne automatiquement le projet nouvellement créé
+                # pour que la prévisualisation des vidéos s'affiche
+                # immédiatement dans le dashboard, sans clic supplémentaire.
+                window.projects_sidebar.select_project(created.id)
 
     def _edit_project(project_id: ProjectId) -> None:
         project = project_service.get_project(project_id)

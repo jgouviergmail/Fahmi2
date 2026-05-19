@@ -77,6 +77,23 @@ class ProjectsSidebar(QListWidget):
             item.setData(_PROJECT_ID_ROLE, project.id.value)
             self.addItem(item)
 
+    def select_project(self, project_id: ProjectId) -> None:
+        """Sélectionne le projet correspondant à ``project_id`` dans la liste.
+
+        Idempotent : si l'item n'existe pas (sidebar pas encore peuplée),
+        ne fait rien. Le callback ``on_project_selected`` est déclenché
+        normalement par le signal Qt ``currentItemChanged``.
+
+        Args:
+            project_id: Identifiant du projet à mettre en sélection.
+        """
+        for i in range(self.count()):
+            item = self.item(i)
+            value = item.data(_PROJECT_ID_ROLE)
+            if isinstance(value, str) and value == project_id.value:
+                self.setCurrentRow(i)
+                return
+
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:  # noqa: N802
         """Affiche le menu contextuel (Modifier / Supprimer) sur clic droit.
 

@@ -14,15 +14,20 @@ class Term:
     """Terme du glossaire avec définition contextualisée.
 
     Attributes:
-        term: Le terme tel qu'il apparaît dans le contenu.
+        term: Le terme tel qu'il apparaît dans le contenu (forme longue
+            préférable, ex: « Produit intérieur brut »).
         definition: Définition contextuelle produite par les phases LLM.
+        acronym: Acronyme officiel associé au terme (ex: « PIB »), ou
+            ``None`` si le terme n'en a pas.
         sources: Vidéos d'où le terme a été extrait.
-        aliases: Variantes orthographiques ou rédactionnelles connues.
+        aliases: Variantes orthographiques ou rédactionnelles connues
+            (différentes de l'acronyme).
         cross_lang: Mapping ``Language`` → traduction (alimenté par la phase 6).
     """
 
     term: str
     definition: str
+    acronym: str | None = None
     sources: tuple[VideoId, ...] = ()
     aliases: tuple[str, ...] = ()
     cross_lang: dict[Language, str] = field(default_factory=dict)

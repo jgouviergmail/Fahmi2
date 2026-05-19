@@ -58,13 +58,14 @@ CREATE INDEX IF NOT EXISTS idx_phase_executions_lookup
   ON phase_executions (run_id, phase_id, video_id);
 
 CREATE TABLE IF NOT EXISTS glossary_terms (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  run_id       TEXT NOT NULL,
-  language     TEXT NOT NULL,
-  term         TEXT NOT NULL,
-  definition   TEXT NOT NULL,
-  sources_json TEXT NOT NULL,
-  aliases_json TEXT NOT NULL,
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  run_id          TEXT NOT NULL,
+  language        TEXT NOT NULL,
+  term            TEXT NOT NULL,
+  definition      TEXT NOT NULL,
+  acronym         TEXT,
+  sources_json    TEXT NOT NULL,
+  aliases_json    TEXT NOT NULL,
   cross_lang_json TEXT NOT NULL,
   UNIQUE (run_id, language, term),
   FOREIGN KEY (run_id) REFERENCES runs (id) ON DELETE CASCADE

@@ -119,9 +119,14 @@ def test_execute_assembles_consolidated_markdown(
     # Les contenus des deux vidéos doivent être présents (intacts)
     assert "Contenu chap 1" in content
     assert "Contenu chap 2" in content
-    # Intro / plan / conclusion doivent apparaître
+    # Intro / sommaire / chapitres numérotés / conclusion doivent apparaître
     assert "Introduction générale" in content
-    assert "Plan d'ensemble" in content
+    assert "## Sommaire" in content
+    assert "# 1. Chapitre Un" in content
+    assert "# 2. Chapitre Deux" in content
+    # Les ancres du sommaire pointent vers les chapitres numérotés
+    assert "[Chapitre Un](#1-chapitre-un)" in content
+    assert "[Chapitre Deux](#2-chapitre-deux)" in content
     assert "Conclusion générale" in content
     # Cost cumulé = 0.001 + 0.001 + 0.005
     assert result.cost_usd == pytest.approx(0.007)

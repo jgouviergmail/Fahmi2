@@ -518,11 +518,12 @@ class SqliteState:
         self._get_connection().execute(
             """
             INSERT INTO glossary_terms (
-                run_id, language, term, definition,
+                run_id, language, term, definition, acronym,
                 sources_json, aliases_json, cross_lang_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(run_id, language, term) DO UPDATE SET
                 definition      = excluded.definition,
+                acronym         = excluded.acronym,
                 sources_json    = excluded.sources_json,
                 aliases_json    = excluded.aliases_json,
                 cross_lang_json = excluded.cross_lang_json
@@ -532,6 +533,7 @@ class SqliteState:
                 str(language),
                 term.term,
                 term.definition,
+                term.acronym,
                 json.dumps([s.value for s in term.sources], ensure_ascii=False),
                 json.dumps(list(term.aliases), ensure_ascii=False),
                 json.dumps(
@@ -553,8 +555,9 @@ class SqliteState:
             Liste des termes ordonnée par ``term`` croissant.
         """
         rows = self._get_connection().execute(
-            "SELECT term, definition, sources_json, aliases_json, cross_lang_json "
-            "FROM glossary_terms WHERE run_id = ? AND language = ? ORDER BY term",
+            "SELECT term, definition, acronym, sources_json, aliases_json, "
+            "cross_lang_json FROM glossary_terms "
+            "WHERE run_id = ? AND language = ? ORDER BY term",
             (run_id.value, str(language)),
         ).fetchall()
         return [self._row_to_term(row) for row in rows]
@@ -580,6 +583,7 @@ class SqliteState:
         conn = self._get_connection()
         ddl = self._load_schema_ddl()
         conn.executescript(ddl)
+        self._apply_soft_migrations(conn)
         existing = conn.execute(
             "SELECT value FROM meta WHERE key = ?", (_META_KEY_SCHEMA_VERSION,)
         ).fetchone()
@@ -588,6 +592,24 @@ class SqliteState:
                 "INSERT INTO meta (key, value) VALUES (?, ?)",
                 (_META_KEY_SCHEMA_VERSION, str(SCHEMA_VERSION)),
             )
+
+    @staticmethod
+    def _apply_soft_migrations(conn: sqlite3.Connection) -> None:
+        """Applique les migrations légères additives sur une DB pré-existante.
+
+        Limitées aux ``ALTER TABLE ... ADD COLUMN`` qui sont rétrocompatibles
+        et ne perdent aucune donnée. Les changements de schéma plus invasifs
+        passent par le ``MigrationRunner`` formel.
+
+        Args:
+            conn: Connexion SQLite ouverte sur la DB.
+        """
+        existing_cols = {
+            row[1]
+            for row in conn.execute("PRAGMA table_info(glossary_terms)").fetchall()
+        }
+        if "acronym" not in existing_cols:
+            conn.execute("ALTER TABLE glossary_terms ADD COLUMN acronym TEXT")
 
     @staticmethod
     def _load_schema_ddl() -> str:
@@ -655,12 +677,21 @@ class SqliteState:
 
     @staticmethod
     def _row_to_term(row: tuple[Any, ...]) -> Term:
-        term_str, definition, sources_json, aliases_json, cross_lang_json = row
+        (
+            term_str,
+            definition,
+            acronym,
+            sources_json,
+            aliases_json,
+            cross_lang_json,
+        ) = row
         sources: Iterable[str] = json.loads(sources_json)
         aliases: Iterable[str] = json.loads(aliases_json)
         cross_lang_raw: dict[str, str] = json.loads(cross_lang_json)
-        return replace(
-            Term(term=term_str, definition=definition),
+        return Term(
+            term=term_str,
+            definition=definition,
+            acronym=acronym,
             sources=tuple(VideoId(value=sid) for sid in sources),
             aliases=tuple(aliases),
             cross_lang={Language(k): v for k, v in cross_lang_raw.items()},

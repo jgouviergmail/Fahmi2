@@ -110,8 +110,52 @@ def test_render_markdown_in_english(tmp_path: Path, make_settings: Any) -> None:
     reconciler.import_master_payload(
         run_id=run_id,
         language=Language.EN,
-        payload={"terms": [{"term": "GDP", "definition": "Gross domestic product"}]},
+        payload={
+            "terms": [
+                {
+                    "term": "Gross domestic product",
+                    "acronym": "GDP",
+                    "definition": "Total monetary value of finished goods and services.",
+                }
+            ]
+        },
     )
     md = reconciler.render_markdown(run_id, Language.EN)
+    # Titre + en-têtes localisées
     assert md.startswith("# Glossary")
-    assert "**GDP** : Gross domestic product" in md
+    assert "| Term | Acronym | Definition |" in md
+    # Ligne du tableau pour GDP
+    assert (
+        "| Gross domestic product | GDP | "
+        "Total monetary value of finished goods and services. |"
+    ) in md
+
+
+def test_render_markdown_table_format_in_french(
+    tmp_path: Path, make_settings: Any
+) -> None:
+    state, run_id = _setup_run(tmp_path, make_settings)
+    reconciler = GlossaryReconciler(state)
+    reconciler.import_master_payload(
+        run_id=run_id,
+        language=Language.FR,
+        payload={
+            "terms": [
+                {
+                    "term": "Produit intérieur brut",
+                    "acronym": "PIB",
+                    "definition": "Indicateur agrégé de richesse produite.",
+                },
+                {
+                    "term": "Inflation",
+                    "definition": "Hausse soutenue des prix.",
+                },
+            ]
+        },
+    )
+    md = reconciler.render_markdown(run_id, Language.FR)
+    assert "| Terme | Acronyme | Définition |" in md
+    assert "|---|---|---|" in md
+    assert "| Produit intérieur brut | PIB |" in md
+    # Pas d'acronyme pour Inflation : cellule vide
+    assert "| Inflation |  | Hausse soutenue des prix. |" in md

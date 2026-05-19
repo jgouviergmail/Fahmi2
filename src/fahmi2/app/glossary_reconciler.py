@@ -7,7 +7,8 @@ phase 2 :
   donnée) et le persister dans SQLite via ``SqliteState``.
 - Exposer le glossaire d'un run sous forme d'entité domaine ``Glossary`` pour
   l'UI / l'export.
-- Rendre le glossaire au format Markdown (titre + liste alphabétique).
+- Rendre le glossaire au format Markdown sous forme de tableau
+  ``| Terme | Acronyme | Définition |`` trié alphabétiquement.
 
 L'injection top-K dans les prompts LLM est gérée plus bas par le
 :py:class:`~fahmi2.core.retrieval.interface.GlossaryRetriever` (TF-IDF en v1).
@@ -15,6 +16,7 @@ L'injection top-K dans les prompts LLM est gérée plus bas par le
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Any
 
 from fahmi2.domain.enums import Language
@@ -26,6 +28,10 @@ _TERMS_KEY = "terms"
 _TITLE_BY_LANGUAGE: dict[Language, str] = {
     Language.FR: "Glossaire",
     Language.EN: "Glossary",
+}
+_HEADERS_BY_LANGUAGE: dict[Language, tuple[str, str, str]] = {
+    Language.FR: ("Terme", "Acronyme", "Définition"),
+    Language.EN: ("Term", "Acronym", "Definition"),
 }
 
 
@@ -76,22 +82,24 @@ class GlossaryReconciler:
         return Glossary(language=language, terms=tuple(terms))
 
     def render_markdown(self, run_id: RunId, language: Language) -> str:
-        """Rend le glossaire d'un run en Markdown.
+        """Rend le glossaire d'un run en tableau Markdown.
 
         Args:
             run_id: Run.
             language: Langue.
 
         Returns:
-            Markdown : titre H1 + liste triée alphabétiquement de termes.
+            Markdown : titre H1 + tableau ``| Terme | Acronyme | Définition |``
+            trié alphabétiquement par terme.
         """
         glossary = self.load_glossary(run_id, language)
         title = _TITLE_BY_LANGUAGE.get(language, "Glossary")
-        lines: list[str] = [f"# {title}", ""]
         sorted_terms = sorted(glossary, key=lambda t: t.term.casefold())
-        for term in sorted_terms:
-            lines.append(f"- **{term.term}** : {term.definition}")
-        return "\n".join(lines) + "\n"
+        return render_glossary_markdown_table(
+            title=title,
+            language=language,
+            terms=sorted_terms,
+        )
 
     @staticmethod
     def _extract_terms(payload: dict[str, Any]) -> list[Term]:
@@ -109,13 +117,47 @@ class GlossaryReconciler:
             sources_raw = raw.get("sources", []) or []
             aliases_raw = raw.get("aliases", []) or []
             cross_lang_raw = raw.get("cross_lang", {}) or {}
+            acronym = raw.get("acronym")
             result.append(
                 Term(
                     term=str(raw.get("term", "")),
                     definition=str(raw.get("definition", "")),
+                    acronym=str(acronym) if acronym else None,
                     sources=tuple(VideoId(value=str(s)) for s in sources_raw),
                     aliases=tuple(str(a) for a in aliases_raw),
-                    cross_lang={Language(k): str(v) for k, v in cross_lang_raw.items()},
+                    cross_lang={
+                        Language(k): str(v) for k, v in cross_lang_raw.items()
+                    },
                 )
             )
         return result
+
+
+def render_glossary_markdown_table(
+    *,
+    title: str,
+    language: Language,
+    terms: Iterable[Term],
+) -> str:
+    """Rend une liste de ``Term`` au format tableau Markdown.
+
+    Args:
+        title: Titre H1 du document.
+        language: Langue (pour les libellés d'en-têtes).
+        terms: Termes à afficher (déjà triés par l'appelant).
+
+    Returns:
+        Le Markdown complet avec titre, ligne vide, tableau, ligne finale.
+    """
+    headers = _HEADERS_BY_LANGUAGE.get(language, _HEADERS_BY_LANGUAGE[Language.EN])
+    lines: list[str] = [f"# {title}", ""]
+    lines.append(f"| {headers[0]} | {headers[1]} | {headers[2]} |")
+    lines.append("|---|---|---|")
+    for term in terms:
+        acronym = term.acronym or ""
+        # Échappement des pipes dans les contenus pour ne pas casser le tableau
+        term_cell = term.term.replace("|", "\\|")
+        acronym_cell = acronym.replace("|", "\\|")
+        def_cell = term.definition.replace("|", "\\|").replace("\n", " ")
+        lines.append(f"| {term_cell} | {acronym_cell} | {def_cell} |")
+    return "\n".join(lines) + "\n"

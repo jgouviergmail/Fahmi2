@@ -296,17 +296,31 @@ def _glossary_terms_for_template(
 
 
 def _render_glossary_md(payload: dict[str, Any], language: Language) -> str:
-    """Rend le glossaire master en Markdown pour une langue donnée.
+    """Rend le glossaire master en tableau Markdown pour une langue donnée.
 
     Args:
         payload: JSON master.
-        language: Langue cible (utilisée pour le titre H1).
+        language: Langue cible (utilisée pour le titre H1 et les en-têtes).
 
     Returns:
-        Le glossaire au format Markdown.
+        Le glossaire au format tableau Markdown
+        ``| Terme | Acronyme | Définition |``.
     """
+    from fahmi2.app.glossary_reconciler import render_glossary_markdown_table  # noqa: PLC0415
+    from fahmi2.domain.glossary import Term  # noqa: PLC0415
+
     title_by_lang = {Language.FR: "Glossaire", Language.EN: "Glossary"}
-    lines: list[str] = [f"# {title_by_lang.get(language, 'Glossary')}", ""]
-    for term in payload.get("terms", []):
-        lines.append(f"- **{term.get('term', '')}** : {term.get('definition', '')}")
-    return "\n".join(lines) + "\n"
+    raw_terms = payload.get("terms", [])
+    terms = [
+        Term(
+            term=str(raw.get("term", "")),
+            definition=str(raw.get("definition", "")),
+            acronym=str(raw["acronym"]) if raw.get("acronym") else None,
+        )
+        for raw in raw_terms
+    ]
+    return render_glossary_markdown_table(
+        title=title_by_lang.get(language, "Glossary"),
+        language=language,
+        terms=terms,
+    )

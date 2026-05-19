@@ -194,9 +194,22 @@ def _assemble_consolidated(
 ) -> str:
     """Assemble le document consolidé final en Markdown.
 
+    Le document final est structuré ainsi :
+
+    1. ``# <titre global>``
+    2. ``## Introduction générale`` (texte narratif du LLM)
+    3. ``## Sommaire`` (liste numérotée avec ancres Markdown vers chaque chapitre)
+    4. Chapitres : ``# 1. <titre>``, ``# 2. <titre>``…  Le contenu de chaque
+       chapitre est le Markdown structuré produit par la phase 4, dont le
+       titre H1 d'origine est promu en H2 « Présentation » pour éviter la
+       collision avec le H1 numéroté du chapitre.
+    5. ``## Conclusion générale``
+
     Args:
-        meta: Méta-éléments produits par la consolidation (title, intro, plan,
-            conclusion).
+        meta: Méta-éléments produits par la consolidation (title, intro,
+            plan, conclusion). ``plan_markdown`` est ignoré ici : on
+            préfère générer un sommaire déterministe avec ancres
+            cliquables.
         structured_by_video: Documents structurés par vidéo.
         summaries: Résumés (utilisés pour les titres de chapitres).
 
@@ -205,23 +218,87 @@ def _assemble_consolidated(
     """
     title = str(meta.get("global_title", "Document consolidé"))
     introduction = str(meta.get("introduction_markdown", "")).strip()
-    plan = str(meta.get("plan_markdown", "")).strip()
     conclusion = str(meta.get("conclusion_markdown", "")).strip()
 
     titles_by_video = {s.get("video_id", ""): s.get("title", "") for s in summaries}
 
+    # Construire la liste des chapitres numérotés avec leur titre effectif
+    chapters: list[tuple[int, str, str]] = []
+    for index, (video_id, structured) in enumerate(structured_by_video.items(), start=1):
+        chapter_title = str(titles_by_video.get(video_id, "")).strip()
+        if not chapter_title:
+            chapter_title = f"Chapitre {index}"
+        chapters.append((index, chapter_title, structured))
+
     parts: list[str] = [f"# {title}", ""]
     if introduction:
         parts.extend(["## Introduction générale", "", introduction, ""])
-    if plan:
-        parts.extend(["## Plan d'ensemble", "", plan, ""])
-    for video_id, structured in structured_by_video.items():
-        chapter_title = str(titles_by_video.get(video_id, "")).strip()
-        if chapter_title:
-            parts.append(f"# {chapter_title}")
-            parts.append("")
-        parts.append(structured.rstrip())
+
+    # Sommaire généré automatiquement avec ancres slug déterministes
+    if chapters:
+        parts.append("## Sommaire")
         parts.append("")
+        for idx, chap_title, _ in chapters:
+            anchor = _slugify(f"{idx}. {chap_title}")
+            parts.append(f"{idx}. [{chap_title}](#{anchor})")
+        parts.append("")
+
+    for idx, chap_title, structured in chapters:
+        parts.append(f"# {idx}. {chap_title}")
+        parts.append("")
+        parts.append(_demote_chapter_h1(structured))
+        parts.append("")
+
     if conclusion:
         parts.extend(["## Conclusion générale", "", conclusion, ""])
     return "\n".join(parts).rstrip() + "\n"
+
+
+def _slugify(text: str) -> str:
+    """Convertit un titre Markdown en ancre slug GitHub-compatible.
+
+    Les ancres GitHub-flavored sont en minuscules, les espaces deviennent
+    des tirets, et seuls les caractères alphanumériques + tirets sont
+    conservés (les accents sont préservés en mode GFM moderne).
+
+    Args:
+        text: Titre source.
+
+    Returns:
+        Slug ancre (sans le ``#``).
+    """
+    import re  # noqa: PLC0415
+
+    cleaned = text.lower().strip()
+    # Espaces et caractères de ponctuation usuels → tirets
+    cleaned = re.sub(r"[\s/]+", "-", cleaned)
+    # Supprime tout caractère non alphanumérique sauf tirets et caractères
+    # accentués (qui sont préservés par GFM).
+    cleaned = re.sub(r"[^\w\-]+", "", cleaned, flags=re.UNICODE)
+    # Compacte les tirets consécutifs
+    cleaned = re.sub(r"-+", "-", cleaned).strip("-")
+    return cleaned
+
+
+def _demote_chapter_h1(structured_markdown: str) -> str:
+    """Supprime ou démote le premier H1 du chapitre.
+
+    Le chapitre a déjà reçu son propre H1 numéroté lors de l'assemblage ;
+    on retire le premier titre H1 d'origine pour éviter la duplication
+    visuelle. Les H2/H3 suivants sont conservés.
+
+    Args:
+        structured_markdown: Markdown du chapitre produit par la phase 4.
+
+    Returns:
+        Le Markdown avec le premier H1 supprimé (les sous-titres restent).
+    """
+    lines = structured_markdown.splitlines()
+    skipped_h1 = False
+    out: list[str] = []
+    for line in lines:
+        if not skipped_h1 and line.startswith("# ") and not line.startswith("## "):
+            skipped_h1 = True
+            continue
+        out.append(line)
+    return "\n".join(out).strip("\n")

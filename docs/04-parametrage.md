@@ -76,11 +76,17 @@ Pour chaque phase LLM (phases 1 à 7), vous pouvez configurer :
 
 | Paramètre | Description | Plage | Recommandation |
 |-----------|-------------|-------|----------------|
-| **Thinking activé** | Mode raisonnement DeepSeek (chain-of-thought visible) | bool | Off par défaut, on pour phases critiques (consolidation, traduction) |
+| **Thinking activé** | Mode raisonnement DeepSeek (envoie `{"thinking": {"type": "enabled"}}`). Le modèle produit des tokens de raisonnement avant la réponse finale. | bool | Off par défaut, on pour phases critiques (structuration, consolidation, cohérence) |
+| **Effort de raisonnement** | Niveau d'effort transmis à DeepSeek (envoie `{"reasoning_effort": "high"}` ou `"max"`). Pris en compte uniquement si Thinking est coché. | `(défaut serveur)` / `HIGH` / `MAX` | `HIGH` pour la plupart des cas, `MAX` pour les phases les plus difficiles ou en cas de qualité insuffisante |
 | **Température** | Variabilité de la sortie LLM | 0.0 — 2.0 | 0.2-0.4 pour structuration ; 0.0-0.2 pour traduction ; 0.3-0.6 pour reformulation |
 | **Max retries** | Tentatives en cas d'erreur transitoire | 0 — ∞ | 5 par défaut |
 
-### 2.6 Plafond budget
+**⚠ Impact coût du thinking.** Activer le thinking peut multiplier le
+coût d'une phase par 2 à 6 selon le niveau d'effort, car les tokens de
+raisonnement sont facturés au tarif `output` standard. L'estimation
+pré-run en tient compte (voir section 2.6 ci-dessous).
+
+### 2.6 Plafond budget et estimation pré-run
 
 | Paramètre | Description |
 |-----------|-------------|
@@ -88,6 +94,27 @@ Pour chaque phase LLM (phases 1 à 7), vous pouvez configurer :
 
 L'arrêt est toujours **propre** : jamais d'interruption au milieu d'un
 appel LLM en cours. La pause se produit à la prochaine frontière sûre.
+
+**Estimation pré-run accessible à tout moment** depuis la barre
+d'en-tête (bouton **💵 Estimer le coût**). Le calcul intègre :
+
+- La durée audio totale des vidéos détectées (probe `ffprobe`).
+- Le provider STT (`faster_whisper_local` = gratuit, `openai_cloud` =
+  $0.006/min).
+- Le modèle LLM (grille tarifaire Flash vs Pro).
+- Le nombre de langues de sortie + de traductions nécessaires.
+- **La configuration par phase** : `thinking_enabled` et
+  `reasoning_effort` sont traduits en un multiplicateur appliqué aux
+  tokens de complétion estimés :
+
+| `thinking_enabled` | `reasoning_effort` | Multiplicateur output |
+|---|---|---|
+| `false` | (n/a) | ×1.0 |
+| `true` | (défaut serveur) | ×2.5 |
+| `true` | `HIGH` | ×3.5 |
+| `true` | `MAX` | ×6.0 |
+
+L'écart résiduel est de l'ordre de ±20 % selon le contenu des vidéos.
 
 ### 2.7 Paramètres avancés
 
@@ -100,15 +127,42 @@ appel LLM en cours. La pause se produit à la prochaine frontière sûre.
 
 ## 3. Surcouche des prompts (avancé)
 
-Les prompts par défaut bundlés dans l'application peuvent être surchargés
-par fichier-utilisateur.
+Les prompts LLM par défaut peuvent être personnalisés sans toucher au
+code source. Deux moyens : l'**éditeur intégré** (recommandé) ou le dépôt
+manuel d'un fichier `.j2`.
 
-### Procédure
+### 3.1 Via l'éditeur intégré (recommandé)
 
-1. Créer le dossier `%APPDATA%\Fahmi2\prompts\` s'il n'existe pas (créé
-   automatiquement au premier lancement).
-2. Y déposer un fichier `.j2` (Jinja2) avec le **même nom** que le template
-   par défaut. Templates disponibles :
+Menu **Édition → Modifier les prompts…** ouvre un dialogue dédié :
+
+- **Sidebar gauche** : liste des 8 templates LLM (phases 1-7 +
+  sous-prompt 5a). Un astérisque ` *` est ajouté en face d'un template
+  pour lequel un override est actif.
+- **Description** courte de chaque phase et de son rôle dans le
+  pipeline.
+- **Bandeau d'état** : *« 📦 Prompt par défaut »* ou *« ✏️ Override
+  personnalisé actif »*.
+- **Éditeur monospace** avec coloration QSS, taille redimensionnable.
+- **Bouton « 💾 Enregistrer »** : valide la syntaxe Jinja2 avant
+  écriture dans `%APPDATA%\Fahmi2\prompts\`. Refus immédiat si le
+  template contient une erreur de syntaxe, avec affichage du message
+  d'erreur Jinja2 brut.
+- **Bouton « ↩ Réinitialiser au défaut »** : supprime l'override (après
+  confirmation) et restaure le template bundlé.
+- Confirmation au changement de phase si des modifications ne sont pas
+  sauvegardées (évite la perte involontaire).
+
+Les overrides sont actifs **au prochain lancement de la phase**.
+
+### 3.2 Via dépôt manuel (alternatif)
+
+Pour les workflows scriptés, vous pouvez déposer directement les
+fichiers :
+
+1. Le dossier `%APPDATA%\Fahmi2\prompts\` est créé automatiquement au
+   premier lancement.
+2. Y déposer un fichier `.j2` (Jinja2) avec le **même nom** que le
+   template par défaut. Templates disponibles :
    - `phase_1_term_extraction.j2`
    - `phase_2_glossary_reconciliation.j2`
    - `phase_3_reformulation.j2`
@@ -119,7 +173,7 @@ par fichier-utilisateur.
    - `phase_7_coherence.j2`
 3. Le prompt sera utilisé automatiquement au prochain run.
 
-### Variables disponibles dans chaque template
+### 3.3 Variables disponibles dans chaque template
 
 | Template | Variables clés |
 |----------|----------------|
@@ -132,16 +186,17 @@ par fichier-utilisateur.
 | `phase_6_translation` | `source_language_label`, `target_language_label`, `style_label`, `style_directives`, `glossary_terms`, `source_markdown` |
 | `phase_7_coherence` | `output_language_label`, `style_label`, `style_directives`, `glossary_terms`, `consolidated_markdown` |
 
-### Validation
+### 3.4 Validation et restauration
 
-Si la surcouche contient une **erreur de syntaxe Jinja2**, l'application
-revient automatiquement sur le template par défaut et logge un événement
-`PROMPT.INVALID_OVERRIDE` que vous pouvez consulter dans le panneau Logs.
-
-### Restaurer le défaut
-
-Supprimer le fichier `.j2` dans `%APPDATA%\Fahmi2\prompts\`. L'application
-reprend immédiatement le template bundlé au prochain run.
+- L'éditeur intégré refuse d'enregistrer une syntaxe invalide.
+- Si un override déposé manuellement est invalide, le `PromptLoader`
+  retombe automatiquement sur le template par défaut et logge
+  `PROMPT.INVALID_OVERRIDE` (consultable dans le panneau Logs).
+- **Restaurer le défaut** : via le bouton *« ↩ Réinitialiser au défaut »*
+  dans l'éditeur, ou en supprimant manuellement le fichier `.j2` dans
+  `%APPDATA%\Fahmi2\prompts\`. Important : « défaut » = le template
+  bundlé avec la version installée de l'application ; il n'y a pas de
+  notion de « version d'usine » historique.
 
 ## 4. Variables d'environnement (debug)
 
@@ -171,11 +226,12 @@ autre emplacement (utile pour les tests ou les installations atypiques).
 - Provider STT : `faster_whisper_local` si GPU disponible (gratuit), sinon
   `openai_cloud`
 - Modèle LLM : `deepseek-v4-pro` (qualité supérieure)
-- Thinking : activé pour phases 4 (structuration), 5 (consolidation),
-  7 (cohérence)
+- Thinking activé + `HIGH` pour phases 4 (structuration), 5
+  (consolidation), 7 (cohérence). `MAX` réservé si la qualité reste
+  insuffisante (×6 sur l'output).
 - Température : 0.2 pour traduction, 0.4 ailleurs
 - Style : `académique`
-- Plafond budget : 20-30 $
+- Plafond budget : 20-30 $ (vérifier d'abord avec **💵 Estimer le coût**)
 
 ### 5.3 Itération rapide sur un cours en cours d'écriture
 
@@ -183,6 +239,7 @@ autre emplacement (utile pour les tests ou les installations atypiques).
 - Modèle LLM : `deepseek-v4-flash`
 - Style : `standard` ou personnalisé via directives
 - Plafond budget : 5 $
-- Utiliser la **reprise** : modifier les prompts via override, relancer
-  uniquement les phases impactées en supprimant manuellement les artefacts
-  correspondants dans `workspace/`.
+- Utiliser la **reprise** : modifier les prompts via l'éditeur intégré
+  (Édition → Modifier les prompts…), relancer uniquement les phases
+  impactées en supprimant manuellement les artefacts correspondants
+  dans `workspace/`.

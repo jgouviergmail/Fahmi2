@@ -9,16 +9,26 @@ Application desktop Windows, mono-utilisateur, **installation en double-clic**
 (transcription Whisper + 7 phases LLM DeepSeek v4), entièrement
 paramétrable via l'interface graphique.
 
-## Capacités v1
+## Capacités v0.2
 
 - 2 langues de sortie : **français** et **anglais**.
 - 2 providers STT : **faster-whisper-large-v3-turbo** local (GPU NVIDIA) ou
   **OpenAI Whisper** cloud.
 - 2 modèles LLM : **DeepSeek v4 Flash** (économique) ou **Pro** (capacité
-  supérieure). Mode raisonnement + température configurables par phase.
+  supérieure). Mode raisonnement (`thinking` + `reasoning_effort`
+  HIGH/MAX) et température configurables **par phase**.
 - 4 styles de rendu : décontracté / standard / professionnel / académique +
   directives libres.
-- **Estimation de coût pré-run** + **plafond budget** avec arrêt propre.
+- **Document consolidé navigable** : titres numérotés hiérarchiquement
+  (1, 1.1, 1.1.1), sommaire automatique avec ancres cliquables,
+  admonitions élégantes (blockquote + emoji).
+- **Glossaire en tableau** 4 colonnes Terme / Acronyme / Signification /
+  Définition, avec l'expansion d'acronyme conservée dans sa langue
+  d'origine (ROI = *Return On Investment* même dans un glossaire FR).
+- **Estimation de coût pré-run** prenant en compte le thinking par
+  phase + **plafond budget** avec arrêt propre.
+- **Édition des prompts** depuis l'UI (menu Édition → Modifier les
+  prompts…) avec validation Jinja2 et restauration au défaut.
 - **Checkpointing fin par phase** : aucun travail perdu en cas de pause,
   annulation ou crash.
 - **Concept de Projet persistant** avec historique de runs et reprise.
@@ -51,8 +61,11 @@ paramétrable via l'interface graphique.
    obligatoire, OpenAI optionnel).
 6. **Fichier → Nouveau projet** : choisir le dossier contenant vos vidéos,
    les langues, le style, valider.
-7. Cliquer sur **▶ Lancer**. Récupérer les livrables Markdown à la fin
-   dans `<dossier_entrée>/.fahmi2/output/`.
+7. (Optionnel) Cliquer sur **💵 Estimer le coût** pour voir le budget
+   avant le lancement.
+8. Cliquer sur **▶ Lancer**. Récupérer les livrables Markdown à la fin
+   via le bouton **📂 Dossier de sortie** (ou dans
+   `<dossier_entrée>/.fahmi2/output/`).
 
 Voir [docs/07-guide-utilisateur.md](docs/07-guide-utilisateur.md) pour le
 guide détaillé.
@@ -104,10 +117,14 @@ pour le détail complet.
 
 ## Statut
 
-**v0.1.0** (alpha) — pipeline complet fonctionnel, UI cockpit dense,
-packaging Windows portable opérationnel. Cf. [CHANGELOG.md](CHANGELOG.md).
+**v0.2.0** (alpha+) — pipeline complet fonctionnel, UI cockpit dense
+thème Clair Fluent, packaging Windows portable opérationnel, document
+consolidé navigable (numérotation hiérarchique + sommaire), glossaire
+en tableau avec colonne Signification, édition des prompts depuis l'UI,
+estimation de coût alignée sur l'usage réel (thinking pris en compte).
+Cf. [CHANGELOG.md](CHANGELOG.md).
 
-405+ tests passants, couverture ≥ 87 %, `mypy --strict` et `ruff` propres.
+445+ tests passants, `mypy --strict` et `ruff` propres sur 186+ fichiers.
 
 ## Licence
 

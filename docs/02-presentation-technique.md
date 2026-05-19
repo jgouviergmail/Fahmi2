@@ -121,7 +121,18 @@ Services applicatifs :
   PipelineEngine, persistance, pause/cancel/resume).
 - `VideoScanner` — détection des extensions vidéo supportées dans un dossier.
 - `CostEstimator` — heuristique pré-run STT + LLM par phase et langue.
-- `GlossaryReconciler` — import payload JSON, load Glossary, render Markdown.
+  Accepte un `phases_config` optionnel et applique un multiplicateur
+  empirique sur les `completion_tokens` selon `thinking_enabled` et
+  `reasoning_effort` (×1 / ×2.5 / ×3.5 HIGH / ×6 MAX). Les tokens de
+  raisonnement de DeepSeek étant facturés au tarif output standard, ce
+  multiplicateur reflète directement le surcoût observé.
+- `GlossaryReconciler` — import payload JSON, load Glossary, render
+  Markdown 4 colonnes (Terme / Acronyme / Signification / Définition,
+  ou Term / Acronym / Meaning / Definition).
+- `PromptsService` — gestion des overrides utilisateur des templates LLM
+  (lecture défaut bundlé, lecture / écriture / suppression d'override
+  dans `%APPDATA%/Fahmi2/prompts/`, validation Jinja2). Backend du
+  `PromptsEditorDialog`.
 - `SecretsService` — wrapper SecretsStore avec redaction logs auto.
 - `HardwareProbe` — détection CUDA/GPU au démarrage.
 
@@ -129,16 +140,44 @@ Services applicatifs :
 
 Qt PySide6 :
 
+- `ui/theme/` — feuille de style globale **Clair Fluent**
+  (`light_fluent.qss`) chargée au démarrage via `apply_theme(app)`.
+  Palette accent `#0078d4`, surfaces blanches sur fond `#f5f7fb`,
+  `QCheckBox::indicator` stylisé (glyphe ✓ SVG inline en data URL).
+  Le QSS est bundlé via le `.spec` PyInstaller pour rester accessible
+  en mode packagé.
 - `ui/viewmodels/` — logique testable sans Qt (`RunMatrixViewModel`,
-  `StatsStripViewModel`).
-- `ui/widgets/` — `StatsStripWidget`, `RunMatrixView` (QTableView +
-  QAbstractTableModel custom), `ProjectsSidebar`, `LogsDock`,
-  `ProjectHeaderBar`.
-- `ui/dialogs/` — `NewProjectDialog`, `GlobalSettingsDialog`.
-- `ui/main_window.py` — cockpit dense.
+  `StatsStripViewModel` enrichi avec `started_at`, `finished_at`,
+  `elapsed_seconds` pour piloter la carte Durée live).
+- `ui/widgets/` :
+  - `StatsStripWidget` — 5 cartes (Statut, Vidéos, Phases, Durée,
+    Coût) avec icône + titre + valeur + sous-info, et un `QTimer`
+    interne (1 s) qui rafraîchit la carte Durée tant que le Run est
+    `RUNNING` ou `PAUSED`.
+  - `RunMatrixView` — colorisation par `PhaseStatus`, en-têtes courts
+    (STT, Termes, Glossaire…), alignement centré.
+  - `ProjectsSidebar` — menu contextuel Modifier / Supprimer
+    (`contextMenuEvent` utilise `viewport().mapFromGlobal()` pour rester
+    insensible au padding QSS).
+  - `LogsDock` — rendu HTML coloré par sévérité.
+  - `ProjectHeaderBar` — boutons typés `primary` / `default` / `danger`
+    via propriété QSS, **bouton « 💵 Estimer le coût »** et **bouton
+    « 📂 Dossier de sortie »**.
+  - `PhaseConfigsWidget` — grille de configuration par phase LLM
+    (thinking, reasoning_effort HIGH / MAX, température, max retries).
+- `ui/dialogs/` — `NewProjectDialog`, `GlobalSettingsDialog`,
+  **`PromptsEditorDialog`** (splitter sidebar + éditeur monospace,
+  Enregistrer avec validation Jinja2, Réinitialiser au défaut).
+- `ui/main_window.py` — cockpit dense + menu Édition → *Paramètres
+  globaux…* / *Modifier les prompts…*.
+- `ui/run_controller.py` — orchestre le lifecycle Run depuis l'UI
+  (worker QThread, pause/resume/cancel via `PauseToken`, slot
+  **`estimate_cost`** qui scanne le dossier, probe ffprobe et appelle
+  `CostEstimator` avec `settings.phases_config`).
 - `ui/qt_event_bus.py` — adapter EventBus → Signal Qt (bridging worker → UI
   thread).
-- `ui/app_main.py` — point d'entrée.
+- `ui/app_main.py` — point d'entrée + DI complet (apply_theme,
+  RunController, PromptsService).
 
 ## 3. Flux principal d'un Run
 
@@ -209,6 +248,7 @@ CREATE TABLE glossary_terms (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   run_id TEXT NOT NULL, language TEXT NOT NULL,
   term TEXT NOT NULL, definition TEXT NOT NULL,
+  acronym TEXT, acronym_expansion TEXT,
   sources_json TEXT NOT NULL, aliases_json TEXT NOT NULL,
   cross_lang_json TEXT NOT NULL,
   UNIQUE (run_id, language, term),
@@ -219,6 +259,28 @@ CREATE TABLE glossary_terms (
 Index : `idx_runs_project_id`, `idx_videos_run_id`,
 `idx_phase_executions_run`, `idx_phase_executions_lookup`,
 `idx_glossary_run_lang`.
+
+**Soft migrations** appliquées automatiquement à l'ouverture
+(idempotentes, sans perte de données) :
+
+- Ajout des colonnes `glossary_terms.acronym` et
+  `glossary_terms.acronym_expansion` (`ALTER TABLE ADD COLUMN`) si
+  absentes sur une DB préexistante.
+- Nettoyage rétroactif des doublons batch dans `phase_executions` (lignes
+  multiples avec `video_id IS NULL` pour la même `(run_id, phase_id)` —
+  SQLite traite `NULL` comme distinct dans une contrainte `UNIQUE`,
+  ce qui faisait s'accumuler les lignes avant que le upsert ne gère
+  explicitement le cas `NULL`). On ne conserve que la ligne `id` la
+  plus récente par groupe.
+
+**`upsert_phase_execution`** distingue maintenant les deux cas :
+
+- `video_id` défini → `INSERT ... ON CONFLICT(run_id, phase_id,
+  video_id) DO UPDATE`.
+- `video_id IS NULL` (phases batch) → `DELETE FROM phase_executions
+  WHERE run_id = ? AND phase_id = ? AND video_id IS NULL` puis
+  `INSERT`. C'est la seule manière fiable d'unifier les phases batch
+  dans SQLite.
 
 ### 4.2 Arborescence des artefacts (par projet)
 
@@ -268,9 +330,8 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
 
 ### 6.2 Métriques actuelles
 
-- **405+ tests** passants
-- **Couverture globale** ≥ 87 %
-- **ruff** + **mypy --strict** propres sur 177+ fichiers
+- **445+ tests** passants
+- **ruff** + **mypy --strict** propres sur 186+ fichiers
 
 ## 7. Packaging et distribution
 

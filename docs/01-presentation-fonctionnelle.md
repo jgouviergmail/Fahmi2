@@ -68,13 +68,17 @@ L'utilisateur configure **via l'interface** (et **uniquement** via l'interface) 
 - **Clés API** : OpenAI (pour Whisper cloud), DeepSeek (pour les phases LLM).
 - **Provider STT** : Whisper local (GPU NVIDIA requis) ou OpenAI cloud.
 - **Modèle LLM** : DeepSeek v4 Flash ou Pro.
-- **Activation du mode raisonnement et température**, configurables
-  **par phase**.
+- **Mode raisonnement** (`thinking` activé / désactivé), **niveau de
+  raisonnement** (`HIGH` / `MAX`) et **température**, configurables
+  **par phase LLM** indépendamment.
 - **Langue source** + **langues de sortie** (FR / EN en v1).
 - **Style de rendu** : décontracté / standard / professionnel / académique.
 - **Directives stylistiques libres** en texte.
 - **Plafond budget** optionnel avec arrêt automatique propre.
-- **Surcouche utilisateur des prompts** (via éditeur intégré).
+- **Surcouche utilisateur des prompts** via éditeur intégré
+  (menu **Édition → Modifier les prompts…**) : tous les templates des 7
+  phases LLM peuvent être personnalisés sans toucher au code, avec
+  validation Jinja2 et retour au défaut bundlé d'un clic.
 
 ### 4.4 Pilotage d'un run
 
@@ -82,35 +86,61 @@ L'utilisateur configure **via l'interface** (et **uniquement** via l'interface) 
   de la barre d'en-tête.
 - **Reprise fine par phase** après pause, annulation ou crash : aucun
   travail perdu, le pipeline reprend exactement où il s'était arrêté.
-- **Estimation de coût pré-run** affichée avant lancement.
-- **Coût cumulé** affiché en temps réel.
+- **Estimation de coût pré-run** : bouton **💵 Estimer le coût** dans
+  la barre d'en-tête. Le calcul intègre le modèle, le nombre de langues
+  cibles et le **surcoût empirique du mode thinking par phase** selon le
+  niveau de raisonnement choisi.
+- **Coût cumulé** et **durée live** affichés en temps réel pendant le
+  Run.
+- **Ouvrir le dossier de sortie** en un clic depuis la barre
+  d'en-tête à la fin du Run.
 
 ### 4.5 Visualisation de l'avancement
 
-L'interface principale (cockpit dense) affiche en temps réel :
+L'interface principale (cockpit dense, thème **Clair Fluent**) affiche en
+temps réel :
 
 - **Une matrice 2D** : une ligne par vidéo, une colonne par phase. Chaque
-  cellule affiche le statut (en attente, en cours, succès, échec, sauté) avec
-  un symbole et une couleur. Au survol : détail (timestamps, coût, retries,
-  erreur éventuelle).
-- **Une barre de statistiques** : statut du run, vidéos complétées, phases
-  complétées, durée, coût cumulé / plafond.
-- **Un panneau de logs** filtrable par niveau (info, warning, error).
+  cellule affiche le statut (en attente, en cours, succès, échec, sauté)
+  avec un symbole **et une couleur** (vert succès, bleu en cours, gris
+  attente, rouge échec, indigo sauté). Au survol : détail (timestamps,
+  coût, retries, erreur éventuelle). En-têtes courts et lisibles (STT,
+  Termes, Glossaire, Reformul., Structur., Consolid., Traduction,
+  Cohérence).
+- **Cinq cartes d'indicateurs** : Statut, Vidéos, Phases, **Durée**,
+  Coût. Chaque carte = icône + titre + valeur en grand + sous-info. La
+  carte Durée est mise à jour chaque seconde tant que le Run tourne.
+- **Un panneau de logs** filtrable par sévérité, avec coloration
+  (INFO gris, WARN orange, ERREUR rouge, FATAL rouge gras), horodatage
+  compact `HH:MM:SS` et police monospace.
 
 ### 4.6 Livrables produits
 
 À l'issue d'un run, le dossier `output/` contient pour chaque langue :
 
-- `consolidated.{lang}.md` — document consolidé complet (titre, introduction
-  générale, chapitres, conclusion générale).
-- `glossary.{lang}.md` — glossaire trié alphabétiquement.
+- `consolidated.{lang}.md` — document consolidé navigable :
+  - Titre global + introduction générale.
+  - **Sommaire automatique** complet avec ancres GFM cliquables vers
+    chaque section.
+  - Chapitres et sections **numérotés hiérarchiquement** (1, 1.1, 1.1.1).
+  - Contenu des vidéos recopié tel quel (pas de réécriture par le LLM).
+  - **Admonitions élégantes** : 📝 Remarque, 💡 Exemple, 📖 Définition,
+    🎯 Exercice (blockquotes Markdown avec emoji, plus lisibles que les
+    GFM `[!NOTE]` bruts).
+  - Conclusion générale.
+- `glossary.{lang}.md` — glossaire en **tableau Markdown 4 colonnes**
+  trié alphabétiquement :
+  - **Terme** (forme longue), **Acronyme** (`PIB`, `ROI`, `IFRS`…),
+    **Signification** (expansion littérale de l'acronyme dans sa langue
+    d'origine — *Return On Investment* pour ROI, même dans un glossaire
+    FR), **Définition** (contextuelle).
 - `per-video/{lang}/<video_id>.md` — un document Markdown autonome par
   vidéo, avec son propre titre, intro, conclusion et admonitions
   sémantiques.
 
 Tous les fichiers sont en **Markdown UTF-8**, ouvrables dans n'importe quel
-éditeur, dans VS Code (rendu admonitions natif), Obsidian, ou convertibles
-vers DOCX/PDF/HTML via pandoc.
+éditeur, dans VS Code, Obsidian, ou convertibles vers DOCX/PDF/HTML via
+pandoc.
 
 ## 5. Promesses de qualité
 
@@ -130,6 +160,12 @@ vers DOCX/PDF/HTML via pandoc.
 - Les termes pertinents sont ré-injectés en contexte LLM lors de la
   reformulation, de la structuration et de la traduction pour garantir
   l'orthographe et le sens cohérents à travers tout le batch.
+- L'**expansion d'acronyme** (champ `acronym_expansion`) est conservée
+  dans sa langue d'origine et n'est jamais traduite : un glossaire FR
+  expose `ROI = Return On Investment`, un glossaire EN expose
+  `PIB = Produit Intérieur Brut`. Le prompt de traduction est
+  explicitement instruit de préserver le contenu de la colonne
+  *Signification* / *Meaning* d'un tableau de glossaire.
 
 ### 5.3 Robustesse
 
@@ -142,7 +178,14 @@ vers DOCX/PDF/HTML via pandoc.
 
 ### 5.4 Coût maîtrisé
 
-- **Estimation pré-run** affichée avant lancement.
+- **Estimation pré-run** accessible à tout moment depuis la barre
+  d'en-tête, qui intègre :
+  - Le modèle LLM (Flash vs Pro).
+  - Le provider STT (gratuit en local, ~0,006 $/min en cloud).
+  - La configuration **phase par phase** : mode thinking et niveau
+    de raisonnement, traduits en un multiplicateur empirique appliqué
+    aux tokens de sortie (le mode thinking génère typiquement 2 à 6×
+    plus de tokens de complétion).
 - **Plafond budget** configurable avec **arrêt propre** (jamais d'interruption
   brutale au milieu d'un appel LLM en cours).
 - **Tarification DeepSeek transparente** (input cache hit / cache miss /

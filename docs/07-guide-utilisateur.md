@@ -69,26 +69,34 @@ Cliquez sur **OK**. Le projet apparaît dans la liste à gauche.
 ## 5. Lancer le traitement
 
 1. Sélectionnez votre projet dans la liste à gauche.
-2. Cliquez sur **▶ Lancer** en haut.
+2. (Optionnel mais recommandé) Cliquez sur **💵 Estimer le coût** pour
+   voir le budget prévu avant de lancer. Le dialogue affiche les
+   vidéos détectées, la durée totale, le coût STT, le coût LLM (en
+   tenant compte du mode raisonnement si activé) et le total estimé.
+3. Cliquez sur **▶ Lancer** en haut.
 
 La grille au centre commence à se remplir :
 
 - Une **ligne par vidéo**.
-- Une **colonne par phase** (8 colonnes).
-- Chaque case montre l'avancement :
-  - `·` en attente
-  - `▶` en cours
-  - `✓` terminé
-  - `✗` échec (rare, voir [Dépannage](#7-dépannage))
+- Une **colonne par phase** (8 colonnes : STT, Termes, Glossaire,
+  Reformul., Structur., Consolid., Traduction, Cohérence).
+- Chaque case montre l'avancement avec **couleur + symbole** :
+  - `·` gris : en attente
+  - `▶` bleu : en cours
+  - `✓` vert : terminé
+  - `✗` rouge : échec (rare, voir [Dépannage](#7-dépannage))
+  - `↷` indigo : sauté (déjà fait au précédent run)
 
-En haut, une bande affiche :
+En haut, **5 cartes** affichent :
 
-- Le statut du projet
-- Le compteur de vidéos terminées (ex: *« 3 / 12 vidéos »*)
-- Le compteur de phases (ex: *« 15 / 96 phases »*)
-- Le coût cumulé en USD
+- **Statut** du projet (En cours / En pause / Terminé…)
+- **Vidéos** terminées (ex: *« 3 / 12 »*)
+- **Phases** terminées (ex: *« 15 / 96 »*)
+- **Durée** écoulée (mise à jour en direct chaque seconde)
+- **Coût** cumulé en USD (avec plafond si défini)
 
-En bas, une liste des dernières actions et messages (Logs).
+En bas, le panneau **Logs** liste les dernières actions et messages,
+colorés par niveau (gris/orange/rouge).
 
 ## 6. Mettre en pause ou annuler
 
@@ -101,29 +109,41 @@ En bas, une liste des dernières actions et messages (Logs).
 
 ## 7. Récupérer les fichiers produits
 
-Quand le projet est terminé (statut **COMPLETED**), ouvrez le dossier
-d'entrée que vous aviez choisi. Vous y trouverez un sous-dossier
-`.fahmi2/output/` :
+Quand le projet est terminé (statut **Terminé**), cliquez sur le bouton
+**📂 Dossier de sortie** en haut à droite : l'explorateur Windows
+s'ouvre directement sur le bon dossier. Vous y trouverez :
 
 ```
-.fahmi2/
-└── output/
-    ├── consolidated.fr.md     ← Le document consolidé en français
-    ├── consolidated.en.md     ← Le document consolidé en anglais
-    ├── glossary.fr.md         ← Le glossaire en français
-    ├── glossary.en.md         ← Le glossaire en anglais
-    └── per-video/
-        ├── fr/
-        │   ├── XXX.md         ← Un fichier par vidéo (FR)
-        │   └── …
-        └── en/
-            └── …
+.fahmi2/output/
+├── consolidated.fr.md     ← Le document consolidé en français (navigable)
+├── consolidated.en.md     ← Le document consolidé en anglais (si demandé)
+├── glossary.fr.md         ← Le glossaire en français (tableau)
+├── glossary.en.md         ← Le glossaire en anglais
+└── per-video/
+    ├── fr/
+    │   ├── XXX.md         ← Un fichier par vidéo (FR)
+    │   └── …
+    └── en/
+        └── …
 ```
+
+**Document consolidé** : titre global, introduction, **sommaire
+cliquable** vers chaque chapitre et sous-section, chapitres
+**numérotés hiérarchiquement** (1, 1.1, 1.1.1…), conclusion.
+Insertions sémantiques élégantes : 📝 Remarque, 💡 Exemple, 📖
+Définition, 🎯 Exercice.
+
+**Glossaire** : tableau **Terme / Acronyme / Signification /
+Définition**. La colonne *Signification* reste dans la langue
+d'origine de l'acronyme (par exemple ROI = *Return On Investment*,
+même dans un glossaire en français).
 
 Tous les fichiers sont en **Markdown**, lisibles dans n'importe quel
-éditeur (Bloc-notes, VS Code, Typora, Obsidian…).
+éditeur (Bloc-notes, VS Code, Typora, Obsidian…). Le sommaire avec
+liens cliquables s'affiche directement dans VS Code, Obsidian, GitHub,
+GitLab, etc.
 
-Pour les convertir en **DOCX, PDF ou HTML**, l'outil libre
+Pour convertir en **DOCX, PDF ou HTML**, l'outil libre
 [Pandoc](https://pandoc.org) fait ça très bien.
 
 ## 7. Dépannage
@@ -194,14 +214,31 @@ Rien d'autre ne reste sur votre système.
 ### Tester avant un gros traitement
 
 Avant de lancer un projet sur 50 vidéos, créez un projet « test » avec 2-3
-vidéos seulement, en `deepseek-v4-flash`. Vérifiez la qualité du rendu
-avant de lancer le projet définitif (peut-être en `deepseek-v4-pro` pour
-la qualité maximale).
+vidéos seulement, en `deepseek-v4-flash` sans thinking. Vérifiez la
+qualité du rendu avant de lancer le projet définitif (peut-être en
+`deepseek-v4-pro` avec thinking pour la qualité maximale).
+
+### Estimer le coût avant chaque lancement
+
+Le bouton **💵 Estimer le coût** affiche le budget prévu en quelques
+secondes. **Important** : si vous activez le mode raisonnement
+(*thinking*) sur les phases, le coût peut être 2 à 6× supérieur. Le
+calcul d'estimation en tient compte.
 
 ### Plafond budget par sécurité
 
 Mettez toujours un plafond de coût, même large. Si quelque chose ne va pas
 (par exemple un appel LLM qui boucle), le plafond limite les dégâts.
+
+### Personnaliser les prompts
+
+Si vous voulez ajuster finement le ton ou le format au-delà des
+*Directives stylistiques*, ouvrez **Édition → Modifier les prompts…**
+Sélectionnez une phase à gauche, éditez le texte du prompt à droite,
+cliquez **💾 Enregistrer**. Pour revenir à la version d'origine
+livrée avec l'application, cliquez sur **↩ Réinitialiser au défaut**.
+Pas besoin de redémarrer : le nouveau prompt est utilisé au prochain
+lancement de la phase.
 
 ### Conserver les artefacts intermédiaires
 
@@ -220,7 +257,10 @@ Pas besoin de tout refaire — la reprise saute les phases déjà bien faites.
 
 Le glossaire est construit en deux passes (extraction puis réconciliation
 cross-vidéos). Plus votre dossier contient de vidéos sur le même domaine,
-plus le glossaire sera riche et cohérent.
+plus le glossaire sera riche et cohérent. Les acronymes (ROI, PIB,
+IFRS…) sont accompagnés de leur **signification d'origine** en plus de
+la définition — celle-ci reste dans la langue où l'acronyme a été forgé
+(*Return On Investment* pour ROI, même dans un glossaire FR).
 
 ## 11. Confidentialité
 

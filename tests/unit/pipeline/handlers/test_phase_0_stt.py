@@ -18,6 +18,7 @@ from fahmi2.domain.run import Run
 from fahmi2.domain.video import VideoExecution
 from fahmi2.infra.audio.ffmpeg_extractor import AudioInfo, FFmpegExtractor
 from fahmi2.infra.llm._fakes import FakeLLMProvider
+from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.infra.stt._fakes import FakeSTTProvider
@@ -91,6 +92,7 @@ def _make_context(
         llm_provider=FakeLLMProvider(),
         ffmpeg=FFmpegExtractor(),
         retriever=PassthroughRetriever(),
+        prompts=PromptLoader(),
         pause_token=PauseToken(),
         event_bus=EventBus(),
     )
@@ -199,6 +201,7 @@ def test_execute_propagates_ffmpeg_errors(
         llm_provider=FakeLLMProvider(),
         ffmpeg=bad_extractor,
         retriever=PassthroughRetriever(),
+        prompts=PromptLoader(),
         pause_token=PauseToken(),
         event_bus=EventBus(),
     )
@@ -231,6 +234,7 @@ def test_execute_reports_severity_on_failure(
         llm_provider=FakeLLMProvider(),
         ffmpeg=FFmpegExtractor(),
         retriever=PassthroughRetriever(),
+        prompts=PromptLoader(),
         pause_token=PauseToken(),
         event_bus=EventBus(),
     )
@@ -271,6 +275,7 @@ def test_mocked_full_path(tmp_path: Path, make_settings: Any) -> None:
         llm_provider=FakeLLMProvider(),
         ffmpeg=fake_ffmpeg,
         retriever=PassthroughRetriever(),
+        prompts=PromptLoader(),
         pause_token=PauseToken(),
         event_bus=EventBus(),
     )

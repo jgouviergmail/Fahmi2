@@ -20,6 +20,7 @@ from fahmi2.domain.run import Run
 from fahmi2.domain.video import VideoExecution
 from fahmi2.infra.audio.ffmpeg_extractor import FFmpegExtractor
 from fahmi2.infra.llm.interface import LLMProvider
+from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.infra.stt.interface import STTProvider
@@ -42,6 +43,7 @@ class PhaseContext:
         llm_provider: Provider LLM utilisé par les phases 1..7.
         ffmpeg: Extracteur ``ffmpeg``.
         retriever: Retriever du glossaire pour les phases 3, 4, 5, 6, 7.
+        prompts: Loader de templates de prompts (défauts bundlés + override).
         pause_token: Jeton coopératif pause/cancel.
         event_bus: Bus d'événements (peut être ``None`` pour les tests).
     """
@@ -56,6 +58,7 @@ class PhaseContext:
     llm_provider: LLMProvider
     ffmpeg: FFmpegExtractor
     retriever: GlossaryRetriever
+    prompts: PromptLoader
     pause_token: PauseToken
     event_bus: EventBus
 

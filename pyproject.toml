@@ -24,6 +24,8 @@ dependencies = [
   "tenacity>=9,<10",
   "scikit-learn>=1.5,<2",
   "genanki>=0.13,<1",
+  "markdown>=3.5,<4",
+  "fpdf2>=2.8,<3",
 ]
 
 [project.optional-dependencies]
@@ -91,5 +93,7 @@ module = [
   "torch.*",
   "ctranslate2.*",
   "genanki.*",
+  "markdown.*",
+  "fpdf.*",
 ]
 ignore_missing_imports = true

@@ -6,7 +6,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox, QWidget
+from PySide6.QtWidgets import (
+    QDialog,
+    QFileDialog,
+    QInputDialog,
+    QMessageBox,
+    QWidget,
+)
 from pytestqt.qtbot import QtBot
 
 from fahmi2.app.project_service import ProjectService
@@ -29,7 +35,11 @@ from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.infra.secrets.interface import InMemorySecretsStore
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.infra.storage.sqlite_state import SqliteState
-from fahmi2.pedagogy.artifact_writer import artifact_json_path, serialize_artifact
+from fahmi2.pedagogy.artifact_writer import (
+    artifact_json_path,
+    artifact_markdown_path,
+    serialize_artifact,
+)
 from fahmi2.pedagogy.events import (
     SupportFinished,
     SupportGenerationFinished,
@@ -40,6 +50,7 @@ from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
 from fahmi2.pipeline.pause_token import PauseToken
 from fahmi2.ui import pedagogy_controller as pc_module
 from fahmi2.ui.pedagogy_controller import (
+    _FORMAT_MARKDOWN,
     PedagogyController,
     _pedagogy_event_to_log,
     _PedagogyWorker,
@@ -216,6 +227,61 @@ def test_export_apkg_writes_file(
     monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: None)
     controller.export_apkg()
     assert out.exists()
+
+
+def test_export_markdown_writes_files(
+    qtbot: QtBot,
+    tmp_path: Path,
+    monkeypatch: Any,
+    make_generation_settings: Any,
+    make_pedagogy_settings: Any,
+) -> None:
+    controller, project_service, _ = _make_controller(qtbot, tmp_path)
+    ws = tmp_path / "ws"
+    project = project_service.create_project(
+        name="P",
+        workspace_folder=ws,
+        generation=make_generation_settings(),
+        pedagogy=make_pedagogy_settings(),
+    )
+    controller.on_project_selected(project.id)
+    FsArtifactStore().write_text_atomic(
+        artifact_markdown_path(
+            ws / "pedagogy", SupportType.FLASHCARDS_GLOSSARY, Language.FR
+        ),
+        "# Flashcards — Glossaire (fr)\n\n### PIB\n\ndéf\n",
+    )
+    out_dir = tmp_path / "export"
+    monkeypatch.setattr(
+        QFileDialog, "getExistingDirectory", lambda *args, **kwargs: str(out_dir)
+    )
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: None)
+    controller.export_markdown()
+    assert (out_dir / "supports.fr.md").exists()
+
+
+def test_on_export_requested_dispatches_markdown(
+    qtbot: QtBot,
+    tmp_path: Path,
+    monkeypatch: Any,
+    make_generation_settings: Any,
+    make_pedagogy_settings: Any,
+) -> None:
+    controller, project_service, _ = _make_controller(qtbot, tmp_path)
+    project = project_service.create_project(
+        name="P",
+        workspace_folder=tmp_path / "ws",
+        generation=make_generation_settings(),
+        pedagogy=make_pedagogy_settings(),
+    )
+    controller.on_project_selected(project.id)
+    called: list[str] = []
+    monkeypatch.setattr(controller, "export_markdown", lambda: called.append("md"))
+    monkeypatch.setattr(
+        QInputDialog, "getItem", lambda *args, **kwargs: (_FORMAT_MARKDOWN, True)
+    )
+    controller._on_export_requested()  # noqa: SLF001
+    assert called == ["md"]
 
 
 def test_worker_runs_orchestrator(

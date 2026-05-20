@@ -7,6 +7,15 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+### Ajouté — Export Markdown / PDF (SP3/02)
+
+- **Export Markdown et PDF** des supports depuis l'onglet pédagogique : le bouton
+  « 📦 Exporter » propose désormais 3 formats (Anki / Markdown / PDF).
+- Documents **agrégés par langue**, **sujet / corrigé séparés** (`supports.{lang}.md`,
+  `supports.{lang}.corrige.md`, et variantes `.pdf`).
+- Rendu PDF pur-python (`markdown` → HTML → `fpdf2`) avec police Unicode système ; repli
+  Markdown si aucune police n'est résolue. Nouvelles dépendances **`markdown`**, **`fpdf2`**.
+
 ### Ajouté — Export Anki `.apkg` (SP3/01)
 
 - **Export Anki** depuis l'onglet pédagogique (bouton « 📦 Exporter ») : les supports

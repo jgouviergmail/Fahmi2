@@ -6,8 +6,8 @@
 ## Branche & état
 
 - **Branche de travail** : `feat/sp1-coquille-multi-fonctionnalites` (poussée sur
-  `origin`). Tout le travail (SP1 + SP2 + SP3/01) y est commité.
-- **Vérifs au vert** au dernier point : `pytest` (628), `ruff`, `mypy --strict`.
+  `origin`). Tout le travail (SP1 + SP2 + SP3/01 + SP3/02) y est commité.
+- **Vérifs au vert** au dernier point : `pytest` (637), `ruff`, `mypy --strict`.
 
 ## Documents de référence (à lire avant d'agir)
 
@@ -84,13 +84,20 @@
   bouton **Exporter** (`ProjectHeaderBar.show_export` + `export_requested`) + action
   `PedagogyController.export_apkg`, tests (628 verts). Plan :
   [`2026-05-20-sp3-01-export-apkg.md`](./2026-05-20-sp3-01-export-apkg.md).
+- **SP3/02 — export Markdown / PDF** : dépendances `markdown` + `fpdf2`, adapter
+  `infra/export/markdown_pdf.py` (assemblage + rendu PDF via `markdown`→HTML→`fpdf2`,
+  police Unicode système Windows Arial), service `app/pedagogy_export.py` étendu
+  (`export_pedagogy_to_markdown`/`_pdf`, sujet/corrigé séparés par langue), sélecteur de
+  format (`QInputDialog`) + `PedagogyController.export_markdown`/`export_pdf`. **Réutilise
+  les `.md` rendus** (pas d'extension d'`artifact_reader` — DRY/SoC). Tests (637 verts ;
+  tests PDF *skippés* hors Windows). Plan :
+  [`2026-05-20-sp3-02-export-markdown-pdf.md`](./2026-05-20-sp3-02-export-markdown-pdf.md).
 
 ## Reste à faire (ordre) ⏭️
 
 | Lot | Contenu | Réf design |
 |-----|---------|-----------|
-| **SP3/02** | Export **Markdown/PDF** (sujet/corrigé séparés ; choix lib PDF) ; étendre `artifact_reader` aux entités non-Anki (vrai/faux, questions ouvertes, fiche, points clés, examen blanc), tests. | §9 |
-| **Docs finales** | `docs/`, `README`, `CLAUDE.md`, `CHANGELOG` ; clôture matrice chapeau (R8–R19 → Fait). | — |
+| **Docs finales** | `docs/`, `README`, `CLAUDE.md`, `CHANGELOG` ; clôture matrice chapeau (R8–R19 → Fait) ; bundling `.spec` (genanki/markdown/fpdf2). Puis `finishing-a-development-branch`. | — |
 
 ## Procédure de reprise (chaque lot)
 

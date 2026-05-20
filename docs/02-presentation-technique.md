@@ -338,6 +338,14 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
 > Les supports non-cartes (vrai/faux, questions ouvertes, fiche, points clés, examen
 > blanc) relèvent de l'export Markdown/PDF (SP3/02).
 
+> **Export Markdown/PDF (SP3/02)** : l'adapter `infra/export/markdown_pdf.py` assemble
+> les Markdown **déjà rendus** (`<support>.md` / `<support>.corrige.md`) en documents
+> agrégés par langue (sujet/corrigé séparés : `supports.{lang}.md`,
+> `supports.{lang}.corrige.md`, variantes `.pdf`), et rend le PDF via `markdown` → HTML →
+> `fpdf2.write_html` (police Unicode système Windows Arial ; les polices cœur de fpdf2
+> sont latin-1). Le service `app/pedagogy_export.py` coordonne (réutilisation des `.md`
+> rendus, **pas** de re-rendu ni d'`artifact_reader` — réservé à l'Anki).
+
 ## 5. Conventions de code
 
 - **Style** : Google Python Style Guide, docstrings avec sections

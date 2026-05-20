@@ -131,10 +131,10 @@ pédagogiques : 9 types de supports de révision générés à partir du documen
 consolidé et du glossaire) ; identité projet réduite à nom + emplacement, réglages
 par fonctionnalité.
 
-Export **Anki `.apkg`** des supports (flashcards / cloze / QCM, ré-import sans
-doublon).
+Export des supports en **Anki `.apkg`** (flashcards / cloze / QCM, ré-import sans
+doublon), **Markdown** et **PDF** (sujet / corrigé séparés).
 
-628 tests passants, `mypy --strict` et `ruff` propres sur 268 fichiers.
+637 tests passants, `mypy --strict` et `ruff` propres sur 272 fichiers.
 
 ## Licence
 

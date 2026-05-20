@@ -107,6 +107,7 @@ def _llm_response_for_phase(phase_name: str) -> LLMResponse:
         content = json.dumps(
             {
                 "global_title": "Cours d'économie",
+                "summary_markdown": "Vue d'ensemble synthétique du cours.",
                 "introduction_markdown": "Introduction.",
                 "plan_markdown": "1. Chapitre 1\n2. Chapitre 2",
                 "conclusion_markdown": "Conclusion.",
@@ -262,6 +263,11 @@ def test_full_pipeline_produces_expected_outputs(
     # Glossaire master en workspace
     assert (workspace / "glossary_master.json").exists()
     assert (workspace / "consolidated_master.md").exists()
+
+    # Le document consolidé master s'ouvre sur la section Résumé (sous le titre).
+    master_md = (workspace / "consolidated_master.md").read_text(encoding="utf-8")
+    assert "## Résumé" in master_md
+    assert "Vue d'ensemble synthétique du cours." in master_md
 
     # Statut Run persiste en SQLite avec finished_at non-null et timestamp datetime UTC
     reloaded = orchestrator.get_run(run.id)

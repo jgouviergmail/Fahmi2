@@ -26,42 +26,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from fahmi2.domain.enums import LLMModel, PhaseId, ReasoningEffort, SttProvider
+from fahmi2.app._cost_common import (
+    TOKENS_PER_WORD,
+    WORDS_PER_MINUTE_ORAL,
+    thinking_output_multiplier,
+)
+from fahmi2.domain.enums import LLMModel, PhaseId, SttProvider
 from fahmi2.domain.phase import PhaseConfig
 from fahmi2.infra.llm._pricing import get_pricing
 
 _USD_PER_MINUTE_OPENAI_WHISPER = 0.006
 _SECONDS_PER_MINUTE = 60.0
-_WORDS_PER_MINUTE_ORAL = 150.0
-_TOKENS_PER_WORD = 1.3
-
-# Multiplicateurs empiriques appliqués aux tokens de **sortie** quand le mode
-# thinking est activé. Les tokens de raisonnement sont facturés au tarif
-# output standard, ce qui explique le surcoût important du mode thinking.
-_THINKING_OUTPUT_MULTIPLIER_DEFAULT = 2.5
-_THINKING_OUTPUT_MULTIPLIER_HIGH = 3.5
-_THINKING_OUTPUT_MULTIPLIER_MAX = 6.0
-
-
-def _thinking_output_multiplier(config: PhaseConfig | None) -> float:
-    """Retourne le multiplicateur de tokens de sortie pour une phase.
-
-    Args:
-        config: Configuration de la phase, ou ``None`` pour ignorer le
-            thinking (estimation conservatrice « sans thinking »).
-
-    Returns:
-        Multiplicateur à appliquer aux ``completion_tokens`` estimés
-        (``1.0`` si thinking désactivé, sinon un facteur entre 2.5 et 6
-        selon le ``reasoning_effort``).
-    """
-    if config is None or not config.thinking_enabled:
-        return 1.0
-    if config.reasoning_effort is ReasoningEffort.MAX:
-        return _THINKING_OUTPUT_MULTIPLIER_MAX
-    if config.reasoning_effort is ReasoningEffort.HIGH:
-        return _THINKING_OUTPUT_MULTIPLIER_HIGH
-    return _THINKING_OUTPUT_MULTIPLIER_DEFAULT
 
 
 @dataclass(frozen=True)
@@ -242,13 +217,13 @@ class CostEstimator:
         base_tokens_per_video = (
             (total_audio_seconds / _SECONDS_PER_MINUTE)
             / max(n_videos, 1)
-            * _WORDS_PER_MINUTE_ORAL
-            * _TOKENS_PER_WORD
+            * WORDS_PER_MINUTE_ORAL
+            * TOKENS_PER_WORD
         )
 
         total = 0.0
         for phase_id, factor in _LOAD_FACTORS.items():
-            thinking_mult = _thinking_output_multiplier(phases_config.get(phase_id))
+            thinking_mult = thinking_output_multiplier(phases_config.get(phase_id))
             if factor.is_per_video:
                 multiplier = (
                     translation_languages_count

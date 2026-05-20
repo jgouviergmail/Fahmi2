@@ -11,7 +11,6 @@ pause/annulation aux frontières sûres (entre supports).
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from pathlib import Path
 
 from fahmi2.app.project_service import ProjectService
 from fahmi2.core.errors.error_info import ErrorInfo
@@ -22,7 +21,6 @@ from fahmi2.domain.enums import Language, PhaseStatus, RunStatus, SupportType
 from fahmi2.domain.generation import (
     GENERATION_OUTPUT_SUBDIR,
     GENERATION_WORKSPACE_SUBDIR,
-    consolidated_doc_filename,
 )
 from fahmi2.domain.glossary import Term
 from fahmi2.domain.pedagogy import PEDAGOGY_WORKSPACE_SUBDIR, PedagogySettings
@@ -38,7 +36,7 @@ from fahmi2.pedagogy.artifact_writer import (
     artifact_markdown_path,
     serialize_artifact,
 )
-from fahmi2.pedagogy.chapters import Chapter, parse_chapters
+from fahmi2.pedagogy.chapters import Chapter
 from fahmi2.pedagogy.events import (
     PedagogyEvent,
     SupportFinished,
@@ -52,6 +50,7 @@ from fahmi2.pedagogy.manifest import (
     read_manifest,
     write_manifest,
 )
+from fahmi2.pedagogy.sources import load_chapters, source_mtime_ns
 from fahmi2.pedagogy.support_generator import SupportContext
 from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
 from fahmi2.pipeline.event_bus import EventBus
@@ -132,10 +131,8 @@ class SupportsOrchestrator:
         total_cost = 0.0
         try:
             for language in pedagogy.languages:
-                source_mtime = self._source_mtime_ns(
-                    ctx.generation_output_dir, language
-                )
-                chapters = self._load_chapters(ctx.generation_output_dir, language)
+                source_mtime = source_mtime_ns(ctx.generation_output_dir, language)
+                chapters = load_chapters(ctx.generation_output_dir, language)
                 glossary = self._load_glossary(project, language)
                 for support_type in self._registry.canonical_order():
                     if support_type not in pedagogy.selected_supports:
@@ -144,6 +141,15 @@ class SupportsOrchestrator:
                         continue
                     pause_token.wait_if_paused()
                     pause_token.raise_if_cancelled()
+                    if _ceiling_reached(pedagogy, total_cost):
+                        event_bus.publish(
+                            SupportGenerationFinished(
+                                timestamp=_now(),
+                                status=RunStatus.PAUSED,
+                                total_cost_usd=total_cost,
+                            )
+                        )
+                        return RunStatus.PAUSED
                     cost, failed = self._run_one(
                         ctx,
                         manifest=manifest,
@@ -320,23 +326,6 @@ class SupportsOrchestrator:
             retry_policy=self._retry_policy,
         )
 
-    def _load_chapters(
-        self, generation_output_dir: Path, language: Language
-    ) -> tuple[Chapter, ...]:
-        """Charge et parse les chapitres du doc consolidé (vide si absent).
-
-        Args:
-            generation_output_dir: Dossier des livrables génération.
-            language: Langue.
-
-        Returns:
-            Les chapitres (vide si le fichier n'existe pas).
-        """
-        doc = generation_output_dir / consolidated_doc_filename(language)
-        if not doc.exists():
-            return ()
-        return parse_chapters(doc.read_text(encoding="utf-8"))
-
     def _load_glossary(self, project: Project, language: Language) -> tuple[Term, ...]:
         """Charge le glossaire de la langue depuis le dernier run COMPLETED.
 
@@ -352,23 +341,19 @@ class SupportsOrchestrator:
             return ()
         return tuple(self._state.list_glossary_terms(run.id, language))
 
-    @staticmethod
-    def _source_mtime_ns(
-        generation_output_dir: Path, language: Language
-    ) -> int | None:
-        """mtime (ns) du doc consolidé source, ou ``None`` s'il est absent.
 
-        Args:
-            generation_output_dir: Dossier des livrables génération.
-            language: Langue.
+def _ceiling_reached(pedagogy: PedagogySettings, total_cost: float) -> bool:
+    """Indique si le plafond de coût est atteint (frontière sûre).
 
-        Returns:
-            Le ``st_mtime_ns`` du fichier, ou ``None``.
-        """
-        doc = generation_output_dir / consolidated_doc_filename(language)
-        if not doc.exists():
-            return None
-        return doc.stat().st_mtime_ns
+    Args:
+        pedagogy: Réglages pédagogie (plafond éventuel).
+        total_cost: Coût cumulé jusqu'ici.
+
+    Returns:
+        ``True`` si un plafond est défini et atteint/dépassé.
+    """
+    ceiling = pedagogy.cost_ceiling_usd
+    return ceiling is not None and total_cost >= ceiling
 
 
 def _now() -> datetime:

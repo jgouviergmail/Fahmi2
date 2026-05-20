@@ -7,6 +7,28 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+### Ajouté — Onglet Supports pédagogiques (SP2/04)
+
+- **Onglet pédagogique réel** (remplace le stub) : barre d'actions (Réglages,
+  Estimer, Générer, Pause/Reprendre/Annuler, Ouvrir le dossier), **bandeau d'état**
+  (non configuré / génération requise / prêt / à jour / périmé) et **table de
+  progression** (support × langue, statut, coût).
+- **Réglages master-detail** (`PedagogySettingsView`) : Supports (+ corrigé séparé),
+  Difficulté (public, Bloom, densité, directives), Langues (produites), Modèle & coût
+  (modèle, thinking, température, plafond, formats d'export).
+- **Estimation de coût** (`PedagogyCostEstimator`) par support × langue × chapitre
+  selon densité et thinking ; **plafond de coût** appliqué par l'orchestrateur
+  (arrêt propre à la frontière sûre).
+- **`PedagogyController`** (worker `QThread`, pause/annulation) + **`PedagogyQtEventBus`**
+  bridgeant les événements vers la table de progression et le panneau de logs.
+- Viewmodels testables sans Qt (`PedagogyProgressViewModel`, `PedagogyStateViewModel`),
+  helpers `pedagogy/sources.py` + heuristiques de coût partagées `app/_cost_common.py`.
+
+### Corrigé
+
+- L'édition d'un projet (renommage) n'efface plus les réglages **Supports
+  pédagogiques** (`Project.pedagogy`).
+
 ### Ajouté — Générateurs de supports LLM (SP2/03)
 
 - **8 générateurs LLM** : flashcards concepts, QCM, vrai/faux, cloze, questions

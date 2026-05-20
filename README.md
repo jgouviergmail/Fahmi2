@@ -127,10 +127,11 @@ estimation de coût alignée sur l'usage réel (thinking pris en compte).
 Cf. [CHANGELOG.md](CHANGELOG.md).
 
 Interface réorganisée en **onglets de fonctionnalité** (Génération + Supports
-pédagogiques à venir) ; identité projet réduite à nom + emplacement, réglages par
-fonctionnalité.
+pédagogiques : 9 types de supports de révision générés à partir du document
+consolidé et du glossaire) ; identité projet réduite à nom + emplacement, réglages
+par fonctionnalité.
 
-498 tests passants, `mypy --strict` et `ruff` propres sur 202 fichiers.
+615 tests passants, `mypy --strict` et `ruff` propres sur 261 fichiers.
 
 ## Licence
 

@@ -287,3 +287,78 @@ def test_llm_support_writes_subject_and_correction(
     assert artifact_correction_markdown_path(
         pedagogy_dir, SupportType.QCM, Language.FR
     ).exists()
+
+
+class _CostlyGen(SupportGenerator):
+    """Générateur factice (sans LLM) renvoyant un coût fixe élevé."""
+
+    def __init__(self, support_type: SupportType, *, cost_usd: float) -> None:
+        self._support_type = support_type
+        self._cost_usd = cost_usd
+
+    @property
+    def support_type(self) -> SupportType:
+        return self._support_type
+
+    @property
+    def uses_llm(self) -> bool:
+        return False
+
+    def generate(
+        self,
+        ctx: SupportContext,
+        *,
+        language: Language,
+        chapters: tuple[Chapter, ...],
+        glossary: tuple[Term, ...],
+    ) -> SupportArtifact:
+        del ctx, chapters, glossary
+        return SupportArtifact(
+            support_type=self._support_type,
+            language=language,
+            items=(),
+            rendered_markdown="x",
+            cost_usd=self._cost_usd,
+        )
+
+
+def test_cost_ceiling_stops_generation(
+    tmp_path: Path, make_generation_settings: Any, make_pedagogy_settings: Any
+) -> None:
+    registry = SupportGeneratorRegistry(
+        [
+            _CostlyGen(SupportType.FLASHCARDS_GLOSSARY, cost_usd=10.0),
+            _CostlyGen(SupportType.FLASHCARDS_CONCEPTS, cost_usd=10.0),
+        ]
+    )
+    orchestrator, state, project_service = _build(tmp_path, registry)
+    project = project_service.create_project(
+        name="P",
+        workspace_folder=tmp_path / "ws",
+        generation=make_generation_settings(),
+        pedagogy=make_pedagogy_settings(
+            selected_supports=frozenset(
+                {SupportType.FLASHCARDS_GLOSSARY, SupportType.FLASHCARDS_CONCEPTS}
+            ),
+            separate_correction=frozenset(),
+            cost_ceiling_usd=1.0,
+        ),
+    )
+    _seed_completed_run_with_glossary(state, project.id, make_generation_settings())
+
+    bus: EventBus[PedagogyEvent] = EventBus()
+    events = _collect(bus)
+    status = orchestrator.generate(project, pause_token=PauseToken(), event_bus=bus)
+
+    assert status is RunStatus.PAUSED
+    succeeded = [
+        e
+        for e in events
+        if isinstance(e, SupportFinished) and e.status is PhaseStatus.SUCCEEDED
+    ]
+    # Le 1er support (glossaire, ordre canonique) est généré ; le plafond stoppe
+    # avant le 2e (concepts).
+    assert len(succeeded) == 1
+    assert succeeded[0].support_type is SupportType.FLASHCARDS_GLOSSARY
+    assert isinstance(events[-1], SupportGenerationFinished)
+    assert events[-1].status is RunStatus.PAUSED

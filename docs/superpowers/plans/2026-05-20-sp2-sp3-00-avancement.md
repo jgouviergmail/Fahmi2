@@ -7,7 +7,7 @@
 
 - **Branche de travail** : `feat/sp1-coquille-multi-fonctionnalites` (poussée sur
   `origin`). Tout le travail (SP1 + SP2) y est commité.
-- **Vérifs au vert** au dernier point : `pytest` (586), `ruff`, `mypy --strict`.
+- **Vérifs au vert** au dernier point : `pytest` (615), `ruff`, `mypy --strict`.
 
 ## Documents de référence (à lire avant d'agir)
 
@@ -67,12 +67,21 @@
   + `<support>.corrige.md`), `default_classify` remonté dans `core/retry/classification.py`,
   factory `build_default_support_registry()`, tests (586 verts). Plan :
   [`2026-05-20-sp2-03-generateurs-llm-prompts.md`](./2026-05-20-sp2-03-generateurs-llm-prompts.md).
+- **SP2/04 — onglet pédagogique réel** : helpers `pedagogy/sources.py` +
+  heuristiques de coût partagées `app/_cost_common.py`, `PedagogyCostEstimator`,
+  viewmodels `PedagogyProgressViewModel` (accumulation d'events) +
+  `PedagogyStateViewModel` (fraîcheur : non configuré / génération requise / prêt /
+  à jour / périmé), `PedagogySettingsView` (master-detail Supports/Difficulté/Langues/
+  Modèle & coût), `PedagogyProgressView` (bandeau + table), `PedagogyController` +
+  `PedagogyQtEventBus` (worker `QThread`, pause/cancel), `PedagogyTab` réel + câblage
+  `app_main` (registre des 9 générateurs), plafond de coût dans l'orchestrateur, +
+  fix régression `_edit_project` (préserver `pedagogy`), tests (615 verts). Plan :
+  [`2026-05-20-sp2-04-onglet-pedagogique.md`](./2026-05-20-sp2-04-onglet-pedagogique.md).
 
 ## Reste à faire (ordre) ⏭️
 
 | Lot | Contenu | Réf design |
 |-----|---------|-----------|
-| **SP2/04** | **Onglet pédagogique réel** : `PedagogyController` + `PedagogyTab` (réglages master-detail : Supports/Difficulté/Langues/Modèle ; bouton Générer/Estimer ; progression ; fraîcheur), `PedagogyCostEstimator`, câblage `app_main`, smoke tests. | §8, §10 |
 | **SP3/01** | Export **`.apkg`** (genanki) : note types (Basic/Cloze/QCM), GUID stables, sous-decks, tags, bouton export, tests. | §9 |
 | **SP3/02** | Export **Markdown/PDF** (sujet/corrigé séparés ; choix lib PDF), tests. | §9 |
 | **Docs finales** | `docs/`, `README`, `CLAUDE.md`, `CHANGELOG` ; clôture matrice chapeau (R8–R19 → Fait). | — |

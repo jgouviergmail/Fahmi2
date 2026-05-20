@@ -21,6 +21,7 @@ from fahmi2.domain.ids import ProjectId
 from fahmi2.domain.project import Project
 from fahmi2.infra.secrets.interface import InMemorySecretsStore, SecretsStore
 from fahmi2.infra.storage.sqlite_state import SqliteState
+from fahmi2.pedagogy.default_registry import build_default_support_registry
 from fahmi2.ui.dialogs.global_settings_dialog import GlobalSettingsDialog
 from fahmi2.ui.dialogs.new_project_dialog import NewProjectDialog
 from fahmi2.ui.dialogs.prompts_editor_dialog import PromptsEditorDialog
@@ -76,7 +77,15 @@ def main() -> int:  # noqa: PLR0915, C901
         state=state,
         app_paths=paths,
     )
-    pedagogy_tab = PedagogyTab(window)
+    pedagogy_tab = PedagogyTab(
+        logs_dock=window.logs_dock,
+        window=window,
+        project_service=project_service,
+        secrets_service=secrets_service,
+        state=state,
+        app_paths=paths,
+        registry=build_default_support_registry(),
+    )
     window.set_feature_tabs(FeatureRegistry([generation_tab, pedagogy_tab]))
     window.projects_sidebar.set_projects(project_service.list_projects())
 
@@ -127,6 +136,7 @@ def main() -> int:  # noqa: PLR0915, C901
             last_run_at=project.last_run_at,
             runs=project.runs,
             generation=project.generation,
+            pedagogy=project.pedagogy,
         )
         project_service.update_project(updated)
         _refresh_sidebar()
@@ -168,6 +178,7 @@ def main() -> int:  # noqa: PLR0915, C901
     window.set_on_new_project(_open_new_project)
     # Garde une référence pour éviter la collection par le GC PySide.
     window._generation_tab = generation_tab  # type: ignore[attr-defined]  # noqa: SLF001
+    window._pedagogy_tab = pedagogy_tab  # type: ignore[attr-defined]  # noqa: SLF001
     window.show()
     return int(app.exec())
 

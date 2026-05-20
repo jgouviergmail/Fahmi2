@@ -12,6 +12,7 @@ from fahmi2.app.secrets_service import SecretsService
 from fahmi2.core.config.paths import AppPaths
 from fahmi2.infra.secrets.interface import InMemorySecretsStore
 from fahmi2.infra.storage.sqlite_state import SqliteState
+from fahmi2.pedagogy.default_registry import build_default_support_registry
 from fahmi2.ui.features.feature import FeatureId
 from fahmi2.ui.features.generation_tab import GenerationTab
 from fahmi2.ui.features.pedagogy_tab import PedagogyTab
@@ -31,12 +32,24 @@ def _generation_tab(state: SqliteState, window: MainWindow) -> GenerationTab:
     )
 
 
+def _pedagogy_tab(state: SqliteState, window: MainWindow) -> PedagogyTab:
+    return PedagogyTab(
+        logs_dock=window.logs_dock,
+        window=window,
+        project_service=ProjectService(state),
+        secrets_service=SecretsService(InMemorySecretsStore()),
+        state=state,
+        app_paths=AppPaths.default(),
+        registry=build_default_support_registry(),
+    )
+
+
 def test_main_window_shows_two_feature_tabs(qtbot: QtBot, tmp_path: Path) -> None:
     state = SqliteState(tmp_path / "t.db")
     window = MainWindow()
     qtbot.addWidget(window)
     generation_tab = _generation_tab(state, window)
-    pedagogy_tab = PedagogyTab(window)
+    pedagogy_tab = _pedagogy_tab(state, window)
     window.set_feature_tabs(FeatureRegistry([generation_tab, pedagogy_tab]))
 
     assert generation_tab.feature_id is FeatureId.GENERATION
@@ -44,7 +57,10 @@ def test_main_window_shows_two_feature_tabs(qtbot: QtBot, tmp_path: Path) -> Non
     assert window._tabs.count() == 2  # noqa: SLF001 — smoke d'assemblage
 
 
-def test_pedagogy_tab_on_project_selected_is_noop(qtbot: QtBot) -> None:
-    tab = PedagogyTab()
+def test_pedagogy_tab_on_project_selected_is_noop(qtbot: QtBot, tmp_path: Path) -> None:
+    state = SqliteState(tmp_path / "t.db")
+    window = MainWindow()
+    qtbot.addWidget(window)
+    tab = _pedagogy_tab(state, window)
     qtbot.addWidget(tab.widget)
     tab.on_project_selected(None)  # ne lève pas

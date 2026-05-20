@@ -5,6 +5,19 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QWidget
 
+_DEFAULT_SETTINGS_TOOLTIP = (
+    "Configurer les réglages de génération (entrée, langues, style, "
+    "transcription, modèle, phases)."
+)
+_DEFAULT_ESTIMATE_TOOLTIP = (
+    "Estime à l'avance le coût total du Run en analysant la durée "
+    "des vidéos du dossier d'entrée (STT + LLM)."
+)
+_DEFAULT_OPEN_OUTPUT_TOOLTIP = (
+    "Ouvre dans l'explorateur le dossier contenant les fichiers Markdown "
+    "produits (consolidated, glossary, per-video par langue)."
+)
+
 
 class ProjectHeaderBar(QWidget):
     """Barre d'actions principales d'un Run."""
@@ -17,11 +30,22 @@ class ProjectHeaderBar(QWidget):
     estimate_cost_requested = Signal()
     settings_requested = Signal()
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        *,
+        settings_tooltip: str = _DEFAULT_SETTINGS_TOOLTIP,
+        estimate_tooltip: str = _DEFAULT_ESTIMATE_TOOLTIP,
+        open_output_tooltip: str = _DEFAULT_OPEN_OUTPUT_TOOLTIP,
+    ) -> None:
         """Construit la barre.
 
         Args:
             parent: Parent Qt optionnel.
+            settings_tooltip: Infobulle du bouton « Réglages » (contexte de
+                la fonctionnalité).
+            estimate_tooltip: Infobulle du bouton « Estimer le coût ».
+            open_output_tooltip: Infobulle du bouton « Dossier de sortie ».
         """
         super().__init__(parent)
         self.setObjectName("projectHeaderBar")
@@ -30,17 +54,11 @@ class ProjectHeaderBar(QWidget):
         layout.setSpacing(8)
 
         self._settings_button = self._make_button("⚙  Réglages", role="default")
-        self._settings_button.setToolTip(
-            "Configurer les réglages de génération (entrée, langues, style, "
-            "transcription, modèle, phases)."
-        )
+        self._settings_button.setToolTip(settings_tooltip)
         self._estimate_cost_button = self._make_button(
             "💵  Estimer le coût", role="default"
         )
-        self._estimate_cost_button.setToolTip(
-            "Estime à l'avance le coût total du Run en analysant la durée "
-            "des vidéos du dossier d'entrée (STT + LLM)."
-        )
+        self._estimate_cost_button.setToolTip(estimate_tooltip)
         self._start_button = self._make_button("▶  Lancer", role="primary")
         self._pause_button = self._make_button("⏸  Pause", role="default")
         self._resume_button = self._make_button("▶  Reprendre", role="primary")
@@ -48,10 +66,7 @@ class ProjectHeaderBar(QWidget):
         self._open_output_button = self._make_button(
             "📂  Dossier de sortie", role="default"
         )
-        self._open_output_button.setToolTip(
-            "Ouvre dans l'explorateur le dossier contenant les fichiers Markdown "
-            "produits (consolidated, glossary, per-video par langue)."
-        )
+        self._open_output_button.setToolTip(open_output_tooltip)
 
         self._settings_button.clicked.connect(self.settings_requested)
         self._estimate_cost_button.clicked.connect(self.estimate_cost_requested)

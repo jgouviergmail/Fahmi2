@@ -1,12 +1,15 @@
-"""``MainWindow`` — cockpit principal de l'application (layout dense).
+"""``MainWindow`` — cockpit principal (sidebar projets + onglets de fonctionnalité).
 
 Layout :
 
-- Sidebar gauche : liste des projets.
-- Centre : ``ProjectHeaderBar`` (titre + actions) + ``StatsStripWidget``
-  + ``RunMatrixView``.
-- Dock bas : ``LogsDock`` (filtrable).
+- Sidebar gauche : liste des projets (transverse à toutes les fonctionnalités).
+- Centre : ``QTabWidget`` peuplé par un ``FeatureRegistry`` (Génération, Supports
+  pédagogiques, …).
+- Dock bas : ``LogsDock`` partagé.
 - Menus : Fichier, Édition, Affichage, ?.
+
+La sélection d'un projet dans la sidebar est **dispatchée** à chaque onglet
+(``FeatureTab.on_project_selected``).
 """
 
 from __future__ import annotations
@@ -18,24 +21,25 @@ from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QMainWindow,
     QSplitter,
-    QVBoxLayout,
+    QTabWidget,
     QWidget,
 )
 
+from fahmi2.domain.ids import ProjectId
+from fahmi2.ui.features.registry import FeatureRegistry
 from fahmi2.ui.widgets.logs_dock import LogsDock
-from fahmi2.ui.widgets.project_header_bar import ProjectHeaderBar
 from fahmi2.ui.widgets.projects_sidebar import ProjectsSidebar
-from fahmi2.ui.widgets.run_matrix_view import RunMatrixView
-from fahmi2.ui.widgets.stats_strip import StatsStripWidget
 
 _WINDOW_TITLE = "Fahmi2"
+_SIDEBAR_WIDTH_PX = 220
+_CENTRAL_WIDTH_PX = 980
 
 
 class MainWindow(QMainWindow):
-    """Fenêtre principale (cockpit dense)."""
+    """Fenêtre principale (sidebar projets + onglets de fonctionnalité)."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        """Construit la fenêtre.
+        """Construit la fenêtre (onglets ajoutés ensuite via ``set_feature_tabs``).
 
         Args:
             parent: Parent Qt optionnel.
@@ -44,35 +48,36 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(_WINDOW_TITLE)
         self.resize(1200, 800)
 
-        # Sidebar projets
+        self._feature_registry: FeatureRegistry | None = None
+
         self._projects_sidebar = ProjectsSidebar(self)
+        self._projects_sidebar.set_on_project_selected(self._dispatch_project_selected)
 
-        # Zone centrale
-        central = QWidget(self)
-        central_layout = QVBoxLayout(central)
-        central_layout.setContentsMargins(0, 0, 0, 0)
+        self._tabs = QTabWidget(self)
 
-        self._header_bar = ProjectHeaderBar(self)
-        self._stats_strip = StatsStripWidget(self)
-        self._run_matrix = RunMatrixView(parent=self)
-        central_layout.addWidget(self._header_bar)
-        central_layout.addWidget(self._stats_strip)
-        central_layout.addWidget(self._run_matrix, stretch=1)
-
-        # Splitter horizontal
         splitter = QSplitter(Qt.Orientation.Horizontal, self)
         splitter.addWidget(self._projects_sidebar)
-        splitter.addWidget(central)
+        splitter.addWidget(self._tabs)
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
-        splitter.setSizes([220, 980])
+        splitter.setSizes([_SIDEBAR_WIDTH_PX, _CENTRAL_WIDTH_PX])
         self.setCentralWidget(splitter)
 
-        # Dock logs
         self._logs_dock = LogsDock(self)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self._logs_dock)
 
         self._build_menus()
+
+    def set_feature_tabs(self, registry: FeatureRegistry) -> None:
+        """Peuple la zone centrale avec les onglets de fonctionnalité.
+
+        Args:
+            registry: Registre ordonné des onglets à afficher.
+        """
+        self._feature_registry = registry
+        self._tabs.clear()
+        for tab in registry.ordered():
+            self._tabs.addTab(tab.widget, tab.title)
 
     @property
     def projects_sidebar(self) -> ProjectsSidebar:
@@ -84,40 +89,24 @@ class MainWindow(QMainWindow):
         return self._projects_sidebar
 
     @property
-    def header_bar(self) -> ProjectHeaderBar:
-        """Accès à la barre titre du Run.
-
-        Returns:
-            La header bar.
-        """
-        return self._header_bar
-
-    @property
-    def stats_strip(self) -> StatsStripWidget:
-        """Accès au widget stats.
-
-        Returns:
-            Le widget.
-        """
-        return self._stats_strip
-
-    @property
-    def run_matrix(self) -> RunMatrixView:
-        """Accès à la matrice vidéos × phases.
-
-        Returns:
-            La vue matrice.
-        """
-        return self._run_matrix
-
-    @property
     def logs_dock(self) -> LogsDock:
-        """Accès au dock logs.
+        """Accès au dock logs partagé.
 
         Returns:
             Le dock.
         """
         return self._logs_dock
+
+    def _dispatch_project_selected(self, project_id: ProjectId) -> None:
+        """Notifie chaque onglet de la sélection d'un projet.
+
+        Args:
+            project_id: Projet sélectionné dans la sidebar.
+        """
+        if self._feature_registry is None:
+            return
+        for tab in self._feature_registry.ordered():
+            tab.on_project_selected(project_id)
 
     def set_on_open_settings(self, callback: Callable[[], None]) -> None:
         """Définit le callback du menu Édition > Paramètres globaux.

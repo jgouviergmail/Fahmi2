@@ -16,9 +16,6 @@ def test_main_window_constructs_and_shows(qtbot: QtBot) -> None:
     window = MainWindow()
     qtbot.addWidget(window)
     assert window.projects_sidebar is not None
-    assert window.header_bar is not None
-    assert window.run_matrix is not None
-    assert window.stats_strip is not None
     assert window.logs_dock is not None
 
 

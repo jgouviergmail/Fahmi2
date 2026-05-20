@@ -1,8 +1,9 @@
 """Point d'entrée de l'application Fahmi2.
 
 Construit l'``AppContext`` (dépendances injectées), instancie la
-``MainWindow`` + ``RunController``, branche les menus et les callbacks de la
-sidebar (édition, suppression de projet), puis lance la boucle Qt.
+``MainWindow`` + les onglets de fonctionnalité (Génération, Supports
+pédagogiques), branche les menus et les callbacks de la sidebar (édition,
+suppression de projet), puis lance la boucle Qt.
 """
 
 from __future__ import annotations
@@ -23,8 +24,10 @@ from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.ui.dialogs.global_settings_dialog import GlobalSettingsDialog
 from fahmi2.ui.dialogs.new_project_dialog import NewProjectDialog
 from fahmi2.ui.dialogs.prompts_editor_dialog import PromptsEditorDialog
+from fahmi2.ui.features.generation_tab import GenerationTab
+from fahmi2.ui.features.pedagogy_tab import PedagogyTab
+from fahmi2.ui.features.registry import FeatureRegistry
 from fahmi2.ui.main_window import MainWindow
-from fahmi2.ui.run_controller import RunController
 from fahmi2.ui.theme import apply_theme
 
 _DB_FILENAME = "projects.db"
@@ -63,16 +66,19 @@ def main() -> int:  # noqa: PLR0915, C901
     app = QApplication.instance() or QApplication(sys.argv)
     apply_theme(app)  # type: ignore[arg-type]
     window = MainWindow()
-    window.projects_sidebar.set_projects(project_service.list_projects())
 
-    run_controller = RunController(
-        main_window=window,
+    generation_tab = GenerationTab(
+        logs_dock=window.logs_dock,
+        window=window,
         project_service=project_service,
         secrets_service=secrets_service,
         hardware=hardware,
         state=state,
         app_paths=paths,
     )
+    pedagogy_tab = PedagogyTab(window)
+    window.set_feature_tabs(FeatureRegistry([generation_tab, pedagogy_tab]))
+    window.projects_sidebar.set_projects(project_service.list_projects())
 
     def _refresh_sidebar() -> None:
         window.projects_sidebar.set_projects(project_service.list_projects())
@@ -154,19 +160,21 @@ def main() -> int:  # noqa: PLR0915, C901
         # chaque appel : l'identite ('is') avec QMessageBox.StandardButton.Yes n'est
         # pas garantie. On compare donc explicitement avec '=='.
         if reply == QMessageBox.StandardButton.Yes:
-            was_current = run_controller.current_project_id == project_id
+            was_current = (
+                generation_tab.controller.current_project_id == project_id
+            )
             project_service.delete_project(project_id)
             _refresh_sidebar()
             if was_current:
-                run_controller.clear_current_project()
+                generation_tab.controller.clear_current_project()
 
     window.projects_sidebar.set_on_edit_requested(_edit_project)
     window.projects_sidebar.set_on_delete_requested(_delete_project)
     window.set_on_open_settings(_open_settings)
     window.set_on_open_prompts_editor(_open_prompts_editor)
     window.set_on_new_project(_open_new_project)
-    # Garde une référence pour éviter la collection par le GC PySide
-    window._run_controller = run_controller  # type: ignore[attr-defined]  # noqa: SLF001
+    # Garde une référence pour éviter la collection par le GC PySide.
+    window._generation_tab = generation_tab  # type: ignore[attr-defined]  # noqa: SLF001
     window.show()
     return int(app.exec())
 

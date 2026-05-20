@@ -12,16 +12,27 @@ from fahmi2.app.project_service import ProjectService
 from fahmi2.app.supports_orchestrator import SupportsOrchestrator
 from fahmi2.core.errors.exceptions import ConfigError, LLMError
 from fahmi2.core.errors.severity import Severity
+from fahmi2.core.retry.policy import RetryPolicy
 from fahmi2.domain.enums import Language, PhaseStatus, RunStatus, SupportType
+from fahmi2.domain.generation import (
+    GENERATION_OUTPUT_SUBDIR,
+    GENERATION_WORKSPACE_SUBDIR,
+    consolidated_doc_filename,
+)
 from fahmi2.domain.glossary import Term
 from fahmi2.domain.ids import ProjectId, RunId
 from fahmi2.domain.run import Run
 from fahmi2.domain.supports import SupportArtifact
 from fahmi2.infra.llm._fakes import FakeLLMProvider
+from fahmi2.infra.llm.interface import LLMResponse
 from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.infra.storage.sqlite_state import SqliteState
-from fahmi2.pedagogy.artifact_writer import artifact_json_path, artifact_markdown_path
+from fahmi2.pedagogy.artifact_writer import (
+    artifact_correction_markdown_path,
+    artifact_json_path,
+    artifact_markdown_path,
+)
 from fahmi2.pedagogy.chapters import Chapter
 from fahmi2.pedagogy.events import (
     PedagogyEvent,
@@ -29,6 +40,7 @@ from fahmi2.pedagogy.events import (
     SupportGenerationFinished,
 )
 from fahmi2.pedagogy.generators.flashcards_glossary import FlashcardsGlossaryGenerator
+from fahmi2.pedagogy.generators.qcm import QcmGenerator
 from fahmi2.pedagogy.support_generator import SupportContext, SupportGenerator
 from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
 from fahmi2.pipeline.event_bus import EventBus
@@ -52,7 +64,10 @@ def _seed_completed_run_with_glossary(
 
 
 def _build(
-    tmp_path: Path, registry: SupportGeneratorRegistry
+    tmp_path: Path,
+    registry: SupportGeneratorRegistry,
+    *,
+    llm_provider: Any | None = None,
 ) -> tuple[SupportsOrchestrator, SqliteState, ProjectService]:
     state = SqliteState(tmp_path / "t.db")
     project_service = ProjectService(state)
@@ -61,8 +76,11 @@ def _build(
         project_service=project_service,
         registry=registry,
         artifacts=FsArtifactStore(),
-        llm_provider=FakeLLMProvider(),
+        llm_provider=llm_provider if llm_provider is not None else FakeLLMProvider(),
         prompts=PromptLoader(),
+        retry_policy=RetryPolicy(
+            max_attempts=2, jitter=False, initial_delay_seconds=0.001
+        ),
     )
     return orchestrator, state, project_service
 
@@ -210,3 +228,62 @@ def test_cancellation_returns_cancelled(
     assert status is RunStatus.CANCELLED
     assert isinstance(events[-1], SupportGenerationFinished)
     assert events[-1].status is RunStatus.CANCELLED
+
+
+_QCM_JSON = (
+    '{"questions": [{"question": "Q?", "choices": ["a", "b", "c", "d"], '
+    '"correct_index": 1, "justification": "car b"}]}'
+)
+
+
+def test_llm_support_writes_subject_and_correction(
+    tmp_path: Path, make_generation_settings: Any, make_pedagogy_settings: Any
+) -> None:
+    """Bout-en-bout : un support évaluatif à corrigé séparé écrit 3 fichiers."""
+    provider = FakeLLMProvider(
+        default_response=LLMResponse(
+            content=_QCM_JSON,
+            thinking_content=None,
+            prompt_tokens=1,
+            completion_tokens=1,
+            cached_prompt_tokens=0,
+            cost_usd=0.0,
+        )
+    )
+    registry = SupportGeneratorRegistry([QcmGenerator()])
+    orchestrator, state, project_service = _build(
+        tmp_path, registry, llm_provider=provider
+    )
+    ws = tmp_path / "ws"
+    project = project_service.create_project(
+        name="P",
+        workspace_folder=ws,
+        generation=make_generation_settings(),
+        pedagogy=make_pedagogy_settings(
+            selected_supports=frozenset({SupportType.QCM}),
+            separate_correction=frozenset({SupportType.QCM}),
+        ),
+    )
+    _seed_completed_run_with_glossary(state, project.id, make_generation_settings())
+    # Document consolidé source (un chapitre) pour la langue FR.
+    doc = (
+        ws
+        / GENERATION_WORKSPACE_SUBDIR
+        / GENERATION_OUTPUT_SUBDIR
+        / consolidated_doc_filename(Language.FR)
+    )
+    FsArtifactStore().write_text_atomic(
+        doc, "# Cours\n\n# 1. Bases\n\nContenu du chapitre.\n"
+    )
+
+    status = orchestrator.generate(
+        project, pause_token=PauseToken(), event_bus=EventBus()
+    )
+
+    assert status is RunStatus.COMPLETED
+    pedagogy_dir = ws / "pedagogy"
+    assert artifact_json_path(pedagogy_dir, SupportType.QCM, Language.FR).exists()
+    assert artifact_markdown_path(pedagogy_dir, SupportType.QCM, Language.FR).exists()
+    assert artifact_correction_markdown_path(
+        pedagogy_dir, SupportType.QCM, Language.FR
+    ).exists()

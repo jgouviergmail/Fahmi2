@@ -7,7 +7,7 @@
 
 - **Branche de travail** : `feat/sp1-coquille-multi-fonctionnalites` (poussée sur
   `origin`). Tout le travail (SP1 + SP2) y est commité.
-- **Vérifs au vert** au dernier point : `pytest` (543), `ruff`, `mypy --strict`.
+- **Vérifs au vert** au dernier point : `pytest` (586), `ruff`, `mypy --strict`.
 
 ## Documents de référence (à lire avant d'agir)
 
@@ -56,12 +56,22 @@
   de run de génération). Constantes de chemins centralisées (`GENERATION_OUTPUT_SUBDIR`,
   `consolidated_doc_filename`). Plan :
   [`2026-05-20-sp2-02-socle-orchestrateur-flashcards-glossaire.md`](./2026-05-20-sp2-02-socle-orchestrateur-flashcards-glossaire.md).
+- **SP2/03 — générateurs LLM + prompts** : 8 entités de support (`QcmItem`,
+  `TrueFalseItem`, `ClozeItem`, `OpenQuestion`, `RevisionSheet`, `KeyPoints`,
+  `MockExam`/`MockExamSection`), socle `pedagogy/generators/_base.py`
+  (`invoke_support_llm` avec retry + `SupportRetryAttempt`, helpers de parsing JSON
+  typé, bases génériques par chapitre + mixin évaluatif), 8 générateurs (flashcards
+  concepts, QCM + **dé-biaisage déterministe**, vrai/faux, cloze, questions ouvertes,
+  fiche, points clés, examen blanc doc-entier) + 8 prompts `pedagogy_*.j2`
+  **éditables** (`_TEMPLATE_METADATA`), **corrigés séparés** (`SupportArtifact.correction_markdown`
+  + `<support>.corrige.md`), `default_classify` remonté dans `core/retry/classification.py`,
+  factory `build_default_support_registry()`, tests (586 verts). Plan :
+  [`2026-05-20-sp2-03-generateurs-llm-prompts.md`](./2026-05-20-sp2-03-generateurs-llm-prompts.md).
 
 ## Reste à faire (ordre) ⏭️
 
 | Lot | Contenu | Réf design |
 |-----|---------|-----------|
-| **SP2/03** | **8 générateurs LLM** (flashcards concepts, QCM + validation, vrai/faux, cloze, questions ouvertes, fiche, points clés, examen blanc) + **8 prompts** `pedagogy_*.j2` (**à ajouter à `_TEMPLATE_METADATA` de `prompts_service.py`** pour être éditables via « Édition → Modifier les prompts ») + parsing typé + corrigés séparés + `with_retry` LLM **dans** les générateurs, tests. | §6, §7 |
 | **SP2/04** | **Onglet pédagogique réel** : `PedagogyController` + `PedagogyTab` (réglages master-detail : Supports/Difficulté/Langues/Modèle ; bouton Générer/Estimer ; progression ; fraîcheur), `PedagogyCostEstimator`, câblage `app_main`, smoke tests. | §8, §10 |
 | **SP3/01** | Export **`.apkg`** (genanki) : note types (Basic/Cloze/QCM), GUID stables, sous-decks, tags, bouton export, tests. | §9 |
 | **SP3/02** | Export **Markdown/PDF** (sujet/corrigé séparés ; choix lib PDF), tests. | §9 |

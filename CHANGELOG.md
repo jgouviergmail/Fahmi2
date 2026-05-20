@@ -7,6 +7,24 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+### Ajouté — Générateurs de supports LLM (SP2/03)
+
+- **8 générateurs LLM** : flashcards concepts, QCM, vrai/faux, cloze, questions
+  ouvertes, fiche de révision, points clés (par chapitre) et examen blanc
+  (document entier). Chacun parse une réponse **JSON typée** vers les entités de
+  `domain/supports.py` et rend du Markdown.
+- **8 prompts `pedagogy_*.j2` éditables** via « Édition → Modifier les prompts »
+  (catalogue `PromptsService`), paramétrés par public cible, objectif Bloom,
+  densité, directives et glossaire.
+- **Corrigés séparés** : les supports évaluatifs marqués « corrigé séparé »
+  produisent un fichier `<support>.corrige.md` distinct du sujet.
+- **Dé-biaisage QCM** déterministe (répartition de la position de la bonne
+  réponse sur l'ensemble des questions).
+- **Retry LLM** mutualisé avec le pipeline : `default_classify` remonté dans
+  `core/retry/classification.py` ; événement `SupportRetryAttempt`.
+- Socle `pedagogy/generators/_base.py` (bases génériques par chapitre + mixin
+  évaluatif), factory `build_default_support_registry()` (9 générateurs).
+
 ### Ajouté — Générateur de supports de révision (SP2/02)
 
 - **Socle pédagogie** (`pedagogy/`) : `SupportGenerator` (ABC) + `SupportContext` (DI),

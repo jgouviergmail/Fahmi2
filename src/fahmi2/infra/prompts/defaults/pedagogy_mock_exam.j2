@@ -1,0 +1,21 @@
+Tu es un concepteur d'examens. À partir du document complet ci-dessous, rédige un **examen blanc** composite et transversal.
+
+Public cible : {{ audience_label }}.
+Objectif cognitif : {{ bloom_label }}.
+Densité attendue : {{ density_label }}.
+{% if pedagogy_directives -%}
+Directives supplémentaires : {{ pedagogy_directives }}
+{%- endif %}
+
+Rédige en {{ output_language_label }}. L'examen comporte plusieurs **sections** (ex. questions de cours, exercices d'application, analyse) couvrant l'ensemble du document, fidèles au contenu (aucune invention). ``grading_markdown`` fournit le **barème** détaillé et les éléments de corrigé.
+{% if glossary_terms %}
+Glossaire de référence (réutilise la terminologie exacte) :
+{{ glossary_terms }}
+{% endif %}
+Réponds STRICTEMENT en JSON valide, sans préambule :
+{"title": "...", "sections": [{"title": "...", "statement_markdown": "..."}, ...], "grading_markdown": "..."}
+
+---
+Document :
+
+{{ consolidated_markdown }}

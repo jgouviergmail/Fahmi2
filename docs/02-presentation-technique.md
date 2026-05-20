@@ -306,7 +306,10 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
 
 <emplacement>/pedagogy/                ← Supports pédagogiques (SP2)
 ├── manifest.json                     ← Fraîcheur (hash réglages + mtime source/langue)
-└── {support}/{lang}/{support}.{json,md}   ← Artefact structuré + rendu Markdown
+└── {support}/{lang}/
+    ├── {support}.json                ← Artefact structuré (items typés)
+    ├── {support}.md                  ← Rendu Markdown (sujet)
+    └── {support}.corrige.md          ← Corrigé séparé (évaluatifs, si demandé)
 ```
 
 > Les supports pédagogiques sont produits par le `SupportsOrchestrator`
@@ -316,6 +319,15 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
 > (écrase) + **reprise coarse** : un support frais (hash réglages + mtime source
 > inchangés, artefact présent) est *skippé*. Première tranche livrée : **flashcards
 > glossaire** (sans LLM).
+
+> **Générateurs LLM (SP2/03)** : flashcards concepts, QCM (avec **dé-biaisage
+> déterministe** de la position de la bonne réponse), vrai/faux, cloze, questions
+> ouvertes, fiche, points clés (par chapitre) et examen blanc (document entier).
+> Chacun a un prompt `pedagogy_<support>.j2` **éditable** (Édition → Modifier les
+> prompts), un parsing JSON typé vers les entités de `domain/supports.py`, et un
+> retry LLM partagé avec le pipeline (`core/retry/classification.default_classify`).
+> Les supports **évaluatifs** marqués « corrigé séparé » produisent un fichier
+> `<support>.corrige.md` distinct du sujet.
 
 ## 5. Conventions de code
 

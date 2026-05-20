@@ -12,6 +12,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 
+from fahmi2.core.retry.policy import RetryPolicy
 from fahmi2.domain.enums import Language, SupportType
 from fahmi2.domain.glossary import Term
 from fahmi2.domain.pedagogy import PedagogySettings
@@ -38,6 +39,7 @@ class SupportContext:
         artifacts: Écriture atomique d'artefacts.
         event_bus: Bus d'événements pédagogie.
         pause_token: Jeton coopératif pause/annulation.
+        retry_policy: Politique de retry des appels LLM.
     """
 
     pedagogy: PedagogySettings
@@ -48,6 +50,7 @@ class SupportContext:
     artifacts: FsArtifactStore
     event_bus: EventBus[PedagogyEvent]
     pause_token: PauseToken
+    retry_policy: RetryPolicy
 
 
 class SupportGenerator(ABC):

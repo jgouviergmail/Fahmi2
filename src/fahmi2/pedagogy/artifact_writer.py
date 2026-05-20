@@ -15,6 +15,7 @@ from fahmi2.domain.supports import SupportArtifact, SupportItem
 
 _JSON_EXT = ".json"
 _MD_EXT = ".md"
+_CORRECTION_SUFFIX = ".corrige"
 
 
 def support_dir(
@@ -68,6 +69,25 @@ def artifact_markdown_path(
     return (
         support_dir(pedagogy_dir, support_type, language)
         / f"{support_type.value}{_MD_EXT}"
+    )
+
+
+def artifact_correction_markdown_path(
+    pedagogy_dir: Path, support_type: SupportType, language: Language
+) -> Path:
+    """Chemin du fichier Markdown de corrigé d'un support.
+
+    Args:
+        pedagogy_dir: Dossier pédagogie.
+        support_type: Type de support.
+        language: Langue.
+
+    Returns:
+        Le chemin ``…/<support>.corrige.md``.
+    """
+    return (
+        support_dir(pedagogy_dir, support_type, language)
+        / f"{support_type.value}{_CORRECTION_SUFFIX}{_MD_EXT}"
     )
 
 

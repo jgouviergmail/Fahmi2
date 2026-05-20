@@ -62,6 +62,27 @@ class SupportFinished:
 
 
 @dataclass(frozen=True)
+class SupportRetryAttempt:
+    """Tentative de retry d'un appel LLM pour un support.
+
+    Attributes:
+        timestamp: Horodatage.
+        support_type: Type de support.
+        language: Langue.
+        attempt: Numéro de tentative (1-indexed).
+        delay_seconds: Délai avant la prochaine tentative.
+        error: ``ErrorInfo`` de l'échec déclencheur.
+    """
+
+    timestamp: datetime
+    support_type: SupportType
+    language: Language
+    attempt: int
+    delay_seconds: float
+    error: ErrorInfo
+
+
+@dataclass(frozen=True)
 class SupportGenerationFinished:
     """Fin d'une génération de supports.
 
@@ -79,6 +100,7 @@ class SupportGenerationFinished:
 PedagogyEvent = (
     SupportGenerationStarted
     | SupportStarted
+    | SupportRetryAttempt
     | SupportFinished
     | SupportGenerationFinished
 )

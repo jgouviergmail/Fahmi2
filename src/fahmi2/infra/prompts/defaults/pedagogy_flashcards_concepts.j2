@@ -1,0 +1,21 @@
+Tu es un pédagogue. À partir du chapitre ci-dessous, crée des **flashcards** recto/verso portant sur les idées clés (concepts, mécanismes, relations) — pas sur de simples définitions de vocabulaire.
+
+Public cible : {{ audience_label }}.
+Objectif cognitif : {{ bloom_label }}.
+Densité attendue : {{ density_label }}.
+{% if pedagogy_directives -%}
+Directives supplémentaires : {{ pedagogy_directives }}
+{%- endif %}
+
+Rédige en {{ output_language_label }}. Le recto pose une question ou une amorce ; le verso donne une réponse concise et exacte, fidèle au contenu (aucune invention).
+{% if glossary_terms %}
+Glossaire de référence (réutilise la terminologie exacte) :
+{{ glossary_terms }}
+{% endif %}
+Réponds STRICTEMENT en JSON valide, sans préambule :
+{"cards": [{"front": "...", "back": "..."}, ...]}
+
+---
+Chapitre : {{ chapter_title }}
+
+{{ chapter_markdown }}

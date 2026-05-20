@@ -21,7 +21,23 @@ def test_list_templates_covers_all_llm_phases(tmp_path: Path) -> None:
         "phase_6_translation",
         "phase_7_coherence",
     }
-    assert names == expected
+    assert expected <= names
+
+
+def test_list_templates_includes_pedagogy_supports(tmp_path: Path) -> None:
+    service = PromptsService(override_dir=tmp_path)
+    names = {meta.name for meta in service.list_templates()}
+    expected = {
+        "pedagogy_flashcards_concepts",
+        "pedagogy_qcm",
+        "pedagogy_true_false",
+        "pedagogy_cloze",
+        "pedagogy_open_questions",
+        "pedagogy_revision_sheet",
+        "pedagogy_key_points",
+        "pedagogy_mock_exam",
+    }
+    assert expected <= names
 
 
 def test_load_default_returns_bundled_source(tmp_path: Path) -> None:

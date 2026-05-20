@@ -5,8 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from fahmi2.core.retry.policy import RetryPolicy
 from fahmi2.domain.enums import Language, SupportType
 from fahmi2.domain.glossary import Term
+from fahmi2.domain.supports import Flashcard
 from fahmi2.infra.llm._fakes import FakeLLMProvider
 from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
@@ -27,6 +29,7 @@ def _ctx(tmp_path: Path, make_pedagogy_settings: Any) -> SupportContext:
         artifacts=FsArtifactStore(),
         event_bus=EventBus[PedagogyEvent](),
         pause_token=PauseToken(),
+        retry_policy=RetryPolicy(jitter=False),
     )
 
 
@@ -51,9 +54,12 @@ def test_generates_one_card_per_term(
     assert gen.support_type is SupportType.FLASHCARDS_GLOSSARY
     assert gen.uses_llm is False
     assert len(artifact.items) == 2
-    assert artifact.items[0].front == "Produit intérieur brut (PIB)"
-    assert artifact.items[0].back == "Somme des valeurs ajoutées"
-    assert artifact.items[1].front == "Inflation"
+    first, second = artifact.items
+    assert isinstance(first, Flashcard)
+    assert isinstance(second, Flashcard)
+    assert first.front == "Produit intérieur brut (PIB)"
+    assert first.back == "Somme des valeurs ajoutées"
+    assert second.front == "Inflation"
     assert artifact.cost_usd == 0.0
     assert "Produit intérieur brut" in artifact.rendered_markdown
 

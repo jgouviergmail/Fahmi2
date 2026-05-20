@@ -192,6 +192,17 @@ fichiers :
 | `phase_5_consolidation` | `output_language_label`, `style_label`, `style_directives`, `summaries_json` |
 | `phase_6_translation` | `source_language_label`, `target_language_label`, `style_label`, `style_directives`, `glossary_terms`, `source_markdown` |
 | `phase_7_coherence` | `output_language_label`, `style_label`, `style_directives`, `glossary_terms`, `consolidated_markdown` |
+| `pedagogy_flashcards_concepts` | `output_language_label`, `audience_label`, `bloom_label`, `density_label`, `pedagogy_directives`, `glossary_terms`, `chapter_title`, `chapter_markdown` |
+| `pedagogy_qcm` | *(idem flashcards concepts)* |
+| `pedagogy_true_false` | *(idem flashcards concepts)* |
+| `pedagogy_cloze` | *(idem flashcards concepts)* |
+| `pedagogy_open_questions` | *(idem flashcards concepts)* |
+| `pedagogy_revision_sheet` | *(idem flashcards concepts)* |
+| `pedagogy_key_points` | *(idem flashcards concepts)* |
+| `pedagogy_mock_exam` | `output_language_label`, `audience_label`, `bloom_label`, `density_label`, `pedagogy_directives`, `glossary_terms`, `consolidated_markdown` |
+
+> Les 8 templates `pedagogy_*` (supports de révision) s'éditent dans le **même
+> éditeur** (Édition → Modifier les prompts) que les phases de génération.
 
 ### 3.4 Validation et restauration
 

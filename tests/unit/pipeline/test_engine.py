@@ -4,19 +4,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-import pytest
-
 from fahmi2.core.errors.exceptions import (
     BudgetExceededError,
     Fahmi2Error,
-    LLMError,
-    PausedError,
     PermanentError,
     TransientError,
 )
 from fahmi2.core.errors.severity import Severity
 from fahmi2.core.retrieval.interface import PassthroughRetriever
-from fahmi2.core.retry.policy import RetryDecision, RetryPolicy
+from fahmi2.core.retry.policy import RetryPolicy
 from fahmi2.domain.enums import PhaseId, PhaseStatus, RunStatus
 from fahmi2.domain.ids import ProjectId, RunId, VideoId
 from fahmi2.domain.phase import PhaseExecution
@@ -29,7 +25,7 @@ from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.infra.stt._fakes import FakeSTTProvider
-from fahmi2.pipeline.engine import PipelineEngine, default_classify
+from fahmi2.pipeline.engine import PipelineEngine
 from fahmi2.pipeline.event_bus import EventBus
 from fahmi2.pipeline.events import (
     PhaseFinished,
@@ -158,45 +154,6 @@ def _make_engine(*handlers: PhaseHandler) -> PipelineEngine:
             max_attempts=3, initial_delay_seconds=0.001, jitter=False
         ),
     )
-
-
-# --- default_classify --------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    ("exc", "expected"),
-    [
-        (
-            TransientError(code="X", user_message="x", severity=Severity.ERROR),
-            RetryDecision.RETRY,
-        ),
-        (
-            PermanentError(code="X", user_message="x", severity=Severity.ERROR),
-            RetryDecision.NO_RETRY,
-        ),
-        (
-            BudgetExceededError(
-                code="BUDGET.EXCEEDED", user_message="x", severity=Severity.WARNING
-            ),
-            RetryDecision.RAISE_BUDGET,
-        ),
-        (
-            PausedError(code="RUN.PAUSED", user_message="x", severity=Severity.INFO),
-            RetryDecision.NO_RETRY,
-        ),
-        (
-            LLMError(code="LLM.RATE_LIMIT", user_message="x", severity=Severity.WARNING),
-            RetryDecision.RETRY,
-        ),
-        (
-            LLMError(code="LLM.AUTH_INVALID", user_message="x", severity=Severity.ERROR),
-            RetryDecision.NO_RETRY,
-        ),
-        (ValueError("plain"), RetryDecision.RETRY),
-    ],
-)
-def test_default_classify(exc: BaseException, expected: RetryDecision) -> None:
-    assert default_classify(exc) is expected
 
 
 # --- engine main flow --------------------------------------------------------

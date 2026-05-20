@@ -17,6 +17,7 @@ from fahmi2.app.project_service import ProjectService
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.exceptions import ConfigError, Fahmi2Error, PausedError
 from fahmi2.core.errors.severity import Severity
+from fahmi2.core.retry.policy import RetryPolicy
 from fahmi2.domain.enums import Language, PhaseStatus, RunStatus, SupportType
 from fahmi2.domain.generation import (
     GENERATION_OUTPUT_SUBDIR,
@@ -32,6 +33,7 @@ from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.pedagogy.artifact_writer import (
+    artifact_correction_markdown_path,
     artifact_json_path,
     artifact_markdown_path,
     serialize_artifact,
@@ -68,6 +70,7 @@ class SupportsOrchestrator:
         artifacts: FsArtifactStore,
         llm_provider: LLMProvider,
         prompts: PromptLoader,
+        retry_policy: RetryPolicy,
     ) -> None:
         """Construit l'orchestrateur.
 
@@ -76,8 +79,9 @@ class SupportsOrchestrator:
             project_service: Service projet (dernier run COMPLETED).
             registry: Registre des générateurs.
             artifacts: Écriture atomique d'artefacts.
-            llm_provider: Provider LLM (générateurs LLM, SP2/03).
+            llm_provider: Provider LLM (générateurs LLM).
             prompts: Loader de prompts.
+            retry_policy: Politique de retry des appels LLM des générateurs.
         """
         self._state = state
         self._project_service = project_service
@@ -85,6 +89,7 @@ class SupportsOrchestrator:
         self._artifacts = artifacts
         self._llm_provider = llm_provider
         self._prompts = prompts
+        self._retry_policy = retry_policy
 
     def generate(
         self,
@@ -272,6 +277,13 @@ class SupportsOrchestrator:
         )
         ctx.artifacts.write_json_atomic(json_path, serialize_artifact(artifact))
         ctx.artifacts.write_text_atomic(md_path, artifact.rendered_markdown)
+        if artifact.correction_markdown is not None:
+            correction_path = artifact_correction_markdown_path(
+                ctx.pedagogy_dir, artifact.support_type, artifact.language
+            )
+            ctx.artifacts.write_text_atomic(
+                correction_path, artifact.correction_markdown
+            )
 
     def _build_context(
         self,
@@ -305,6 +317,7 @@ class SupportsOrchestrator:
             artifacts=self._artifacts,
             event_bus=event_bus,
             pause_token=pause_token,
+            retry_policy=self._retry_policy,
         )
 
     def _load_chapters(

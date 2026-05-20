@@ -14,6 +14,7 @@ from pathlib import Path
 
 from fahmi2.domain.generation import GenerationSettings
 from fahmi2.domain.ids import ProjectId, RunId
+from fahmi2.domain.pedagogy import PedagogySettings
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,8 @@ class Project:
         runs: Historique des ULID de Run associés au projet.
         generation: Réglages de la fonctionnalité Génération, ou ``None`` tant
             qu'elle n'est pas configurée.
+        pedagogy: Réglages de la fonctionnalité Supports pédagogiques, ou ``None``
+            tant qu'elle n'est pas configurée.
     """
 
     id: ProjectId
@@ -39,3 +42,4 @@ class Project:
     last_run_at: datetime | None = None
     runs: tuple[RunId, ...] = ()
     generation: GenerationSettings | None = None
+    pedagogy: PedagogySettings | None = None

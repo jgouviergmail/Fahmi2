@@ -441,3 +441,38 @@ def test_corrupt_project_blob_raises_storage_error(tmp_path: Path) -> None:
         state._get_connection().commit()  # noqa: SLF001
         with pytest.raises(StorageError, match="STORAGE.PROJECT_BLOB_INVALID"):
             state.get_project(pid)
+
+
+def test_pedagogy_settings_round_trip(
+    tmp_path: Path, make_generation_settings: Any, make_pedagogy_settings: Any
+) -> None:
+    ped = make_pedagogy_settings()
+    with SqliteState(tmp_path / "t.db") as state:
+        project = Project(
+            id=ProjectId.new(),
+            name="P",
+            workspace_folder=Path("./ws"),
+            created_at=_ts(),
+            generation=make_generation_settings(),
+            pedagogy=ped,
+        )
+        state.upsert_project(project)
+        loaded = state.get_project(project.id)
+        assert loaded is not None
+        assert loaded.pedagogy is not None
+        assert loaded.pedagogy.selected_supports == ped.selected_supports
+        assert loaded.pedagogy.export_formats == ped.export_formats
+
+
+def test_legacy_v1_blob_has_no_pedagogy(tmp_path: Path) -> None:
+    with SqliteState(tmp_path / "legacy.db") as state:
+        pid = ProjectId.new()
+        state._get_connection().execute(  # noqa: SLF001
+            "INSERT INTO projects (id, name, created_at, settings_json) "
+            "VALUES (?, ?, ?, ?)",
+            (pid.value, "Ancien", _ts().isoformat(), _legacy_v1_blob()),
+        )
+        state._get_connection().commit()  # noqa: SLF001
+        project = state.get_project(pid)
+        assert project is not None
+        assert project.pedagogy is None

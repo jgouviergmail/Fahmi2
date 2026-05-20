@@ -9,14 +9,20 @@ from typing import Any
 import pytest
 
 from fahmi2.domain.enums import (
+    BloomObjective,
+    ExportFormat,
     Language,
     LLMModel,
     PhaseId,
     SttProvider,
     StylePreset,
+    SupportDensity,
+    SupportType,
+    TargetAudience,
 )
 from fahmi2.domain.generation import GenerationSettings, ParallelismConfig
 from fahmi2.domain.ids import ProjectId
+from fahmi2.domain.pedagogy import PedagogySettings
 from fahmi2.domain.phase import PhaseConfig
 from fahmi2.domain.project import Project
 
@@ -72,5 +78,33 @@ def make_project(make_generation_settings: Any) -> Any:
         }
         base.update(overrides)
         return Project(**base)
+
+    return _factory
+
+
+@pytest.fixture
+def make_pedagogy_settings() -> Any:
+    """Fabrique des ``PedagogySettings`` valides (kwargs de surcharge).
+
+    Returns:
+        Fonction renvoyant un ``PedagogySettings`` validé.
+    """
+
+    def _factory(**overrides: Any) -> PedagogySettings:
+        base: dict[str, Any] = {
+            "selected_supports": frozenset({SupportType.FLASHCARDS_GLOSSARY}),
+            "separate_correction": frozenset(),
+            "target_audience": TargetAudience.LICENCE,
+            "bloom_objective": BloomObjective.AUTO,
+            "pedagogy_directives": "",
+            "languages": (Language.FR,),
+            "density": SupportDensity.STANDARD,
+            "llm_model": LLMModel.DEEPSEEK_V4_FLASH,
+            "llm_config": PhaseConfig(),
+            "cost_ceiling_usd": None,
+            "export_formats": frozenset({ExportFormat.APKG}),
+        }
+        base.update(overrides)
+        return PedagogySettings(**base)
 
     return _factory

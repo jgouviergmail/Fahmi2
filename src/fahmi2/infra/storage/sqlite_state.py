@@ -32,6 +32,8 @@ from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import (
+    BloomObjective,
+    ExportFormat,
     Language,
     LLMModel,
     PhaseId,
@@ -40,10 +42,14 @@ from fahmi2.domain.enums import (
     RunStatus,
     SttProvider,
     StylePreset,
+    SupportDensity,
+    SupportType,
+    TargetAudience,
 )
 from fahmi2.domain.generation import GenerationSettings, ParallelismConfig
 from fahmi2.domain.glossary import Term
 from fahmi2.domain.ids import ProjectId, RunId, VideoId
+from fahmi2.domain.pedagogy import PedagogySettings
 from fahmi2.domain.phase import PhaseConfig, PhaseExecution
 from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
@@ -168,6 +174,81 @@ def _deserialize_generation_settings(payload: dict[str, Any]) -> GenerationSetti
     )
 
 
+def _serialize_pedagogy_settings(ped: PedagogySettings) -> dict[str, Any]:
+    """Sérialise un ``PedagogySettings`` en dict JSON-compatible.
+
+    Args:
+        ped: Réglages pédagogiques.
+
+    Returns:
+        Dict prêt à être encodé en JSON.
+    """
+    return {
+        "selected_supports": sorted(s.value for s in ped.selected_supports),
+        "separate_correction": sorted(s.value for s in ped.separate_correction),
+        "target_audience": str(ped.target_audience),
+        "bloom_objective": str(ped.bloom_objective),
+        "pedagogy_directives": ped.pedagogy_directives,
+        "languages": [str(lang) for lang in ped.languages],
+        "density": str(ped.density),
+        "llm_model": str(ped.llm_model),
+        "llm_config": {
+            "thinking_enabled": ped.llm_config.thinking_enabled,
+            "reasoning_effort": (
+                str(ped.llm_config.reasoning_effort)
+                if ped.llm_config.reasoning_effort is not None
+                else None
+            ),
+            "temperature": ped.llm_config.temperature,
+            "max_retries": ped.llm_config.max_retries,
+        },
+        "cost_ceiling_usd": ped.cost_ceiling_usd,
+        "export_formats": sorted(f.value for f in ped.export_formats),
+    }
+
+
+def _deserialize_pedagogy_settings(payload: dict[str, Any]) -> PedagogySettings:
+    """Désérialise un ``PedagogySettings`` depuis un dict.
+
+    Args:
+        payload: Sous-objet ``pedagogy`` du blob v2.
+
+    Returns:
+        Le ``PedagogySettings`` reconstitué.
+
+    Raises:
+        KeyError: Si une clé requise manque (capturée par l'appelant).
+        ValueError: Si une valeur d'enum est invalide (capturée par l'appelant).
+    """
+    cfg = payload["llm_config"]
+    return PedagogySettings(
+        selected_supports=frozenset(
+            SupportType(s) for s in payload["selected_supports"]
+        ),
+        separate_correction=frozenset(
+            SupportType(s) for s in payload["separate_correction"]
+        ),
+        target_audience=TargetAudience(payload["target_audience"]),
+        bloom_objective=BloomObjective(payload["bloom_objective"]),
+        pedagogy_directives=payload["pedagogy_directives"],
+        languages=tuple(Language(s) for s in payload["languages"]),
+        density=SupportDensity(payload["density"]),
+        llm_model=LLMModel(payload["llm_model"]),
+        llm_config=PhaseConfig(
+            thinking_enabled=bool(cfg.get("thinking_enabled", False)),
+            reasoning_effort=(
+                ReasoningEffort(cfg["reasoning_effort"])
+                if cfg.get("reasoning_effort")
+                else None
+            ),
+            temperature=cfg["temperature"],
+            max_retries=cfg["max_retries"],
+        ),
+        cost_ceiling_usd=payload["cost_ceiling_usd"],
+        export_formats=frozenset(ExportFormat(f) for f in payload["export_formats"]),
+    )
+
+
 def _serialize_project_blob(project: Project) -> str:
     """Sérialise le blob v2 ``settings_json`` d'un projet.
 
@@ -185,24 +266,31 @@ def _serialize_project_blob(project: Project) -> str:
             if project.generation is not None
             else None
         ),
-        _BLOB_KEY_PEDAGOGY: None,
+        _BLOB_KEY_PEDAGOGY: (
+            _serialize_pedagogy_settings(project.pedagogy)
+            if project.pedagogy is not None
+            else None
+        ),
     }
     return json.dumps(payload, ensure_ascii=False)
 
 
-def _deserialize_project_blob(raw: str) -> tuple[Path, GenerationSettings | None]:
+def _deserialize_project_blob(
+    raw: str,
+) -> tuple[Path, GenerationSettings | None, PedagogySettings | None]:
     """Désérialise le blob d'un projet (v2, ou v1 à plat migré à la lecture).
 
     Un blob **sans** clé ``version`` est traité comme v1 « à plat » : son contenu
     est l'ancien ``ProjectSettings``, dont on extrait l'emplacement et la
     génération (les clés ``name``/``workspace_folder`` sont ignorées par
-    ``_deserialize_generation_settings``).
+    ``_deserialize_generation_settings``). Un blob v1 n'a pas de pédagogie
+    (``pedagogy = None``).
 
     Args:
         raw: Chaîne JSON stockée en base.
 
     Returns:
-        ``(workspace_folder, generation_or_none)``.
+        ``(workspace_folder, generation_or_none, pedagogy_or_none)``.
 
     Raises:
         StorageError: Si le blob est illisible ou incomplet.
@@ -232,6 +320,12 @@ def _deserialize_project_blob(raw: str) -> tuple[Path, GenerationSettings | None
                 if gen_payload is not None
                 else None
             )
+        ped_payload = payload.get(_BLOB_KEY_PEDAGOGY)
+        pedagogy = (
+            _deserialize_pedagogy_settings(ped_payload)
+            if ped_payload is not None
+            else None
+        )
     except (KeyError, ValueError) as exc:
         raise StorageError(
             code="STORAGE.PROJECT_BLOB_INVALID",
@@ -241,7 +335,7 @@ def _deserialize_project_blob(raw: str) -> tuple[Path, GenerationSettings | None
             severity=Severity.ERROR,
             technical_details={"missing_or_invalid": str(exc)},
         ) from exc
-    return workspace_folder, generation
+    return workspace_folder, generation, pedagogy
 
 
 def _serialize_run_snapshot(gen: GenerationSettings) -> str:
@@ -812,7 +906,9 @@ class SqliteState:
     @staticmethod
     def _row_to_project(row: tuple[Any, ...]) -> Project:
         project_id, name, created_at_str, settings_json, last_run_at_str = row
-        workspace_folder, generation = _deserialize_project_blob(settings_json)
+        workspace_folder, generation, pedagogy = _deserialize_project_blob(
+            settings_json
+        )
         return Project(
             id=ProjectId(value=project_id),
             name=name,
@@ -820,6 +916,7 @@ class SqliteState:
             created_at=_datetime_from_iso(created_at_str),
             last_run_at=_datetime_from_iso_or_none(last_run_at_str),
             generation=generation,
+            pedagogy=pedagogy,
         )
 
     @staticmethod

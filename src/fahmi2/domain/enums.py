@@ -78,3 +78,51 @@ class ReasoningEffort(StrEnum):
 
     HIGH = "high"
     MAX = "max"
+
+
+class SupportType(StrEnum):
+    """Types de supports de révision générables."""
+
+    FLASHCARDS_GLOSSARY = "flashcards_glossary"
+    FLASHCARDS_CONCEPTS = "flashcards_concepts"
+    QCM = "qcm"
+    TRUE_FALSE = "true_false"
+    CLOZE = "cloze"
+    OPEN_QUESTIONS = "open_questions"
+    REVISION_SHEET = "revision_sheet"
+    KEY_POINTS = "key_points"
+    MOCK_EXAM = "mock_exam"
+
+
+class TargetAudience(StrEnum):
+    """Public cible des supports (règle l'exigence et le registre)."""
+
+    DISCOVERY = "discovery"
+    HIGH_SCHOOL = "high_school"
+    LICENCE = "licence"
+    MASTER_EXPERT = "master_expert"
+
+
+class BloomObjective(StrEnum):
+    """Objectif cognitif (taxonomie de Bloom, regroupements simples)."""
+
+    AUTO = "auto"
+    RESTITUTE = "restitute"
+    UNDERSTAND_APPLY = "understand_apply"
+    ANALYZE_BEYOND = "analyze_beyond"
+
+
+class SupportDensity(StrEnum):
+    """Densité (volume) des supports générés."""
+
+    LIGHT = "light"
+    STANDARD = "standard"
+    DENSE = "dense"
+
+
+class ExportFormat(StrEnum):
+    """Formats d'export des supports."""
+
+    APKG = "apkg"
+    MARKDOWN = "markdown"
+    PDF = "pdf"

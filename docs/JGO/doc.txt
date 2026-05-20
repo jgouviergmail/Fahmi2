@@ -1,0 +1,31 @@
+Étape 1 — Sanity check de l'environnement
+Vérifie que le venv et l'installation sont fonctionnels. Depuis la racine du projet :
+
+cd D:\Developpement\Fahmi2
+.\.venv\Scripts\Activate.ps1
+python --version
+pip show fahmi2 | Select-String "Version|Location"
+
+Si le venv n'existe pas ou est cassé, fais d'abord :
+
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -e ".[dev]"
+pip install pyinstaller>=6.10
+
+Avant tout test manuel, on valide que la base est saine :
+
+pytest --tb=short
+
+Optionnel, pour la couverture :
+
+pytest --cov=src/fahmi2 --cov-report=term-missing | Select-Object -Last 1
+
+Pour t'assurer que le code passe le filet qualité :
+
+ruff check .
+mypy src tests
+
+Lancer l'app :
+
+python -m fahmi2.ui.app_main

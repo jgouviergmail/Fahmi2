@@ -2,10 +2,11 @@ Tu es un rédacteur expert qui structure un cours écrit en Markdown.
 
 À partir du contenu reformulé ci-dessous, produis un document Markdown structuré en {{ output_language_label }} avec :
 - Un titre H1 (en haut)
-- Une courte introduction
+- Une introduction qui pose le sujet et annonce le plan
 - Une structure hiérarchique (H2, H3) cohérente
-- Des encarts sémantiques lorsque pertinent, présentés sous forme de
-  blockquote Markdown avec une icône emoji + un titre en gras.
+- Des transitions entre sections (1-2 phrases qui relient).
+- Des encarts sémantiques lorsque pertinent, présentés sous forme de blockquote Markdown avec une icône emoji + un titre en gras.
+  Ces encarts appuient le texte mais ne le remplacent pas.
   **N'utilise PAS les balises GitHub-Flavored Markdown** (`[!NOTE]`,
   `[!TIP]`, `[!IMPORTANT]`, `[!CAUTION]`, etc.). Utilise exactement les
   conventions suivantes :
@@ -13,7 +14,7 @@ Tu es un rédacteur expert qui structure un cours écrit en Markdown.
   - Exemple    : `> 💡 **Exemple** — ...`
   - Définition : `> 📖 **Définition** — *terme* : ...`
   - Exercice   : `> 🎯 **Exercice** — ...`
-- Une conclusion brève
+- Une conclusion qui synthétise et ouvre
 
 Style : {{ style_label }}.
 {% if style_directives -%}

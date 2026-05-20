@@ -24,7 +24,7 @@ from typing import cast
 
 from PySide6.QtCore import QObject, Qt, QThread, QUrl, Signal
 from PySide6.QtGui import QCursor, QDesktopServices
-from PySide6.QtWidgets import QApplication, QMessageBox, QWidget
+from PySide6.QtWidgets import QApplication, QDialog, QMessageBox, QWidget
 
 from fahmi2.app.cost_estimator import CostEstimation, CostEstimator
 from fahmi2.app.hardware_probe import HardwareInfo
@@ -77,6 +77,7 @@ from fahmi2.pipeline.handlers.phase_7_coherence import Phase7CoherenceHandler
 from fahmi2.pipeline.pause_token import PauseToken
 from fahmi2.pipeline.phase_handler import PhaseContext
 from fahmi2.pipeline.phase_registry import PhaseRegistry
+from fahmi2.ui.dialogs.generation_settings_view import GenerationSettingsView
 from fahmi2.ui.qt_event_bus import QtEventBus
 from fahmi2.ui.viewmodels.run_matrix import RunMatrixViewModel
 from fahmi2.ui.viewmodels.stats_strip import StatsStripViewModel
@@ -229,6 +230,7 @@ class GenerationController(QObject):
         self._header_bar.cancel_requested.connect(self.cancel_run)
         self._header_bar.open_output_requested.connect(self.open_output_folder)
         self._header_bar.estimate_cost_requested.connect(self.estimate_cost)
+        self._header_bar.settings_requested.connect(self.open_generation_settings)
 
     # ------------------------------------------------------------------ project
 
@@ -652,6 +654,42 @@ class GenerationController(QObject):
             estimation=estimation,
             cost_ceiling_usd=settings.cost_ceiling_usd,
         )
+
+    def open_generation_settings(self) -> None:
+        """Ouvre la vue de réglages de génération et persiste le résultat.
+
+        Si aucun projet n'est sélectionné, affiche un avertissement. Sinon ouvre
+        ``GenerationSettingsView`` (pré-rempli si déjà configuré), persiste le
+        ``GenerationSettings`` mis à jour sur le projet et rafraîchit le cockpit.
+        """
+        if self._current_project is None:
+            QMessageBox.warning(
+                self._window,
+                "Aucun projet sélectionné",
+                "Sélectionne un projet dans la sidebar avant de configurer la "
+                "génération.",
+            )
+            return
+        project = self._current_project
+        dialog = GenerationSettingsView(
+            self._hardware, parent=self._window, initial=project.generation
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        generation = dialog.get_generation_settings()
+        if generation is None:
+            return
+        updated = Project(
+            id=project.id,
+            name=project.name,
+            workspace_folder=project.workspace_folder,
+            created_at=project.created_at,
+            last_run_at=project.last_run_at,
+            runs=project.runs,
+            generation=generation,
+        )
+        self._project_service.update_project(updated)
+        self.on_project_selected(project.id)
 
     def _current_output_dir(self) -> Path | None:
         """Retourne le ``output_dir`` du projet sélectionné, ou ``None``.

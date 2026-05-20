@@ -15,6 +15,7 @@ class ProjectHeaderBar(QWidget):
     cancel_requested = Signal()
     open_output_requested = Signal()
     estimate_cost_requested = Signal()
+    settings_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Construit la barre.
@@ -33,6 +34,11 @@ class ProjectHeaderBar(QWidget):
         layout.addWidget(self._title_label)
         layout.addStretch(1)
 
+        self._settings_button = self._make_button("⚙  Réglages", role="default")
+        self._settings_button.setToolTip(
+            "Configurer les réglages de génération (entrée, langues, style, "
+            "transcription, modèle, phases)."
+        )
         self._estimate_cost_button = self._make_button(
             "💵  Estimer le coût", role="default"
         )
@@ -52,6 +58,7 @@ class ProjectHeaderBar(QWidget):
             "produits (consolidated, glossary, per-video par langue)."
         )
 
+        self._settings_button.clicked.connect(self.settings_requested)
         self._estimate_cost_button.clicked.connect(self.estimate_cost_requested)
         self._start_button.clicked.connect(self.start_requested)
         self._pause_button.clicked.connect(self.pause_requested)
@@ -60,6 +67,7 @@ class ProjectHeaderBar(QWidget):
         self._open_output_button.clicked.connect(self.open_output_requested)
 
         for btn in (
+            self._settings_button,
             self._estimate_cost_button,
             self._start_button,
             self._pause_button,

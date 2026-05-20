@@ -92,19 +92,17 @@ def main() -> int:  # noqa: PLR0915, C901
         dialog.exec()
 
     def _open_new_project() -> None:
-        dialog = NewProjectDialog(hardware, parent=window)
+        dialog = NewProjectDialog(parent=window)
         if dialog.exec() == NewProjectDialog.DialogCode.Accepted:
             name = dialog.get_name()
             workspace = dialog.get_workspace_folder()
-            generation = dialog.get_generation_settings()
-            if name and workspace is not None and generation is not None:
+            if name and workspace is not None:
                 created = project_service.create_project(
-                    name=name, workspace_folder=workspace, generation=generation
+                    name=name, workspace_folder=workspace
                 )
                 _refresh_sidebar()
-                # Sélectionne automatiquement le projet nouvellement créé
-                # pour que la prévisualisation des vidéos s'affiche
-                # immédiatement dans le dashboard, sans clic supplémentaire.
+                # Sélection automatique : le cockpit affiche l'état « à configurer »
+                # (génération non renseignée) ; l'utilisateur clique « ⚙ Réglages ».
                 window.projects_sidebar.select_project(created.id)
 
     def _edit_project(project_id: ProjectId) -> None:
@@ -112,32 +110,27 @@ def main() -> int:  # noqa: PLR0915, C901
         if project is None:
             return
         dialog = NewProjectDialog(
-            hardware,
             parent=window,
             initial_name=project.name,
-            initial_input_folder=(
-                project.generation.input_folder
-                if project.generation is not None
-                else None
-            ),
-            initial_generation=project.generation,
+            initial_workspace=project.workspace_folder,
         )
-        if dialog.exec() == NewProjectDialog.DialogCode.Accepted:
-            updated = Project(
-                id=project.id,
-                name=dialog.get_name() or project.name,
-                workspace_folder=project.workspace_folder,
-                created_at=project.created_at,
-                last_run_at=project.last_run_at,
-                runs=project.runs,
-                generation=dialog.get_generation_settings() or project.generation,
-            )
-            project_service.update_project(updated)
-            _refresh_sidebar()
-            # Re-sélectionne pour refresh la prévisualisation
-            # (le dossier d'entrée a peut-être changé) et conserver la
-            # cohérence visuelle.
-            window.projects_sidebar.select_project(updated.id)
+        if dialog.exec() != NewProjectDialog.DialogCode.Accepted:
+            return
+        new_name = dialog.get_name()
+        if not new_name:
+            return
+        updated = Project(
+            id=project.id,
+            name=new_name,
+            workspace_folder=project.workspace_folder,
+            created_at=project.created_at,
+            last_run_at=project.last_run_at,
+            runs=project.runs,
+            generation=project.generation,
+        )
+        project_service.update_project(updated)
+        _refresh_sidebar()
+        window.projects_sidebar.select_project(updated.id)
 
     def _delete_project(project_id: ProjectId) -> None:
         project = project_service.get_project(project_id)

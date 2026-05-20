@@ -9,7 +9,8 @@ l'UI qui ne voit qu'un bloc dans la matrice) :
    ce résumé n'est pas inséré dans le document final.
 2. **Consolidation globale** : un unique appel LLM ``phase_5_consolidation``
    reçoit tous les résumés condensés et produit les *méta-éléments* (titre,
-   introduction générale, plan d'ensemble, conclusion générale).
+   résumé exécutif, introduction générale, plan d'ensemble, conclusion
+   générale).
 
 Le document final ``workspace/consolidated_master.md`` est assemblé à partir
 de ces méta-éléments **plus** les contenus structurés de chaque vidéo
@@ -46,6 +47,9 @@ _STRUCTURED_SUBDIR = "structured"
 _CONSOLIDATED_MASTER_FILENAME = "consolidated_master.md"
 _TEMPLATE_VIDEO_SUMMARY = "phase_5_video_summary"
 _TEMPLATE_CONSOLIDATION = "phase_5_consolidation"
+
+# Libellé de la section résumé exécutif (placée sous le titre, avant l'intro).
+_SUMMARY_HEADING = "Résumé"
 
 # Profondeur maximale incluse dans le sommaire et dans la numérotation.
 # (les ####+ restent dans le corps mais ne sont ni numérotés ni listés.)
@@ -246,20 +250,22 @@ def _assemble_consolidated(
     Le document final est structuré ainsi :
 
     1. ``# <titre global>``
-    2. ``## Introduction générale`` (texte narratif du LLM, non numéroté)
-    3. ``## Sommaire`` (liste hiérarchique avec ancres GitHub vers chaque
+    2. ``## Résumé`` (abstract synthétique du LLM, non numéroté ; omis si
+       ``summary_markdown`` est vide ou absent)
+    3. ``## Introduction générale`` (texte narratif du LLM, non numéroté)
+    4. ``## Sommaire`` (liste hiérarchique avec ancres GitHub vers chaque
        titre numéroté : chapitres + sections ## et sous-sections ###)
-    4. Chapitres : ``# 1. <titre>``, ``# 2. <titre>``…  À l'intérieur d'un
+    5. Chapitres : ``# 1. <titre>``, ``# 2. <titre>``…  À l'intérieur d'un
        chapitre, les ``##`` deviennent ``## N.M <titre>`` et les ``###``
        deviennent ``### N.M.P <titre>``. Les numérotations posées
        précédemment par le LLM (« 1. », « 1.1 »…) sont systématiquement
        décapées avant d'écrire la nouvelle.
-    5. ``## Conclusion générale`` (non numéroté)
+    6. ``## Conclusion générale`` (non numéroté)
 
     Args:
-        meta: Méta-éléments produits par la consolidation (title, intro,
-            plan, conclusion). ``plan_markdown`` est ignoré : le sommaire
-            est déterministe.
+        meta: Méta-éléments produits par la consolidation (title, summary,
+            intro, plan, conclusion). ``plan_markdown`` est ignoré : le
+            sommaire est déterministe.
         structured_by_video: Documents structurés par vidéo (ordre = ordre
             des chapitres).
         summaries: Résumés (utilisés pour les titres de chapitres).
@@ -268,6 +274,7 @@ def _assemble_consolidated(
         Le document Markdown consolidé complet.
     """
     title = str(meta.get("global_title", "Document consolidé"))
+    summary = str(meta.get("summary_markdown", "")).strip()
     introduction = str(meta.get("introduction_markdown", "")).strip()
     conclusion = str(meta.get("conclusion_markdown", "")).strip()
     titles_by_video = {s.get("video_id", ""): s.get("title", "") for s in summaries}
@@ -275,6 +282,8 @@ def _assemble_consolidated(
     chapters = _build_chapters(structured_by_video, titles_by_video)
 
     parts: list[str] = [f"# {title}", ""]
+    if summary:
+        parts.extend([f"## {_SUMMARY_HEADING}", "", summary, ""])
     if introduction:
         parts.extend(["## Introduction générale", "", introduction, ""])
 

@@ -73,6 +73,7 @@ def test_execute_assembles_consolidated_markdown(
     meta_json = json.dumps(
         {
             "global_title": "Mon Cours",
+            "summary_markdown": "Vue d'ensemble du cours en quelques phrases.",
             "introduction_markdown": "Texte d'intro.",
             "plan_markdown": "1. Un\n2. Deux",
             "conclusion_markdown": "Texte de conclusion.",
@@ -121,6 +122,9 @@ def test_execute_assembles_consolidated_markdown(
     content = result.artifact_path.read_text(encoding="utf-8")
     # Le titre global doit apparaître
     assert "# Mon Cours" in content
+    # Le résumé exécutif apparaît sous le titre
+    assert "## Résumé" in content
+    assert "Vue d'ensemble du cours en quelques phrases." in content
     # Les contenus des deux vidéos doivent être présents (intacts)
     assert "Contenu chap 1" in content
     assert "Contenu chap 2" in content
@@ -267,3 +271,56 @@ def test_assemble_consolidated_strips_llm_numbering_in_chapter_title() -> None:
     # Le "1. " du LLM est decape, puis le chapitre est renumerote "1. ..."
     assert "# 1. Chapitre Pre-Numerote" in md
     assert "# 1. 1. " not in md
+
+
+def test_assemble_consolidated_includes_summary_between_title_and_intro() -> None:
+    structured_by_video = {"v1": "# Chap\n## Sec\ntexte\n"}
+    summaries = [{"video_id": "v1", "title": "Chap"}]
+    meta = {
+        "global_title": "Mon Cours",
+        "summary_markdown": "Un abstract synthétique du cours.",
+        "introduction_markdown": "Intro développée.",
+        "conclusion_markdown": "Conclusion.",
+    }
+    md = _assemble_consolidated(meta, structured_by_video, summaries)
+    assert "## Résumé" in md
+    assert "Un abstract synthétique du cours." in md
+    # Ordre : titre < résumé < introduction
+    assert md.index("# Mon Cours") < md.index("## Résumé")
+    assert md.index("## Résumé") < md.index("## Introduction générale")
+
+
+def test_assemble_consolidated_omits_summary_when_empty() -> None:
+    structured_by_video = {"v1": "# Chap\n"}
+    summaries = [{"video_id": "v1", "title": "Chap"}]
+    meta = {
+        "global_title": "T",
+        "summary_markdown": "   ",
+        "introduction_markdown": "Intro.",
+        "conclusion_markdown": "",
+    }
+    md = _assemble_consolidated(meta, structured_by_video, summaries)
+    assert "## Résumé" not in md
+
+
+def test_assemble_consolidated_omits_summary_when_key_missing() -> None:
+    structured_by_video = {"v1": "# Chap\n"}
+    summaries = [{"video_id": "v1", "title": "Chap"}]
+    meta = {"global_title": "T", "introduction_markdown": "", "conclusion_markdown": ""}
+    md = _assemble_consolidated(meta, structured_by_video, summaries)
+    assert "## Résumé" not in md
+
+
+def test_assemble_consolidated_summary_not_referenced_in_toc() -> None:
+    structured_by_video = {"v1": "# Chap\n## Sec\ntexte\n"}
+    summaries = [{"video_id": "v1", "title": "Chap"}]
+    meta = {
+        "global_title": "T",
+        "summary_markdown": "Abstract.",
+        "introduction_markdown": "",
+        "conclusion_markdown": "",
+    }
+    md = _assemble_consolidated(meta, structured_by_video, summaries)
+    # La portion sommaire (entre "## Sommaire" et le 1er chapitre) ne cite pas le résumé.
+    toc = md.split("## Sommaire", 1)[1].split("# 1.", 1)[0]
+    assert "Résumé" not in toc

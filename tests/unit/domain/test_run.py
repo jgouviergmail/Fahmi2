@@ -9,11 +9,11 @@ from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.run import Run
 
 
-def test_run_minimal(make_settings: Any) -> None:
+def test_run_minimal(make_generation_settings: Any) -> None:
     rid = RunId.new()
     pid = ProjectId.new()
     started = datetime(2026, 5, 19, 12, 0, 0, tzinfo=UTC)
-    settings = make_settings()
+    settings = make_generation_settings()
     run = Run(
         id=rid,
         project_id=pid,
@@ -31,7 +31,7 @@ def test_run_minimal(make_settings: Any) -> None:
     assert run.phase_executions == {}
 
 
-def test_run_with_videos_and_phases(make_settings: Any) -> None:
+def test_run_with_videos_and_phases(make_generation_settings: Any) -> None:
     pe = PhaseExecution(
         phase_id=PhaseId.GLOSSARY_RECONCILIATION, status=PhaseStatus.SUCCEEDED
     )
@@ -40,7 +40,7 @@ def test_run_with_videos_and_phases(make_settings: Any) -> None:
         project_id=ProjectId.new(),
         started_at=datetime(2026, 5, 19, 12, 0, 0, tzinfo=UTC),
         status=RunStatus.RUNNING,
-        settings_snapshot=make_settings(),
+        settings_snapshot=make_generation_settings(),
         cost_usd=1.5,
         phase_executions={PhaseId.GLOSSARY_RECONCILIATION: pe},
     )
@@ -48,13 +48,13 @@ def test_run_with_videos_and_phases(make_settings: Any) -> None:
     assert run.phase_executions[PhaseId.GLOSSARY_RECONCILIATION] is pe
 
 
-def test_run_with_status_returns_new_instance(make_settings: Any) -> None:
+def test_run_with_status_returns_new_instance(make_generation_settings: Any) -> None:
     run = Run(
         id=RunId.new(),
         project_id=ProjectId.new(),
         started_at=datetime.now(tz=UTC),
         status=RunStatus.CREATED,
-        settings_snapshot=make_settings(),
+        settings_snapshot=make_generation_settings(),
     )
     new = run.with_status(RunStatus.RUNNING)
     assert new is not run
@@ -62,13 +62,13 @@ def test_run_with_status_returns_new_instance(make_settings: Any) -> None:
     assert run.status is RunStatus.CREATED
 
 
-def test_run_with_added_cost(make_settings: Any) -> None:
+def test_run_with_added_cost(make_generation_settings: Any) -> None:
     run = Run(
         id=RunId.new(),
         project_id=ProjectId.new(),
         started_at=datetime.now(tz=UTC),
         status=RunStatus.RUNNING,
-        settings_snapshot=make_settings(),
+        settings_snapshot=make_generation_settings(),
         cost_usd=1.0,
     )
     new = run.with_added_cost(0.5)
@@ -76,13 +76,13 @@ def test_run_with_added_cost(make_settings: Any) -> None:
     assert run.cost_usd == 1.0
 
 
-def test_run_with_finished_at(make_settings: Any) -> None:
+def test_run_with_finished_at(make_generation_settings: Any) -> None:
     run = Run(
         id=RunId.new(),
         project_id=ProjectId.new(),
         started_at=datetime(2026, 5, 19, 12, 0, 0, tzinfo=UTC),
         status=RunStatus.RUNNING,
-        settings_snapshot=make_settings(),
+        settings_snapshot=make_generation_settings(),
     )
     finished = datetime(2026, 5, 19, 14, 30, 0, tzinfo=UTC)
     new = run.with_finished_at(finished)

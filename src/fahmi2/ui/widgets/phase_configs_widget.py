@@ -143,7 +143,7 @@ class PhaseConfigsWidget(QGroupBox):
 
         Returns:
             Dictionnaire complet sur les 7 phases LLM, prêt à être passé à
-            ``ProjectSettings.phases_config``.
+            ``GenerationSettings.phases_config``.
         """
         result: dict[PhaseId, PhaseConfig] = {}
         for phase_id, (cb, effort_combo, temp_sb, retries_sb) in self._rows.items():

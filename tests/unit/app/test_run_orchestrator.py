@@ -88,35 +88,41 @@ def _seed_input_folder(tmp_path: Path) -> Path:
     return folder
 
 
-def test_create_run_scans_videos(tmp_path: Path, make_settings: Any) -> None:
+def test_create_run_scans_videos(tmp_path: Path, make_generation_settings: Any) -> None:
     orchestrator, _, project_service = _build_orchestrator(tmp_path)
     input_folder = _seed_input_folder(tmp_path)
-    settings = make_settings(input_folder=input_folder)
-    project = project_service.create_project(settings)
+    settings = make_generation_settings(input_folder=input_folder)
+    project = project_service.create_project(
+        name="Test", workspace_folder=tmp_path / "ws", generation=settings
+    )
     run = orchestrator.create_run(project)
     assert len(run.videos) == 2
     assert run.status is RunStatus.CREATED
 
 
 def test_create_run_raises_when_no_videos(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     orchestrator, _, project_service = _build_orchestrator(tmp_path)
     empty_folder = tmp_path / "empty"
     empty_folder.mkdir()
-    settings = make_settings(input_folder=empty_folder)
-    project = project_service.create_project(settings)
+    settings = make_generation_settings(input_folder=empty_folder)
+    project = project_service.create_project(
+        name="Test", workspace_folder=tmp_path / "ws", generation=settings
+    )
     with pytest.raises(ConfigError):
         orchestrator.create_run(project)
 
 
 def test_execute_completes_run_successfully(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     orchestrator, _, project_service = _build_orchestrator(tmp_path)
     input_folder = _seed_input_folder(tmp_path)
-    settings = make_settings(input_folder=input_folder)
-    project = project_service.create_project(settings)
+    settings = make_generation_settings(input_folder=input_folder)
+    project = project_service.create_project(
+        name="Test", workspace_folder=tmp_path / "ws", generation=settings
+    )
     run = orchestrator.create_run(project)
 
     final = orchestrator.execute(run=run, ctx=_build_ctx(tmp_path, run))
@@ -145,11 +151,15 @@ def test_request_cancel_sets_cancelled(tmp_path: Path) -> None:
 
 
 def test_execute_updates_project_last_run_at(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     orchestrator, _, project_service = _build_orchestrator(tmp_path)
     input_folder = _seed_input_folder(tmp_path)
-    project = project_service.create_project(make_settings(input_folder=input_folder))
+    project = project_service.create_project(
+        name="Test",
+        workspace_folder=tmp_path / "ws",
+        generation=make_generation_settings(input_folder=input_folder),
+    )
     before = datetime.now(tz=UTC)
     run = orchestrator.create_run(project)
     orchestrator.execute(run=run, ctx=_build_ctx(tmp_path, run))
@@ -163,22 +173,30 @@ def test_execute_updates_project_last_run_at(
 
 
 def test_resume_or_create_creates_new_when_no_run_exists(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     orchestrator, _, project_service = _build_orchestrator(tmp_path)
     input_folder = _seed_input_folder(tmp_path)
-    project = project_service.create_project(make_settings(input_folder=input_folder))
+    project = project_service.create_project(
+        name="Test",
+        workspace_folder=tmp_path / "ws",
+        generation=make_generation_settings(input_folder=input_folder),
+    )
     run, is_resumed = orchestrator.resume_or_create_run(project)
     assert is_resumed is False
     assert run.status is RunStatus.CREATED
 
 
 def test_resume_or_create_resumes_failed_run(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     orchestrator, state, project_service = _build_orchestrator(tmp_path)
     input_folder = _seed_input_folder(tmp_path)
-    project = project_service.create_project(make_settings(input_folder=input_folder))
+    project = project_service.create_project(
+        name="Test",
+        workspace_folder=tmp_path / "ws",
+        generation=make_generation_settings(input_folder=input_folder),
+    )
     # Premier passage : crée un Run, le marque FAILED en DB
     failed_run = orchestrator.create_run(project).with_status(RunStatus.FAILED)
     state.upsert_run(failed_run)
@@ -190,11 +208,15 @@ def test_resume_or_create_resumes_failed_run(
 
 
 def test_resume_or_create_resumes_paused_run(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     orchestrator, state, project_service = _build_orchestrator(tmp_path)
     input_folder = _seed_input_folder(tmp_path)
-    project = project_service.create_project(make_settings(input_folder=input_folder))
+    project = project_service.create_project(
+        name="Test",
+        workspace_folder=tmp_path / "ws",
+        generation=make_generation_settings(input_folder=input_folder),
+    )
     paused = orchestrator.create_run(project).with_status(RunStatus.PAUSED)
     state.upsert_run(paused)
 
@@ -204,13 +226,17 @@ def test_resume_or_create_resumes_paused_run(
 
 
 def test_resume_or_create_resumes_running_orphan(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     """Reg : si l'app a crashé pendant un Run RUNNING, le statut reste à
     RUNNING en DB. Au prochain Lancer on doit reprendre, pas tout refaire."""
     orchestrator, state, project_service = _build_orchestrator(tmp_path)
     input_folder = _seed_input_folder(tmp_path)
-    project = project_service.create_project(make_settings(input_folder=input_folder))
+    project = project_service.create_project(
+        name="Test",
+        workspace_folder=tmp_path / "ws",
+        generation=make_generation_settings(input_folder=input_folder),
+    )
     orphan = orchestrator.create_run(project).with_status(RunStatus.RUNNING)
     state.upsert_run(orphan)
 
@@ -220,11 +246,15 @@ def test_resume_or_create_resumes_running_orphan(
 
 
 def test_resume_or_create_does_not_resume_completed(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     orchestrator, state, project_service = _build_orchestrator(tmp_path)
     input_folder = _seed_input_folder(tmp_path)
-    project = project_service.create_project(make_settings(input_folder=input_folder))
+    project = project_service.create_project(
+        name="Test",
+        workspace_folder=tmp_path / "ws",
+        generation=make_generation_settings(input_folder=input_folder),
+    )
     completed = orchestrator.create_run(project).with_status(RunStatus.COMPLETED)
     state.upsert_run(completed)
 
@@ -235,11 +265,15 @@ def test_resume_or_create_does_not_resume_completed(
 
 
 def test_resume_or_create_does_not_resume_cancelled(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     orchestrator, state, project_service = _build_orchestrator(tmp_path)
     input_folder = _seed_input_folder(tmp_path)
-    project = project_service.create_project(make_settings(input_folder=input_folder))
+    project = project_service.create_project(
+        name="Test",
+        workspace_folder=tmp_path / "ws",
+        generation=make_generation_settings(input_folder=input_folder),
+    )
     cancelled = orchestrator.create_run(project).with_status(RunStatus.CANCELLED)
     state.upsert_run(cancelled)
 
@@ -249,13 +283,17 @@ def test_resume_or_create_does_not_resume_cancelled(
 
 
 def test_execute_can_resume_failed_run_skipping_succeeded_phases(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     """Reg : reprendre un Run FAILED skip les phases SUCCEEDED et
     retente celle qui avait echoue."""
     orchestrator, state, project_service = _build_orchestrator(tmp_path)
     input_folder = _seed_input_folder(tmp_path)
-    project = project_service.create_project(make_settings(input_folder=input_folder))
+    project = project_service.create_project(
+        name="Test",
+        workspace_folder=tmp_path / "ws",
+        generation=make_generation_settings(input_folder=input_folder),
+    )
 
     # Premier passage : Run cree + persiste comme FAILED apres une phase
     # marquee SUCCEEDED pour la 1ere video et FAILED pour la 2eme.

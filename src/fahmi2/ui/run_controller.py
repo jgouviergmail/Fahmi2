@@ -40,6 +40,7 @@ from fahmi2.core.logging.event import LogEvent
 from fahmi2.core.retrieval.interface import PassthroughRetriever
 from fahmi2.core.retry.policy import RetryPolicy
 from fahmi2.domain.enums import RunStatus, SttProvider
+from fahmi2.domain.generation import GENERATION_WORKSPACE_SUBDIR
 from fahmi2.domain.ids import ProjectId
 from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
@@ -237,7 +238,7 @@ class RunController(QObject):
         if project is None:
             return
         self._current_project = project
-        self._main_window.header_bar.set_title(project.settings.name)
+        self._main_window.header_bar.set_title(project.name)
         self._sync_header_for_selected_project()
         # Le bouton « Ouvrir le dossier de sortie » est actif si un dossier
         # output a déjà été produit (c'est-à-dire : au moins un run a tourné).
@@ -333,8 +334,11 @@ class RunController(QObject):
         )
         from fahmi2.ui.viewmodels.stats_strip import StatsSnapshot  # noqa: PLC0415
 
+        if project.generation is None:
+            self._reset_views()
+            return
         try:
-            videos = scan_input_folder(project.settings.input_folder)
+            videos = scan_input_folder(project.generation.input_folder)
         except Fahmi2Error:
             self._reset_views()
             return
@@ -373,7 +377,7 @@ class RunController(QObject):
                 phases_total=0,
                 phases_completed=0,
                 cost_usd_so_far=0.0,
-                cost_ceiling_usd=project.settings.cost_ceiling_usd,
+                cost_ceiling_usd=project.generation.cost_ceiling_usd,
                 started_at=now,
                 finished_at=now,
                 elapsed_seconds=0.0,
@@ -477,11 +481,15 @@ class RunController(QObject):
             )
             return
 
+        assert self._current_project is not None
+        gen_workspace = (
+            self._current_project.workspace_folder / GENERATION_WORKSPACE_SUBDIR
+        )
         ctx = PhaseContext(
             run=run,
             settings=run.settings_snapshot,
-            workspace=run.settings_snapshot.workspace_folder,
-            output_dir=run.settings_snapshot.workspace_folder / "output",
+            workspace=gen_workspace,
+            output_dir=gen_workspace / "output",
             state=self._state,
             artifacts=FsArtifactStore(),
             stt_provider=stt_provider,
@@ -590,7 +598,14 @@ class RunController(QObject):
                 "Sélectionne un projet dans la sidebar avant d'estimer.",
             )
             return
-        settings = self._current_project.settings
+        if self._current_project.generation is None:
+            QMessageBox.information(
+                self._main_window,
+                "Génération non configurée",
+                "Configurez d'abord les réglages de génération de ce projet.",
+            )
+            return
+        settings = self._current_project.generation
         try:
             videos = scan_input_folder(settings.input_folder)
         except Fahmi2Error as exc:
@@ -623,7 +638,7 @@ class RunController(QObject):
         )
         _show_cost_estimation_dialog(
             self._main_window,
-            project_name=settings.name,
+            project_name=self._current_project.name,
             n_videos=len(videos),
             estimation=estimation,
             cost_ceiling_usd=settings.cost_ceiling_usd,
@@ -639,7 +654,11 @@ class RunController(QObject):
         """
         if self._current_project is None:
             return None
-        return self._current_project.settings.workspace_folder / "output"
+        return (
+            self._current_project.workspace_folder
+            / GENERATION_WORKSPACE_SUBDIR
+            / "output"
+        )
 
     # ---------------------------------------------------------- end-of-run
 
@@ -802,7 +821,13 @@ class RunController(QObject):
         """
         from fahmi2.core.errors.exceptions import ConfigError  # noqa: PLC0415
 
-        if project.settings.stt_provider is SttProvider.OPENAI_CLOUD:
+        if project.generation is None:
+            raise ConfigError(
+                code="CONFIG.GENERATION_NOT_CONFIGURED",
+                user_message="La génération n'est pas configurée pour ce projet.",
+                severity=Severity.ERROR,
+            )
+        if project.generation.stt_provider is SttProvider.OPENAI_CLOUD:
             api_key = self._secrets_service.get_openai_api_key()
             if not api_key:
                 raise ConfigError(
@@ -857,7 +882,14 @@ class RunController(QObject):
                 "« Édition → Paramètres globaux ».",
             )
             return False
-        needs_openai = project.settings.stt_provider is SttProvider.OPENAI_CLOUD
+        if project.generation is None:
+            QMessageBox.critical(
+                self._main_window,
+                "Génération non configurée",
+                "Configurez d'abord les réglages de génération de ce projet.",
+            )
+            return False
+        needs_openai = project.generation.stt_provider is SttProvider.OPENAI_CLOUD
         if needs_openai and not self._secrets_service.has_openai_key():
             QMessageBox.critical(
                 self._main_window,

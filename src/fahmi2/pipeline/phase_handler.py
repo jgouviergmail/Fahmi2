@@ -14,8 +14,8 @@ from pathlib import Path
 
 from fahmi2.core.retrieval.interface import GlossaryRetriever
 from fahmi2.domain.enums import PhaseId
+from fahmi2.domain.generation import GenerationSettings
 from fahmi2.domain.phase import PhaseExecution
-from fahmi2.domain.project import ProjectSettings
 from fahmi2.domain.run import Run
 from fahmi2.domain.video import VideoExecution
 from fahmi2.infra.audio.ffmpeg_extractor import FFmpegExtractor
@@ -34,7 +34,7 @@ class PhaseContext:
 
     Attributes:
         run: Run en cours.
-        settings: Snapshot des paramètres du projet.
+        settings: Snapshot des ``GenerationSettings`` du projet.
         workspace: Dossier de travail du run (artefacts intermédiaires).
         output_dir: Dossier des livrables finaux.
         state: Accès SQLite à l'état du pipeline.
@@ -49,7 +49,7 @@ class PhaseContext:
     """
 
     run: Run
-    settings: ProjectSettings
+    settings: GenerationSettings
     workspace: Path
     output_dir: Path
     state: SqliteState

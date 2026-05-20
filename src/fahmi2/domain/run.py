@@ -6,9 +6,9 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 
 from fahmi2.domain.enums import PhaseId, RunStatus
+from fahmi2.domain.generation import GenerationSettings
 from fahmi2.domain.ids import ProjectId, RunId
 from fahmi2.domain.phase import PhaseExecution
-from fahmi2.domain.project import ProjectSettings
 from fahmi2.domain.video import VideoExecution
 
 
@@ -26,7 +26,7 @@ class Run:
         project_id: Référence vers le ``Project`` parent.
         started_at: Date de démarrage.
         status: État global.
-        settings_snapshot: Copie immuable des paramètres à t0.
+        settings_snapshot: Copie immuable des ``GenerationSettings`` à t0.
         finished_at: Date de fin (None si non terminé).
         cost_usd: Coût cumulé en USD.
         videos: Tuple immuable des ``VideoExecution``.
@@ -37,7 +37,7 @@ class Run:
     project_id: ProjectId
     started_at: datetime
     status: RunStatus
-    settings_snapshot: ProjectSettings
+    settings_snapshot: GenerationSettings
     finished_at: datetime | None = None
     cost_usd: float = 0.0
     videos: tuple[VideoExecution, ...] = ()

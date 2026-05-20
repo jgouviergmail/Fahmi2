@@ -73,7 +73,7 @@ class ProjectsSidebar(QListWidget):
         """
         self.clear()
         for project in projects:
-            item = QListWidgetItem(project.settings.name)
+            item = QListWidgetItem(project.name)
             item.setData(_PROJECT_ID_ROLE, project.id.value)
             self.addItem(item)
 

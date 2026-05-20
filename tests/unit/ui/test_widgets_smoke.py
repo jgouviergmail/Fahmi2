@@ -90,18 +90,31 @@ def test_projects_sidebar_edit_and_delete_callbacks_attachable(
 
 
 def test_projects_sidebar_select_project_triggers_callback(
-    qtbot: QtBot, tmp_path: object, make_settings: object
+    qtbot: QtBot, tmp_path: object, make_generation_settings: object
 ) -> None:
     """``select_project`` doit declencher le signal de selection."""
     from datetime import UTC as _UTC  # noqa: PLC0415
     from datetime import datetime as _dt  # noqa: PLC0415
+    from pathlib import Path as _Path  # noqa: PLC0415
 
     from fahmi2.domain.ids import ProjectId  # noqa: PLC0415
     from fahmi2.domain.project import Project  # noqa: PLC0415
 
-    settings = make_settings()  # type: ignore[operator]
-    p1 = Project(id=ProjectId.new(), settings=settings, created_at=_dt.now(tz=_UTC))
-    p2 = Project(id=ProjectId.new(), settings=settings, created_at=_dt.now(tz=_UTC))
+    settings = make_generation_settings()  # type: ignore[operator]
+    p1 = Project(
+        id=ProjectId.new(),
+        name="P1",
+        workspace_folder=_Path("."),
+        created_at=_dt.now(tz=_UTC),
+        generation=settings,
+    )
+    p2 = Project(
+        id=ProjectId.new(),
+        name="P2",
+        workspace_folder=_Path("."),
+        created_at=_dt.now(tz=_UTC),
+        generation=settings,
+    )
 
     widget = ProjectsSidebar()
     qtbot.addWidget(widget)

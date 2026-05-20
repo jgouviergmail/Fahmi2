@@ -41,7 +41,9 @@ def test_handler_metadata() -> None:
     assert handler.is_per_video is False
 
 
-def test_execute_aggregates_and_writes_master(tmp_path: Path, make_settings: Any) -> None:
+def test_execute_aggregates_and_writes_master(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
     videos = tuple(
         VideoExecution(video_id=VideoId.new(), source_path=tmp_path / f"v{i}.mp4")
         for i in range(2)
@@ -58,7 +60,7 @@ def test_execute_aggregates_and_writes_master(tmp_path: Path, make_settings: Any
     }
     ctx, _ = build_phase_context(
         tmp_path,
-        make_settings,
+        make_generation_settings,
         llm_response=_llm_response(json.dumps(master_payload)),
         videos=videos,
     )
@@ -78,20 +80,20 @@ def test_execute_aggregates_and_writes_master(tmp_path: Path, make_settings: Any
 
 
 def test_execute_raises_when_video_provided(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
-    ctx, _ = build_phase_context(tmp_path, make_settings, videos=(video,))
+    ctx, _ = build_phase_context(tmp_path, make_generation_settings, videos=(video,))
     handler = Phase2GlossaryReconciliationHandler()
     with pytest.raises(ValueError, match="batch"):
         handler.execute(ctx, video=video)
 
 
 def test_execute_raises_when_no_candidates(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
-    ctx, _ = build_phase_context(tmp_path, make_settings, videos=(video,))
+    ctx, _ = build_phase_context(tmp_path, make_generation_settings, videos=(video,))
     handler = Phase2GlossaryReconciliationHandler()
     with pytest.raises(StorageError) as exc_info:
         handler.execute(ctx, video=None)

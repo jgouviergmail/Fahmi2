@@ -29,6 +29,7 @@ from types import TracebackType
 from typing import Any
 
 from fahmi2.core.errors.error_info import ErrorInfo
+from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import (
     Language,
@@ -40,10 +41,11 @@ from fahmi2.domain.enums import (
     SttProvider,
     StylePreset,
 )
+from fahmi2.domain.generation import GenerationSettings, ParallelismConfig
 from fahmi2.domain.glossary import Term
 from fahmi2.domain.ids import ProjectId, RunId, VideoId
 from fahmi2.domain.phase import PhaseConfig, PhaseExecution
-from fahmi2.domain.project import ParallelismConfig, Project, ProjectSettings
+from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
 from fahmi2.domain.video import VideoExecution
 
@@ -55,6 +57,13 @@ _META_KEY_SCHEMA_VERSION = "schema_version"
 _BUSY_TIMEOUT_MS = 5000
 _WAL_MODE = "wal"
 _SYNCHRONOUS_NORMAL = "NORMAL"
+
+# Format du blob ``projects.settings_json`` : v2 = par fonctionnalité.
+_BLOB_VERSION = 2
+_BLOB_KEY_VERSION = "version"
+_BLOB_KEY_WORKSPACE = "workspace_folder"
+_BLOB_KEY_GENERATION = "generation"
+_BLOB_KEY_PEDAGOGY = "pedagogy"
 
 
 def _datetime_to_iso(value: datetime) -> str:
@@ -71,17 +80,23 @@ def _datetime_from_iso_or_none(value: str | None) -> datetime | None:
     return _datetime_from_iso(value)
 
 
-def _serialize_settings(settings: ProjectSettings) -> str:
-    payload: dict[str, Any] = {
-        "name": settings.name,
-        "input_folder": str(settings.input_folder),
-        "workspace_folder": str(settings.workspace_folder),
-        "source_language": str(settings.source_language),
-        "output_languages": [str(lang) for lang in settings.output_languages],
-        "style_preset": str(settings.style_preset),
-        "style_directives": settings.style_directives,
-        "stt_provider": str(settings.stt_provider),
-        "llm_model": str(settings.llm_model),
+def _serialize_generation_settings(gen: GenerationSettings) -> dict[str, Any]:
+    """Sérialise un ``GenerationSettings`` en dict JSON-compatible.
+
+    Args:
+        gen: Réglages de génération.
+
+    Returns:
+        Dict prêt à être encodé en JSON (sans nom ni emplacement).
+    """
+    return {
+        "input_folder": str(gen.input_folder),
+        "source_language": str(gen.source_language),
+        "output_languages": [str(lang) for lang in gen.output_languages],
+        "style_preset": str(gen.style_preset),
+        "style_directives": gen.style_directives,
+        "stt_provider": str(gen.stt_provider),
+        "llm_model": str(gen.llm_model),
         "phases_config": {
             str(pid): {
                 "thinking_enabled": cfg.thinking_enabled,
@@ -93,20 +108,33 @@ def _serialize_settings(settings: ProjectSettings) -> str:
                 "temperature": cfg.temperature,
                 "max_retries": cfg.max_retries,
             }
-            for pid, cfg in settings.phases_config.items()
+            for pid, cfg in gen.phases_config.items()
         },
-        "cost_ceiling_usd": settings.cost_ceiling_usd,
+        "cost_ceiling_usd": gen.cost_ceiling_usd,
         "parallelism": {
-            "stt_cloud_workers": settings.parallelism.stt_cloud_workers,
-            "llm_workers": settings.parallelism.llm_workers,
+            "stt_cloud_workers": gen.parallelism.stt_cloud_workers,
+            "llm_workers": gen.parallelism.llm_workers,
         },
-        "delete_audio_after_stt": settings.delete_audio_after_stt,
+        "delete_audio_after_stt": gen.delete_audio_after_stt,
     }
-    return json.dumps(payload, ensure_ascii=False)
 
 
-def _deserialize_settings(raw: str) -> ProjectSettings:
-    payload: dict[str, Any] = json.loads(raw)
+def _deserialize_generation_settings(payload: dict[str, Any]) -> GenerationSettings:
+    """Désérialise un ``GenerationSettings`` depuis un dict.
+
+    Les clés inconnues (ex. ``name``/``workspace_folder`` d'un ancien blob v1 à
+    plat) sont ignorées : seules les clés de génération sont lues.
+
+    Args:
+        payload: Dict (sous-objet ``generation`` v2, ou blob v1 complet).
+
+    Returns:
+        Le ``GenerationSettings`` reconstitué.
+
+    Raises:
+        KeyError: Si une clé requise manque (capturée par l'appelant).
+        ValueError: Si une valeur d'enum est invalide (capturée par l'appelant).
+    """
     phases_config = {
         PhaseId(pid_str): PhaseConfig(
             thinking_enabled=bool(
@@ -122,10 +150,8 @@ def _deserialize_settings(raw: str) -> ProjectSettings:
         )
         for pid_str, cfg in payload["phases_config"].items()
     }
-    return ProjectSettings(
-        name=payload["name"],
+    return GenerationSettings(
         input_folder=Path(payload["input_folder"]),
-        workspace_folder=Path(payload["workspace_folder"]),
         source_language=Language(payload["source_language"]),
         output_languages=tuple(Language(s) for s in payload["output_languages"]),
         style_preset=StylePreset(payload["style_preset"]),
@@ -140,6 +166,118 @@ def _deserialize_settings(raw: str) -> ProjectSettings:
         ),
         delete_audio_after_stt=payload["delete_audio_after_stt"],
     )
+
+
+def _serialize_project_blob(project: Project) -> str:
+    """Sérialise le blob v2 ``settings_json`` d'un projet.
+
+    Args:
+        project: Projet à sérialiser.
+
+    Returns:
+        Chaîne JSON ``{version, workspace_folder, generation, pedagogy}``.
+    """
+    payload: dict[str, Any] = {
+        _BLOB_KEY_VERSION: _BLOB_VERSION,
+        _BLOB_KEY_WORKSPACE: str(project.workspace_folder),
+        _BLOB_KEY_GENERATION: (
+            _serialize_generation_settings(project.generation)
+            if project.generation is not None
+            else None
+        ),
+        _BLOB_KEY_PEDAGOGY: None,
+    }
+    return json.dumps(payload, ensure_ascii=False)
+
+
+def _deserialize_project_blob(raw: str) -> tuple[Path, GenerationSettings | None]:
+    """Désérialise le blob d'un projet (v2, ou v1 à plat migré à la lecture).
+
+    Un blob **sans** clé ``version`` est traité comme v1 « à plat » : son contenu
+    est l'ancien ``ProjectSettings``, dont on extrait l'emplacement et la
+    génération (les clés ``name``/``workspace_folder`` sont ignorées par
+    ``_deserialize_generation_settings``).
+
+    Args:
+        raw: Chaîne JSON stockée en base.
+
+    Returns:
+        ``(workspace_folder, generation_or_none)``.
+
+    Raises:
+        StorageError: Si le blob est illisible ou incomplet.
+    """
+    try:
+        payload: dict[str, Any] = json.loads(raw)
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise StorageError(
+            code="STORAGE.PROJECT_BLOB_INVALID",
+            user_message=(
+                "Les réglages d'un projet sont illisibles en base. Le projet "
+                "ne peut pas être chargé."
+            ),
+            severity=Severity.ERROR,
+            technical_details={"raw_prefix": raw[:200]},
+        ) from exc
+    try:
+        workspace_folder = Path(payload[_BLOB_KEY_WORKSPACE])
+        if _BLOB_KEY_VERSION not in payload:
+            generation: GenerationSettings | None = _deserialize_generation_settings(
+                payload
+            )
+        else:
+            gen_payload = payload.get(_BLOB_KEY_GENERATION)
+            generation = (
+                _deserialize_generation_settings(gen_payload)
+                if gen_payload is not None
+                else None
+            )
+    except (KeyError, ValueError) as exc:
+        raise StorageError(
+            code="STORAGE.PROJECT_BLOB_INVALID",
+            user_message=(
+                "Les réglages d'un projet sont incomplets ou invalides en base."
+            ),
+            severity=Severity.ERROR,
+            technical_details={"missing_or_invalid": str(exc)},
+        ) from exc
+    return workspace_folder, generation
+
+
+def _serialize_run_snapshot(gen: GenerationSettings) -> str:
+    """Sérialise le snapshot de réglages d'un Run (= ``GenerationSettings``).
+
+    Args:
+        gen: Réglages figés au démarrage du run.
+
+    Returns:
+        Chaîne JSON.
+    """
+    return json.dumps(_serialize_generation_settings(gen), ensure_ascii=False)
+
+
+def _deserialize_run_snapshot(raw: str) -> GenerationSettings:
+    """Désérialise le snapshot d'un Run (tolère les blobs v1 à plat).
+
+    Args:
+        raw: Chaîne JSON stockée.
+
+    Returns:
+        Le ``GenerationSettings`` figé.
+
+    Raises:
+        StorageError: Si le snapshot est illisible ou incomplet.
+    """
+    try:
+        payload: dict[str, Any] = json.loads(raw)
+        return _deserialize_generation_settings(payload)
+    except (json.JSONDecodeError, TypeError, KeyError, ValueError) as exc:
+        raise StorageError(
+            code="STORAGE.RUN_SNAPSHOT_INVALID",
+            user_message="Le snapshot de réglages d'un run est illisible en base.",
+            severity=Severity.ERROR,
+            technical_details={"raw_prefix": raw[:200]},
+        ) from exc
 
 
 def _serialize_error_info(error: ErrorInfo | None) -> str | None:
@@ -231,9 +369,9 @@ class SqliteState:
             """,
             (
                 project.id.value,
-                project.settings.name,
+                project.name,
                 _datetime_to_iso(project.created_at),
-                _serialize_settings(project.settings),
+                _serialize_project_blob(project),
                 _datetime_to_iso(project.last_run_at) if project.last_run_at else None,
             ),
         )
@@ -249,7 +387,8 @@ class SqliteState:
             Le projet, ou ``None``.
         """
         row = self._get_connection().execute(
-            "SELECT id, created_at, settings_json, last_run_at FROM projects WHERE id = ?",
+            "SELECT id, name, created_at, settings_json, last_run_at "
+            "FROM projects WHERE id = ?",
             (project_id.value,),
         ).fetchone()
         if row is None:
@@ -263,7 +402,7 @@ class SqliteState:
             Liste de tous les projets persistés.
         """
         rows = self._get_connection().execute(
-            "SELECT id, created_at, settings_json, last_run_at FROM projects "
+            "SELECT id, name, created_at, settings_json, last_run_at FROM projects "
             "ORDER BY created_at"
         ).fetchall()
         return [self._row_to_project(row) for row in rows]
@@ -307,7 +446,7 @@ class SqliteState:
                 _datetime_to_iso(run.started_at),
                 _datetime_to_iso(run.finished_at) if run.finished_at else None,
                 run.cost_usd,
-                _serialize_settings(run.settings_snapshot),
+                _serialize_run_snapshot(run.settings_snapshot),
             ),
         )
         for video in run.videos:
@@ -672,12 +811,15 @@ class SqliteState:
 
     @staticmethod
     def _row_to_project(row: tuple[Any, ...]) -> Project:
-        project_id, created_at_str, settings_json, last_run_at_str = row
+        project_id, name, created_at_str, settings_json, last_run_at_str = row
+        workspace_folder, generation = _deserialize_project_blob(settings_json)
         return Project(
             id=ProjectId(value=project_id),
-            settings=_deserialize_settings(settings_json),
+            name=name,
+            workspace_folder=workspace_folder,
             created_at=_datetime_from_iso(created_at_str),
             last_run_at=_datetime_from_iso_or_none(last_run_at_str),
+            generation=generation,
         )
 
     @staticmethod
@@ -696,7 +838,7 @@ class SqliteState:
             project_id=ProjectId(value=project_id),
             started_at=_datetime_from_iso(started_at_str),
             status=RunStatus(status_str),
-            settings_snapshot=_deserialize_settings(settings_json),
+            settings_snapshot=_deserialize_run_snapshot(settings_json),
             finished_at=_datetime_from_iso_or_none(finished_at_str),
             cost_usd=cost_usd,
         )

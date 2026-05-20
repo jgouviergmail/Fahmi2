@@ -38,12 +38,13 @@ from fahmi2.domain.enums import (
     SttProvider,
     StylePreset,
 )
-from fahmi2.domain.project import ParallelismConfig, ProjectSettings
+from fahmi2.domain.generation import GenerationSettings, ParallelismConfig
 from fahmi2.ui.widgets.phase_configs_widget import PhaseConfigsWidget
 
 _DEFAULT_DIRECTIVES_HEIGHT_PX = 90
 _DIALOG_INITIAL_HEIGHT_PX = 700
 _DIALOG_INITIAL_WIDTH_PX = 720
+_WORKSPACE_SUBDIR_NAME = ".fahmi2"
 
 
 class NewProjectDialog(QDialog):
@@ -54,24 +55,30 @@ class NewProjectDialog(QDialog):
         hardware: HardwareInfo,
         parent: QWidget | None = None,
         *,
-        initial_settings: ProjectSettings | None = None,
+        initial_name: str | None = None,
+        initial_input_folder: Path | None = None,
+        initial_generation: GenerationSettings | None = None,
     ) -> None:
         """Construit le dialogue.
 
         Args:
             hardware: Info matérielle (pour bloquer STT local si pas CUDA).
             parent: Parent Qt optionnel.
-            initial_settings: Si fourni, le dialogue s'ouvre en mode édition
-                avec tous les champs pré-remplis. Sinon, mode création.
+            initial_name: Nom pré-rempli (mode édition).
+            initial_input_folder: Dossier d'entrée pré-rempli (mode édition).
+            initial_generation: Réglages de génération pré-remplis ; si fourni,
+                le dialogue s'ouvre en mode édition. Sinon, mode création.
         """
         super().__init__(parent)
-        self._is_edit_mode = initial_settings is not None
+        self._is_edit_mode = initial_generation is not None
         self.setWindowTitle(
             "Modifier le projet" if self._is_edit_mode else "Nouveau projet"
         )
         self.resize(_DIALOG_INITIAL_WIDTH_PX, _DIALOG_INITIAL_HEIGHT_PX)
         self._hardware = hardware
-        self._result_settings: ProjectSettings | None = None
+        self._result_name: str | None = None
+        self._result_workspace: Path | None = None
+        self._result_generation: GenerationSettings | None = None
 
         outer_layout = QVBoxLayout(self)
 
@@ -166,53 +173,79 @@ class NewProjectDialog(QDialog):
         outer_layout.addWidget(buttons)
 
         # Pré-remplissage si édition
-        if initial_settings is not None:
-            self._populate_from_settings(initial_settings)
+        if initial_generation is not None:
+            self._populate_from_settings(
+                initial_name or "", initial_input_folder, initial_generation
+            )
 
-    def get_settings(self) -> ProjectSettings | None:
-        """Retourne les settings construits, ou ``None`` si annulation.
+    def get_name(self) -> str | None:
+        """Retourne le nom saisi, ou ``None`` si annulation.
 
         Returns:
-            ``ProjectSettings`` ou ``None``.
+            Le nom du projet, ou ``None``.
         """
-        return self._result_settings
+        return self._result_name
 
-    def _populate_from_settings(self, settings: ProjectSettings) -> None:
-        """Pré-remplit tous les champs depuis un ``ProjectSettings`` existant.
+    def get_workspace_folder(self) -> Path | None:
+        """Retourne l'emplacement du projet, ou ``None`` si annulation.
+
+        Returns:
+            Le ``workspace_folder``, ou ``None``.
+        """
+        return self._result_workspace
+
+    def get_generation_settings(self) -> GenerationSettings | None:
+        """Retourne les réglages de génération construits, ou ``None``.
+
+        Returns:
+            ``GenerationSettings`` ou ``None`` si annulation.
+        """
+        return self._result_generation
+
+    def _populate_from_settings(
+        self,
+        name: str,
+        input_folder: Path | None,
+        generation: GenerationSettings,
+    ) -> None:
+        """Pré-remplit tous les champs depuis un projet existant.
 
         Args:
-            settings: Settings du projet à éditer.
+            name: Nom du projet.
+            input_folder: Dossier d'entrée (vidéos), ou ``None``.
+            generation: Réglages de génération à éditer.
         """
-        self._name_input.setText(settings.name)
-        self._input_folder_input.setText(str(settings.input_folder))
+        self._name_input.setText(name)
+        if input_folder is not None:
+            self._input_folder_input.setText(str(input_folder))
 
-        src_idx = self._source_lang_combo.findData(settings.source_language)
+        src_idx = self._source_lang_combo.findData(generation.source_language)
         if src_idx >= 0:
             self._source_lang_combo.setCurrentIndex(src_idx)
 
         for lang, cb in self._output_langs.items():
-            cb.setChecked(lang in settings.output_languages)
+            cb.setChecked(lang in generation.output_languages)
 
-        style_idx = self._style_combo.findData(settings.style_preset)
+        style_idx = self._style_combo.findData(generation.style_preset)
         if style_idx >= 0:
             self._style_combo.setCurrentIndex(style_idx)
 
-        self._style_directives_input.setPlainText(settings.style_directives)
+        self._style_directives_input.setPlainText(generation.style_directives)
 
-        stt_idx = self._stt_combo.findData(settings.stt_provider)
+        stt_idx = self._stt_combo.findData(generation.stt_provider)
         if stt_idx >= 0:
             self._stt_combo.setCurrentIndex(stt_idx)
 
-        llm_idx = self._llm_combo.findData(settings.llm_model)
+        llm_idx = self._llm_combo.findData(generation.llm_model)
         if llm_idx >= 0:
             self._llm_combo.setCurrentIndex(llm_idx)
 
-        if settings.cost_ceiling_usd is not None:
-            self._cost_ceiling_input.setValue(settings.cost_ceiling_usd)
+        if generation.cost_ceiling_usd is not None:
+            self._cost_ceiling_input.setValue(generation.cost_ceiling_usd)
         else:
             self._cost_ceiling_input.setValue(0.0)
 
-        self._phase_configs_widget.set_phase_configs(settings.phases_config)
+        self._phase_configs_widget.set_phase_configs(generation.phases_config)
 
     def _browse_input_folder(self) -> None:
         """Ouvre un sélecteur de dossier d'entrée."""
@@ -265,10 +298,10 @@ class NewProjectDialog(QDialog):
         )
         directives = self._style_directives_input.toPlainText().strip()
 
-        self._result_settings = ProjectSettings(
-            name=name,
+        self._result_name = name
+        self._result_workspace = Path(input_folder_text) / _WORKSPACE_SUBDIR_NAME
+        self._result_generation = GenerationSettings(
             input_folder=Path(input_folder_text),
-            workspace_folder=Path(input_folder_text) / ".fahmi2",
             source_language=source_lang,
             output_languages=output_langs,
             style_preset=style,

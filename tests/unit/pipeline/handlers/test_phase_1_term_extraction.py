@@ -37,7 +37,7 @@ def test_handler_metadata() -> None:
     assert handler.is_per_video is True
 
 
-def test_execute_writes_candidates_json(tmp_path: Path, make_settings: Any) -> None:
+def test_execute_writes_candidates_json(tmp_path: Path, make_generation_settings: Any) -> None:
     video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
     expected_payload = {
         "terms": [
@@ -50,7 +50,7 @@ def test_execute_writes_candidates_json(tmp_path: Path, make_settings: Any) -> N
     }
     ctx, _ = build_phase_context(
         tmp_path,
-        make_settings,
+        make_generation_settings,
         llm_response=_scripted_terms_response(json.dumps(expected_payload)),
         videos=(video,),
     )
@@ -64,11 +64,11 @@ def test_execute_writes_candidates_json(tmp_path: Path, make_settings: Any) -> N
     assert result.cost_usd == pytest.approx(0.0005)
 
 
-def test_execute_raises_on_invalid_json(tmp_path: Path, make_settings: Any) -> None:
+def test_execute_raises_on_invalid_json(tmp_path: Path, make_generation_settings: Any) -> None:
     video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
     ctx, _ = build_phase_context(
         tmp_path,
-        make_settings,
+        make_generation_settings,
         llm_response=_scripted_terms_response("ce n'est pas du JSON"),
         videos=(video,),
     )
@@ -80,13 +80,13 @@ def test_execute_raises_on_invalid_json(tmp_path: Path, make_settings: Any) -> N
 
 
 def test_execute_handles_json_fenced_response(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
     fenced = "```json\n{\"terms\": []}\n```"
     ctx, _ = build_phase_context(
         tmp_path,
-        make_settings,
+        make_generation_settings,
         llm_response=_scripted_terms_response(fenced),
         videos=(video,),
     )
@@ -100,10 +100,10 @@ def test_execute_handles_json_fenced_response(
 
 
 def test_execute_raises_when_transcription_missing(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
-    ctx, _ = build_phase_context(tmp_path, make_settings, videos=(video,))
+    ctx, _ = build_phase_context(tmp_path, make_generation_settings, videos=(video,))
     handler = Phase1TermExtractionHandler()
     with pytest.raises(StorageError) as exc_info:
         handler.execute(ctx, video=video)
@@ -111,9 +111,9 @@ def test_execute_raises_when_transcription_missing(
 
 
 def test_execute_raises_when_video_is_none(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    ctx, _ = build_phase_context(tmp_path, make_settings)
+    ctx, _ = build_phase_context(tmp_path, make_generation_settings)
     handler = Phase1TermExtractionHandler()
     with pytest.raises(ValueError, match="VideoExecution"):
         handler.execute(ctx, video=None)

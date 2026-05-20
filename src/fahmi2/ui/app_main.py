@@ -88,9 +88,13 @@ def main() -> int:  # noqa: PLR0915, C901
     def _open_new_project() -> None:
         dialog = NewProjectDialog(hardware, parent=window)
         if dialog.exec() == NewProjectDialog.DialogCode.Accepted:
-            settings = dialog.get_settings()
-            if settings is not None:
-                created = project_service.create_project(settings)
+            name = dialog.get_name()
+            workspace = dialog.get_workspace_folder()
+            generation = dialog.get_generation_settings()
+            if name and workspace is not None and generation is not None:
+                created = project_service.create_project(
+                    name=name, workspace_folder=workspace, generation=generation
+                )
                 _refresh_sidebar()
                 # Sélectionne automatiquement le projet nouvellement créé
                 # pour que la prévisualisation des vidéos s'affiche
@@ -102,18 +106,25 @@ def main() -> int:  # noqa: PLR0915, C901
         if project is None:
             return
         dialog = NewProjectDialog(
-            hardware, parent=window, initial_settings=project.settings
+            hardware,
+            parent=window,
+            initial_name=project.name,
+            initial_input_folder=(
+                project.generation.input_folder
+                if project.generation is not None
+                else None
+            ),
+            initial_generation=project.generation,
         )
         if dialog.exec() == NewProjectDialog.DialogCode.Accepted:
-            new_settings = dialog.get_settings()
-            if new_settings is None:
-                return
             updated = Project(
                 id=project.id,
-                settings=new_settings,
+                name=dialog.get_name() or project.name,
+                workspace_folder=project.workspace_folder,
                 created_at=project.created_at,
                 last_run_at=project.last_run_at,
                 runs=project.runs,
+                generation=dialog.get_generation_settings() or project.generation,
             )
             project_service.update_project(updated)
             _refresh_sidebar()
@@ -130,7 +141,7 @@ def main() -> int:  # noqa: PLR0915, C901
             window,
             "Supprimer le projet ?",
             (
-                f"Supprimer le projet « {project.settings.name} » ?\n\n"
+                f"Supprimer le projet « {project.name} » ?\n\n"
                 "Cette action supprime également TOUS ses runs et leurs "
                 "métadonnées en base de données. Les fichiers du dossier "
                 "d'entrée et du workspace ne sont PAS supprimés sur disque.\n\n"

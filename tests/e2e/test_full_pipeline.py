@@ -170,7 +170,7 @@ class _RotatingFakeLLM(FakeLLMProvider):
 
 def test_full_pipeline_produces_expected_outputs(
     tmp_path: Path,
-    make_settings: Any,
+    make_generation_settings: Any,
     e2e_input_folder: Path,
 ) -> None:
     state = SqliteState(tmp_path / "state.db")
@@ -178,13 +178,14 @@ def test_full_pipeline_produces_expected_outputs(
     output_dir = tmp_path / "output"
 
     project_service = ProjectService(state)
-    settings = make_settings(
+    settings = make_generation_settings(
         input_folder=e2e_input_folder,
-        workspace_folder=workspace,
         source_language=Language.FR,
         output_languages=(Language.FR, Language.EN),
     )
-    project = project_service.create_project(settings)
+    project = project_service.create_project(
+        name="E2E", workspace_folder=workspace, generation=settings
+    )
 
     registry = PhaseRegistry(
         [

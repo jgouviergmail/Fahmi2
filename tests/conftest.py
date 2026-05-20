@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -14,27 +15,23 @@ from fahmi2.domain.enums import (
     SttProvider,
     StylePreset,
 )
+from fahmi2.domain.generation import GenerationSettings, ParallelismConfig
+from fahmi2.domain.ids import ProjectId
 from fahmi2.domain.phase import PhaseConfig
-from fahmi2.domain.project import ParallelismConfig, ProjectSettings
+from fahmi2.domain.project import Project
 
 
 @pytest.fixture
-def make_settings() -> Any:
-    """Retourne une fonction de fabrication de ``ProjectSettings`` valides.
-
-    Utilisée par les tests de domain et plus tard d'application pour produire
-    des settings cohérents sans dupliquer le boilerplate ``ProjectSettings``.
+def make_generation_settings() -> Any:
+    """Fabrique des ``GenerationSettings`` valides (kwargs de surcharge).
 
     Returns:
-        Une fonction prenant des kwargs de surcharge et retournant un
-        ``ProjectSettings`` validé.
+        Fonction renvoyant un ``GenerationSettings`` validé.
     """
 
-    def _factory(**overrides: Any) -> ProjectSettings:
+    def _factory(**overrides: Any) -> GenerationSettings:
         base: dict[str, Any] = {
-            "name": "Test Project",
             "input_folder": Path("./input"),
-            "workspace_folder": Path("./workspace"),
             "source_language": Language.FR,
             "output_languages": (Language.FR,),
             "style_preset": StylePreset.STANDARD,
@@ -49,6 +46,31 @@ def make_settings() -> Any:
             "delete_audio_after_stt": True,
         }
         base.update(overrides)
-        return ProjectSettings(**base)
+        return GenerationSettings(**base)
+
+    return _factory
+
+
+@pytest.fixture
+def make_project(make_generation_settings: Any) -> Any:
+    """Fabrique un ``Project`` minimal valide (kwargs de surcharge).
+
+    Args:
+        make_generation_settings: Fixture de fabrication des réglages génération.
+
+    Returns:
+        Fonction renvoyant un ``Project`` (avec ``generation`` par défaut).
+    """
+
+    def _factory(**overrides: Any) -> Project:
+        base: dict[str, Any] = {
+            "id": ProjectId.new(),
+            "name": "Test Project",
+            "workspace_folder": Path("./workspace"),
+            "created_at": datetime.now(tz=UTC),
+            "generation": make_generation_settings(),
+        }
+        base.update(overrides)
+        return Project(**base)
 
     return _factory

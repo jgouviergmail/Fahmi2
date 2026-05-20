@@ -7,9 +7,11 @@ projet (génération d'ID, horodatage), la persistance et la suppression.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 
+from fahmi2.domain.generation import GenerationSettings
 from fahmi2.domain.ids import ProjectId, RunId
-from fahmi2.domain.project import Project, ProjectSettings
+from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
 from fahmi2.infra.storage.sqlite_state import SqliteState
 
@@ -25,19 +27,29 @@ class ProjectService:
         """
         self._state = state
 
-    def create_project(self, settings: ProjectSettings) -> Project:
-        """Crée et persiste un nouveau ``Project``.
+    def create_project(
+        self,
+        *,
+        name: str,
+        workspace_folder: Path,
+        generation: GenerationSettings | None = None,
+    ) -> Project:
+        """Crée et persiste un nouveau ``Project`` (identité minimale).
 
         Args:
-            settings: Paramètres du projet.
+            name: Nom du projet.
+            workspace_folder: Emplacement de travail (immuable après création).
+            generation: Réglages de génération, ou ``None`` (à configurer plus tard).
 
         Returns:
             Le ``Project`` créé.
         """
         project = Project(
             id=ProjectId.new(),
-            settings=settings,
+            name=name,
+            workspace_folder=workspace_folder,
             created_at=datetime.now(tz=UTC),
+            generation=generation,
         )
         self._state.upsert_project(project)
         return project

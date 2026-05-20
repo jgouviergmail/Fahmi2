@@ -1,11 +1,15 @@
-"""Tests du SqliteState : ouverture, schéma, CRUD, concurrence."""
+"""Tests du SqliteState : ouverture, schéma, CRUD, concurrence, migration."""
 
+import json
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from fahmi2.core.errors.error_info import ErrorInfo
+from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import Language, PhaseId, PhaseStatus, RunStatus
 from fahmi2.domain.glossary import Term
@@ -20,21 +24,24 @@ def _ts(s: str = "2026-05-19T12:00:00") -> datetime:
     return datetime.fromisoformat(s).replace(tzinfo=UTC)
 
 
-def _make_project(make_settings: Any) -> Project:
+def _make_project(make_generation_settings: Any) -> Project:
     return Project(
         id=ProjectId.new(),
-        settings=make_settings(),
+        name="Test Project",
+        workspace_folder=Path("./workspace"),
         created_at=_ts(),
+        generation=make_generation_settings(),
     )
 
 
 def _make_run(project: Project) -> Run:
+    assert project.generation is not None
     return Run(
         id=RunId.new(),
         project_id=project.id,
         started_at=_ts(),
         status=RunStatus.CREATED,
-        settings_snapshot=project.settings,
+        settings_snapshot=project.generation,
     )
 
 
@@ -73,14 +80,16 @@ def test_reopen_existing_db_does_not_fail(tmp_path: Path) -> None:
 # --- Tests CRUD projects ------------------------------------------------------
 
 
-def test_upsert_and_get_project(tmp_path: Path, make_settings: Any) -> None:
+def test_upsert_and_get_project(tmp_path: Path, make_generation_settings: Any) -> None:
     with SqliteState(tmp_path / "t.db") as state:
-        project = _make_project(make_settings)
+        project = _make_project(make_generation_settings)
         state.upsert_project(project)
         retrieved = state.get_project(project.id)
         assert retrieved is not None
         assert retrieved.id == project.id
-        assert retrieved.settings.name == project.settings.name
+        assert retrieved.name == project.name
+        assert retrieved.workspace_folder == project.workspace_folder
+        assert retrieved.generation is not None
 
 
 def test_get_unknown_project_returns_none(tmp_path: Path) -> None:
@@ -88,27 +97,27 @@ def test_get_unknown_project_returns_none(tmp_path: Path) -> None:
         assert state.get_project(ProjectId.new()) is None
 
 
-def test_list_projects(tmp_path: Path, make_settings: Any) -> None:
+def test_list_projects(tmp_path: Path, make_generation_settings: Any) -> None:
     with SqliteState(tmp_path / "t.db") as state:
-        p1 = _make_project(make_settings)
-        p2 = _make_project(make_settings)
+        p1 = _make_project(make_generation_settings)
+        p2 = _make_project(make_generation_settings)
         state.upsert_project(p1)
         state.upsert_project(p2)
         ids = {p.id for p in state.list_projects()}
         assert ids == {p1.id, p2.id}
 
 
-def test_delete_project(tmp_path: Path, make_settings: Any) -> None:
+def test_delete_project(tmp_path: Path, make_generation_settings: Any) -> None:
     with SqliteState(tmp_path / "t.db") as state:
-        p = _make_project(make_settings)
+        p = _make_project(make_generation_settings)
         state.upsert_project(p)
         state.delete_project(p.id)
         assert state.get_project(p.id) is None
 
 
-def test_upsert_project_is_idempotent(tmp_path: Path, make_settings: Any) -> None:
+def test_upsert_project_is_idempotent(tmp_path: Path, make_generation_settings: Any) -> None:
     with SqliteState(tmp_path / "t.db") as state:
-        p = _make_project(make_settings)
+        p = _make_project(make_generation_settings)
         state.upsert_project(p)
         state.upsert_project(p)
         assert len(state.list_projects()) == 1
@@ -117,9 +126,9 @@ def test_upsert_project_is_idempotent(tmp_path: Path, make_settings: Any) -> Non
 # --- Tests CRUD runs ----------------------------------------------------------
 
 
-def test_upsert_and_get_run(tmp_path: Path, make_settings: Any) -> None:
+def test_upsert_and_get_run(tmp_path: Path, make_generation_settings: Any) -> None:
     with SqliteState(tmp_path / "t.db") as state:
-        project = _make_project(make_settings)
+        project = _make_project(make_generation_settings)
         state.upsert_project(project)
         run = _make_run(project)
         state.upsert_run(run)
@@ -129,9 +138,9 @@ def test_upsert_and_get_run(tmp_path: Path, make_settings: Any) -> None:
         assert retrieved.status is RunStatus.CREATED
 
 
-def test_list_runs_for_project(tmp_path: Path, make_settings: Any) -> None:
+def test_list_runs_for_project(tmp_path: Path, make_generation_settings: Any) -> None:
     with SqliteState(tmp_path / "t.db") as state:
-        project = _make_project(make_settings)
+        project = _make_project(make_generation_settings)
         state.upsert_project(project)
         r1 = _make_run(project)
         r2 = _make_run(project)
@@ -144,9 +153,9 @@ def test_list_runs_for_project(tmp_path: Path, make_settings: Any) -> None:
 # --- Tests phase_executions ---------------------------------------------------
 
 
-def test_upsert_and_get_phase_execution(tmp_path: Path, make_settings: Any) -> None:
+def test_upsert_and_get_phase_execution(tmp_path: Path, make_generation_settings: Any) -> None:
     with SqliteState(tmp_path / "t.db") as state:
-        project = _make_project(make_settings)
+        project = _make_project(make_generation_settings)
         state.upsert_project(project)
         run = _make_run(project)
         state.upsert_run(run)
@@ -166,9 +175,9 @@ def test_upsert_and_get_phase_execution(tmp_path: Path, make_settings: Any) -> N
         assert status is PhaseStatus.SUCCEEDED
 
 
-def test_phase_execution_batch_no_video_id(tmp_path: Path, make_settings: Any) -> None:
+def test_phase_execution_batch_no_video_id(tmp_path: Path, make_generation_settings: Any) -> None:
     with SqliteState(tmp_path / "t.db") as state:
-        project = _make_project(make_settings)
+        project = _make_project(make_generation_settings)
         state.upsert_project(project)
         run = _make_run(project)
         state.upsert_run(run)
@@ -185,10 +194,10 @@ def test_phase_execution_batch_no_video_id(tmp_path: Path, make_settings: Any) -
 
 
 def test_phase_execution_upsert_updates_status(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     with SqliteState(tmp_path / "t.db") as state:
-        project = _make_project(make_settings)
+        project = _make_project(make_generation_settings)
         state.upsert_project(project)
         run = _make_run(project)
         state.upsert_run(run)
@@ -204,11 +213,11 @@ def test_phase_execution_upsert_updates_status(
 
 
 def test_phase_execution_batch_upsert_replaces_previous_row(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     """Reg : SQLite traite NULL comme distinct -> upsert batch doit gerer NULL."""
     with SqliteState(tmp_path / "t.db") as state:
-        project = _make_project(make_settings)
+        project = _make_project(make_generation_settings)
         state.upsert_project(project)
         run = _make_run(project)
         state.upsert_run(run)
@@ -229,10 +238,10 @@ def test_phase_execution_batch_upsert_replaces_previous_row(
 
 
 def test_phase_execution_with_error_round_trip(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     with SqliteState(tmp_path / "t.db") as state:
-        project = _make_project(make_settings)
+        project = _make_project(make_generation_settings)
         state.upsert_project(project)
         run = _make_run(project)
         state.upsert_run(run)
@@ -258,10 +267,10 @@ def test_phase_execution_with_error_round_trip(
 
 
 def test_get_phase_status_missing_returns_none(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     with SqliteState(tmp_path / "t.db") as state:
-        project = _make_project(make_settings)
+        project = _make_project(make_generation_settings)
         state.upsert_project(project)
         run = _make_run(project)
         state.upsert_run(run)
@@ -272,10 +281,10 @@ def test_get_phase_status_missing_returns_none(
 
 
 def test_upsert_and_list_glossary_terms(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     with SqliteState(tmp_path / "t.db") as state:
-        project = _make_project(make_settings)
+        project = _make_project(make_generation_settings)
         state.upsert_project(project)
         run = _make_run(project)
         state.upsert_run(run)
@@ -302,10 +311,10 @@ def test_upsert_and_list_glossary_terms(
 
 
 def test_glossary_terms_filtered_by_language(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     with SqliteState(tmp_path / "t.db") as state:
-        project = _make_project(make_settings)
+        project = _make_project(make_generation_settings)
         state.upsert_project(project)
         run = _make_run(project)
         state.upsert_run(run)
@@ -319,14 +328,14 @@ def test_glossary_terms_filtered_by_language(
 
 
 def test_concurrent_phase_execution_writes(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     n_threads = 4
     writes_per_thread = 100
     db_path = tmp_path / "t.db"
 
     with SqliteState(db_path) as state:
-        project = _make_project(make_settings)
+        project = _make_project(make_generation_settings)
         state.upsert_project(project)
         run = _make_run(project)
         state.upsert_run(run)
@@ -359,3 +368,76 @@ def test_concurrent_phase_execution_writes(
     with SqliteState(db_path) as state:
         all_pe = state.list_phase_executions(run_id)
     assert len(all_pe) == n_threads * writes_per_thread
+
+
+# --- Tests migration v1 -> v2 -------------------------------------------------
+
+
+def _legacy_v1_blob() -> str:
+    """Blob v1 « à plat » (ancien ProjectSettings, avec name + workspace_folder)."""
+    return json.dumps(
+        {
+            "name": "Ancien projet",
+            "input_folder": "D:/Cours",
+            "workspace_folder": "D:/Cours/.fahmi2",
+            "source_language": "fr",
+            "output_languages": ["fr"],
+            "style_preset": "standard",
+            "style_directives": "",
+            "stt_provider": "openai_cloud",
+            "llm_model": "deepseek-v4-flash",
+            "phases_config": {
+                p: {
+                    "thinking_enabled": False,
+                    "reasoning_effort": None,
+                    "temperature": 1.0,
+                    "max_retries": 3,
+                }
+                for p in (
+                    "phase_1_term_extraction",
+                    "phase_2_glossary_reconciliation",
+                    "phase_3_reformulation",
+                    "phase_4_structuration",
+                    "phase_5_consolidation",
+                    "phase_6_translation",
+                    "phase_7_coherence",
+                )
+            },
+            "cost_ceiling_usd": None,
+            "parallelism": {"stt_cloud_workers": 3, "llm_workers": 4},
+            "delete_audio_after_stt": True,
+        },
+        ensure_ascii=False,
+    )
+
+
+def test_loads_legacy_v1_project_blob(tmp_path: Path) -> None:
+    """Un blob v1 « à plat » se charge en Project v2 (migration à la lecture)."""
+    with SqliteState(tmp_path / "legacy.db") as state:
+        pid = ProjectId.new()
+        state._get_connection().execute(  # noqa: SLF001 — test d'accès direct
+            "INSERT INTO projects (id, name, created_at, settings_json, last_run_at) "
+            "VALUES (?, ?, ?, ?, NULL)",
+            (pid.value, "Ancien projet", _ts().isoformat(), _legacy_v1_blob()),
+        )
+        state._get_connection().commit()  # noqa: SLF001
+
+        project = state.get_project(pid)
+        assert project is not None
+        assert project.name == "Ancien projet"
+        assert project.workspace_folder.as_posix() == "D:/Cours/.fahmi2"
+        assert project.generation is not None
+        assert project.generation.input_folder.as_posix() == "D:/Cours"
+
+
+def test_corrupt_project_blob_raises_storage_error(tmp_path: Path) -> None:
+    with SqliteState(tmp_path / "corrupt.db") as state:
+        pid = ProjectId.new()
+        state._get_connection().execute(  # noqa: SLF001
+            "INSERT INTO projects (id, name, created_at, settings_json) "
+            "VALUES (?, ?, ?, ?)",
+            (pid.value, "x", _ts().isoformat(), "{not json"),
+        )
+        state._get_connection().commit()  # noqa: SLF001
+        with pytest.raises(StorageError, match="STORAGE.PROJECT_BLOB_INVALID"):
+            state.get_project(pid)

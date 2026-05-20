@@ -23,12 +23,16 @@ from fahmi2.ui.viewmodels.run_matrix import RunMatrixViewModel
 
 
 def _setup(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> tuple[SqliteState, Run, PhaseRegistry]:
     state = SqliteState(tmp_path / "t.db")
-    settings = make_settings()
+    settings = make_generation_settings()
     project = Project(
-        id=ProjectId.new(), settings=settings, created_at=datetime.now(tz=UTC)
+        id=ProjectId.new(),
+        name="Test",
+        workspace_folder=tmp_path / "ws",
+        created_at=datetime.now(tz=UTC),
+        generation=settings,
     )
     state.upsert_project(project)
     videos = tuple(
@@ -54,17 +58,17 @@ def _setup(
     return state, run, registry
 
 
-def test_snapshot_has_row_per_video(tmp_path: Path, make_settings: Any) -> None:
-    state, run, registry = _setup(tmp_path, make_settings)
+def test_snapshot_has_row_per_video(tmp_path: Path, make_generation_settings: Any) -> None:
+    state, run, registry = _setup(tmp_path, make_generation_settings)
     viewmodel = RunMatrixViewModel(state=state, registry=registry)
     snap = viewmodel.snapshot(run)
     assert len(snap.rows) == 2
 
 
 def test_snapshot_columns_match_phases_in_canonical_order(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    state, run, registry = _setup(tmp_path, make_settings)
+    state, run, registry = _setup(tmp_path, make_generation_settings)
     viewmodel = RunMatrixViewModel(state=state, registry=registry)
     snap = viewmodel.snapshot(run)
     assert snap.phases_in_order == (
@@ -74,8 +78,8 @@ def test_snapshot_columns_match_phases_in_canonical_order(
     )
 
 
-def test_cell_status_reflects_state(tmp_path: Path, make_settings: Any) -> None:
-    state, run, registry = _setup(tmp_path, make_settings)
+def test_cell_status_reflects_state(tmp_path: Path, make_generation_settings: Any) -> None:
+    state, run, registry = _setup(tmp_path, make_generation_settings)
     first_video = run.videos[0]
     pe = PhaseExecution(phase_id=PhaseId.STT, status=PhaseStatus.SUCCEEDED)
     state.upsert_phase_execution(run.id, pe, video_id=first_video.video_id)
@@ -87,8 +91,8 @@ def test_cell_status_reflects_state(tmp_path: Path, make_settings: Any) -> None:
     assert cell.is_batch is False
 
 
-def test_batch_phase_marked_as_batch(tmp_path: Path, make_settings: Any) -> None:
-    state, run, registry = _setup(tmp_path, make_settings)
+def test_batch_phase_marked_as_batch(tmp_path: Path, make_generation_settings: Any) -> None:
+    state, run, registry = _setup(tmp_path, make_generation_settings)
     viewmodel = RunMatrixViewModel(state=state, registry=registry)
     snap = viewmodel.snapshot(run)
     batch_cell = snap.rows[0].cells[PhaseId.GLOSSARY_RECONCILIATION]
@@ -97,9 +101,9 @@ def test_batch_phase_marked_as_batch(tmp_path: Path, make_settings: Any) -> None
 
 
 def test_batch_phase_status_after_succeeded(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    state, run, registry = _setup(tmp_path, make_settings)
+    state, run, registry = _setup(tmp_path, make_generation_settings)
     pe = PhaseExecution(
         phase_id=PhaseId.GLOSSARY_RECONCILIATION, status=PhaseStatus.SUCCEEDED
     )
@@ -110,8 +114,8 @@ def test_batch_phase_status_after_succeeded(
     assert cell.status is PhaseStatus.SUCCEEDED
 
 
-def test_video_label_is_filename(tmp_path: Path, make_settings: Any) -> None:
-    state, run, registry = _setup(tmp_path, make_settings)
+def test_video_label_is_filename(tmp_path: Path, make_generation_settings: Any) -> None:
+    state, run, registry = _setup(tmp_path, make_generation_settings)
     viewmodel = RunMatrixViewModel(state=state, registry=registry)
     snap = viewmodel.snapshot(run)
     assert snap.rows[0].video_label == run.videos[0].source_path.name

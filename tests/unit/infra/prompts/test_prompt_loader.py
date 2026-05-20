@@ -70,6 +70,39 @@ def test_missing_override_dir_uses_default(tmp_path: Path) -> None:
     assert "glossaire" in rendered.lower()
 
 
+def test_render_phase_5_consolidation_requests_summary() -> None:
+    loader = PromptLoader()
+    rendered = loader.render(
+        "phase_5_consolidation",
+        output_language_label="français",
+        style_label="standard",
+        style_directives="",
+        summaries_json="[]",
+    )
+    # Le champ de sortie JSON est demandé
+    assert "summary_markdown" in rendered
+    # La consigne de résumé exécutif est présente
+    assert "Résumé exécutif" in rendered
+    # La phrase de routage du fake e2e est préservée
+    assert "rédige les méta-éléments" in rendered
+
+
+def test_render_phase_7_coherence_mentions_summary() -> None:
+    loader = PromptLoader()
+    rendered = loader.render(
+        "phase_7_coherence",
+        output_language_label="français",
+        style_label="standard",
+        style_directives="",
+        glossary_terms=[],
+        consolidated_markdown="# t",
+    )
+    # Le résumé exécutif fait partie des méta-éléments à relire
+    assert "résumé exécutif" in rendered.lower()
+    # La phrase de routage du fake e2e est préservée
+    assert "passe de cohérence" in rendered.lower()
+
+
 def test_all_phase_templates_are_loadable() -> None:
     """Smoke test : les 7 templates bundlés se chargent sans erreur."""
     loader = PromptLoader()

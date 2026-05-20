@@ -7,6 +7,16 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+### Ajouté — Export Anki `.apkg` (SP3/01)
+
+- **Export Anki** depuis l'onglet pédagogique (bouton « 📦 Exporter ») : les supports
+  générés sont convertis en paquet `.apkg` (genanki) — flashcards (glossaire + concepts)
+  → note **Basic**, textes à trous → note **Cloze**, QCM → note **custom**.
+- **GUID stables** (ré-import sans doublon), **sous-decks par support**
+  (`<Projet>::<support>`), **tags** (support, langue, niveau, chapitre).
+- Adapter `infra/anki/genanki_exporter.py`, désérialisation `pedagogy/artifact_reader.py`,
+  service `app/pedagogy_export.py`. Nouvelle dépendance **`genanki`**.
+
 ### Ajouté — Onglet Supports pédagogiques (SP2/04)
 
 - **Onglet pédagogique réel** (remplace le stub) : barre d'actions (Réglages,

@@ -29,6 +29,7 @@ class ProjectHeaderBar(QWidget):
     open_output_requested = Signal()
     estimate_cost_requested = Signal()
     settings_requested = Signal()
+    export_requested = Signal()
 
     def __init__(
         self,
@@ -37,6 +38,8 @@ class ProjectHeaderBar(QWidget):
         settings_tooltip: str = _DEFAULT_SETTINGS_TOOLTIP,
         estimate_tooltip: str = _DEFAULT_ESTIMATE_TOOLTIP,
         open_output_tooltip: str = _DEFAULT_OPEN_OUTPUT_TOOLTIP,
+        show_export: bool = False,
+        export_tooltip: str = "",
     ) -> None:
         """Construit la barre.
 
@@ -46,6 +49,8 @@ class ProjectHeaderBar(QWidget):
                 la fonctionnalité).
             estimate_tooltip: Infobulle du bouton « Estimer le coût ».
             open_output_tooltip: Infobulle du bouton « Dossier de sortie ».
+            show_export: Affiche le bouton « Exporter » (masqué par défaut).
+            export_tooltip: Infobulle du bouton « Exporter ».
         """
         super().__init__(parent)
         self.setObjectName("projectHeaderBar")
@@ -67,6 +72,9 @@ class ProjectHeaderBar(QWidget):
             "📂  Dossier de sortie", role="default"
         )
         self._open_output_button.setToolTip(open_output_tooltip)
+        self._export_button = self._make_button("📦  Exporter", role="default")
+        self._export_button.setToolTip(export_tooltip)
+        self._export_button.setVisible(show_export)
 
         self._settings_button.clicked.connect(self.settings_requested)
         self._estimate_cost_button.clicked.connect(self.estimate_cost_requested)
@@ -75,6 +83,7 @@ class ProjectHeaderBar(QWidget):
         self._resume_button.clicked.connect(self.resume_requested)
         self._cancel_button.clicked.connect(self.cancel_requested)
         self._open_output_button.clicked.connect(self.open_output_requested)
+        self._export_button.clicked.connect(self.export_requested)
 
         for btn in (
             self._settings_button,
@@ -84,6 +93,7 @@ class ProjectHeaderBar(QWidget):
             self._resume_button,
             self._cancel_button,
             self._open_output_button,
+            self._export_button,
         ):
             layout.addWidget(btn)
         layout.addStretch(1)

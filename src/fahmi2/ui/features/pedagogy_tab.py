@@ -34,6 +34,10 @@ _OPEN_OUTPUT_TOOLTIP = (
     "Ouvre le dossier « pedagogy » contenant les supports générés "
     "(JSON + Markdown)."
 )
+_EXPORT_TOOLTIP = (
+    "Exporte les supports vers un paquet Anki (.apkg) : flashcards, cloze et "
+    "QCM (ré-import sans doublon)."
+)
 
 
 class PedagogyTab(FeatureTab):
@@ -69,6 +73,8 @@ class PedagogyTab(FeatureTab):
             settings_tooltip=_SETTINGS_TOOLTIP,
             estimate_tooltip=_ESTIMATE_TOOLTIP,
             open_output_tooltip=_OPEN_OUTPUT_TOOLTIP,
+            show_export=True,
+            export_tooltip=_EXPORT_TOOLTIP,
         )
         self._progress_view = PedagogyProgressView(self._widget)
         layout.addWidget(self._header_bar)

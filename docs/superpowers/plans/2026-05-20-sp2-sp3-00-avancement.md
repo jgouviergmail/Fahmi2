@@ -6,8 +6,8 @@
 ## Branche & état
 
 - **Branche de travail** : `feat/sp1-coquille-multi-fonctionnalites` (poussée sur
-  `origin`). Tout le travail (SP1 + SP2) y est commité.
-- **Vérifs au vert** au dernier point : `pytest` (615), `ruff`, `mypy --strict`.
+  `origin`). Tout le travail (SP1 + SP2 + SP3/01) y est commité.
+- **Vérifs au vert** au dernier point : `pytest` (628), `ruff`, `mypy --strict`.
 
 ## Documents de référence (à lire avant d'agir)
 
@@ -77,13 +77,19 @@
   `app_main` (registre des 9 générateurs), plafond de coût dans l'orchestrateur, +
   fix régression `_edit_project` (préserver `pedagogy`), tests (615 verts). Plan :
   [`2026-05-20-sp2-04-onglet-pedagogique.md`](./2026-05-20-sp2-04-onglet-pedagogique.md).
+- **SP3/01 — export Anki `.apkg`** : dépendance `genanki`, `pedagogy/artifact_reader.py`
+  (désérialise Flashcard/ClozeItem/QcmItem), adapter `infra/anki/genanki_exporter.py`
+  (note types Basic/Cloze/QCM, GUID stables via `guid_for`, sous-decks par support, tags
+  support/langue/niveau/chapitre), service `app/pedagogy_export.py` (scan `pedagogy/`),
+  bouton **Exporter** (`ProjectHeaderBar.show_export` + `export_requested`) + action
+  `PedagogyController.export_apkg`, tests (628 verts). Plan :
+  [`2026-05-20-sp3-01-export-apkg.md`](./2026-05-20-sp3-01-export-apkg.md).
 
 ## Reste à faire (ordre) ⏭️
 
 | Lot | Contenu | Réf design |
 |-----|---------|-----------|
-| **SP3/01** | Export **`.apkg`** (genanki) : note types (Basic/Cloze/QCM), GUID stables, sous-decks, tags, bouton export, tests. | §9 |
-| **SP3/02** | Export **Markdown/PDF** (sujet/corrigé séparés ; choix lib PDF), tests. | §9 |
+| **SP3/02** | Export **Markdown/PDF** (sujet/corrigé séparés ; choix lib PDF) ; étendre `artifact_reader` aux entités non-Anki (vrai/faux, questions ouvertes, fiche, points clés, examen blanc), tests. | §9 |
 | **Docs finales** | `docs/`, `README`, `CLAUDE.md`, `CHANGELOG` ; clôture matrice chapeau (R8–R19 → Fait). | — |
 
 ## Procédure de reprise (chaque lot)

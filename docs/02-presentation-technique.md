@@ -329,6 +329,15 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
 > Les supports **évaluatifs** marqués « corrigé séparé » produisent un fichier
 > `<support>.corrige.md` distinct du sujet.
 
+> **Export Anki (SP3/01)** : l'adapter `infra/anki/genanki_exporter.py` (dépendance
+> `genanki`) convertit les supports en paquet `.apkg` — `Flashcard`→Basic,
+> `ClozeItem`→Cloze, `QcmItem`→note custom. **GUID stables** (`genanki.guid_for`,
+> ré-import sans doublon), **sous-decks par support** (`<Projet>::<support>`), **tags**
+> (support / langue / niveau / chapitre). La désérialisation des artefacts JSON est dans
+> `pedagogy/artifact_reader.py` ; le service `app/pedagogy_export.py` scanne `pedagogy/`.
+> Les supports non-cartes (vrai/faux, questions ouvertes, fiche, points clés, examen
+> blanc) relèvent de l'export Markdown/PDF (SP3/02).
+
 ## 5. Conventions de code
 
 - **Style** : Google Python Style Guide, docstrings avec sections

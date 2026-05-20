@@ -230,7 +230,9 @@ Onglet **Supports pédagogiques → ⚙ Réglages** (vue master-detail) :
 Le bouton **Estimer le coût** donne un ordre de grandeur (par support × langue ×
 chapitre, selon densité et thinking) ; **Générer** lance la génération (progression
 par support × langue, reprise *coarse* des supports déjà à jour) ; **Ouvrir le
-dossier** ouvre `<emplacement>/pedagogy/`.
+dossier** ouvre `<emplacement>/pedagogy/` ; **Exporter** produit un paquet **Anki
+`.apkg`** (flashcards → Basic, textes à trous → Cloze, QCM → note custom ; GUID
+stables, sous-decks par support, tags support/langue/niveau/chapitre).
 
 ## 4. Variables d'environnement (debug)
 

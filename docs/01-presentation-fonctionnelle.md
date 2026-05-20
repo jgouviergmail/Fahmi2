@@ -45,7 +45,9 @@ L'application est organisée en **onglets de fonctionnalité** : **Génération*
 des **réglages** (⚙ : supports, difficulté, langues, modèle & coût), un bouton
 **Générer** et **Estimer le coût**, une **table de progression** (support × langue)
 et un **bandeau d'état** (« génération requise » / « prêt » / « à jour » /
-« périmé »). Les supports sont écrits sous `<emplacement>/pedagogy/`.
+« périmé »). Les supports sont écrits sous `<emplacement>/pedagogy/`. Un bouton
+**Exporter** produit un paquet **Anki `.apkg`** (flashcards, textes à trous, QCM ;
+ré-import sans doublon).
 
 - Création d'un projet via un **dialogue minimal** (nom + emplacement) ; les
   réglages de génération se configurent ensuite depuis l'onglet **Génération →

@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtWidgets import QDialog, QWidget
+from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox, QWidget
 from pytestqt.qtbot import QtBot
 
 from fahmi2.app.project_service import ProjectService
@@ -23,11 +23,13 @@ from fahmi2.domain.generation import (
 from fahmi2.domain.glossary import Term
 from fahmi2.domain.ids import RunId
 from fahmi2.domain.run import Run
+from fahmi2.domain.supports import Flashcard, SupportArtifact
 from fahmi2.infra.llm._fakes import FakeLLMProvider
 from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.infra.secrets.interface import InMemorySecretsStore
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.infra.storage.sqlite_state import SqliteState
+from fahmi2.pedagogy.artifact_writer import artifact_json_path, serialize_artifact
 from fahmi2.pedagogy.events import (
     SupportFinished,
     SupportGenerationFinished,
@@ -176,6 +178,44 @@ def test_state_viewmodel_ready_after_source(
     controller.on_project_selected(project.id)
     info = controller._state_vm.compute(project)  # noqa: SLF001
     assert info.state is PedagogyState.READY
+
+
+def test_export_apkg_writes_file(
+    qtbot: QtBot,
+    tmp_path: Path,
+    monkeypatch: Any,
+    make_generation_settings: Any,
+    make_pedagogy_settings: Any,
+) -> None:
+    controller, project_service, _ = _make_controller(qtbot, tmp_path)
+    ws = tmp_path / "ws"
+    project = project_service.create_project(
+        name="P",
+        workspace_folder=ws,
+        generation=make_generation_settings(),
+        pedagogy=make_pedagogy_settings(),
+    )
+    controller.on_project_selected(project.id)
+    FsArtifactStore().write_json_atomic(
+        artifact_json_path(
+            ws / "pedagogy", SupportType.FLASHCARDS_GLOSSARY, Language.FR
+        ),
+        serialize_artifact(
+            SupportArtifact(
+                support_type=SupportType.FLASHCARDS_GLOSSARY,
+                language=Language.FR,
+                items=(Flashcard(front="PIB", back="def", source_ref="PIB"),),
+                rendered_markdown="x",
+            )
+        ),
+    )
+    out = tmp_path / "deck.apkg"
+    monkeypatch.setattr(
+        QFileDialog, "getSaveFileName", lambda *args, **kwargs: (str(out), "")
+    )
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: None)
+    controller.export_apkg()
+    assert out.exists()
 
 
 def test_worker_runs_orchestrator(

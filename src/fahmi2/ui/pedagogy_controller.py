@@ -17,16 +17,18 @@ from pathlib import Path
 from typing import assert_never, cast
 
 from PySide6.QtCore import QObject, Qt, QThread, Signal
-from PySide6.QtWidgets import QDialog, QMessageBox, QWidget
+from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox, QWidget
 
 from fahmi2.app.pedagogy_cost_estimator import (
     PedagogyCostEstimation,
     PedagogyCostEstimator,
 )
+from fahmi2.app.pedagogy_export import export_pedagogy_to_apkg
 from fahmi2.app.project_service import ProjectService
 from fahmi2.app.secrets_service import SecretsService
 from fahmi2.app.supports_orchestrator import SupportsOrchestrator
 from fahmi2.core.config.paths import AppPaths
+from fahmi2.core.errors.exceptions import Fahmi2Error
 from fahmi2.core.errors.severity import Severity
 from fahmi2.core.logging.event import LogEvent
 from fahmi2.core.retry.policy import RetryPolicy
@@ -62,6 +64,9 @@ from fahmi2.ui.viewmodels.pedagogy_state import PedagogyStateViewModel
 from fahmi2.ui.widgets.logs_dock import LogsDock
 from fahmi2.ui.widgets.pedagogy_progress_view import PedagogyProgressView
 from fahmi2.ui.widgets.project_header_bar import ProjectHeaderBar
+
+_APKG_SUFFIX = ".apkg"
+_APKG_FILTER = "Paquets Anki (*.apkg)"
 
 
 class _PedagogyWorker(QObject):
@@ -164,6 +169,7 @@ class PedagogyController(QObject):
         self._header_bar.resume_requested.connect(self.resume)
         self._header_bar.cancel_requested.connect(self.cancel)
         self._header_bar.open_output_requested.connect(self.open_folder)
+        self._header_bar.export_requested.connect(self.export_apkg)
 
     # ------------------------------------------------------------------ project
 
@@ -375,6 +381,62 @@ class PedagogyController(QObject):
             )
             return
         _open_in_file_explorer(pedagogy_dir)
+
+    def export_apkg(self) -> None:
+        """Exporte les supports générés vers un paquet Anki ``.apkg``."""
+        project = self._current_project
+        if project is None:
+            QMessageBox.warning(
+                self._window,
+                "Aucun projet sélectionné",
+                "Sélectionne un projet dans la sidebar avant d'exporter.",
+            )
+            return
+        path_str, _ = QFileDialog.getSaveFileName(
+            self._window,
+            "Exporter vers Anki",
+            f"{project.name}{_APKG_SUFFIX}",
+            _APKG_FILTER,
+        )
+        if not path_str:
+            return
+        try:
+            result = export_pedagogy_to_apkg(project, output_path=Path(path_str))
+        except Fahmi2Error as exc:
+            QMessageBox.critical(
+                self._window, "Export impossible", f"{exc.code}\n\n{exc.user_message}"
+            )
+            return
+        except Exception as exc:  # noqa: BLE001 — affichage UX puis stop
+            QMessageBox.critical(
+                self._window, "Erreur inattendue", f"{type(exc).__name__} : {exc}"
+            )
+            return
+        if result.note_count == 0:
+            QMessageBox.information(
+                self._window,
+                "Aucun support exportable",
+                "Aucune carte Anki à exporter (flashcards, cloze ou QCM requis). "
+                "Générez d'abord des supports exportables.",
+            )
+            return
+        self._logs_dock.append_event(
+            LogEvent(
+                timestamp=datetime.now(tz=UTC),
+                severity=Severity.INFO,
+                code="PEDAGOGY_EXPORTED",
+                message=(
+                    f"{result.note_count} carte(s) Anki exportée(s) vers "
+                    f"{result.output_path}"
+                ),
+            )
+        )
+        QMessageBox.information(
+            self._window,
+            "Export terminé",
+            f"{result.note_count} carte(s) Anki exportée(s) vers :\n"
+            f"{result.output_path}",
+        )
 
     # ------------------------------------------------------------- end-of-run
 

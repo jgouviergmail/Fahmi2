@@ -34,14 +34,21 @@ toujours écrits dans le fichier `events.jsonl`).
 
 ## 2. Paramètres d'un projet
 
-Accès : menu **Fichier → Nouveau projet** (ou édition d'un projet existant).
+L'**identité** du projet (nom + emplacement) se définit via **Fichier → Nouveau
+projet** (renommage via *Éditer* dans la sidebar ; l'emplacement est immuable
+après création). Tous les autres paramètres ci-dessous sont les **réglages de
+génération**, édités depuis l'onglet **Génération → ⚙ Réglages** (vue
+master-detail) ; ils incluent le **dossier des vidéos**.
 
 ### 2.1 Identification
 
 | Paramètre | Description |
 |-----------|-------------|
 | **Nom** | Libre, sert d'étiquette dans la sidebar. Ex: « Cours macroéconomie L3 ». |
-| **Dossier d'entrée** | Dossier contenant les vidéos source. Doit exister et être accessible en lecture. |
+| **Emplacement** | Dossier de travail du projet (artefacts + livrables). Immuable après création. |
+
+> Le **dossier des vidéos** (source) est un réglage de génération : il se choisit
+> dans l'onglet **Génération → ⚙ Réglages → Entrée & langues**.
 
 ### 2.2 Langues
 
@@ -120,7 +127,7 @@ L'écart résiduel est de l'ordre de ±20 % selon le contenu des vidéos.
 
 | Paramètre | Description | Défaut |
 |-----------|-------------|--------|
-| **Workspace folder** | Dossier de travail (artefacts intermédiaires) | `<input_folder>/.fahmi2/` |
+| **Emplacement (workspace)** | Dossier de travail choisi à la création. Les artefacts de génération vont sous `<emplacement>/generation/` (livrables sous `<emplacement>/generation/output/`). | choisi à la création |
 | **Delete audio after STT** | Supprime les WAV extraits après transcription | `True` (économise du disque) |
 | **stt_cloud_workers** | Threads parallèles pour STT cloud | 3 |
 | **llm_workers** | Threads parallèles pour LLM | 4 |

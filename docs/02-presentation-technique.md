@@ -71,8 +71,8 @@ Entités pures immuables + machines d'état :
   `RunStatus`, `PhaseStatus`, `SttProvider`, `LLMModel`.
 - IDs typés : `ProjectId`, `RunId`, `VideoId` (via base `_UlidIdBase`).
 - Entités : `Term`, `Glossary`, `PhaseConfig`, `PhaseExecution`,
-  `VideoExecution`, `Run`, `Project`, `ProjectSettings`,
-  `ParallelismConfig`.
+  `VideoExecution`, `Run`, `Project` (identité minimale : nom + emplacement +
+  réglages par fonctionnalité), `GenerationSettings`, `ParallelismConfig`.
 - Validations exhaustives dans `__post_init__` (output_languages contient
   source_language, phases_config couvre exactement les phases LLM, etc.).
 - `state_machine.py` : `validate_transition_run`,
@@ -165,19 +165,24 @@ Qt PySide6 :
     « 📂 Dossier de sortie »**.
   - `PhaseConfigsWidget` — grille de configuration par phase LLM
     (thinking, reasoning_effort HIGH / MAX, température, max retries).
-- `ui/dialogs/` — `NewProjectDialog`, `GlobalSettingsDialog`,
+- `ui/dialogs/` — `NewProjectDialog` (minimal : nom + emplacement),
+  `GenerationSettingsView` (réglages génération en master-detail),
+  `GlobalSettingsDialog`,
   **`PromptsEditorDialog`** (splitter sidebar + éditeur monospace,
   Enregistrer avec validation Jinja2, Réinitialiser au défaut).
-- `ui/main_window.py` — cockpit dense + menu Édition → *Paramètres
+- `ui/main_window.py` — sidebar projets + `QTabWidget` d'onglets de
+  fonctionnalité (peuplé par un `FeatureRegistry`) + menu Édition → *Paramètres
   globaux…* / *Modifier les prompts…*.
-- `ui/run_controller.py` — orchestre le lifecycle Run depuis l'UI
-  (worker QThread, pause/resume/cancel via `PauseToken`, slot
-  **`estimate_cost`** qui scanne le dossier, probe ffprobe et appelle
-  `CostEstimator` avec `settings.phases_config`).
+- `ui/generation_controller.py` — orchestre le lifecycle Run de l'onglet
+  Génération (découplé du `MainWindow` : reçoit header/stats/matrice/logs ;
+  worker QThread, pause/resume/cancel via `PauseToken`, slots **`estimate_cost`**
+  et **`open_generation_settings`**).
+- `ui/features/` — abstraction onglet : `FeatureId`, `FeatureTab`,
+  `FeatureRegistry`, `GenerationTab` (cockpit + contrôleur), `PedagogyTab` (stub).
 - `ui/qt_event_bus.py` — adapter EventBus → Signal Qt (bridging worker → UI
   thread).
-- `ui/app_main.py` — point d'entrée + DI complet (apply_theme,
-  RunController, PromptsService).
+- `ui/app_main.py` — point d'entrée + DI complet (apply_theme, onglets de
+  fonctionnalité via `FeatureRegistry`, PromptsService).
 
 ## 3. Flux principal d'un Run
 

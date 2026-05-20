@@ -9,6 +9,10 @@ consolidés (reformulés, structurés, glossaire) via un pipeline STT + 7 phases
 LLM DeepSeek. Application desktop Windows mono-utilisateur, PySide6, packagée en
 `.zip` portable (installation double-clic, ffmpeg bundlé).
 
+L'app est organisée en **onglets de fonctionnalité** (Génération aujourd'hui ;
+Supports pédagogiques à venir) : un `Project` ne porte que son nom + son
+emplacement, les réglages métier vivant par fonctionnalité (`GenerationSettings`).
+
 ## Langue et conventions de travail
 
 - **Tout en français** : code comments, docstrings, messages utilisateur, logs,
@@ -61,8 +65,9 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   sérialisable + messages FR), `retry` (`RetryPolicy` + `with_retry`), `logging`
   (JSONL + redaction secrets), `config/paths` (`AppPaths` Windows + résolution
   ffmpeg bundlé runtime), `migrations`, `retrieval` (TF-IDF glossaire), `ids`.
-- `domain/` — entités pures immuables (`Project`, `Run`, `VideoExecution`,
-  `PhaseExecution`, `Term`, `Glossary`, `ProjectSettings`), enums, IDs ULID
+- `domain/` — entités pures immuables (`Project` [identité minimale : nom +
+  emplacement + réglages par fonctionnalité], `GenerationSettings`, `Run`,
+  `VideoExecution`, `PhaseExecution`, `Term`, `Glossary`), enums, IDs ULID
   typés, et **machines d'état** (`state_machine.py`) qui valident les transitions
   Run et Phase.
 - `pipeline/` — moteur d'exécution pur : `PipelineEngine` (checkpoint SQLite par
@@ -76,9 +81,12 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
 - `app/` — use-cases : `ProjectService`, `RunOrchestrator`, `CostEstimator`,
   `GlossaryReconciler`, `PromptsService`, `SecretsService`, `VideoScanner`,
   `HardwareProbe`.
-- `ui/` — PySide6 : `viewmodels/` (logique testable **sans Qt**), `widgets/`,
-  `dialogs/`, `theme/` (QSS Clair Fluent), `main_window`, `run_controller`,
-  `qt_event_bus`, `app_main` (point d'entrée + DI complet).
+- `ui/` — PySide6 : `features/` (abstraction onglet : `FeatureId`, `FeatureTab`,
+  `FeatureRegistry`, `GenerationTab`, `PedagogyTab`-stub), `viewmodels/` (logique
+  testable **sans Qt**), `widgets/` (dont `SettingsView` master-detail réutilisable),
+  `dialogs/` (dont `GenerationSettingsView`), `theme/` (QSS Clair Fluent),
+  `main_window` (sidebar + `QTabWidget`), `generation_controller`, `qt_event_bus`,
+  `app_main` (point d'entrée + DI complet).
 
 ## Le pipeline en 8 phases
 
@@ -101,6 +109,14 @@ checkpoint/reprise. Les phases batch sont persistées avec `video_id IS NULL`.
 
 ## Mécanismes transverses (à connaître avant de modifier)
 
+- **Coquille multi-fonctionnalités** : la zone projet est une `QTabWidget` peuplée
+  par un `FeatureRegistry` (calqué sur `PhaseRegistry`). Un `Project` ne porte que
+  nom + emplacement (immuable après création) ; les réglages métier sont par
+  fonctionnalité (`GenerationSettings`, `None` = « à configurer »). Le workspace a un
+  dossier par fonctionnalité (`<emplacement>/generation/…`). Le blob
+  `projects.settings_json` est en **v2** (`{version, workspace_folder, generation,
+  pedagogy}`) avec migration *lenient* v1→v2 à la lecture. Ajouter une fonctionnalité
+  = enregistrer un `FeatureTab`, sans toucher `MainWindow` ni `Project`.
 - **Checkpoint / reprise après erreur** : un Run garde le même `RunId` du début à
   la fin. `RunOrchestrator.resume_or_create_run(project)` reprend le dernier Run
   s'il est `FAILED`/`PAUSED`/`RUNNING`-orphelin (les phases `SUCCEEDED` seront
@@ -126,10 +142,11 @@ checkpoint/reprise. Les phases batch sont persistées avec `video_id IS NULL`.
   change la base pour tous, mais un override `%APPDATA%` le masque.
 - **Erreurs → UI** : une exception levée par un handler **doit** être une
   `Fahmi2Error` (code + user_message + technical_details). Le moteur la convertit
-  en `ErrorInfo`, la propage dans `PhaseFinished.error`, et `run_controller._to_log_event`
+  en `ErrorInfo`, la propage dans `PhaseFinished.error`, et `generation_controller._to_log_event`
   l'expose dans le panneau Logs (code + message + détails) et `events.jsonl`.
 - **UI threading & projet affiché** : un Run tourne dans un `QThread` worker. Le
-  `RunController` distingue `_current_project` (affiché dans le dashboard) de
+  `GenerationController` (découplé du `MainWindow` : il reçoit header/stats/matrice/logs)
+  distingue `_current_project` (affiché dans le dashboard) de
   `_active_worker_project_id` (projet du worker actif) — les events du pipeline
   ne rafraîchissent matrice/stats que si les deux coïncident, pour ne pas écraser
   le dashboard quand l'utilisateur navigue entre projets pendant un Run. Le
@@ -140,8 +157,9 @@ checkpoint/reprise. Les phases batch sont persistées avec `video_id IS NULL`.
 
 ## Tests
 
-Fixture clé : `make_settings` (dans `tests/conftest.py`) fabrique des
-`ProjectSettings` valides ; passer des kwargs pour surcharger. Les providers
+Fixtures clés (dans `tests/conftest.py`) : `make_generation_settings` fabrique des
+`GenerationSettings` valides, `make_project` un `Project` minimal ; passer des kwargs
+pour surcharger. Les providers
 réels ont des doubles `_fakes.py` (`FakeLLMProvider`, `FakeSTTProvider`). Les
 viewmodels UI se testent sans Qt ; les widgets ont des smoke tests `pytest-qt`.
 `mypy --strict` est actif : attention au narrowing après un `assert` suivi d'un

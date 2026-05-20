@@ -50,25 +50,28 @@ Vos clés sont **chiffrées sur votre disque** par le système Windows
 
 ## 4. Créer un projet
 
-Menu **Fichier → Nouveau projet**. Remplissez :
+**Fichier → Nouveau projet** : donnez un **nom** et choisissez un **emplacement**
+(dossier de travail du projet), puis cliquez sur **OK**. Le projet apparaît dans
+la liste à gauche.
 
-| Champ | Conseil |
-|-------|---------|
-| **Nom** | Libre. Ex: « Cours d'économie L3 ». |
-| **Dossier d'entrée** | Cliquez sur *« Parcourir… »* et sélectionnez le dossier qui contient vos vidéos. |
-| **Langue source** | La langue parlée dans vos vidéos (FR ou EN). |
-| **Langues de sortie** | Cochez les langues désirées pour le document final. La langue source est automatiquement incluse. |
-| **Style** | `décontracté`, `standard`, `professionnel`, ou `académique`. Pour un cours universitaire, choisissez `académique`. |
-| **Directives stylistiques** | Optionnel. Ex: *« ton chaleureux, exemples concrets quand possible »*. |
-| **Provider STT** | `openai_cloud` si vous n'avez pas de GPU NVIDIA. Sinon, `faster_whisper_local` (gratuit). |
-| **Modèle LLM** | `deepseek-v4-flash` pour démarrer (rapide et économique). |
-| **Plafond budget** | Optionnel. Mettez par ex. 5 $ pour un premier essai. |
+Sélectionnez-le, puis dans l'onglet **Génération** cliquez sur **⚙ Réglages** pour
+configurer la génération (vue à 5 catégories) :
 
-Cliquez sur **OK**. Le projet apparaît dans la liste à gauche.
+| Catégorie | Champs |
+|-----------|--------|
+| **Entrée & langues** | Dossier des vidéos · Langue source · Langues de sortie |
+| **Style** | Style (`décontracté`/`standard`/`professionnel`/`académique`) · Directives libres |
+| **Transcription** | Provider STT (`openai_cloud` sans GPU, sinon `faster_whisper_local`) |
+| **Modèle & coût** | Modèle LLM (`deepseek-v4-flash` pour démarrer) · Plafond budget |
+| **Phases (1–7)** | Thinking, effort, température, retries par phase (avancé) |
+
+Validez : l'aperçu des vidéos détectées s'affiche dans le cockpit.
 
 ## 5. Lancer le traitement
 
 1. Sélectionnez votre projet dans la liste à gauche.
+   L'application présente deux onglets : **Génération** (le cockpit ci-dessous) et
+   **Supports pédagogiques** (à venir).
 2. (Optionnel mais recommandé) Cliquez sur **💵 Estimer le coût** pour
    voir le budget prévu avant de lancer. Le dialogue affiche les
    vidéos détectées, la durée totale, le coût STT, le coût LLM (en
@@ -114,7 +117,7 @@ Quand le projet est terminé (statut **Terminé**), cliquez sur le bouton
 s'ouvre directement sur le bon dossier. Vous y trouverez :
 
 ```
-.fahmi2/output/
+<emplacement>/generation/output/
 ├── consolidated.fr.md     ← Le document consolidé en français (navigable)
 ├── consolidated.en.md     ← Le document consolidé en anglais (si demandé)
 ├── glossary.fr.md         ← Le glossaire en français (tableau)
@@ -155,8 +158,8 @@ même »*. Cela ne reviendra pas.
 
 ### *« GPU NVIDIA introuvable »*
 
-Vous avez sélectionné le mode local sans avoir de GPU NVIDIA. Allez dans
-les paramètres du projet et basculez sur `openai_cloud`.
+Vous avez sélectionné le mode local sans avoir de GPU NVIDIA. Ouvrez l'onglet
+**Génération → ⚙ Réglages → Transcription** et basculez sur `openai_cloud`.
 
 ### *« Clé DeepSeek invalide »*
 
@@ -242,7 +245,7 @@ lancement de la phase.
 
 ### Conserver les artefacts intermédiaires
 
-Le dossier `.fahmi2/workspace/` contient les fichiers de travail. Si vous
+Le dossier `<emplacement>/generation/` contient les fichiers de travail. Si vous
 voulez juste les livrables finaux, vous pouvez supprimer ce dossier après
 récupération. Mais conservez-le si vous pensez ré-éditer ou rejouer
 certaines phases.
@@ -250,7 +253,8 @@ certaines phases.
 ### Style du rendu
 
 Si le rendu ne vous plaît pas (trop sec, trop verbeux, etc.), modifiez le
-champ **Directives stylistiques** dans les paramètres du projet et relancez.
+champ **Directives stylistiques** dans l'onglet **Génération → ⚙ Réglages → Style**
+et relancez.
 Pas besoin de tout refaire — la reprise saute les phases déjà bien faites.
 
 ### Glossaire homogène

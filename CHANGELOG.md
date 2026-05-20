@@ -5,6 +5,26 @@ Toutes les évolutions notables du projet Fahmi2.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Non publié]
+
+### Modifié — Coquille multi-fonctionnalités (SP1)
+
+- **Interface à onglets** : la zone projet est désormais une `QTabWidget` peuplée
+  par un `FeatureRegistry` — onglet **Génération** (cockpit existant) + onglet
+  **Supports pédagogiques** (*stub*, à implémenter).
+- **`Project` réduit à l'identité** (nom + emplacement, immuable) ; les paramètres
+  métier vivent dans `GenerationSettings` (extrait de l'ancien `ProjectSettings`).
+- **Création de projet minimale** (nom + emplacement) ; réglages de génération
+  édités depuis l'onglet **Génération → ⚙ Réglages** (vue master-detail réutilisable
+  `SettingsView`).
+- **Workspace par fonctionnalité** : les artefacts de génération vivent sous
+  `<emplacement>/generation/` (livrables sous `…/generation/output/`).
+- **Persistance** : blob `projects.settings_json` en **v2**
+  (`{version, workspace_folder, generation, pedagogy}`) avec migration *lenient*
+  v1→v2 à la lecture (aucun déplacement de fichier).
+- **Interne** : `RunController` → `GenerationController` (découplé du `MainWindow`) ;
+  nouveau package `ui/features/`.
+
 ## [0.2.0] — 2026-05-19
 
 Itération majeure UI + qualité de rendu du document consolidé + édition

@@ -54,13 +54,13 @@ incréments fonctionnels.
 
 | # | Exigence | Sous-projet | Statut |
 |---|----------|-------------|--------|
-| R1 | Navigation : onglets horizontaux dans la zone projet | SP1 | À faire (SP1) |
-| R2 | `Project` = nom + emplacement uniquement | SP1 | À faire (SP1) |
-| R3 | `GenerationSettings` séparés ; génération inchangée | SP1 | À faire (SP1) |
-| R4 | Migration des projets existants (« repartir propre ») | SP1 | À faire (SP1) |
-| R5 | Abstraction « fonctionnalité/onglet » + stub pédagogique | SP1 | À faire (SP1) |
-| R6 | Workspace : un répertoire par fonctionnalité | SP1 | À faire (SP1) |
-| R7 | Composant de réglages master-detail réutilisable | SP1 | À faire (SP1) |
+| R1 | Navigation : onglets horizontaux dans la zone projet | SP1 | Fait (SP1) |
+| R2 | `Project` = nom + emplacement uniquement | SP1 | Fait (SP1) |
+| R3 | `GenerationSettings` séparés ; génération inchangée | SP1 | Fait (SP1) |
+| R4 | Migration des projets existants (« repartir propre ») | SP1 | Fait (SP1) |
+| R5 | Abstraction « fonctionnalité/onglet » + stub pédagogique | SP1 | Fait (SP1) |
+| R6 | Workspace : un répertoire par fonctionnalité | SP1 | Fait (SP1) |
+| R7 | Composant de réglages master-detail réutilisable | SP1 | Fait (SP1) |
 | R8 | Onglet pédagogique avec réglages propres | SP2 | Ultérieur |
 | R9 | 9 types de supports | SP2 | Ultérieur |
 | R10 | Corrigé séparé optionnel, par support évaluatif | SP2 | Ultérieur |

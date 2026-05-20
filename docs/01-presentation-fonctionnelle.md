@@ -37,10 +37,14 @@ Une **application desktop locale** qui :
 
 ### 4.1 Gestion des projets
 
-Un **Projet** dans Fahmi2 = un dossier d'entrée avec ses vidéos + un jeu de
-paramètres + un historique de runs (exécutions du pipeline).
+Un **Projet** dans Fahmi2 = une **identité minimale** (nom + emplacement) à
+laquelle s'attachent des réglages **par fonctionnalité** + un historique de runs.
+L'application est organisée en **onglets de fonctionnalité** : **Génération**
+(vidéos → documents) aujourd'hui, **Supports pédagogiques** à venir.
 
-- Création d'un projet via un **assistant en une page** ;
+- Création d'un projet via un **dialogue minimal** (nom + emplacement) ; les
+  réglages de génération se configurent ensuite depuis l'onglet **Génération →
+  ⚙ Réglages** ;
 - **Historique** complet des runs visibles dans la sidebar ;
 - Possibilité de **rouvrir** un projet ancien, voir son rapport, ou le
   relancer.

@@ -25,10 +25,12 @@
    `PromptLoader`, `EventBus`, `with_retry` (`RetryPolicy`), `FsArtifactStore`, et un
    helper de parsing JSON **généralisé** (cf. §5.3). On **ne tord pas** les types
    frozen de la génération.
-2. **Reprise *coarse* par artefact** : un support déjà produit (fichier présent et plus
-   récent que le doc consolidé source) est **sauté**. Pas de checkpoint SQLite fin
-   (cohérent avec « curation = fichiers éditables »). Un drapeau « régénérer tout »
-   force la reconstruction.
+2. **Génération idempotente + manifeste de fraîcheur** : « Générer » (re)produit les
+   supports sélectionnés et **écrase** les fichiers existants (simple, prévisible). Un
+   **manifeste** `pedagogy/manifest.json` (hash des `PedagogySettings` + mtime du doc
+   consolidé source, par langue) permet à l'UI de signaler des supports **périmés**
+   (réglages ou source modifiés). Pas de checkpoint SQLite (curation = fichiers
+   éditables).
 3. **Pas de persistance DB des supports** : les artefacts vivent **sur disque** sous
    `pedagogy/` (curation = fichiers éditables). Le seul état DB est la `PedagogySettings`
    dans le blob `projects.settings_json` (clé `pedagogy`, déjà réservée).
@@ -68,11 +70,13 @@ PedagogySettings(
     density: SupportDensity,
     llm_model: LLMModel,
     llm_config: PhaseConfig,                             # thinking/effort/temp/retries
+    cost_ceiling_usd: float | None,                      # plafond (parité génération)
     export_formats: frozenset[ExportFormat],             # APKG, MARKDOWN, PDF
 )
 ```
 `__post_init__` : `selected_supports` non vide ; `separate_correction ⊆ évaluatifs ∩
-selected_supports` ; `languages` non vide ; cohérence enums.
+selected_supports` ; `languages` non vide ; `cost_ceiling_usd >= 0` ou `None` ;
+cohérence enums.
 
 ### 3.3 `Project.pedagogy`
 
@@ -102,11 +106,13 @@ consolidé).
 
 - **Document consolidé** : `<emplacement>/generation/output/consolidated.{lang}.md`.
   Un *parser* découpe en **chapitres** (titres `# N. …`) pour la génération par chapitre.
-- **Glossaire** : `glossary.{lang}.md` (tableau) **ou** `SqliteState.list_glossary_terms`
-  du dernier run COMPLETED. Décision : lire le **`.md`** de sortie (découplé de la DB,
-  cohérent avec « consomme les livrables »).
-- **Fraîcheur (R19)** : si le doc consolidé est plus récent que les supports déjà
-  produits, l'UI signale « supports périmés — régénérer ». Comparaison de mtime.
+- **Glossaire** : `SqliteState.list_glossary_terms(run_id, language)` du **dernier run
+  COMPLETED** du projet (`ProjectService.get_last_run`) → objets `Term` **structurés**
+  (terme / définition / acronyme / `cross_lang`). Préféré au re-parsing du `.md` rendu,
+  qui serait fragile. Le doc consolidé, lui, reste lu **sur disque** (parsing des
+  chapitres).
+- **Fraîcheur (R19)** : l'UI compare le **manifeste** (§2.2 : hash des réglages + mtime
+  du doc) à l'état courant et signale « supports périmés — régénérer ».
 - **Indisponibilité** : si la génération n'a pas produit de doc consolidé pour la langue
   demandée → l'onglet affiche « génération requise » (raccourci vers l'onglet Génération).
 
@@ -207,7 +213,9 @@ Remplace le stub. Composé via les briques SP1 :
 
 `PedagogyCostEstimator` (parallèle à `CostEstimator`) : estime tokens par support ×
 chapitre × langue selon densité + multiplicateur thinking (réutilise la grille existante).
-Flashcards glossaire = 0 $. Exposé via « Estimer le coût » de l'onglet.
+Flashcards glossaire = 0 $. Exposé via « Estimer le coût » de l'onglet. Le plafond
+`PedagogySettings.cost_ceiling_usd` (§3.2) interrompt proprement la génération à la
+prochaine frontière sûre, comme la génération.
 
 ## 11. Décomposition en plans
 
@@ -243,3 +251,9 @@ Chaque plan : TDD, vérifs `pytest`/`ruff`/`mypy` vertes, commit.
   coarse + l'estimation de coût + le plafond (à porter) atténuent.
 - **CWD/threads UI** : le `PedagogyController` suit le pattern thread du
   `GenerationController` (worker `QThread`, `QtEventBus`).
+- **Qualité pédagogique non vérifiable en CI** : les tests utilisent
+  `FakeLLMProvider`. La machinerie (parsing JSON robuste, structure, exports) et la
+  *structure* des prompts (Bloom/public/densité) sont testées ; la **qualité réelle**
+  des supports (distracteurs QCM plausibles, pertinence) ne se valide qu'avec une vraie
+  clé API et relève d'une **itération produit** post-livraison (édition des prompts via
+  l'éditeur intégré existant).

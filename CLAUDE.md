@@ -1,0 +1,161 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Projet
+
+Fahmi2 transforme un dossier de vidéos MP4 de cours oraux en documents Markdown
+consolidés (reformulés, structurés, glossaire) via un pipeline STT + 7 phases
+LLM DeepSeek. Application desktop Windows mono-utilisateur, PySide6, packagée en
+`.zip` portable (installation double-clic, ffmpeg bundlé).
+
+## Langue et conventions de travail
+
+- **Tout en français** : code comments, docstrings, messages utilisateur, logs,
+  commits. Orthographe parfaite avec accents et diacritiques (jamais d'ASCII de
+  substitution). Les identifiants de code restent dans leur forme d'origine.
+- **Google Python Style Guide** : docstrings avec sections `Args`, `Returns`,
+  `Raises` ; docstring de module sur chaque fichier.
+- **Vérification systématique en fin de tâche** : `pytest`, `ruff check .`,
+  `mypy src tests` doivent tous être verts avant de considérer un travail
+  terminé. Repasser autant de fois que nécessaire jusqu'à zéro défaut.
+- Entités domaine immuables (`@dataclass(frozen=True)`) + méthodes `with_*` pour
+  les copies modifiées. Helpers privés `_method`, modules internes `_module.py`
+  (`_base.py`, `_pricing.py`, `_schema.sql`, `_fakes.py`).
+
+## Commandes
+
+L'interpréteur du venv est `.venv\Scripts\python.exe` (Python 3.12 — **pas 3.13**,
+contrainte `>=3.11,<3.13` dans `pyproject.toml`). En PowerShell on peut activer
+via `.\.venv\Scripts\Activate.ps1`, mais préférer l'appel direct de l'exe.
+
+```powershell
+# Tests
+.venv\Scripts\python.exe -m pytest                              # toute la suite
+.venv\Scripts\python.exe -m pytest tests/unit/app               # une couche
+.venv\Scripts\python.exe -m pytest tests/unit/app/test_x.py::test_name -v   # un seul test
+.venv\Scripts\python.exe -m pytest --cov=src/fahmi2 --cov-report=term-missing
+
+# Qualité (les deux doivent être propres)
+.venv\Scripts\python.exe -m ruff check .
+.venv\Scripts\python.exe -m mypy src tests
+
+# Lancer l'app en dev
+.venv\Scripts\python.exe -m fahmi2.ui.app_main
+
+# Build du .zip portable Windows (télécharge ffmpeg, valide, build PyInstaller)
+.\packaging\build.ps1
+.\packaging\make-portable-zip.ps1
+```
+
+Note Windows : git réécrit LF→CRLF (warnings attendus, sans conséquence). Le
+fichier `packaging/fahmi2.spec` est `.gitignore` (`*.spec`) — modifier le `.spec`
+pour bundler de nouvelles ressources ne sera pas versionné.
+
+## Architecture en couches
+
+Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/core).
+`core` et `domain` n'importent ni Qt, ni HTTP, ni SQL.
+
+- `core/` — transverse : `errors` (hiérarchie `Fahmi2Error` + `ErrorInfo`
+  sérialisable + messages FR), `retry` (`RetryPolicy` + `with_retry`), `logging`
+  (JSONL + redaction secrets), `config/paths` (`AppPaths` Windows + résolution
+  ffmpeg bundlé runtime), `migrations`, `retrieval` (TF-IDF glossaire), `ids`.
+- `domain/` — entités pures immuables (`Project`, `Run`, `VideoExecution`,
+  `PhaseExecution`, `Term`, `Glossary`, `ProjectSettings`), enums, IDs ULID
+  typés, et **machines d'état** (`state_machine.py`) qui valident les transitions
+  Run et Phase.
+- `pipeline/` — moteur d'exécution pur : `PipelineEngine` (checkpoint SQLite par
+  phase + retry + events + pause/cancel), `PhaseRegistry` (ordre canonique des
+  8 phases), `PhaseHandler`/`PhaseContext` (DI), `EventBus`, `PauseToken`,
+  `handlers/phase_N_*.py` (un fichier par phase).
+- `infra/` — adapters (ports/adapters) : `stt/` (FasterWhisper local + OpenAI
+  cloud + fakes), `llm/` (DeepSeek + `_pricing` + fakes), `audio/ffmpeg_extractor`,
+  `storage/sqlite_state` (WAL) + `fs_artifacts` (writes atomiques), `secrets/`
+  (DPAPI Windows), `prompts/loader` + `defaults/*.j2`.
+- `app/` — use-cases : `ProjectService`, `RunOrchestrator`, `CostEstimator`,
+  `GlossaryReconciler`, `PromptsService`, `SecretsService`, `VideoScanner`,
+  `HardwareProbe`.
+- `ui/` — PySide6 : `viewmodels/` (logique testable **sans Qt**), `widgets/`,
+  `dialogs/`, `theme/` (QSS Clair Fluent), `main_window`, `run_controller`,
+  `qt_event_bus`, `app_main` (point d'entrée + DI complet).
+
+## Le pipeline en 8 phases
+
+Ordre canonique dans `phase_registry.py`. Chaque handler déclare `is_per_video` :
+
+| Phase | Handler | Mode |
+|-------|---------|------|
+| 0 STT | `phase_0_stt` | **par vidéo** |
+| 1 Extraction termes | `phase_1_term_extraction` | **par vidéo** |
+| 2 Réconciliation glossaire | `phase_2_glossary_reconciliation` | batch |
+| 3 Reformulation | `phase_3_reformulation` | **par vidéo** |
+| 4 Structuration | `phase_4_structuration` | **par vidéo** |
+| 5 Consolidation | `phase_5_consolidation` | batch |
+| 6 Traduction | `phase_6_translation` | batch (boucle vidéos × langues) |
+| 7 Cohérence | `phase_7_coherence` | batch (boucle langues) |
+
+Le `PipelineEngine._execute_one` persiste chaque `PhaseExecution` en SQLite. Une
+phase déjà `SUCCEEDED` est **skippée** (passée en `SKIPPED`). C'est le socle du
+checkpoint/reprise. Les phases batch sont persistées avec `video_id IS NULL`.
+
+## Mécanismes transverses (à connaître avant de modifier)
+
+- **Checkpoint / reprise après erreur** : un Run garde le même `RunId` du début à
+  la fin. `RunOrchestrator.resume_or_create_run(project)` reprend le dernier Run
+  s'il est `FAILED`/`PAUSED`/`RUNNING`-orphelin (les phases `SUCCEEDED` seront
+  skippées), sinon crée un nouveau Run. La state machine autorise donc
+  `FAILED → RUNNING`. Ne jamais re-`create_run` pour « reprendre » : ça forge un
+  nouveau `RunId` et perd tout le checkpoint.
+- **Piège SQLite `UNIQUE` + `NULL`** : SQLite traite `NULL` comme distinct dans
+  une contrainte `UNIQUE`, donc `ON CONFLICT(run_id, phase_id, video_id)` ne se
+  déclenche **jamais** pour les phases batch (`video_id IS NULL`).
+  `SqliteState.upsert_phase_execution` fait un `DELETE + INSERT` explicite dans ce
+  cas. Toute évolution du schéma passe par `_apply_soft_migrations` (idempotent,
+  `ALTER TABLE ADD COLUMN` ou nettoyage de données).
+- **DeepSeek thinking** : `DeepSeekAdapter` envoie le mode raisonnement via
+  `extra_body={"thinking": {"type": "enabled"|"disabled"}, "reasoning_effort":
+  "high"|"max"}`, configurable **par phase** (`PhaseConfig.thinking_enabled` +
+  `reasoning_effort`). `CostEstimator` applique un multiplicateur sur les tokens
+  de sortie selon ce niveau (×2.5 / ×3.5 HIGH / ×6 MAX) — les tokens de
+  raisonnement sont facturés au tarif output.
+- **Override des prompts** : `PromptLoader` charge prioritairement
+  `%APPDATA%/Fahmi2/prompts/<nom>.j2` s'il existe et est un Jinja2 valide, sinon
+  le défaut bundlé dans `infra/prompts/defaults/`. `PromptsService` +
+  `PromptsEditorDialog` exposent ça dans l'UI. Modifier un `.j2` de `defaults/`
+  change la base pour tous, mais un override `%APPDATA%` le masque.
+- **Erreurs → UI** : une exception levée par un handler **doit** être une
+  `Fahmi2Error` (code + user_message + technical_details). Le moteur la convertit
+  en `ErrorInfo`, la propage dans `PhaseFinished.error`, et `run_controller._to_log_event`
+  l'expose dans le panneau Logs (code + message + détails) et `events.jsonl`.
+- **UI threading & projet affiché** : un Run tourne dans un `QThread` worker. Le
+  `RunController` distingue `_current_project` (affiché dans le dashboard) de
+  `_active_worker_project_id` (projet du worker actif) — les events du pipeline
+  ne rafraîchissent matrice/stats que si les deux coïncident, pour ne pas écraser
+  le dashboard quand l'utilisateur navigue entre projets pendant un Run. Le
+  bridge worker→UI passe par `QtEventBus` (EventBus → Signal Qt).
+- **Secrets** : clés API chiffrées via DPAPI Windows (`DPAPISecretsStore`),
+  jamais en clair sur disque ni dans les logs. Hors Windows (dev), fallback
+  `InMemorySecretsStore`.
+
+## Tests
+
+Fixture clé : `make_settings` (dans `tests/conftest.py`) fabrique des
+`ProjectSettings` valides ; passer des kwargs pour surcharger. Les providers
+réels ont des doubles `_fakes.py` (`FakeLLMProvider`, `FakeSTTProvider`). Les
+viewmodels UI se testent sans Qt ; les widgets ont des smoke tests `pytest-qt`.
+`mypy --strict` est actif : attention au narrowing après un `assert` suivi d'un
+appel mutant (contourner via `getattr` plutôt que d'accepter un faux
+`unreachable`).
+
+## Directives systématiques
+
+0. **Toujours valider la complétude du plan**
+1. **Constants centralization** — pas de magic string, magic number, valeur par défaut directement dans le code mais dans des constantes
+2.  Conformity with existing codebase patterns (reuse existing classes, methods, helpers, constants, mixins, base classes)
+3.  Follow the Google Python Style Guide — Google-style docstrings with Args, Returns, Raises sections; module-level docstrings on every file
+4.  Verify naming consistency (imports, classes, methods, variables, constants) and that all arguments are properly defined and passed
+5. Respect framework patterns
+6. Respect DRY, YAGNI, KISS, SRP, SoC, Boy Scout Rule, Composition over Inheritance
+7. Write generic, extensible code — no duplication, reuse validator mixins and base classes
+8. Update all documentation in `docs/` as well as all cross-cutting docs, `README.md`

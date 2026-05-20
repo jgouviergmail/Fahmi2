@@ -137,6 +137,7 @@ class PhaseConfigsWidget(QGroupBox):
             self._rows[phase_id] = (thinking_cb, effort_combo, temp_sb, retries_sb)
 
         outer.addLayout(grid)
+        outer.addStretch(1)
 
     def get_phase_configs(self) -> dict[PhaseId, PhaseConfig]:
         """Retourne le mapping ``PhaseId → PhaseConfig`` des valeurs saisies.

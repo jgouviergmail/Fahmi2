@@ -63,7 +63,7 @@ configurer la génération (vue à 5 catégories) :
 | **Style** | Style (`décontracté`/`standard`/`professionnel`/`académique`) · Directives libres |
 | **Transcription** | Provider STT (`openai_cloud` sans GPU, sinon `faster_whisper_local`) |
 | **Modèle & coût** | Modèle LLM (`deepseek-v4-flash` pour démarrer) · Plafond budget |
-| **Phases (1–7)** | Thinking, effort, température, retries par phase (avancé) |
+| **Phases** | Thinking, effort, température, retries par phase LLM (avancé) |
 
 Validez : l'aperçu des vidéos détectées s'affiche dans le cockpit.
 

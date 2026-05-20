@@ -249,7 +249,6 @@ class GenerationController(QObject):
         if project is None:
             return
         self._current_project = project
-        self._header_bar.set_title(project.name)
         self._sync_header_for_selected_project()
         # Le bouton « Ouvrir le dossier de sortie » est actif si un dossier
         # output a déjà été produit (c'est-à-dire : au moins un run a tourné).
@@ -279,7 +278,6 @@ class GenerationController(QObject):
         """
         self._current_project = None
         self._current_run = None
-        self._header_bar.set_title("—")
         self._header_bar.set_idle()
         self._header_bar.set_open_output_enabled(False)
         self._reset_views()

@@ -45,7 +45,7 @@ _CAT_INPUT = "Entrée & langues"
 _CAT_STYLE = "Style"
 _CAT_STT = "Transcription"
 _CAT_MODEL = "Modèle & coût"
-_CAT_PHASES = "Phases (1–7)"
+_CAT_PHASES = "Phases"
 
 _DIRECTIVES_PLACEHOLDER = (
     "Directives libres pour orienter la reformulation. Ex : « ton chaleureux mais "
@@ -170,7 +170,8 @@ class GenerationSettingsView(QDialog):
             Le widget de page.
         """
         page = QWidget(self)
-        form = QFormLayout(page)
+        outer = QVBoxLayout(page)
+        form = QFormLayout()
         folder_row = QHBoxLayout()
         folder_row.addWidget(self._input_folder_input)
         folder_row.addWidget(self._browse_btn)
@@ -181,6 +182,8 @@ class GenerationSettingsView(QDialog):
             langs_row.addWidget(cb)
         langs_row.addStretch(1)
         form.addRow("Langues de sortie :", langs_row)
+        outer.addLayout(form)
+        outer.addStretch(1)
         return page
 
     def _build_style_page(self) -> QWidget:
@@ -190,9 +193,12 @@ class GenerationSettingsView(QDialog):
             Le widget de page.
         """
         page = QWidget(self)
-        form = QFormLayout(page)
+        outer = QVBoxLayout(page)
+        form = QFormLayout()
         form.addRow("Style :", self._style_combo)
         form.addRow("Directives stylistiques :", self._style_directives_input)
+        outer.addLayout(form)
+        outer.addStretch(1)
         return page
 
     def _build_stt_page(self) -> QWidget:
@@ -202,8 +208,11 @@ class GenerationSettingsView(QDialog):
             Le widget de page.
         """
         page = QWidget(self)
-        form = QFormLayout(page)
+        outer = QVBoxLayout(page)
+        form = QFormLayout()
         form.addRow("Provider STT :", self._stt_combo)
+        outer.addLayout(form)
+        outer.addStretch(1)
         return page
 
     def _build_model_page(self) -> QWidget:
@@ -213,9 +222,12 @@ class GenerationSettingsView(QDialog):
             Le widget de page.
         """
         page = QWidget(self)
-        form = QFormLayout(page)
+        outer = QVBoxLayout(page)
+        form = QFormLayout()
         form.addRow("Modèle LLM :", self._llm_combo)
         form.addRow("Plafond budget :", self._cost_ceiling_input)
+        outer.addLayout(form)
+        outer.addStretch(1)
         return page
 
     def _build_phases_page(self) -> QWidget:
@@ -227,6 +239,7 @@ class GenerationSettingsView(QDialog):
         page = QWidget(self)
         layout = QVBoxLayout(page)
         layout.addWidget(self._phase_configs_widget)
+        layout.addStretch(1)
         return page
 
     # ----------------------------------------------------------------- actions

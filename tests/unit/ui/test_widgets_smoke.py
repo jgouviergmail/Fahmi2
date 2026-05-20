@@ -50,7 +50,6 @@ def test_run_matrix_view_is_constructible(qtbot: QtBot) -> None:
 def test_project_header_bar_signals_emit(qtbot: QtBot) -> None:
     widget = ProjectHeaderBar()
     qtbot.addWidget(widget)
-    widget.set_title("Test")
     received: list[str] = []
     widget.start_requested.connect(lambda: received.append("start"))
     widget.start_requested.emit()

@@ -1,13 +1,13 @@
-"""Widget ``ProjectHeaderBar`` — barre titre du Run + boutons principaux."""
+"""Widget ``ProjectHeaderBar`` — barre d'actions du Run (boutons principaux)."""
 
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QPushButton, QWidget
 
 
 class ProjectHeaderBar(QWidget):
-    """Barre titre + actions principales d'un Run."""
+    """Barre d'actions principales d'un Run."""
 
     start_requested = Signal()
     pause_requested = Signal()
@@ -28,11 +28,6 @@ class ProjectHeaderBar(QWidget):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(16, 10, 16, 10)
         layout.setSpacing(8)
-
-        self._title_label = QLabel("Projet : —", self)
-        self._title_label.setObjectName("projectHeaderBarTitle")
-        layout.addWidget(self._title_label)
-        layout.addStretch(1)
 
         self._settings_button = self._make_button("⚙  Réglages", role="default")
         self._settings_button.setToolTip(
@@ -76,6 +71,7 @@ class ProjectHeaderBar(QWidget):
             self._open_output_button,
         ):
             layout.addWidget(btn)
+        layout.addStretch(1)
         self.set_idle()
 
     def _make_button(self, text: str, *, role: str) -> QPushButton:
@@ -94,14 +90,6 @@ class ProjectHeaderBar(QWidget):
         btn.setProperty("role", role)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         return btn
-
-    def set_title(self, title: str) -> None:
-        """Met à jour le titre.
-
-        Args:
-            title: Texte du titre.
-        """
-        self._title_label.setText(f"Projet : {title}")
 
     def set_open_output_enabled(self, enabled: bool) -> None:
         """Active ou désactive le bouton « Dossier de sortie ».

@@ -1,7 +1,7 @@
 # Vision chapeau — Plateforme multi-fonctionnalités & supports de révision
 
 - **Date** : 2026-05-20
-- **Statut** : validé (brainstorming)
+- **Statut** : **réalisé** (SP1 + SP2 + SP3 livrés ; cf. matrice §4 et clôture)
 - **Portée** : document *chapeau* (contrat d'architecture + traçabilité). Ne décrit
   aucune implémentation en détail — chaque sous-projet a sa propre spec qui
   référence ce document.
@@ -61,21 +61,30 @@ incréments fonctionnels.
 | R5 | Abstraction « fonctionnalité/onglet » + stub pédagogique | SP1 | Fait (SP1) |
 | R6 | Workspace : un répertoire par fonctionnalité | SP1 | Fait (SP1) |
 | R7 | Composant de réglages master-detail réutilisable | SP1 | Fait (SP1) |
-| R8 | Onglet pédagogique avec réglages propres | SP2 | Ultérieur |
-| R9 | 9 types de supports | SP2 | Ultérieur |
-| R10 | Corrigé séparé optionnel, par support évaluatif | SP2 | Ultérieur |
-| R11 | Public cible (requis) + Bloom (Auto + 3 regroupements) + directives | SP2 | Ultérieur |
-| R12 | Langues = réglage de l'onglet (défaut = langues produites) | SP2 | Ultérieur |
-| R13 | Périmètre = tout, par chapitre (+ sélection de chapitres) | SP2 | Ultérieur |
-| R14 | Densité (léger / standard / dense) | SP2 | Ultérieur |
-| R15 | Flashcards glossaire sans LLM + estimation de coût | SP2 | Ultérieur |
-| R16 | Curation = fichiers éditables (pas d'éditeur intégré en v1) | SP2/SP3 | Ultérieur |
-| R17 | Export `.apkg` (genanki) : GUID stables, sous-decks, tags | SP3 | Ultérieur |
-| R18 | Export Markdown / PDF (fiches, sujets, corrigés, examen blanc) | SP3 | Ultérieur |
-| R19 | Fraîcheur des supports : régénérer la génération périme les supports (détection + avertissement de régénération) | SP2 | Ultérieur |
+| R8 | Onglet pédagogique avec réglages propres | SP2 | Fait (SP2/04) |
+| R9 | 9 types de supports | SP2 | Fait (SP2/02–03) |
+| R10 | Corrigé séparé optionnel, par support évaluatif | SP2 | Fait (SP2/03 ; `SupportArtifact.correction_markdown` + `<support>.corrige.md`) |
+| R11 | Public cible (requis) + Bloom (Auto + 3 regroupements) + directives | SP2 | Fait (SP2/03–04) |
+| R12 | Langues = réglage de l'onglet (défaut = langues produites) | SP2 | Fait (SP2/04 ; langues proposées = celles ayant un `consolidated.{lang}.md`) |
+| R13 | Périmètre = tout, par chapitre (+ sélection de chapitres) | SP2 | **Partiel (v1)** : tout le document, **par chapitre** → Fait. **Sélection d'un sous-ensemble de chapitres : non retenue en v1** (absente de `PedagogySettings`). |
+| R14 | Densité (léger / standard / dense) | SP2 | Fait (SP2/03–04) |
+| R15 | Flashcards glossaire sans LLM + estimation de coût | SP2 | Fait (SP2/02 + `PedagogyCostEstimator` SP2/04) |
+| R16 | Curation = fichiers éditables (pas d'éditeur intégré en v1) | SP2/SP3 | Fait (artefacts `.md`/`.json` éditables sous `pedagogy/`) |
+| R17 | Export `.apkg` (genanki) : GUID stables, sous-decks, tags | SP3 | Fait (SP3/01) |
+| R18 | Export Markdown / PDF (fiches, sujets, corrigés, examen blanc) | SP3 | Fait (SP3/02 ; sujet/corrigé séparés par langue) |
+| R19 | Fraîcheur des supports : régénérer la génération périme les supports (détection + avertissement de régénération) | SP2 | Fait (manifeste SP2/02 + bandeau d'état SP2/04) |
 
 > À la clôture de chaque sous-projet, mettre à jour la colonne **Statut** : c'est la
 > preuve d'exhaustivité (aucune exigence silencieusement abandonnée).
+
+> **Clôture (2026-05-21)** : SP1 + SP2 + SP3 livrés. Toutes les exigences sont **Fait**,
+> sauf **R13** dont le sous-besoin « sélection d'un sous-ensemble de chapitres » est
+> **explicitement reporté hors v1** (la génération couvre tout le document, par chapitre).
+> **Orientation technique SP2** (§5) : c'est la piste **(b) orchestrateur dédié léger**
+> (`SupportsOrchestrator`) qui a été retenue et verrouillée par le design SP2/SP3 (§2.1) —
+> et non la piste (a) « favorite » du chapeau — la reprise restant assurée par le
+> **manifeste de fraîcheur** (reprise *coarse*) plutôt que par le checkpoint SQLite du
+> `PipelineEngine`.
 
 ## 5. Décisions produit verrouillées (synthèse du brainstorming)
 

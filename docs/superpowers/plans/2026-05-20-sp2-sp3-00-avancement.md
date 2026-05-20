@@ -6,7 +6,7 @@
 ## Branche & état
 
 - **Branche de travail** : `feat/sp1-coquille-multi-fonctionnalites` (poussée sur
-  `origin`). Tout le travail (SP1 + SP2 + SP3/01 + SP3/02) y est commité.
+  `origin`). Tout le travail (SP1 + SP2 + SP3 complet : 01 → 03) y est commité.
 - **Vérifs au vert** au dernier point : `pytest` (637), `ruff`, `mypy --strict`.
 
 ## Documents de référence (à lire avant d'agir)
@@ -92,12 +92,24 @@
   les `.md` rendus** (pas d'extension d'`artifact_reader` — DRY/SoC). Tests (637 verts ;
   tests PDF *skippés* hors Windows). Plan :
   [`2026-05-20-sp3-02-export-markdown-pdf.md`](./2026-05-20-sp3-02-export-markdown-pdf.md).
+- **SP3/03 — docs finales & clôture** : alignement de toute la documentation sur l'état
+  réel du code — `docs/02` (couche `pedagogy/`, `infra/anki`+`infra/export`, app/ui
+  pédagogie, métriques 637 tests / 272 fichiers, renvoi packaging), `CLAUDE.md` (package
+  `pedagogy/`, mécanisme « Supports pédagogiques », note bundling), `docs/07` (section
+  « Générer des supports de révision » + exports Anki/MD/PDF, retrait des « à venir »),
+  `packaging/README.md` (sous-section dépendances genanki/markdown/fpdf2 + police Arial),
+  **clôture de la matrice chapeau** (R8–R19 ; R13 honnêtement *partiel* — sélection de
+  chapitres hors v1). Lot **documentaire** (aucun code modifié, 637 verts inchangés). Plan :
+  [`2026-05-20-sp3-03-docs-finales.md`](./2026-05-20-sp3-03-docs-finales.md).
 
 ## Reste à faire (ordre) ⏭️
 
-| Lot | Contenu | Réf design |
-|-----|---------|-----------|
-| **Docs finales** | `docs/`, `README`, `CLAUDE.md`, `CHANGELOG` ; clôture matrice chapeau (R8–R19 → Fait) ; bundling `.spec` (genanki/markdown/fpdf2). Puis `finishing-a-development-branch`. | — |
+**Aucun — chantier « supports de révision » terminé.** SP1 + SP2 + SP3 livrés, matrice
+chapeau close (R1–R19), branche prête pour `finishing-a-development-branch`.
+
+> Rappel build : au prochain build du `.zip` portable, bundler dans `packaging/fahmi2.spec`
+> (gitignored) `genanki` (`--collect-data`), `markdown`, `fpdf2` (+ `Pillow`, `fontTools`,
+> `defusedxml`) — cf. [`../../../packaging/README.md`](../../../packaging/README.md).
 
 ## Procédure de reprise (chaque lot)
 

@@ -9,9 +9,10 @@ consolidés (reformulés, structurés, glossaire) via un pipeline STT + 7 phases
 LLM DeepSeek. Application desktop Windows mono-utilisateur, PySide6, packagée en
 `.zip` portable (installation double-clic, ffmpeg bundlé).
 
-L'app est organisée en **onglets de fonctionnalité** (Génération aujourd'hui ;
-Supports pédagogiques à venir) : un `Project` ne porte que son nom + son
-emplacement, les réglages métier vivant par fonctionnalité (`GenerationSettings`).
+L'app est organisée en **onglets de fonctionnalité** (Génération ; Supports
+pédagogiques — 9 types de supports de révision avec exports Anki/Markdown/PDF) :
+un `Project` ne porte que son nom + son emplacement, les réglages métier vivant
+par fonctionnalité (`GenerationSettings`, `PedagogySettings`).
 
 ## Langue et conventions de travail
 
@@ -56,6 +57,13 @@ Note Windows : git réécrit LF→CRLF (warnings attendus, sans conséquence). L
 fichier `packaging/fahmi2.spec` est `.gitignore` (`*.spec`) — modifier le `.spec`
 pour bundler de nouvelles ressources ne sera pas versionné.
 
+Dépendances supports pédagogiques à bundler dans le `.spec` au prochain build :
+`genanki` embarque des fichiers de données (`apkg_schema.sql`, `apkg_col.anki2`)
+→ `--collect-data genanki` (ou `collect_data_files('genanki')`) ; `markdown` et
+`fpdf2` (+ `Pillow`, `fontTools`, `defusedxml`) sont des modules purs (ajouter en
+`hiddenimports` si l'analyse PyInstaller les manque) ; le PDF utilise la police
+**Arial système Windows** (rien à bundler). Détails dans `packaging/README.md`.
+
 ## Architecture en couches
 
 Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/core).
@@ -66,27 +74,43 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   (JSONL + redaction secrets), `config/paths` (`AppPaths` Windows + résolution
   ffmpeg bundlé runtime), `migrations`, `retrieval` (TF-IDF glossaire), `ids`.
 - `domain/` — entités pures immuables (`Project` [identité minimale : nom +
-  emplacement + réglages par fonctionnalité], `GenerationSettings`, `Run`,
-  `VideoExecution`, `PhaseExecution`, `Term`, `Glossary`), enums, IDs ULID
-  typés, et **machines d'état** (`state_machine.py`) qui valident les transitions
-  Run et Phase.
-- `pipeline/` — moteur d'exécution pur : `PipelineEngine` (checkpoint SQLite par
-  phase + retry + events + pause/cancel), `PhaseRegistry` (ordre canonique des
-  8 phases), `PhaseHandler`/`PhaseContext` (DI), `EventBus`, `PauseToken`,
-  `handlers/phase_N_*.py` (un fichier par phase).
+  emplacement + réglages par fonctionnalité], `GenerationSettings`,
+  `PedagogySettings`, `Run`, `VideoExecution`, `PhaseExecution`, `Term`,
+  `Glossary`, entités de support dans `supports.py` : `Flashcard`, `QcmItem`,
+  `TrueFalseItem`, `ClozeItem`, `OpenQuestion`, `RevisionSheet`, `KeyPoints`,
+  `MockExam`, `SupportArtifact`), enums (génération + pédagogie : `SupportType`×9,
+  `TargetAudience`, `BloomObjective`, `SupportDensity`, `ExportFormat`,
+  `ReasoningEffort`), IDs ULID typés, et **machines d'état** (`state_machine.py`)
+  qui valident les transitions Run et Phase.
+- `pipeline/` — moteur d'exécution pur de la **génération** : `PipelineEngine`
+  (checkpoint SQLite par phase + retry + events + pause/cancel), `PhaseRegistry`
+  (ordre canonique des 8 phases), `PhaseHandler`/`PhaseContext` (DI),
+  `EventBus` (générique), `PauseToken`, `handlers/phase_N_*.py` (un par phase).
+- `pedagogy/` — moteur des **supports de révision** (calqué sur `pipeline/`, mais
+  sans STT/SQLite) : `SupportGenerator` (ABC) + `SupportContext` (DI),
+  `SupportGeneratorRegistry` + `build_default_support_registry`, `chapters`
+  (parseur), `sources`, `events`, `manifest` (fraîcheur), `artifact_writer`/
+  `artifact_reader`, `generators/` (`_base` per-chapitre + mixin évaluatif + 9
+  générateurs : flashcards glossaire **sans LLM** + 8 LLM), `labels`.
 - `infra/` — adapters (ports/adapters) : `stt/` (FasterWhisper local + OpenAI
-  cloud + fakes), `llm/` (DeepSeek + `_pricing` + fakes), `audio/ffmpeg_extractor`,
-  `storage/sqlite_state` (WAL) + `fs_artifacts` (writes atomiques), `secrets/`
-  (DPAPI Windows), `prompts/loader` + `defaults/*.j2`.
-- `app/` — use-cases : `ProjectService`, `RunOrchestrator`, `CostEstimator`,
+  cloud + fakes), `llm/` (DeepSeek + `_pricing` + `invocation` + fakes),
+  `audio/ffmpeg_extractor`, `anki/genanki_exporter` (`.apkg`),
+  `export/markdown_pdf` (Markdown + PDF), `storage/sqlite_state` (WAL) +
+  `fs_artifacts` (writes atomiques), `secrets/` (DPAPI Windows),
+  `prompts/loader` + `defaults/*.j2` (8 phases + 8 `pedagogy_*`).
+- `app/` — use-cases : `ProjectService` (+ `get_last_completed_run`),
+  `RunOrchestrator`, `SupportsOrchestrator`, `CostEstimator`,
+  `PedagogyCostEstimator`, `pedagogy_export` (Anki/MD/PDF), `_cost_common`,
   `GlossaryReconciler`, `PromptsService`, `SecretsService`, `VideoScanner`,
   `HardwareProbe`.
 - `ui/` — PySide6 : `features/` (abstraction onglet : `FeatureId`, `FeatureTab`,
-  `FeatureRegistry`, `GenerationTab`, `PedagogyTab`-stub), `viewmodels/` (logique
-  testable **sans Qt**), `widgets/` (dont `SettingsView` master-detail réutilisable),
-  `dialogs/` (dont `GenerationSettingsView`), `theme/` (QSS Clair Fluent),
-  `main_window` (sidebar + `QTabWidget`), `generation_controller`, `qt_event_bus`,
-  `app_main` (point d'entrée + DI complet).
+  `FeatureRegistry`, `GenerationTab`, `PedagogyTab` réel), `viewmodels/` (logique
+  testable **sans Qt**, dont `PedagogyProgressViewModel`/`PedagogyStateViewModel`),
+  `widgets/` (dont `SettingsView` master-detail réutilisable, `PedagogyProgressView`),
+  `dialogs/` (dont `GenerationSettingsView`, `PedagogySettingsView`),
+  `theme/` (QSS Clair Fluent), `pedagogy_labels`, `main_window` (sidebar +
+  `QTabWidget`), `generation_controller`, `pedagogy_controller`, `qt_event_bus`
+  (`QtEventBus` + `PedagogyQtEventBus`), `app_main` (point d'entrée + DI complet).
 
 ## Le pipeline en 8 phases
 
@@ -139,7 +163,20 @@ checkpoint/reprise. Les phases batch sont persistées avec `video_id IS NULL`.
   `%APPDATA%/Fahmi2/prompts/<nom>.j2` s'il existe et est un Jinja2 valide, sinon
   le défaut bundlé dans `infra/prompts/defaults/`. `PromptsService` +
   `PromptsEditorDialog` exposent ça dans l'UI. Modifier un `.j2` de `defaults/`
-  change la base pour tous, mais un override `%APPDATA%` le masque.
+  change la base pour tous, mais un override `%APPDATA%` le masque. Le catalogue
+  couvre les 8 phases **et** les 8 templates `pedagogy_*` (tous éditables pareil).
+- **Supports pédagogiques** : générés par un **orchestrateur dédié léger**
+  (`SupportsOrchestrator`, **pas** le `PipelineEngine`) qui boucle supports ×
+  langues à partir du document consolidé (parsé en chapitres) et du glossaire (lu
+  en DB sur le **dernier run COMPLETED**). Pas de checkpoint SQLite : la **reprise
+  est *coarse*** via le `pedagogy/manifest.json` (hash des réglages + mtime source
+  par langue) — un support frais et déjà écrit est *skippé*, une source régénérée
+  **périme** les supports (bandeau d'état UI). Le `SupportsOrchestrator` applique
+  un **plafond de coût** (`PedagogyCostEstimator`). Les générateurs LLM partagent
+  le retry du pipeline (`core/retry/classification.default_classify`) via
+  `pedagogy/generators/_base.py` (parsing JSON typé). Les supports **évaluatifs**
+  « corrigé séparé » produisent un `<support>.corrige.md` distinct du sujet.
+  Exports : `.apkg` (genanki), Markdown et PDF via `app/pedagogy_export.py`.
 - **Erreurs → UI** : une exception levée par un handler **doit** être une
   `Fahmi2Error` (code + user_message + technical_details). Le moteur la convertit
   en `ErrorInfo`, la propage dans `PhaseFinished.error`, et `generation_controller._to_log_event`

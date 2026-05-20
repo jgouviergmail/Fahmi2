@@ -71,7 +71,8 @@ Validez : l'aperçu des vidéos détectées s'affiche dans le cockpit.
 
 1. Sélectionnez votre projet dans la liste à gauche.
    L'application présente deux onglets : **Génération** (le cockpit ci-dessous) et
-   **Supports pédagogiques** (à venir).
+   **Supports pédagogiques** (flashcards, QCM, fiches… à générer une fois la
+   Génération terminée — voir §8).
 2. (Optionnel mais recommandé) Cliquez sur **💵 Estimer le coût** pour
    voir le budget prévu avant de lancer. Le dialogue affiche les
    vidéos détectées, la durée totale, le coût STT, le coût LLM (en
@@ -87,7 +88,7 @@ La grille au centre commence à se remplir :
   - `·` gris : en attente
   - `▶` bleu : en cours
   - `✓` vert : terminé
-  - `✗` rouge : échec (rare, voir [Dépannage](#7-dépannage))
+  - `✗` rouge : échec (rare, voir [Dépannage](#9-dépannage))
   - `↷` indigo : sauté (déjà fait au précédent run)
 
 En haut, **5 cartes** affichent :
@@ -149,7 +150,56 @@ GitLab, etc.
 Pour convertir en **DOCX, PDF ou HTML**, l'outil libre
 [Pandoc](https://pandoc.org) fait ça très bien.
 
-## 7. Dépannage
+## 8. Générer des supports de révision
+
+Une fois la Génération terminée, l'onglet **Supports pédagogiques** transforme le
+document consolidé et le glossaire en matériel de révision : flashcards, QCM,
+vrai/faux, textes à trous, questions ouvertes, fiches de révision, points clés et
+examen blanc.
+
+> **Prérequis** : avoir lancé au moins une fois la **Génération** sur le projet
+> (un document consolidé et un glossaire doivent exister). Les supports sont
+> produits **à partir** de ce contenu.
+
+### Configurer
+
+Sélectionnez le projet, ouvrez l'onglet **Supports pédagogiques**, puis cliquez
+sur **⚙ Réglages** (même vue à catégories que la Génération) :
+
+| Catégorie | Champs |
+|-----------|--------|
+| **Supports** | Types à générer (flashcards, QCM, fiches…) · corrigé séparé pour les supports évaluatifs |
+| **Difficulté** | Public cible (requis) · objectif Bloom (`Auto` / `Restituer` / `Comprendre & Appliquer` / `Analyser & au-delà`) · directives pédagogiques libres · densité (`léger` / `standard` / `dense`) |
+| **Langues** | Langues des supports (par défaut : celles effectivement produites par la Génération) |
+| **Modèle & coût** | Modèle LLM · mode raisonnement · plafond de coût |
+
+### Estimer et générer
+
+1. (Recommandé) **💵 Estimer le coût** : affiche le budget prévu (par support ×
+   langue × chapitre, selon la densité et le mode raisonnement).
+2. **▶ Lancer** : la table de progression se remplit (une ligne par support ×
+   langue). Le **bandeau d'état** en haut indique la fraîcheur : *non configuré*
+   → *génération requise* → *prêt* → *à jour* → *périmé*.
+
+Si vous relancez la Génération plus tard, les supports existants sont marqués
+**périmés** : régénérez-les pour les réaligner sur le nouveau contenu. Les
+supports déjà à jour sont **sautés** (pas de re-génération inutile).
+
+### Récupérer et exporter
+
+Les supports sont écrits sous `<emplacement>/pedagogy/{support}/{langue}/`
+(`.json` structuré + `.md` lisible, plus `.corrige.md` pour les sujets évaluatifs
+avec corrigé séparé). Vous pouvez les éditer directement.
+
+Le bouton **📦 Exporter** propose trois formats :
+
+- **Anki (`.apkg`)** : paquet importable dans Anki — sous-decks par support,
+  cartes Basic / Cloze / QCM, étiquettes (support / langue / niveau / chapitre).
+  Les ré-imports ne créent pas de doublons (identifiants stables).
+- **Markdown** : documents agrégés par langue (sujet et corrigé séparés).
+- **PDF** : mêmes documents, prêts à imprimer.
+
+## 9. Dépannage
 
 ### *« Windows a protégé votre PC »*
 
@@ -189,7 +239,7 @@ fenêtre de détail.
 Relancez `Fahmi2.exe`. L'état est sauvegardé : votre projet est intact,
 cliquez **▶ Reprendre** pour continuer.
 
-## 8. Mise à jour de l'application
+## 10. Mise à jour de l'application
 
 Quand une nouvelle version est disponible :
 
@@ -202,7 +252,7 @@ Vos projets et vos clés sont **automatiquement conservés**. Si une
 adaptation interne est nécessaire (mise à jour de la base), elle est
 appliquée automatiquement avec une sauvegarde préalable de sécurité.
 
-## 9. Désinstaller
+## 11. Désinstaller
 
 1. Supprimez le dossier où vous aviez décompressé Fahmi2.
 2. Si vous voulez aussi effacer **tous vos projets et clés** :
@@ -212,7 +262,7 @@ appliquée automatiquement avec une sauvegarde préalable de sécurité.
 
 Rien d'autre ne reste sur votre système.
 
-## 10. Astuces
+## 12. Astuces
 
 ### Tester avant un gros traitement
 
@@ -237,11 +287,13 @@ Mettez toujours un plafond de coût, même large. Si quelque chose ne va pas
 
 Si vous voulez ajuster finement le ton ou le format au-delà des
 *Directives stylistiques*, ouvrez **Édition → Modifier les prompts…**
-Sélectionnez une phase à gauche, éditez le texte du prompt à droite,
+Sélectionnez un prompt à gauche, éditez le texte à droite,
 cliquez **💾 Enregistrer**. Pour revenir à la version d'origine
 livrée avec l'application, cliquez sur **↩ Réinitialiser au défaut**.
 Pas besoin de redémarrer : le nouveau prompt est utilisé au prochain
-lancement de la phase.
+lancement. Le catalogue couvre les **phases de génération** **et** les
+prompts des **supports pédagogiques** (`pedagogy_*`) : vous personnalisez
+de la même façon la consigne de génération des flashcards, QCM, fiches, etc.
 
 ### Conserver les artefacts intermédiaires
 
@@ -266,7 +318,7 @@ IFRS…) sont accompagnés de leur **signification d'origine** en plus de
 la définition — celle-ci reste dans la langue où l'acronyme a été forgé
 (*Return On Investment* pour ROI, même dans un glossaire FR).
 
-## 11. Confidentialité
+## 13. Confidentialité
 
 - **Aucune télémétrie** n'est envoyée par l'application.
 - **Vos contenus ne sortent jamais de votre poste** sauf vers les APIs que
@@ -275,7 +327,7 @@ la définition — celle-ci reste dans la langue où l'acronyme a été forgé
 - **Vos clés API sont chiffrées** sur disque par Windows DPAPI : seul
   votre compte Windows peut les lire.
 
-## 12. Besoin d'aide ?
+## 14. Besoin d'aide ?
 
 - Pour les questions fonctionnelles : voir
   [01-presentation-fonctionnelle.md](01-presentation-fonctionnelle.md).

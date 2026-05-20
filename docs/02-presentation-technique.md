@@ -68,13 +68,21 @@ Modules transverses, sans dépendance externe (ni Qt, ni HTTP, ni SQL) :
 Entités pures immuables + machines d'état :
 
 - Énumérations : `Language`, `StylePreset`, `PhaseId` (8 phases),
-  `RunStatus`, `PhaseStatus`, `SttProvider`, `LLMModel`.
+  `RunStatus`, `PhaseStatus`, `SttProvider`, `LLMModel`, `ReasoningEffort`, et
+  pédagogie : `SupportType` (×9), `TargetAudience`, `BloomObjective`,
+  `SupportDensity`, `ExportFormat`.
 - IDs typés : `ProjectId`, `RunId`, `VideoId` (via base `_UlidIdBase`).
 - Entités : `Term`, `Glossary`, `PhaseConfig`, `PhaseExecution`,
   `VideoExecution`, `Run`, `Project` (identité minimale : nom + emplacement +
-  réglages par fonctionnalité), `GenerationSettings`, `ParallelismConfig`.
+  réglages par fonctionnalité `generation`/`pedagogy`), `GenerationSettings`,
+  `ParallelismConfig`, `PedagogySettings`, et entités de support
+  (`Flashcard`, `QcmItem`, `TrueFalseItem`, `ClozeItem`, `OpenQuestion`,
+  `RevisionSheet`, `KeyPoints`, `MockExam`/`MockExamSection`, `SupportArtifact`).
 - Validations exhaustives dans `__post_init__` (output_languages contient
-  source_language, phases_config couvre exactement les phases LLM, etc.).
+  source_language, phases_config couvre exactement les phases LLM,
+  `separate_correction` ⊆ évaluatifs sélectionnés, `correct_index` valide, etc.).
+- Le blob `projects.settings_json` est en **v2** (`{version, workspace_folder,
+  generation, pedagogy}`) avec migration *lenient* v1→v2 à la lecture.
 - `state_machine.py` : `validate_transition_run`,
   `validate_transition_phase` avec tables de transitions immuables.
 
@@ -93,7 +101,29 @@ Moteur d'exécution pur :
 - `pipeline/handlers/_base.py` — helpers communs (invoke LLM, parse JSON,
   build PhaseExecution succeeded, sélection top-K glossaire).
 
-### 2.4 Couche `infra`
+### 2.4 Couche `pedagogy`
+
+Moteur de génération des **supports de révision** (calqué sur `pipeline`, mais
+orchestrateur dédié léger — sans STT/ffmpeg ni état SQLite) :
+
+- `pedagogy/support_generator.py` — `SupportGenerator` (ABC) + `SupportContext` (DI).
+- `pedagogy/support_registry.py` — `SupportGeneratorRegistry` (ordre canonique des 9
+  supports) ; `pedagogy/default_registry.py` — `build_default_support_registry()`.
+- `pedagogy/chapters.py` — parseur de chapitres du doc consolidé ;
+  `pedagogy/sources.py` — chemin / mtime / chapitres de la source.
+- `pedagogy/events.py` — événements (`SupportGenerationStarted`, `SupportStarted`,
+  `SupportRetryAttempt`, `SupportFinished`, `SupportGenerationFinished`).
+- `pedagogy/manifest.py` — manifeste de fraîcheur (`pedagogy/manifest.json` :
+  hash des réglages + mtime source par langue) → reprise *coarse* + péremption.
+- `pedagogy/artifact_writer.py` / `artifact_reader.py` — (dé)sérialisation des
+  artefacts (JSON + Markdown) et chemins.
+- `pedagogy/generators/` — `_base.py` (invocation LLM avec retry + helpers de parsing
+  JSON typé ; base per-chapitre générique + mixin évaluatif), `flashcards_glossary`
+  (sans LLM) + 8 générateurs LLM (concepts, QCM + dé-biaisage, vrai/faux, cloze,
+  questions ouvertes, fiche, points clés, examen blanc).
+- `pedagogy/labels.py` — libellés FR (public, Bloom, densité, langue, glossaire).
+
+### 2.5 Couche `infra`
 
 Adapters externes (ports/adapters) :
 
@@ -102,7 +132,8 @@ Adapters externes (ports/adapters) :
 - `infra/stt/` — interface `STTProvider`, `FakeSTTProvider`,
   `FasterWhisperAdapter`, `OpenAIWhisperAdapter`.
 - `infra/llm/` — interface `LLMProvider`, `FakeLLMProvider`, `DeepSeekAdapter`,
-  module `_pricing` avec grilles tarifaires.
+  module `_pricing`, helpers généralisés `invocation.py` (`invoke_llm_chat`,
+  `parse_llm_json`).
 - `infra/storage/sqlite_state.py` — `SqliteState` mode WAL, 1 connexion par
   thread, busy_timeout, retry SQLITE_BUSY.
 - `infra/storage/fs_artifacts.py` — `FsArtifactStore` (writes atomiques
@@ -110,33 +141,44 @@ Adapters externes (ports/adapters) :
 - `infra/secrets/` — Protocol `SecretsStore`, `InMemorySecretsStore`,
   `DPAPISecretsStore` (Windows).
 - `infra/prompts/` — `PromptLoader` avec override `%APPDATA%/Fahmi2/prompts/`
-  + 8 templates Jinja2 bundlés.
+  + **8 + 8 templates Jinja2 bundlés** (phases de génération + `pedagogy_*`).
+- `infra/anki/genanki_exporter.py` — export `.apkg` (genanki : Basic/Cloze/QCM,
+  GUID stables, sous-decks par support, tags).
+- `infra/export/markdown_pdf.py` — assemblage Markdown + rendu PDF
+  (`markdown` → HTML → `fpdf2`, police Unicode système Windows).
 
-### 2.5 Couche `app`
+### 2.6 Couche `app`
 
 Services applicatifs :
 
-- `ProjectService` — CRUD projets.
+- `ProjectService` — CRUD projets (+ `get_last_completed_run`).
 - `RunOrchestrator` — lifecycle Run (création + scan vidéos, exécution via
   PipelineEngine, persistance, pause/cancel/resume).
+- `SupportsOrchestrator` — orchestrateur dédié des supports pédagogiques
+  (inputs par langue, boucle supports × langues, écriture JSON + Markdown,
+  reprise *coarse* via manifeste, events, plafond de coût).
 - `VideoScanner` — détection des extensions vidéo supportées dans un dossier.
 - `CostEstimator` — heuristique pré-run STT + LLM par phase et langue.
   Accepte un `phases_config` optionnel et applique un multiplicateur
   empirique sur les `completion_tokens` selon `thinking_enabled` et
   `reasoning_effort` (×1 / ×2.5 / ×3.5 HIGH / ×6 MAX). Les tokens de
   raisonnement de DeepSeek étant facturés au tarif output standard, ce
-  multiplicateur reflète directement le surcoût observé.
+  multiplicateur reflète directement le surcoût observé. Heuristiques
+  partagées dans `app/_cost_common.py`.
+- `PedagogyCostEstimator` — estimation de coût des supports (par support ×
+  langue × chapitre, selon densité et thinking).
+- `pedagogy_export` — exports `export_pedagogy_to_apkg` / `_to_markdown` / `_to_pdf`.
 - `GlossaryReconciler` — import payload JSON, load Glossary, render
   Markdown 4 colonnes (Terme / Acronyme / Signification / Définition,
   ou Term / Acronym / Meaning / Definition).
 - `PromptsService` — gestion des overrides utilisateur des templates LLM
   (lecture défaut bundlé, lecture / écriture / suppression d'override
   dans `%APPDATA%/Fahmi2/prompts/`, validation Jinja2). Backend du
-  `PromptsEditorDialog`.
+  `PromptsEditorDialog`. Catalogue : 8 phases + 8 templates `pedagogy_*`.
 - `SecretsService` — wrapper SecretsStore avec redaction logs auto.
 - `HardwareProbe` — détection CUDA/GPU au démarrage.
 
-### 2.6 Couche `ui`
+### 2.7 Couche `ui`
 
 Qt PySide6 :
 
@@ -148,7 +190,10 @@ Qt PySide6 :
   en mode packagé.
 - `ui/viewmodels/` — logique testable sans Qt (`RunMatrixViewModel`,
   `StatsStripViewModel` enrichi avec `started_at`, `finished_at`,
-  `elapsed_seconds` pour piloter la carte Durée live).
+  `elapsed_seconds` pour piloter la carte Durée live ;
+  `PedagogyProgressViewModel` [accumulation d'events supports × langues] et
+  `PedagogyStateViewModel` [fraîcheur : non configuré / génération requise / prêt /
+  à jour / périmé]).
 - `ui/widgets/` :
   - `StatsStripWidget` — 5 cartes (Statut, Vidéos, Phases, Durée,
     Coût) avec icône + titre + valeur + sous-info, et un `QTimer`
@@ -161,15 +206,20 @@ Qt PySide6 :
     insensible au padding QSS).
   - `LogsDock` — rendu HTML coloré par sévérité.
   - `ProjectHeaderBar` — boutons typés `primary` / `default` / `danger`
-    via propriété QSS, **bouton « 💵 Estimer le coût »** et **bouton
-    « 📂 Dossier de sortie »**.
+    via propriété QSS, **bouton « 💵 Estimer le coût »**, **bouton
+    « 📂 Dossier de sortie »** et **bouton « 📦 Exporter » optionnel**
+    (infobulles paramétrables ; réutilisé par les onglets Génération et Pédagogie).
   - `PhaseConfigsWidget` — grille de configuration par phase LLM
     (thinking, reasoning_effort HIGH / MAX, température, max retries).
+  - `PedagogyProgressView` — bandeau d'état + table de progression (support × langue).
 - `ui/dialogs/` — `NewProjectDialog` (minimal : nom + emplacement),
   `GenerationSettingsView` (réglages génération en master-detail),
+  `PedagogySettingsView` (réglages pédagogie en master-detail :
+  Supports / Difficulté / Langues / Modèle & coût),
   `GlobalSettingsDialog`,
   **`PromptsEditorDialog`** (splitter sidebar + éditeur monospace,
   Enregistrer avec validation Jinja2, Réinitialiser au défaut).
+- `ui/pedagogy_labels.py` — libellés UI des supports / statuts / formats d'export.
 - `ui/main_window.py` — sidebar projets + `QTabWidget` d'onglets de
   fonctionnalité (peuplé par un `FeatureRegistry`) + menu Édition → *Paramètres
   globaux…* / *Modifier les prompts…*.
@@ -177,12 +227,17 @@ Qt PySide6 :
   Génération (découplé du `MainWindow` : reçoit header/stats/matrice/logs ;
   worker QThread, pause/resume/cancel via `PauseToken`, slots **`estimate_cost`**
   et **`open_generation_settings`**).
+- `ui/pedagogy_controller.py` — orchestre l'onglet Supports pédagogiques
+  (worker QThread `SupportsOrchestrator`, pause/cancel, sélecteur d'export
+  Anki / Markdown / PDF, bridge `PedagogyQtEventBus`).
 - `ui/features/` — abstraction onglet : `FeatureId`, `FeatureTab`,
-  `FeatureRegistry`, `GenerationTab` (cockpit + contrôleur), `PedagogyTab` (stub).
-- `ui/qt_event_bus.py` — adapter EventBus → Signal Qt (bridging worker → UI
-  thread).
+  `FeatureRegistry`, `GenerationTab` (cockpit + contrôleur), `PedagogyTab`
+  (cockpit pédagogique réel + `PedagogyController`).
+- `ui/qt_event_bus.py` — adapters EventBus → Signal Qt (`QtEventBus` génération,
+  `PedagogyQtEventBus` pédagogie ; bridging worker → UI thread).
 - `ui/app_main.py` — point d'entrée + DI complet (apply_theme, onglets de
-  fonctionnalité via `FeatureRegistry`, PromptsService).
+  fonctionnalité via `FeatureRegistry`, PromptsService, registre des 9 générateurs
+  de supports).
 
 ## 3. Flux principal d'un Run
 
@@ -376,8 +431,8 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
 
 ### 6.2 Métriques actuelles
 
-- **445+ tests** passants
-- **ruff** + **mypy --strict** propres sur 186+ fichiers
+- **637 tests** passants
+- **ruff** + **mypy --strict** propres sur 272 fichiers
 
 ## 7. Packaging et distribution
 
@@ -390,6 +445,12 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
   mode STT local (sinon jamais).
 - **.zip portable** : `packaging/make-portable-zip.ps1` produit
   `Fahmi2-<version>-win64.zip`.
+- **Dépendances supports pédagogiques** : `genanki` embarque des données
+  (`apkg_schema.sql`, `apkg_col.anki2`) à collecter explicitement
+  (`--collect-data genanki`) ; `markdown` et `fpdf2` (+ `Pillow`, `fontTools`,
+  `defusedxml`) sont des modules purs. Le rendu PDF s'appuie sur la police
+  **Arial système Windows** (aucune police à bundler). Détails et procédure dans
+  [`packaging/README.md`](../packaging/README.md).
 - **Pas de signature de code en v1** : un avertissement SmartScreen apparaît
   au 1er lancement (clic « Plus d'infos » → « Exécuter quand même »).
 
@@ -414,6 +475,14 @@ L'architecture est ouverte à des extensions sans casser l'existant :
   ajouter une grille de tarifs dans `_pricing.py`.
 - **Ajouter une phase** : créer un `PhaseHandler` + l'enregistrer dans
   `PhaseRegistry`. L'ordre canonique est défini dans `phase_registry.py`.
+- **Ajouter un type de support** : créer un `SupportGenerator` (sous-classe de la
+  base per-chapitre, + mixin évaluatif si corrigé séparé) + l'enregistrer dans
+  `build_default_support_registry`, avec son prompt `pedagogy_<support>.j2` et son
+  entité dans `domain/supports.py`.
+- **Ajouter une fonctionnalité (onglet)** : enregistrer un `FeatureTab` + son type
+  de réglages dans le `FeatureRegistry`, sans modifier `MainWindow` ni `Project`.
+- **Ajouter un format d'export** : étendre `ExportFormat` + le service
+  `app/pedagogy_export.py` (et l'adapter `infra/` correspondant).
 - **Changer le retriever de glossaire** : implémenter `GlossaryRetriever`
   (Protocol) — actuellement TF-IDF, demain peut-être embeddings.
 - **Migrer le schéma SQLite** : créer `core/migrations/vXX_to_vYY.py` et

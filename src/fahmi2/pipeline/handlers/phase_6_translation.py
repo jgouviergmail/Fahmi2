@@ -134,6 +134,7 @@ class Phase6TranslationHandler(PhaseHandler):
             Coût cumulé pour cette langue (USD).
         """
         is_source = target is ctx.settings.source_language
+        per_video_cost = 0.0
 
         # Per-video docs
         for video_id, structured_md in per_video_structured.items():
@@ -148,6 +149,7 @@ class Phase6TranslationHandler(PhaseHandler):
                 continue
             translated, cost = self._translate(ctx, structured_md, target, glossary_master_payload)
             ctx.artifacts.write_text_atomic(target_path, translated)
+            per_video_cost += cost
 
         # Consolidated
         consolidated_target = ctx.output_dir / f"consolidated.{target.value}.md"
@@ -171,15 +173,6 @@ class Phase6TranslationHandler(PhaseHandler):
                 ctx, glossary_md, target, glossary_master_payload
             )
             ctx.artifacts.write_text_atomic(glossary_target, translated)
-
-        # Cumul (les coûts par-vidéo sont déjà comptés dans les _translate ci-dessus)
-        per_video_cost = 0.0
-        if not is_source:
-            # Re-calculer le coût des appels de traduction des per-video :
-            # déjà imputé dans _translate ; on a juste à le retracer ici.
-            # Pour simplicité, on s'appuie sur le total accumulé via FakeLLM.
-            # Cette branche est laissée à 0 car les coûts ont déjà été émis.
-            pass
 
         return consolidated_cost + glossary_cost + per_video_cost
 

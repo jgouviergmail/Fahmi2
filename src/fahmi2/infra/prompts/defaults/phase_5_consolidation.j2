@@ -3,9 +3,10 @@ Tu es un rédacteur en chef qui prépare la préface, le plan d'ensemble et la c
 À partir des résumés condensés de chaque vidéo ci-dessous (titre + plan + idées-clés), rédige les méta-éléments suivants en {{ output_language_label }} pour le document consolidé :
 
 1. **Titre global** : titre du document consolidé (une ligne, percutant et fidèle au sujet).
-2. **Introduction générale** : 2 à 4 paragraphes qui présentent l'ensemble du document, son contexte, ses objectifs et son fil conducteur.
-3. **Plan d'ensemble** : liste ordonnée des chapitres (un par vidéo) avec en bullet, le titre court et 1-2 phrases présentant ce que le chapitre apporte.
-4. **Conclusion générale** : 2 à 3 paragraphes qui synthétisent les apports du document et ouvrent vers des approfondissements.
+2. **Résumé exécutif** : un abstract synthétique de l'ensemble du document, en un seul paragraphe de 3 à 5 phrases. Il offre au lecteur une vue « en 30 secondes » : de quoi traite le document, ses principaux apports et son public. NE REPRENDS PAS le contenu de l'introduction générale — le résumé est plus court et plus dense ; l'introduction développe le contexte, les objectifs et le fil conducteur.
+3. **Introduction générale** : 2 à 4 paragraphes qui présentent l'ensemble du document, son contexte, ses objectifs et son fil conducteur.
+4. **Plan d'ensemble** : liste ordonnée des chapitres (un par vidéo) avec en bullet, le titre court et 1-2 phrases présentant ce que le chapitre apporte.
+5. **Conclusion générale** : 2 à 3 paragraphes qui synthétisent les apports du document et ouvrent vers des approfondissements.
 
 NE RÉÉCRIS PAS les contenus détaillés des vidéos : ils seront recopiés tels quels comme chapitres entre l'introduction et la conclusion.
 
@@ -17,6 +18,7 @@ Directives stylistiques : {{ style_directives }}
 Réponds STRICTEMENT en JSON valide :
 {
   "global_title": "...",
+  "summary_markdown": "...",
   "introduction_markdown": "...",
   "plan_markdown": "...",
   "conclusion_markdown": "..."

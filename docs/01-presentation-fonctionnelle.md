@@ -57,7 +57,7 @@ documents :
 | 2. Glossaire | Réconciliation cross-vidéos pour produire un glossaire master |
 | 3. Reformulation | Reformulation écrite fidèle, par vidéo, en langue source |
 | 4. Structuration | Mise en forme Markdown avec titres, intro, conclusion, admonitions sémantiques (remarques, exemples, définitions, exercices) |
-| 5. Consolidation | Production des méta-éléments (titre global, introduction générale, plan, conclusion générale) pour un document consolidé |
+| 5. Consolidation | Production des méta-éléments (titre global, résumé exécutif, introduction générale, plan, conclusion générale) pour un document consolidé |
 | 6. Traduction | Production des artefacts dans toutes les langues de sortie demandées |
 | 7. Cohérence | Passe finale de relecture des méta-éléments |
 
@@ -119,7 +119,7 @@ temps réel :
 À l'issue d'un run, le dossier `output/` contient pour chaque langue :
 
 - `consolidated.{lang}.md` — document consolidé navigable :
-  - Titre global + introduction générale.
+  - Titre global, **résumé exécutif** (abstract synthétique), puis introduction générale.
   - **Sommaire automatique** complet avec ancres GFM cliquables vers
     chaque section.
   - Chapitres et sections **numérotés hiérarchiquement** (1, 1.1, 1.1.1).

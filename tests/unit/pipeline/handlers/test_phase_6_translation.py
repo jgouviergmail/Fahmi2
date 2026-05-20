@@ -126,3 +126,25 @@ def test_execute_raises_when_video_provided(
     handler = Phase6TranslationHandler()
     with pytest.raises(ValueError, match="batch"):
         handler.execute(ctx, video=video)
+
+
+def test_execute_accumulates_per_video_translation_cost(
+    tmp_path: Path, make_settings: Any
+) -> None:
+    video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
+    ctx, _ = build_phase_context(
+        tmp_path,
+        make_settings,
+        llm_response=_llm("Translated."),  # cost_usd=0.01 par appel
+        videos=(video,),
+        settings_overrides={
+            "source_language": Language.FR,
+            "output_languages": (Language.FR, Language.EN),
+        },
+    )
+    _seed_workspace(ctx.workspace, videos=(video,))
+    handler = Phase6TranslationHandler()
+    result = handler.execute(ctx, video=None)
+    # FR = source -> copies gratuites. EN -> 3 appels : 1 per-video + consolidated
+    # + glossaire, chacun 0.01 = 0.03. Avant correctif : 0.02 (per-video ignoré).
+    assert result.cost_usd == pytest.approx(0.03)

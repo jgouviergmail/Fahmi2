@@ -28,6 +28,21 @@ _LLM_PHASES: frozenset[PhaseId] = frozenset(
 #: Sous-dossier du workspace dédié aux artefacts de la fonctionnalité Génération.
 GENERATION_WORKSPACE_SUBDIR = "generation"
 
+#: Sous-dossier des livrables finaux de la génération (sous le dossier feature).
+GENERATION_OUTPUT_SUBDIR = "output"
+
+
+def consolidated_doc_filename(language: Language) -> str:
+    """Nom de fichier du document consolidé pour une langue.
+
+    Args:
+        language: Langue cible.
+
+    Returns:
+        Le nom de fichier (ex: ``"consolidated.fr.md"``).
+    """
+    return f"consolidated.{language}.md"
+
 
 @dataclass(frozen=True)
 class ParallelismConfig:

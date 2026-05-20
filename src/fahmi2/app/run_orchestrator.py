@@ -170,6 +170,7 @@ class RunOrchestrator:
                     last_run_at=finished_run.finished_at,
                     runs=(*project.runs, finished_run.id),
                     generation=project.generation,
+                    pedagogy=project.pedagogy,
                 )
             )
         return final_status

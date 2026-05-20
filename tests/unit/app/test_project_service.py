@@ -1,10 +1,13 @@
 """Tests de ProjectService."""
 
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from fahmi2.app.project_service import ProjectService
-from fahmi2.domain.ids import ProjectId
+from fahmi2.domain.enums import RunStatus
+from fahmi2.domain.ids import ProjectId, RunId
+from fahmi2.domain.run import Run
 from fahmi2.infra.storage.sqlite_state import SqliteState
 
 
@@ -89,3 +92,42 @@ def test_get_last_run_returns_none_when_empty(
         name="X", workspace_folder=tmp_path / "ws", generation=make_generation_settings()
     )
     assert service.get_last_run(project.id) is None
+
+
+def test_get_last_completed_run(tmp_path: Path, make_generation_settings: Any) -> None:
+    state = SqliteState(tmp_path / "t.db")
+    service = ProjectService(state)
+    project = service.create_project(
+        name="X", workspace_folder=tmp_path / "ws", generation=make_generation_settings()
+    )
+    settings = make_generation_settings()
+    failed = Run(
+        id=RunId.new(),
+        project_id=project.id,
+        started_at=datetime.now(tz=UTC),
+        status=RunStatus.FAILED,
+        settings_snapshot=settings,
+    )
+    completed = Run(
+        id=RunId.new(),
+        project_id=project.id,
+        started_at=datetime.now(tz=UTC),
+        status=RunStatus.COMPLETED,
+        settings_snapshot=settings,
+    )
+    state.upsert_run(failed)
+    state.upsert_run(completed)
+    last = service.get_last_completed_run(project.id)
+    assert last is not None
+    assert last.id == completed.id
+
+
+def test_get_last_completed_run_none_when_no_completed(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    state = SqliteState(tmp_path / "t.db")
+    service = ProjectService(state)
+    project = service.create_project(
+        name="X", workspace_folder=tmp_path / "ws", generation=make_generation_settings()
+    )
+    assert service.get_last_completed_run(project.id) is None

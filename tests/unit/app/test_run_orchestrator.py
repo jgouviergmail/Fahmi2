@@ -13,6 +13,7 @@ from fahmi2.core.retrieval.interface import PassthroughRetriever
 from fahmi2.core.retry.policy import RetryPolicy
 from fahmi2.domain.enums import PhaseId, PhaseStatus, RunStatus
 from fahmi2.domain.phase import PhaseExecution
+from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
 from fahmi2.domain.video import VideoExecution
 from fahmi2.infra.audio.ffmpeg_extractor import FFmpegExtractor
@@ -326,3 +327,34 @@ def test_execute_can_resume_failed_run_skipping_succeeded_phases(
     )
     assert s0 is PhaseStatus.SKIPPED
     assert s1 is PhaseStatus.SUCCEEDED
+
+
+def test_execute_preserves_pedagogy_settings(
+    tmp_path: Path,
+    make_generation_settings: Any,
+    make_pedagogy_settings: Any,
+) -> None:
+    """Reg SP2/01 : un run de generation ne doit pas effacer ``Project.pedagogy``."""
+    orchestrator, _, project_service = _build_orchestrator(tmp_path)
+    input_folder = _seed_input_folder(tmp_path)
+    settings = make_generation_settings(input_folder=input_folder)
+    project = project_service.create_project(
+        name="Test", workspace_folder=tmp_path / "ws", generation=settings
+    )
+    # On configure la pedagogie apres creation (parite avec l'usage reel).
+    project_service.update_project(
+        Project(
+            id=project.id,
+            name=project.name,
+            workspace_folder=project.workspace_folder,
+            created_at=project.created_at,
+            generation=project.generation,
+            pedagogy=make_pedagogy_settings(),
+        )
+    )
+    run = orchestrator.create_run(project)
+    orchestrator.execute(run=run, ctx=_build_ctx(tmp_path, run))
+
+    reloaded = project_service.get_project(project.id)
+    assert reloaded is not None
+    assert reloaded.pedagogy is not None

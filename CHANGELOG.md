@@ -7,6 +7,29 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+### Ajouté — Générateur de supports de révision (SP2/02)
+
+- **Socle pédagogie** (`pedagogy/`) : `SupportGenerator` (ABC) + `SupportContext` (DI),
+  `SupportGeneratorRegistry` (ordre canonique des 9 supports), parseur de chapitres du
+  document consolidé, events pédagogie, **manifeste de fraîcheur** (`pedagogy/manifest.json`)
+  et sérialisation d'artefacts.
+- **Orchestrateur dédié léger** `SupportsOrchestrator` (`app/`) : génération par
+  langue × support, écriture JSON + Markdown sous `<emplacement>/pedagogy/`, events,
+  **reprise coarse** (skip des supports frais), pause/annulation.
+- **Première tranche verticale** : générateur **flashcards glossaire** (sans LLM,
+  recto = terme/acronyme, verso = définition), depuis le glossaire du dernier run
+  *COMPLETED*.
+- **Helpers LLM/JSON généralisés** (`infra/llm/invocation.py`) réutilisés par les
+  handlers de phase ; `EventBus` rendu **générique** (`EventBus[E]`) pour porter aussi
+  les événements pédagogie.
+- `ProjectService.get_last_completed_run` + `create_project(pedagogy=…)` ; constantes
+  de chemins centralisées (`GENERATION_OUTPUT_SUBDIR`, `consolidated_doc_filename`).
+
+### Corrigé
+
+- Un run de **génération** n'efface plus les réglages **Supports pédagogiques**
+  (`Project.pedagogy`) à sa fin (régression introduite par SP2/01).
+
 ### Modifié — Coquille multi-fonctionnalités (SP1)
 
 - **Interface à onglets** : la zone projet est désormais une `QTabWidget` peuplée

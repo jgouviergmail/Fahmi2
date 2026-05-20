@@ -14,7 +14,7 @@ from fahmi2.pipeline.event_bus import EventBus
 from fahmi2.pipeline.events import PipelineEvent
 
 
-class QtEventBus(QObject, EventBus):
+class QtEventBus(QObject, EventBus[PipelineEvent]):
     """``EventBus`` Qt-aware émettant un Signal pour chaque publication."""
 
     event_emitted = Signal(object)

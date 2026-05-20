@@ -7,7 +7,7 @@
 
 - **Branche de travail** : `feat/sp1-coquille-multi-fonctionnalites` (poussée sur
   `origin`). Tout le travail (SP1 + SP2) y est commité.
-- **Vérifs au vert** au dernier point : `pytest` (508), `ruff`, `mypy --strict`.
+- **Vérifs au vert** au dernier point : `pytest` (543), `ruff`, `mypy --strict`.
 
 ## Documents de référence (à lire avant d'agir)
 
@@ -44,13 +44,24 @@
   `domain/pedagogy.py` (`PedagogySettings` + constantes), `Project.pedagogy`,
   sérialisation blob v2 (clé `pedagogy`) + migration, fixture `make_pedagogy_settings`,
   tests. Plan : [`2026-05-20-sp2-01-domaine-pedagogie.md`](./2026-05-20-sp2-01-domaine-pedagogie.md).
+- **SP2/02 — socle orchestrateur + tranche flashcards glossaire** : helpers LLM/JSON
+  généralisés (`infra/llm/invocation.py`, `_base.py` délègue), `EventBus` rendu
+  **générique** (`EventBus[E]`), package **`pedagogy/`** (parseur de chapitres, events,
+  `SupportGenerator`/`SupportContext`, `SupportGeneratorRegistry`, manifeste de
+  fraîcheur, `artifact_writer`, générateur **flashcards glossaire sans LLM**),
+  `app/supports_orchestrator.py` (inputs par langue, boucle supports×langues, écriture
+  JSON+MD, events, reprise coarse, pause/annulation), `domain/supports.py`
+  (`Flashcard`/`SupportArtifact`), `ProjectService.get_last_completed_run`,
+  `create_project(pedagogy=…)`, + **régression corrigée** (perte de `pedagogy` en fin
+  de run de génération). Constantes de chemins centralisées (`GENERATION_OUTPUT_SUBDIR`,
+  `consolidated_doc_filename`). Plan :
+  [`2026-05-20-sp2-02-socle-orchestrateur-flashcards-glossaire.md`](./2026-05-20-sp2-02-socle-orchestrateur-flashcards-glossaire.md).
 
 ## Reste à faire (ordre) ⏭️
 
 | Lot | Contenu | Réf design |
 |-----|---------|-----------|
-| **SP2/02** | Socle orchestrateur + **tranche verticale flashcards glossaire** (sans LLM) : généraliser helpers LLM/JSON, `SupportGenerator`/registre, `SupportContext`, `SupportsOrchestrator`, parseur de chapitres + lecture glossaire DB, générateur flashcards glossaire → JSON+MD, events, manifeste, tests. | §5, §6 |
-| **SP2/03** | **8 générateurs LLM** (flashcards concepts, QCM + validation, vrai/faux, cloze, questions ouvertes, fiche, points clés, examen blanc) + **8 prompts** `pedagogy_*.j2` + parsing typé + corrigés séparés, tests. | §6, §7 |
+| **SP2/03** | **8 générateurs LLM** (flashcards concepts, QCM + validation, vrai/faux, cloze, questions ouvertes, fiche, points clés, examen blanc) + **8 prompts** `pedagogy_*.j2` (**à ajouter à `_TEMPLATE_METADATA` de `prompts_service.py`** pour être éditables via « Édition → Modifier les prompts ») + parsing typé + corrigés séparés + `with_retry` LLM **dans** les générateurs, tests. | §6, §7 |
 | **SP2/04** | **Onglet pédagogique réel** : `PedagogyController` + `PedagogyTab` (réglages master-detail : Supports/Difficulté/Langues/Modèle ; bouton Générer/Estimer ; progression ; fraîcheur), `PedagogyCostEstimator`, câblage `app_main`, smoke tests. | §8, §10 |
 | **SP3/01** | Export **`.apkg`** (genanki) : note types (Basic/Cloze/QCM), GUID stables, sous-decks, tags, bouton export, tests. | §9 |
 | **SP3/02** | Export **Markdown/PDF** (sujet/corrigé séparés ; choix lib PDF), tests. | §9 |

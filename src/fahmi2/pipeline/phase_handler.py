@@ -25,6 +25,7 @@ from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.infra.stt.interface import STTProvider
 from fahmi2.pipeline.event_bus import EventBus
+from fahmi2.pipeline.events import PipelineEvent
 from fahmi2.pipeline.pause_token import PauseToken
 
 
@@ -60,7 +61,7 @@ class PhaseContext:
     retriever: GlossaryRetriever
     prompts: PromptLoader
     pause_token: PauseToken
-    event_bus: EventBus
+    event_bus: EventBus[PipelineEvent]
 
 
 class PhaseHandler(ABC):

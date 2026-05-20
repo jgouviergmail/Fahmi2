@@ -40,7 +40,10 @@ from fahmi2.core.logging.event import LogEvent
 from fahmi2.core.retrieval.interface import PassthroughRetriever
 from fahmi2.core.retry.policy import RetryPolicy
 from fahmi2.domain.enums import RunStatus, SttProvider
-from fahmi2.domain.generation import GENERATION_WORKSPACE_SUBDIR
+from fahmi2.domain.generation import (
+    GENERATION_OUTPUT_SUBDIR,
+    GENERATION_WORKSPACE_SUBDIR,
+)
 from fahmi2.domain.ids import ProjectId
 from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
@@ -498,7 +501,7 @@ class GenerationController(QObject):
             run=run,
             settings=run.settings_snapshot,
             workspace=gen_workspace,
-            output_dir=gen_workspace / "output",
+            output_dir=gen_workspace / GENERATION_OUTPUT_SUBDIR,
             state=self._state,
             artifacts=FsArtifactStore(),
             stt_provider=stt_provider,
@@ -702,7 +705,7 @@ class GenerationController(QObject):
         return (
             self._current_project.workspace_folder
             / GENERATION_WORKSPACE_SUBDIR
-            / "output"
+            / GENERATION_OUTPUT_SUBDIR
         )
 
     # ---------------------------------------------------------- end-of-run

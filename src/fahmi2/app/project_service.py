@@ -9,8 +9,10 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 
+from fahmi2.domain.enums import RunStatus
 from fahmi2.domain.generation import GenerationSettings
 from fahmi2.domain.ids import ProjectId, RunId
+from fahmi2.domain.pedagogy import PedagogySettings
 from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
 from fahmi2.infra.storage.sqlite_state import SqliteState
@@ -33,6 +35,7 @@ class ProjectService:
         name: str,
         workspace_folder: Path,
         generation: GenerationSettings | None = None,
+        pedagogy: PedagogySettings | None = None,
     ) -> Project:
         """Crée et persiste un nouveau ``Project`` (identité minimale).
 
@@ -40,6 +43,8 @@ class ProjectService:
             name: Nom du projet.
             workspace_folder: Emplacement de travail (immuable après création).
             generation: Réglages de génération, ou ``None`` (à configurer plus tard).
+            pedagogy: Réglages Supports pédagogiques, ou ``None`` (à configurer
+                plus tard).
 
         Returns:
             Le ``Project`` créé.
@@ -50,6 +55,7 @@ class ProjectService:
             workspace_folder=workspace_folder,
             created_at=datetime.now(tz=UTC),
             generation=generation,
+            pedagogy=pedagogy,
         )
         self._state.upsert_project(project)
         return project
@@ -111,6 +117,22 @@ class ProjectService:
         """
         runs = self.list_runs(project_id)
         return runs[-1] if runs else None
+
+    def get_last_completed_run(self, project_id: ProjectId) -> Run | None:
+        """Retourne le dernier run ``COMPLETED`` du projet (ou ``None``).
+
+        Args:
+            project_id: Identifiant.
+
+        Returns:
+            Le run ``COMPLETED`` le plus récent, ou ``None`` si aucun.
+        """
+        completed = [
+            run
+            for run in self.list_runs(project_id)
+            if run.status is RunStatus.COMPLETED
+        ]
+        return completed[-1] if completed else None
 
     def get_run(self, run_id: RunId) -> Run | None:
         """Récupère un run par identifiant.

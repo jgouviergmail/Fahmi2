@@ -303,7 +303,19 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
 ├── consolidated.{lang}.md            ← Phases 6 + 7
 ├── glossary.{lang}.md
 └── per-video/{lang}/{video_id}.md
+
+<emplacement>/pedagogy/                ← Supports pédagogiques (SP2)
+├── manifest.json                     ← Fraîcheur (hash réglages + mtime source/langue)
+└── {support}/{lang}/{support}.{json,md}   ← Artefact structuré + rendu Markdown
 ```
+
+> Les supports pédagogiques sont produits par le `SupportsOrchestrator`
+> (`app/supports_orchestrator.py`) — orchestrateur dédié léger, **pas** le
+> `PipelineEngine` — à partir du document consolidé (parsé en chapitres) et du
+> glossaire (lu en DB sur le **dernier run COMPLETED**). Génération **idempotente**
+> (écrase) + **reprise coarse** : un support frais (hash réglages + mtime source
+> inchangés, artefact présent) est *skippé*. Première tranche livrée : **flashcards
+> glossaire** (sans LLM).
 
 ## 5. Conventions de code
 

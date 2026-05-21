@@ -139,8 +139,11 @@ Adapters externes (ports/adapters) :
 
 - `infra/audio/ffmpeg_extractor.py` — `FFmpegExtractor` (subprocess avec
   ffprobe pré-check piste audio).
+- `infra/audio/cloud_audio_preparer.py` — `CloudAudioPreparer` (compression
+  Opus + découpage aux silences) : prépare l'audio pour le STT cloud sous la
+  limite 25 Mo d'OpenAI Whisper. Injecté dans `OpenAIWhisperAdapter`.
 - `infra/stt/` — interface `STTProvider`, `FakeSTTProvider`,
-  `FasterWhisperAdapter`, `OpenAIWhisperAdapter`.
+  `FasterWhisperAdapter`, `OpenAIWhisperAdapter` (multi-segments + recollage).
 - `infra/llm/` — interface `LLMProvider`, `FakeLLMProvider`, `DeepSeekAdapter`,
   module `_pricing`, helpers généralisés `invocation.py` (`invoke_llm_chat`,
   `parse_llm_json`).

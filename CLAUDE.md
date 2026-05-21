@@ -97,7 +97,9 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   ouvertes, fiche, points clés, examen blanc), `labels`.
 - `infra/` — adapters (ports/adapters) : `stt/` (FasterWhisper local + OpenAI
   cloud + fakes), `llm/` (DeepSeek + `_pricing` + `invocation` + fakes),
-  `audio/ffmpeg_extractor`, `anki/genanki_exporter` (`.apkg`),
+  `audio/ffmpeg_extractor` + `cloud_audio_preparer` (compression Opus +
+  découpage aux silences : franchit la limite 25 Mo d'OpenAI Whisper, injecté
+  dans l'adapter STT cloud), `anki/genanki_exporter` (`.apkg`),
   `export/markdown_pdf` (Markdown + PDF), `storage/sqlite_state` (WAL) +
   `fs_artifacts` (writes atomiques), `secrets/` (DPAPI Windows),
   `prompts/loader` + `defaults/*.j2` (8 phases + 8 `pedagogy_*`).

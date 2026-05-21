@@ -68,7 +68,7 @@ master-detail) ; ils incluent le **dossier des vidéos**.
 
 | Paramètre | Description | Coût indicatif |
 |-----------|-------------|----------------|
-| **Provider STT** | `faster_whisper_local` (GPU NVIDIA requis) ou `openai_cloud`. | Local : gratuit / Cloud : ~0,006 $/min |
+| **Provider STT** | `faster_whisper_local` (GPU NVIDIA requis) ou `openai_cloud`. En mode cloud, l'audio est **compressé en Opus** (et découpé aux silences si > ~2 h) pour respecter la limite **25 Mo** d'OpenAI Whisper — transparent, toute durée, et l'upload est bien plus rapide. | Local : gratuit / Cloud : ~0,006 $/min |
 | **Modèle LLM** | `deepseek-v4-flash` (rapide/économique) ou `deepseek-v4-pro` (capacité supérieure). | Flash : ~0,14-0,28 $/Mt / Pro : ~0,435-0,87 $/Mt |
 
 **Blocage automatique** : si vous sélectionnez `faster_whisper_local` sans

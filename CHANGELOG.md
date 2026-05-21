@@ -7,6 +7,20 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+### Corrigé — STT cloud (OpenAI Whisper) : fichiers volumineux & langue
+
+- **Support des fichiers > 25 Mo** : l'audio est désormais **compressé en Opus**
+  (24 kbps mono) avant l'envoi à OpenAI, et **découpé aux silences** si nécessaire
+  (cours > ~2 h), puis les transcriptions sont recollées. Le STT cloud fonctionne
+  donc pour **toute durée** de cours (la limite OpenAI de 25 Mo plafonnait l'audio
+  brut à ~13 min). Bénéfice : l'upload est **bien plus rapide** (un WAV de 22 Mo
+  → Opus ~3 Mo), ce qui supprime la lenteur qui pouvait passer pour un blocage.
+- **Langue détectée** : correction du parsing de la langue renvoyée par OpenAI
+  Whisper (nom complet « french » au lieu du code ISO « fr »), qui faisait
+  échouer toute transcription cloud.
+- **Robustesse** : timeout client OpenAI explicite ; encodeur `libopus` garanti
+  dans le ffmpeg bundlé (vérifié au build).
+
 ### Ajouté — Parallélisation des traitements (génération + pédagogie)
 
 - **Supports pédagogiques en parallèle** : l'orchestrateur traite les unités

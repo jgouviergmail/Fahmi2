@@ -76,3 +76,48 @@ def test_cells_follow_canonical_order() -> None:
     )
     ordered = [cell.support_type for cell in vm.snapshot().cells]
     assert ordered.index(SupportType.QCM) < ordered.index(SupportType.KEY_POINTS)
+
+
+def test_cost_matrix_snapshot_grid() -> None:
+    vm = PedagogyProgressViewModel()
+    vm.reset(
+        supports=(SupportType.QCM, SupportType.KEY_POINTS),
+        languages=(Language.FR, Language.EN),
+    )
+    vm.apply_event(
+        SupportFinished(
+            timestamp=_now(),
+            support_type=SupportType.QCM,
+            language=Language.FR,
+            status=PhaseStatus.SUCCEEDED,
+            cost_usd=0.10,
+            error=None,
+        )
+    )
+    snap = vm.cost_matrix_snapshot()
+    assert snap.row_header == "Support"
+    assert snap.column_labels == ("fr", "en")
+    assert snap.row_labels[0] == "QCM"  # ordre canonique (QCM avant points clés)
+    assert snap.grand_total == 0.10
+    assert snap.cells[0][0].status is PhaseStatus.SUCCEEDED
+    assert snap.cells[0][1].cost_usd is None  # QCM/EN en attente
+
+
+def test_stats_snapshot_counts() -> None:
+    vm = PedagogyProgressViewModel()
+    vm.reset(supports=(SupportType.QCM,), languages=(Language.FR, Language.EN))
+    vm.apply_event(
+        SupportFinished(
+            timestamp=_now(),
+            support_type=SupportType.QCM,
+            language=Language.FR,
+            status=PhaseStatus.SUCCEEDED,
+            cost_usd=0.10,
+            error=None,
+        )
+    )
+    stats = vm.stats_snapshot()
+    assert stats.tasks_total == 2
+    assert stats.tasks_done == 1
+    assert stats.languages == (Language.FR, Language.EN)
+    assert stats.total_cost_usd == 0.10

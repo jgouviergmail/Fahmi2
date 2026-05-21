@@ -18,6 +18,19 @@ from fahmi2.pedagogy.events import (
     SupportStarted,
 )
 from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
+from fahmi2.ui.pedagogy_labels import support_label
+from fahmi2.ui.viewmodels.cost_matrix import (
+    CostMatrixCell,
+    CostMatrixSnapshot,
+    build_cost_matrix,
+)
+
+#: Statuts pour lesquels le coût d'une cellule est connu (à compter dans les totaux).
+_COST_KNOWN_STATUSES = frozenset(
+    {PhaseStatus.SUCCEEDED, PhaseStatus.SKIPPED, PhaseStatus.FAILED}
+)
+#: Statuts considérés comme « tâche terminée » pour le compteur de tuiles.
+_DONE_STATUSES = frozenset({PhaseStatus.SUCCEEDED, PhaseStatus.SKIPPED})
 
 
 @dataclass(frozen=True)
@@ -52,6 +65,25 @@ class PedagogyProgressSnapshot:
     total_cost_usd: float
 
 
+@dataclass(frozen=True)
+class PedagogyStatsSnapshot:
+    """Indicateurs agrégés pour la bande de tuiles pédagogie.
+
+    Attributes:
+        overall_status: Statut global (``None`` tant que non terminé).
+        tasks_done: Tâches (support × langue) terminées (succès ou à jour).
+        tasks_total: Nombre total de tâches.
+        languages: Langues sélectionnées.
+        total_cost_usd: Coût total cumulé.
+    """
+
+    overall_status: RunStatus | None
+    tasks_done: int
+    tasks_total: int
+    languages: tuple[Language, ...]
+    total_cost_usd: float
+
+
 class PedagogyProgressViewModel:
     """Accumule les ``PedagogyEvent`` en un ``PedagogyProgressSnapshot``."""
 
@@ -60,6 +92,8 @@ class PedagogyProgressViewModel:
         self._order: list[tuple[SupportType, Language]] = []
         self._overall_status: RunStatus | None = None
         self._total_cost_usd: float = 0.0
+        self._supports: tuple[SupportType, ...] = ()
+        self._languages: tuple[Language, ...] = ()
 
     def reset(
         self,
@@ -81,6 +115,10 @@ class PedagogyProgressViewModel:
         self._overall_status = None
         self._total_cost_usd = 0.0
         selected = set(supports)
+        self._supports = tuple(
+            s for s in SupportGeneratorRegistry.canonical_order() if s in selected
+        )
+        self._languages = languages
         for language in languages:
             for support in SupportGeneratorRegistry.canonical_order():
                 if support not in selected:
@@ -123,6 +161,74 @@ class PedagogyProgressViewModel:
             cells=tuple(self._cells[key] for key in self._order),
             overall_status=self._overall_status,
             total_cost_usd=self._total_cost_usd,
+        )
+
+    def cost_matrix_snapshot(self) -> CostMatrixSnapshot:
+        """Construit la matrice supports × langues (statut + coût par cellule).
+
+        Returns:
+            ``CostMatrixSnapshot`` (lignes = supports, colonnes = langues).
+        """
+        column_labels = tuple(lang.value for lang in self._languages)
+        rows = tuple(
+            (
+                support_label(support),
+                tuple(self._matrix_cell(support, lang) for lang in self._languages),
+            )
+            for support in self._supports
+        )
+        return build_cost_matrix(
+            row_header="Support", column_labels=column_labels, rows=rows
+        )
+
+    def _matrix_cell(
+        self, support: SupportType, language: Language
+    ) -> CostMatrixCell:
+        """Convertit la cellule de progression en cellule de matrice.
+
+        Args:
+            support: Support (ligne).
+            language: Langue (colonne).
+
+        Returns:
+            ``CostMatrixCell`` (coût ``None`` tant que la tâche n'a pas de coût
+            connu : en attente / en cours).
+        """
+        cell = self._cells.get((support, language))
+        status = cell.status if cell is not None else None
+        cost = (
+            cell.cost_usd
+            if cell is not None and cell.status in _COST_KNOWN_STATUSES
+            else None
+        )
+        return CostMatrixCell(
+            status=status or PhaseStatus.PENDING,
+            cost_usd=cost,
+            tooltip="",
+        )
+
+    def stats_snapshot(self) -> PedagogyStatsSnapshot:
+        """Construit le snapshot des tuiles pédagogie.
+
+        Returns:
+            ``PedagogyStatsSnapshot``.
+        """
+        done = sum(
+            1 for cell in self._cells.values() if cell.status in _DONE_STATUSES
+        )
+        # Cumul live (cohérent avec le total de la matrice) : somme des coûts des
+        # cellules dont le coût est connu, plutôt que le total figé de fin de run.
+        total = sum(
+            cell.cost_usd
+            for cell in self._cells.values()
+            if cell.status in _COST_KNOWN_STATUSES
+        )
+        return PedagogyStatsSnapshot(
+            overall_status=self._overall_status,
+            tasks_done=done,
+            tasks_total=len(self._cells),
+            languages=self._languages,
+            total_cost_usd=total,
         )
 
     def _set_status(

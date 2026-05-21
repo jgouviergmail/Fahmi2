@@ -13,7 +13,11 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from fahmi2.app._cost_common import TOKENS_PER_WORD, thinking_output_multiplier
+from fahmi2.app._cost_common import (
+    TOKENS_PER_WORD,
+    cost_range,
+    thinking_output_multiplier,
+)
 from fahmi2.domain.enums import Language, SupportDensity, SupportType
 from fahmi2.domain.pedagogy import NO_LLM_SUPPORTS, PedagogySettings
 from fahmi2.infra.llm._pricing import ModelPricing, get_pricing
@@ -40,13 +44,17 @@ class PedagogyCostEstimation:
 
     Attributes:
         per_support_usd: Coût estimé par type de support.
-        total_usd: Coût total estimé.
+        total_usd: Coût total estimé (ponctuel).
         chapters_total: Nombre total de chapitres (toutes langues confondues).
+        low_usd: Bas de fourchette d'incertitude (±33 %).
+        high_usd: Haut de fourchette d'incertitude (±33 %).
     """
 
     per_support_usd: dict[SupportType, float]
     total_usd: float
     chapters_total: int
+    low_usd: float
+    high_usd: float
 
 
 class PedagogyCostEstimator:
@@ -91,10 +99,14 @@ class PedagogyCostEstimator:
                     pricing=pricing,
                 )
                 per_support[support] = per_support.get(support, 0.0) + cost
+        total = sum(per_support.values())
+        low, high = cost_range(total)
         return PedagogyCostEstimation(
             per_support_usd=per_support,
-            total_usd=sum(per_support.values()),
+            total_usd=total,
             chapters_total=chapters_total,
+            low_usd=low,
+            high_usd=high,
         )
 
     @staticmethod

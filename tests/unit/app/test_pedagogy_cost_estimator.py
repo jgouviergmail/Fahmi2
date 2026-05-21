@@ -50,6 +50,14 @@ def test_more_chapters_costs_more(make_pedagogy_settings: Any) -> None:
     assert big.total_usd > small.total_usd
 
 
+def test_estimation_has_range(make_pedagogy_settings: Any) -> None:
+    ped = make_pedagogy_settings(selected_supports=frozenset({SupportType.QCM}))
+    est = PedagogyCostEstimator().estimate(
+        pedagogy=ped, chapters_by_language={Language.FR: _chapters(3)}
+    )
+    assert est.low_usd < est.total_usd < est.high_usd
+
+
 def test_mock_exam_is_estimated(make_pedagogy_settings: Any) -> None:
     ped = make_pedagogy_settings(
         selected_supports=frozenset({SupportType.MOCK_EXAM}),

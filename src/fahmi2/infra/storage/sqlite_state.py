@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import datetime
 from importlib.resources import files
 from pathlib import Path
@@ -68,6 +68,25 @@ _BLOB_KEY_VERSION = "version"
 _BLOB_KEY_WORKSPACE = "workspace_folder"
 _BLOB_KEY_GENERATION = "generation"
 _BLOB_KEY_PEDAGOGY = "pedagogy"
+
+
+@dataclass(frozen=True)
+class PhaseCell:
+    """Statut + coût d'une exécution de phase pour une ``(phase, vidéo)``.
+
+    Attributes:
+        phase_id: Phase.
+        video_id: Vidéo (``None`` pour une phase batch).
+        status: Statut.
+        cost_usd: Coût en USD.
+        retry_count: Nombre de retries.
+    """
+
+    phase_id: PhaseId
+    video_id: VideoId | None
+    status: PhaseStatus
+    cost_usd: float
+    retry_count: int
 
 
 def _datetime_to_iso(value: datetime) -> str:
@@ -769,6 +788,31 @@ class SqliteState:
             (run_id.value,),
         ).fetchall()
         return [self._row_to_phase_execution(row) for row in rows]
+
+    def list_phase_cells(self, run_id: RunId) -> list[PhaseCell]:
+        """Liste le statut + coût par ``(phase, vidéo)`` d'un Run.
+
+        Args:
+            run_id: Run propriétaire.
+
+        Returns:
+            Une ``PhaseCell`` par exécution (``video_id`` ``None`` = phase batch).
+        """
+        rows = self._get_connection().execute(
+            "SELECT phase_id, video_id, status, cost_usd, retry_count "
+            "FROM phase_executions WHERE run_id = ? ORDER BY id",
+            (run_id.value,),
+        ).fetchall()
+        return [
+            PhaseCell(
+                phase_id=PhaseId(row[0]),
+                video_id=VideoId(value=row[1]) if row[1] else None,
+                status=PhaseStatus(row[2]),
+                cost_usd=row[3],
+                retry_count=row[4],
+            )
+            for row in rows
+        ]
 
     # ----------------------------------------------------------------- internals
 

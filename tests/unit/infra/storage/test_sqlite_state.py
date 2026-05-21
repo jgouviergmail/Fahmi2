@@ -276,6 +276,38 @@ def test_get_phase_status_missing_returns_none(
         assert state.get_phase_status(run.id, PhaseId.STT, video_id=None) is None
 
 
+def test_list_phase_cells_returns_status_and_cost(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    with SqliteState(tmp_path / "t.db") as state:
+        project = _make_project(make_generation_settings)
+        state.upsert_project(project)
+        run = _make_run(project)
+        state.upsert_run(run)
+        vid = VideoId.new()
+        state.upsert_phase_execution(
+            run.id,
+            PhaseExecution(
+                phase_id=PhaseId.STT, status=PhaseStatus.SUCCEEDED, cost_usd=0.07
+            ),
+            video_id=vid,
+        )
+        state.upsert_phase_execution(
+            run.id,
+            PhaseExecution(
+                phase_id=PhaseId.GLOSSARY_RECONCILIATION,
+                status=PhaseStatus.SUCCEEDED,
+                cost_usd=0.20,
+            ),
+            video_id=None,
+        )
+        cells = state.list_phase_cells(run.id)
+        by_key = {(c.phase_id, c.video_id): c for c in cells}
+        assert by_key[(PhaseId.STT, vid)].cost_usd == 0.07
+        assert by_key[(PhaseId.STT, vid)].status is PhaseStatus.SUCCEEDED
+        assert by_key[(PhaseId.GLOSSARY_RECONCILIATION, None)].cost_usd == 0.20
+
+
 # --- Test de concurrence ------------------------------------------------------
 
 

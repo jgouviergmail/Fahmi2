@@ -5,7 +5,12 @@ from dataclasses import FrozenInstanceError
 import pytest
 
 from fahmi2.domain.enums import Language
-from fahmi2.domain.glossary import Glossary, Term
+from fahmi2.domain.glossary import (
+    Glossary,
+    Term,
+    parse_glossary_master_terms,
+    render_glossary_markdown_table,
+)
 from fahmi2.domain.ids import VideoId
 
 
@@ -80,3 +85,68 @@ def test_glossary_is_iterable_multiple_times() -> None:
     g = Glossary(language=Language.FR, terms=terms)
     assert [t.term for t in g] == ["A", "B"]
     assert [t.term for t in g] == ["A", "B"]
+
+
+def test_parse_master_terms_reads_all_fields() -> None:
+    vid = VideoId.new()
+    payload = {
+        "terms": [
+            {
+                "term": "PIB",
+                "definition": "produit intérieur brut",
+                "acronym": "PIB",
+                "acronym_expansion": "Produit Intérieur Brut",
+                "aliases": ["Produit Intérieur Brut"],
+                "sources": [vid.value],
+                "cross_lang": {"en": "GDP"},
+            },
+            {"term": "Inflation", "definition": "hausse des prix"},
+        ]
+    }
+    terms = parse_glossary_master_terms(payload)
+    assert len(terms) == 2
+    pib = terms[0]
+    assert pib.term == "PIB"
+    assert pib.acronym_expansion == "Produit Intérieur Brut"
+    assert pib.aliases == ("Produit Intérieur Brut",)
+    assert pib.cross_lang[Language.EN] == "GDP"
+    assert pib.sources == (vid,)
+
+
+def test_parse_master_terms_empty_payload() -> None:
+    assert parse_glossary_master_terms({}) == ()
+    assert parse_glossary_master_terms({"terms": []}) == ()
+
+
+def test_render_table_french_headers_and_invariant_expansion() -> None:
+    terms = parse_glossary_master_terms(
+        {
+            "terms": [
+                {
+                    "term": "Retour sur investissement",
+                    "acronym": "ROI",
+                    "acronym_expansion": "Return On Investment",
+                    "definition": "Indicateur de rentabilité.",
+                },
+                {"term": "Inflation", "definition": "Hausse des prix."},
+            ]
+        }
+    )
+    md = render_glossary_markdown_table(
+        title="Glossaire", language=Language.FR, terms=terms
+    )
+    assert md.startswith("# Glossaire")
+    assert "| Terme | Acronyme | Signification | Définition |" in md
+    assert "Return On Investment" in md  # expansion invariante
+    assert "| Inflation |  |  | Hausse des prix. |" in md
+
+
+def test_render_table_english_headers() -> None:
+    terms = parse_glossary_master_terms(
+        {"terms": [{"term": "GDP", "definition": "Gross domestic product."}]}
+    )
+    md = render_glossary_markdown_table(
+        title="Glossary", language=Language.EN, terms=terms
+    )
+    assert md.startswith("# Glossary")
+    assert "| Term | Acronym | Meaning | Definition |" in md

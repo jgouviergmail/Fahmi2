@@ -7,6 +7,13 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+### Modifié — Dashboard pédagogie (Lot 3b)
+
+- **Dashboard Supports pédagogiques aligné sur la Génération** : la table plate
+  est remplacée par une **bande de tuiles** (Statut / Supports / Langues / Coût) et
+  une **matrice 2D supports × langues** (statut + coût par cellule + totaux, via
+  `CostMatrixView`). Le **bandeau de fraîcheur** est conservé.
+
 ### Ajouté — Briques UI partagées dashboards (Lot 3a)
 
 - **`CostMatrixView`** (+ viewmodel `CostMatrixSnapshot`) : matrice de coût

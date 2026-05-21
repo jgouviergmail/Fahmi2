@@ -8,13 +8,16 @@ l'orchestrateur, l'estimateur de coût et le calcul de fraîcheur de l'UI).
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from fahmi2.domain.enums import Language
 from fahmi2.domain.generation import consolidated_doc_filename
+from fahmi2.domain.glossary import Term, parse_glossary_master_terms
 from fahmi2.pedagogy.chapters import Chapter, parse_chapters
 
 _ENCODING_UTF8 = "utf-8"
+_GLOSSARY_MASTER_FILENAME = "glossary_master.json"
 
 
 def consolidated_doc_path(generation_output_dir: Path, language: Language) -> Path:
@@ -62,3 +65,23 @@ def load_chapters(
     if not doc.exists():
         return ()
     return parse_chapters(doc.read_text(encoding=_ENCODING_UTF8))
+
+
+def load_glossary_master_terms(generation_dir: Path) -> tuple[Term, ...]:
+    """Charge le glossaire master (langue source) depuis le disque.
+
+    Lit ``<generation_dir>/glossary_master.json`` produit par la phase 2 — comme
+    le pipeline (``load_glossary_master``). Sert l'injection terminologique des
+    prompts des générateurs LLM.
+
+    Args:
+        generation_dir: Dossier de travail de la génération (contient le master).
+
+    Returns:
+        Les termes (tuple vide si le master n'existe pas).
+    """
+    path = generation_dir / _GLOSSARY_MASTER_FILENAME
+    if not path.exists():
+        return ()
+    payload = json.loads(path.read_text(encoding=_ENCODING_UTF8))
+    return parse_glossary_master_terms(payload)

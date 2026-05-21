@@ -50,7 +50,11 @@ from fahmi2.pedagogy.manifest import (
     read_manifest,
     write_manifest,
 )
-from fahmi2.pedagogy.sources import load_chapters, source_mtime_ns
+from fahmi2.pedagogy.sources import (
+    load_chapters,
+    load_glossary_master_terms,
+    source_mtime_ns,
+)
 from fahmi2.pedagogy.support_generator import SupportContext
 from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
 from fahmi2.pipeline.event_bus import EventBus
@@ -130,11 +134,11 @@ class SupportsOrchestrator:
 
         any_failure = False
         total_cost = 0.0
+        glossary = self._load_glossary(project)
         try:
             for language in pedagogy.languages:
                 source_mtime = source_mtime_ns(ctx.generation_output_dir, language)
                 chapters = load_chapters(ctx.generation_output_dir, language)
-                glossary = self._load_glossary(project, language)
                 for support_type in self._registry.canonical_order():
                     if support_type not in pedagogy.selected_supports:
                         continue
@@ -327,20 +331,20 @@ class SupportsOrchestrator:
             retry_policy=self._retry_policy,
         )
 
-    def _load_glossary(self, project: Project, language: Language) -> tuple[Term, ...]:
-        """Charge le glossaire de la langue depuis le dernier run COMPLETED.
+    def _load_glossary(self, project: Project) -> tuple[Term, ...]:
+        """Charge le glossaire master (langue source) depuis le disque.
+
+        Lit ``<workspace>/generation/glossary_master.json`` — comme le pipeline.
+        Sert l'injection terminologique des prompts des générateurs LLM.
 
         Args:
             project: Projet.
-            language: Langue.
 
         Returns:
-            Les termes (vide si aucun run COMPLETED).
+            Les termes du glossaire master (vide si absent).
         """
-        run = self._project_service.get_last_completed_run(project.id)
-        if run is None:
-            return ()
-        return tuple(self._state.list_glossary_terms(run.id, language))
+        generation_dir = project.workspace_folder / GENERATION_WORKSPACE_SUBDIR
+        return load_glossary_master_terms(generation_dir)
 
 
 def _ceiling_reached(pedagogy: PedagogySettings, total_cost: float) -> bool:

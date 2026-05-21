@@ -20,7 +20,8 @@ from fahmi2.domain.generation import (
     consolidated_doc_filename,
 )
 from fahmi2.domain.glossary import Term
-from fahmi2.domain.ids import ProjectId, RunId
+from fahmi2.domain.ids import RunId
+from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
 from fahmi2.domain.supports import SupportArtifact
 from fahmi2.infra.llm._fakes import FakeLLMProvider
@@ -48,18 +49,20 @@ from fahmi2.pipeline.pause_token import PauseToken
 
 
 def _seed_completed_run_with_glossary(
-    state: SqliteState, project_id: ProjectId, settings: Any
+    state: SqliteState, project: Project, settings: Any
 ) -> None:
-    run = Run(
-        id=RunId.new(),
-        project_id=project_id,
-        started_at=datetime.now(tz=UTC),
-        status=RunStatus.COMPLETED,
-        settings_snapshot=settings,
+    state.upsert_run(
+        Run(
+            id=RunId.new(),
+            project_id=project.id,
+            started_at=datetime.now(tz=UTC),
+            status=RunStatus.COMPLETED,
+            settings_snapshot=settings,
+        )
     )
-    state.upsert_run(run)
-    state.upsert_glossary_term(
-        run.id, Language.FR, Term(term="PIB", definition="Produit intérieur brut")
+    FsArtifactStore().write_json_atomic(
+        project.workspace_folder / GENERATION_WORKSPACE_SUBDIR / "glossary_master.json",
+        {"terms": [{"term": "PIB", "definition": "Produit intérieur brut"}]},
     )
 
 
@@ -103,7 +106,7 @@ def test_generates_flashcards_artifacts(
         generation=make_generation_settings(),
         pedagogy=make_pedagogy_settings(),
     )
-    _seed_completed_run_with_glossary(state, project.id, make_generation_settings())
+    _seed_completed_run_with_glossary(state, project, make_generation_settings())
 
     bus: EventBus[PedagogyEvent] = EventBus()
     events = _collect(bus)
@@ -136,7 +139,7 @@ def test_coarse_resume_skips_fresh(
         generation=make_generation_settings(),
         pedagogy=make_pedagogy_settings(),
     )
-    _seed_completed_run_with_glossary(state, project.id, make_generation_settings())
+    _seed_completed_run_with_glossary(state, project, make_generation_settings())
 
     orchestrator.generate(project, pause_token=PauseToken(), event_bus=EventBus())
     bus: EventBus[PedagogyEvent] = EventBus()
@@ -193,7 +196,7 @@ def test_generator_failure_yields_failed_status(
         generation=make_generation_settings(),
         pedagogy=make_pedagogy_settings(),
     )
-    _seed_completed_run_with_glossary(state, project.id, make_generation_settings())
+    _seed_completed_run_with_glossary(state, project, make_generation_settings())
 
     bus: EventBus[PedagogyEvent] = EventBus()
     events = _collect(bus)
@@ -217,7 +220,7 @@ def test_cancellation_returns_cancelled(
         generation=make_generation_settings(),
         pedagogy=make_pedagogy_settings(),
     )
-    _seed_completed_run_with_glossary(state, project.id, make_generation_settings())
+    _seed_completed_run_with_glossary(state, project, make_generation_settings())
 
     token = PauseToken()
     token.request_cancel()
@@ -264,7 +267,7 @@ def test_llm_support_writes_subject_and_correction(
             separate_correction=frozenset({SupportType.QCM}),
         ),
     )
-    _seed_completed_run_with_glossary(state, project.id, make_generation_settings())
+    _seed_completed_run_with_glossary(state, project, make_generation_settings())
     # Document consolidé source (un chapitre) pour la langue FR.
     doc = (
         ws
@@ -344,7 +347,7 @@ def test_cost_ceiling_stops_generation(
             cost_ceiling_usd=1.0,
         ),
     )
-    _seed_completed_run_with_glossary(state, project.id, make_generation_settings())
+    _seed_completed_run_with_glossary(state, project, make_generation_settings())
 
     bus: EventBus[PedagogyEvent] = EventBus()
     events = _collect(bus)

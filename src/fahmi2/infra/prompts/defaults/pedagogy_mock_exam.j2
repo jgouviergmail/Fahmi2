@@ -7,7 +7,7 @@ Densité attendue : {{ density_label }}.
 Directives supplémentaires : {{ pedagogy_directives }}
 {%- endif %}
 
-Rédige en {{ output_language_label }}. L'examen comporte plusieurs **sections** (ex. questions de cours, exercices d'application, analyse) couvrant l'ensemble du document avec une **progression de difficulté**, fidèles au contenu (aucune invention). ``grading_markdown`` fournit le **barème par section** (points) et les éléments de corrigé.
+Rédige **intégralement en {{ output_language_label }}** (énoncés ET corrigés/barème) : si le document source est dans une autre langue, **traduis-le** — la langue de sortie prime, ne recopie pas les phrases sources telles quelles. L'examen comporte plusieurs **sections** (ex. questions de cours, exercices d'application, analyse) couvrant l'ensemble du document avec une **progression de difficulté**, fidèles au contenu (aucune invention). ``grading_markdown`` fournit le **barème par section** (points) et les éléments de corrigé.
 
 Mise en forme : rédige ``statement_markdown`` et ``grading_markdown`` en **Markdown aéré** (listes numérotées pour les questions, **gras** des consignes et des points, paragraphes séparés par une ligne vide).
 {% if glossary_terms %}

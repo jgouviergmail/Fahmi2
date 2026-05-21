@@ -43,3 +43,12 @@ def test_pedagogy_prompt_renders_without_directives(name: str) -> None:
     context = {**_SAMPLE_CONTEXT, "pedagogy_directives": "", "glossary_terms": ""}
     rendered = PromptLoader().render(name, **context)
     assert rendered.strip()
+
+
+@pytest.mark.parametrize("name", _PEDAGOGY_TEMPLATES)
+def test_pedagogy_prompt_enforces_output_language(name: str) -> None:
+    # Consigne de langue renforcée : la rédaction doit être *intégralement* dans
+    # la langue de sortie (évite les versions EN qui restent partiellement en FR
+    # par recopie des formulations sources).
+    rendered = PromptLoader().render(name, **_SAMPLE_CONTEXT)
+    assert "intégralement en français" in rendered

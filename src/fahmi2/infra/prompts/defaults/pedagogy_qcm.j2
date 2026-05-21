@@ -7,7 +7,7 @@ Densité attendue : {{ density_label }}.
 Directives supplémentaires : {{ pedagogy_directives }}
 {%- endif %}
 
-Rédige en {{ output_language_label }}. Pour chaque question : 4 propositions dont **une seule** est défendable comme correcte, avec des distracteurs **plausibles et homogènes** (erreurs courantes, confusions fréquentes), de longueur comparable et sans indice grammatical trahissant la réponse. Cible la compréhension (ni devinette, ni détail anecdotique) et reste fidèle au contenu (aucune invention). ``correct_index`` est l'indice 0-based de la bonne proposition. ``justification`` explique en 1 à 2 phrases pourquoi elle est correcte (et, si utile, pourquoi les autres sont écartées).
+Rédige **intégralement en {{ output_language_label }}** (énoncés ET réponses/justifications) : si le document source est dans une autre langue, **traduis-le** — la langue de sortie prime, ne recopie pas les phrases sources telles quelles. Pour chaque question : 4 propositions dont **une seule** est défendable comme correcte, avec des distracteurs **plausibles et homogènes** (erreurs courantes, confusions fréquentes), de longueur comparable et sans indice grammatical trahissant la réponse. Cible la compréhension (ni devinette, ni détail anecdotique) et reste fidèle au contenu (aucune invention). ``correct_index`` est l'indice 0-based de la bonne proposition. ``justification`` explique en 1 à 2 phrases pourquoi elle est correcte (et, si utile, pourquoi les autres sont écartées).
 
 Mise en forme : la justification reste un court paragraphe ; un terme clé peut être mis en **gras**, mais sans liste ni saut de ligne.
 {% if glossary_terms %}

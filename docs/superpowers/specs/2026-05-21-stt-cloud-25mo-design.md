@@ -20,6 +20,13 @@ les bonnes pratiques documentées (compression + découpage). La solution :
 - **recolle** les transcriptions des segments (offsets temporels) en une seule
   `Transcription`.
 
+**Bénéfice secondaire (et résolution du symptôme initial)** : la compression
+réduit drastiquement la taille **uploadée** (un WAV de 22 Mo → Opus ~2-3 Mo),
+ce qui supprime la lenteur d'upload perçue comme un « blocage », **même pour les
+courtes vidéos**. C'est exactement le symptôme observé (upload de 14-22 Mo sans
+feedback). La préparation s'applique donc à **toutes** les vidéos en STT cloud,
+pas seulement à celles > 25 Mo.
+
 **Hors périmètre** : le STT **local** (faster-whisper) reste **inchangé** (pas de
 limite locale, WAV optimal pour ctranslate2) ; pas de denoise / normalisation /
 suppression des silences du contenu (bonnes pratiques mentionnées mais non
@@ -92,10 +99,12 @@ Algorithme de `prepare` :
    c. Construire les bornes : pour chaque frontière visée `k·target`
       (k = 1..n-1), choisir le milieu de silence le plus proche **dans une
       fenêtre** `±(target/2)` ; si aucun → couper à `k·target` (coupe dure).
-      Garantir que chaque tranche reste sous la limite (re-découper si une
-      tranche dépasse, par sécurité).
    d. Pour chaque tranche `[start, end]` : ré-encoder **depuis le WAV**
       (`-ss start -to end -c:a libopus …`) → `AudioChunk(opus_i, start)`.
+   e. **Garde-fou taille (Opus VBR)** : la durée ne garantit pas strictement la
+      taille (passages denses). Après ré-encodage, si une tranche dépasse encore
+      `max_chunk_bytes`, la re-découper récursivement en deux (au silence médian,
+      sinon au milieu). Garantit que **tout** chunk produit est ≤ limite.
 
 > Découpe depuis le WAV (ré-encodage), pas depuis l'Opus : timestamps précis,
 > pas de dépendance aux keyframes.
@@ -157,6 +166,9 @@ Aucune valeur en dur dans la logique.
   0.0 et 60.0) + 2 réponses OpenAI mockées → vérifier le **recollage**
   (timestamps décalés, concaténation ordonnée, langue du 1er chunk). Les tests
   existants passent (préparateur `None` = chemin direct).
+- **Injection (régression DI)** : un test vérifie que `_build_stt_provider`, en
+  mode cloud, retourne un `OpenAIWhisperAdapter` muni d'un `CloudAudioPreparer`
+  (non `None`) — évite l'oubli silencieux qui réintroduirait le bug des 25 Mo.
 - `pytest`, `ruff check .`, `mypy src tests` verts.
 
 ## 8. Découpage des responsabilités (fichiers)
@@ -170,6 +182,14 @@ Aucune valeur en dur dans la logique.
 | `tests/unit/infra/audio/test_cloud_audio_preparer.py` | tests préparateur | Créer |
 | `tests/unit/infra/stt/test_openai_whisper_adapter.py` | recollage multi-chunk | Modifier |
 | docs (`02`, `04`, `CHANGELOG`) | STT cloud gros fichiers | Modifier |
+
+**Point d'injection (DI)** : dans `_build_stt_provider` (generation_controller),
+la branche `SttProvider.OPENAI_CLOUD` instancie `OpenAIWhisperAdapter(api_key=…)`
+→ y ajouter `preparer=CloudAudioPreparer(ffmpeg_binary=resolve_ffmpeg_binary_or_none(),
+ffprobe_binary=resolve_ffprobe_binary_or_none())` (mêmes binaires bundlés que
+`build_ffmpeg_from_runtime`). Le défaut `preparer=None` (chemin direct) est
+**réservé aux tests** ; en production l'injection est obligatoire (verrouillée par
+un test, cf. §7).
 
 ## 9. Limites connues (assumées)
 

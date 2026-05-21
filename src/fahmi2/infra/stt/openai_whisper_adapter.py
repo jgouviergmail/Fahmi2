@@ -24,6 +24,18 @@ _MODEL_NAME = "whisper-1"
 _USD_PER_MINUTE = 0.006
 _SECONDS_PER_MINUTE = 60.0
 
+# OpenAI Whisper (``verbose_json``) renvoie le **nom anglais complet** de la
+# langue détectée (ex. ``"french"``), pas le code ISO. On mappe noms ET codes
+# vers les langues supportées ; une langue hors périmètre retombe sur l'indice
+# de langue fourni (``language_hint``), sinon sur l'anglais.
+_WHISPER_LANGUAGE_ALIASES: dict[str, Language] = {
+    "french": Language.FR,
+    "fr": Language.FR,
+    "english": Language.EN,
+    "en": Language.EN,
+}
+_DEFAULT_DETECTED_LANGUAGE = Language.EN
+
 
 def _map_status_code_to_stt_error(
     exc: APIStatusError | RateLimitError | AuthenticationError | APIError,
@@ -110,7 +122,7 @@ class OpenAIWhisperAdapter:
             raise _map_status_code_to_stt_error(exc) from exc
         if on_progress is not None:
             on_progress(1.0)
-        return _parse_verbose_response(response.model_dump())
+        return _parse_verbose_response(response.model_dump(), fallback=language_hint)
 
     def estimate_cost(self, duration_seconds: float) -> float:
         """Estime le coût en USD pour une durée audio donnée.
@@ -124,11 +136,33 @@ class OpenAIWhisperAdapter:
         return (duration_seconds / _SECONDS_PER_MINUTE) * _USD_PER_MINUTE
 
 
-def _parse_verbose_response(payload: dict[str, Any]) -> Transcription:
+def _resolve_language(raw: str, *, fallback: Language | None) -> Language:
+    """Résout la langue Whisper (nom complet ou code ISO) vers ``Language``.
+
+    Args:
+        raw: Valeur brute du champ ``language`` (ex. ``"french"`` ou ``"fr"``).
+        fallback: Langue de repli si ``raw`` n'est pas reconnue (typiquement
+            l'indice de langue source) ; ``_DEFAULT_DETECTED_LANGUAGE`` en
+            dernier recours.
+
+    Returns:
+        La ``Language`` correspondante.
+    """
+    resolved = _WHISPER_LANGUAGE_ALIASES.get(raw.strip().lower())
+    if resolved is not None:
+        return resolved
+    return fallback if fallback is not None else _DEFAULT_DETECTED_LANGUAGE
+
+
+def _parse_verbose_response(
+    payload: dict[str, Any], *, fallback: Language | None = None
+) -> Transcription:
     """Reconstruit une ``Transcription`` à partir du JSON verbose Whisper.
 
     Args:
         payload: Réponse Whisper au format verbose_json.
+        fallback: Langue de repli si la langue détectée est hors périmètre
+            (FR/EN) ou absente.
 
     Returns:
         ``Transcription``.
@@ -142,7 +176,7 @@ def _parse_verbose_response(payload: dict[str, Any]) -> Transcription:
         )
         for s in raw_segments
     )
-    detected = Language(str(payload.get("language", "en")))
+    detected = _resolve_language(str(payload.get("language", "")), fallback=fallback)
     duration = float(payload.get("duration", 0.0))
     return Transcription(
         segments=segments,

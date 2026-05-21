@@ -33,6 +33,28 @@ def test_parse_verbose_response_basic() -> None:
     assert transcription.full_text() == "bonjour le monde"
 
 
+def test_parse_verbose_response_maps_full_language_name() -> None:
+    # OpenAI Whisper (verbose_json) renvoie le NOM complet de la langue détectée
+    # (ex. "french"/"english"), pas le code ISO — doit être mappé vers Language.
+    fr = _parse_verbose_response(
+        {"language": "french", "duration": 1.0, "segments": []}
+    )
+    assert fr.detected_language is Language.FR
+    en = _parse_verbose_response(
+        {"language": "English", "duration": 1.0, "segments": []}
+    )
+    assert en.detected_language is Language.EN
+
+
+def test_parse_verbose_response_unknown_language_uses_fallback() -> None:
+    # Langue détectée hors périmètre (FR/EN) : repli sur l'indice fourni.
+    t = _parse_verbose_response(
+        {"language": "spanish", "duration": 1.0, "segments": []},
+        fallback=Language.FR,
+    )
+    assert t.detected_language is Language.FR
+
+
 def test_parse_verbose_response_empty_segments() -> None:
     transcription = _parse_verbose_response(
         {"language": "en", "duration": 0.0, "segments": []}

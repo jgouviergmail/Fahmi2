@@ -8,6 +8,7 @@ import pytest
 
 from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.domain.enums import PhaseStatus
+from fahmi2.domain.generation import ParallelismConfig
 from fahmi2.domain.ids import VideoId
 from fahmi2.domain.video import VideoExecution
 from fahmi2.infra.llm._fakes import FakeLLMProvider
@@ -95,7 +96,13 @@ def test_execute_assembles_consolidated_markdown(
         _r(summary_json_2, 0.001),
         _r(meta_json, 0.005),
     ]
-    ctx, _ = build_phase_context(tmp_path, make_generation_settings, videos=videos)
+    ctx, _ = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        videos=videos,
+        # Réponses couplées à l'ordre des appels → exécution séquentielle requise.
+        settings_overrides={"parallelism": ParallelismConfig(llm_workers=1)},
+    )
     # Remplacer le LLM par notre version séquentielle
     ctx2 = ctx.__class__(  # même type
         run=ctx.run,
@@ -324,3 +331,44 @@ def test_assemble_consolidated_summary_not_referenced_in_toc() -> None:
     # La portion sommaire (entre "## Sommaire" et le 1er chapitre) ne cite pas le résumé.
     toc = md.split("## Sommaire", 1)[1].split("# 1.", 1)[0]
     assert "Résumé" not in toc
+
+
+def test_consolidation_parallel_summaries(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    videos = tuple(
+        VideoExecution(video_id=VideoId.new(), source_path=tmp_path / f"v{i}.mp4")
+        for i in range(3)
+    )
+    fixed = LLMResponse(
+        content=json.dumps(
+            {
+                "title": "T",
+                "global_title": "G",
+                "summary_markdown": "S",
+                "introduction_markdown": "I",
+                "conclusion_markdown": "C",
+            }
+        ),
+        thinking_content=None,
+        prompt_tokens=10,
+        completion_tokens=10,
+        cached_prompt_tokens=0,
+        cost_usd=0.003,
+    )
+    ctx, _ = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        llm_response=fixed,
+        videos=videos,
+        settings_overrides={"parallelism": ParallelismConfig(llm_workers=4)},
+    )
+    for v in videos:
+        _write_structured(
+            ctx.workspace, v.video_id.value, f"# Chap {v.video_id.value}\n\nContenu."
+        )
+
+    result = Phase5ConsolidationHandler().execute(ctx, video=None)
+    assert result.status is PhaseStatus.SUCCEEDED
+    assert (ctx.workspace / "consolidated_master.md").exists()
+    assert result.cost_usd > 0

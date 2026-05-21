@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from fahmi2.core.concurrency import map_bounded
 from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import PhaseId
@@ -138,13 +139,16 @@ class Phase5ConsolidationHandler(PhaseHandler):
         started_at = utc_now()
         structured_by_video = _load_all_structured(ctx.workspace, ctx.run.videos)
 
-        total_cost = 0.0
-        summaries: list[dict[str, Any]] = []
-        for video_id, structured_md in structured_by_video.items():
-            summary, summary_cost = self._summarize_video(ctx, structured_md)
-            summary["video_id"] = video_id
-            summaries.append(summary)
-            total_cost += summary_cost
+        # Les résumés par vidéo sont indépendants : exécution parallèle bornée
+        # (ordre des résultats préservé → assemblage déterministe).
+        summary_results = map_bounded(
+            lambda kv: self._summarize_one(ctx, kv),
+            list(structured_by_video.items()),
+            max_workers=ctx.settings.parallelism.llm_workers,
+            pause_token=ctx.pause_token,
+        )
+        summaries = [summary for summary, _ in summary_results]
+        total_cost = sum(cost for _, cost in summary_results)
 
         meta, meta_cost = self._produce_meta(ctx, summaries)
         total_cost += meta_cost
@@ -158,6 +162,23 @@ class Phase5ConsolidationHandler(PhaseHandler):
             started_at=started_at,
             cost_usd=total_cost,
         )
+
+    def _summarize_one(
+        self, ctx: PhaseContext, item: tuple[str, str]
+    ) -> tuple[dict[str, Any], float]:
+        """Résume une vidéo (clé = ``video_id``), pour exécution parallèle.
+
+        Args:
+            ctx: Contexte.
+            item: Couple ``(video_id, structured_markdown)``.
+
+        Returns:
+            ``(summary_avec_video_id, cost_usd)``.
+        """
+        video_id, structured_md = item
+        summary, cost = self._summarize_video(ctx, structured_md)
+        summary["video_id"] = video_id
+        return summary, cost
 
     def _summarize_video(
         self, ctx: PhaseContext, structured_md: str

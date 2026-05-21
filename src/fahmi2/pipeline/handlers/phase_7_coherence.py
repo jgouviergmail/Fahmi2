@@ -17,6 +17,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from fahmi2.core.concurrency import map_bounded
 from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import Language, PhaseId
@@ -74,10 +75,14 @@ class Phase7CoherenceHandler(PhaseHandler):
         started_at = utc_now()
         glossary_terms = _load_glossary_terms(ctx.workspace)
 
-        total_cost = 0.0
-        for target in ctx.settings.output_languages:
-            cost = self._run_for_language(ctx, target, glossary_terms)
-            total_cost += cost
+        # Les langues sont indépendantes : passe de cohérence parallèle.
+        costs = map_bounded(
+            lambda target: self._run_for_language(ctx, target, glossary_terms),
+            ctx.settings.output_languages,
+            max_workers=ctx.settings.parallelism.llm_workers,
+            pause_token=ctx.pause_token,
+        )
+        total_cost = sum(costs)
 
         return build_succeeded_phase(
             phase_id=self.phase_id,

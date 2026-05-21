@@ -14,12 +14,14 @@ from fahmi2.domain.enums import (
     TargetAudience,
 )
 from fahmi2.domain.pedagogy import (
+    DEFAULT_PEDAGOGY_LLM_WORKERS,
     EVALUATIVE_SUPPORTS,
     NO_LLM_SUPPORTS,
     PEDAGOGY_WORKSPACE_SUBDIR,
     PedagogySettings,
 )
 from fahmi2.domain.phase import PhaseConfig
+from fahmi2.pedagogy.manifest import compute_settings_hash
 
 
 def _make(**overrides: object) -> PedagogySettings:
@@ -71,3 +73,19 @@ def test_separate_correction_subset_of_evaluative_selected() -> None:
 def test_negative_ceiling_rejected() -> None:
     with pytest.raises(ValueError, match="cost_ceiling_usd"):
         _make(cost_ceiling_usd=-1.0)
+
+
+def test_llm_workers_defaults_to_16() -> None:
+    assert _make().llm_workers == DEFAULT_PEDAGOGY_LLM_WORKERS
+    assert DEFAULT_PEDAGOGY_LLM_WORKERS == 16
+
+
+def test_llm_workers_must_be_positive() -> None:
+    with pytest.raises(ValueError, match="llm_workers"):
+        _make(llm_workers=0)
+
+
+def test_llm_workers_not_in_settings_hash() -> None:
+    a = compute_settings_hash(_make(llm_workers=4))
+    b = compute_settings_hash(_make(llm_workers=32))
+    assert a == b

@@ -24,6 +24,13 @@ from fahmi2.domain.phase import PhaseConfig
 #: Sous-dossier du workspace dédié aux supports pédagogiques.
 PEDAGOGY_WORKSPACE_SUBDIR = "pedagogy"
 
+#: Nombre de tâches LLM concurrentes par défaut (DeepSeek : limite par
+#: concurrence très haute, donc valeur généreuse mais sûre).
+DEFAULT_PEDAGOGY_LLM_WORKERS = 16
+
+#: Borne haute proposée dans l'UI pour le réglage « tâches en parallèle ».
+MAX_PEDAGOGY_LLM_WORKERS = 64
+
 #: Supports évaluatifs (un corrigé séparé a du sens).
 EVALUATIVE_SUPPORTS: frozenset[SupportType] = frozenset(
     {
@@ -58,6 +65,8 @@ class PedagogySettings:
         llm_config: Config des appels LLM (thinking/effort/température/retries).
         cost_ceiling_usd: Plafond de coût (``None`` = pas de plafond).
         export_formats: Formats d'export demandés.
+        llm_workers: Tâches LLM concurrentes (>= 1). Sans effet sur le contenu
+            généré : n'entre pas dans le hash de fraîcheur.
     """
 
     selected_supports: frozenset[SupportType]
@@ -71,6 +80,7 @@ class PedagogySettings:
     llm_config: PhaseConfig
     cost_ceiling_usd: float | None
     export_formats: frozenset[ExportFormat]
+    llm_workers: int = DEFAULT_PEDAGOGY_LLM_WORKERS
 
     def __post_init__(self) -> None:
         if not self.selected_supports:
@@ -88,3 +98,5 @@ class PedagogySettings:
             raise ValueError(
                 f"cost_ceiling_usd must be >= 0 or None, got {self.cost_ceiling_usd}"
             )
+        if self.llm_workers < 1:
+            raise ValueError(f"llm_workers must be >= 1, got {self.llm_workers}")

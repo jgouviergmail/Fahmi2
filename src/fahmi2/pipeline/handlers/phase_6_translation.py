@@ -17,9 +17,11 @@ Les artefacts produits vivent dans ``output_dir`` :
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from fahmi2.core.concurrency import map_bounded
 from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import Language, PhaseId
@@ -40,6 +42,15 @@ _CONSOLIDATED_MASTER_FILENAME = "consolidated_master.md"
 _GLOSSARY_MASTER_FILENAME = "glossary_master.json"
 _PER_VIDEO_OUTPUT_SUBDIR = "per-video"
 _TEMPLATE_NAME = "phase_6_translation"
+
+
+@dataclass(frozen=True)
+class _TranslationTask:
+    """Une traduction LLM à effectuer : document source → fichier cible."""
+
+    source_markdown: str
+    target: Language
+    target_path: Path
 
 
 class Phase6TranslationHandler(PhaseHandler):
@@ -95,16 +106,26 @@ class Phase6TranslationHandler(PhaseHandler):
             ctx.workspace, ctx.run.videos
         )
 
-        total_cost = 0.0
+        # Les copies (langue source) sont écrites directement ; les traductions
+        # LLM (langues ≠ source) sont collectées puis exécutées en parallèle au
+        # grain (langue × document).
+        tasks: list[_TranslationTask] = []
         for target in ctx.settings.output_languages:
-            cost = self._produce_for_language(
+            self._collect_for_language(
                 ctx,
                 target=target,
                 consolidated_master_md=consolidated_master,
                 glossary_master_payload=glossary_master,
                 per_video_structured=per_video_structured,
+                tasks=tasks,
             )
-            total_cost += cost
+        costs = map_bounded(
+            lambda task: self._run_translation(ctx, task, glossary_master),
+            tasks,
+            max_workers=ctx.settings.parallelism.llm_workers,
+            pause_token=ctx.pause_token,
+        )
+        total_cost = sum(costs)
 
         return build_succeeded_phase(
             phase_id=self.phase_id,
@@ -113,7 +134,7 @@ class Phase6TranslationHandler(PhaseHandler):
             cost_usd=total_cost,
         )
 
-    def _produce_for_language(
+    def _collect_for_language(
         self,
         ctx: PhaseContext,
         *,
@@ -121,8 +142,9 @@ class Phase6TranslationHandler(PhaseHandler):
         consolidated_master_md: str,
         glossary_master_payload: dict[str, Any],
         per_video_structured: dict[str, str],
-    ) -> float:
-        """Produit tous les artefacts pour une langue cible.
+        tasks: list[_TranslationTask],
+    ) -> None:
+        """Écrit les copies (langue source) et empile les traductions (sinon).
 
         Args:
             ctx: Contexte.
@@ -130,14 +152,10 @@ class Phase6TranslationHandler(PhaseHandler):
             consolidated_master_md: Document consolidé en langue source.
             glossary_master_payload: Glossaire JSON master.
             per_video_structured: Mapping ``video_id -> markdown structuré``.
-
-        Returns:
-            Coût cumulé pour cette langue (USD).
+            tasks: Liste de tâches de traduction à compléter (effet de bord).
         """
         is_source = target is ctx.settings.source_language
-        per_video_cost = 0.0
 
-        # Per-video docs
         for video_id, structured_md in per_video_structured.items():
             target_path = (
                 ctx.output_dir
@@ -147,35 +165,47 @@ class Phase6TranslationHandler(PhaseHandler):
             )
             if is_source:
                 ctx.artifacts.write_text_atomic(target_path, structured_md)
-                continue
-            translated, cost = self._translate(ctx, structured_md, target, glossary_master_payload)
-            ctx.artifacts.write_text_atomic(target_path, translated)
-            per_video_cost += cost
+            else:
+                tasks.append(_TranslationTask(structured_md, target, target_path))
 
-        # Consolidated
         consolidated_target = ctx.output_dir / consolidated_doc_filename(target)
         if is_source:
-            ctx.artifacts.write_text_atomic(consolidated_target, consolidated_master_md)
-            consolidated_cost = 0.0
-        else:
-            translated, consolidated_cost = self._translate(
-                ctx, consolidated_master_md, target, glossary_master_payload
+            ctx.artifacts.write_text_atomic(
+                consolidated_target, consolidated_master_md
             )
-            ctx.artifacts.write_text_atomic(consolidated_target, translated)
+        else:
+            tasks.append(
+                _TranslationTask(consolidated_master_md, target, consolidated_target)
+            )
 
-        # Glossary
         glossary_target = ctx.output_dir / f"glossary.{target.value}.md"
         glossary_md = _render_glossary_md(glossary_master_payload, target)
         if is_source:
             ctx.artifacts.write_text_atomic(glossary_target, glossary_md)
-            glossary_cost = 0.0
         else:
-            translated, glossary_cost = self._translate(
-                ctx, glossary_md, target, glossary_master_payload
-            )
-            ctx.artifacts.write_text_atomic(glossary_target, translated)
+            tasks.append(_TranslationTask(glossary_md, target, glossary_target))
 
-        return consolidated_cost + glossary_cost + per_video_cost
+    def _run_translation(
+        self,
+        ctx: PhaseContext,
+        task: _TranslationTask,
+        glossary_master_payload: dict[str, Any],
+    ) -> float:
+        """Traduit une tâche via le LLM et écrit le fichier cible.
+
+        Args:
+            ctx: Contexte.
+            task: Tâche de traduction (source + langue + chemin cible).
+            glossary_master_payload: Glossaire master JSON.
+
+        Returns:
+            Le coût LLM (USD).
+        """
+        translated, cost = self._translate(
+            ctx, task.source_markdown, task.target, glossary_master_payload
+        )
+        ctx.artifacts.write_text_atomic(task.target_path, translated)
+        return cost
 
     def _translate(
         self,

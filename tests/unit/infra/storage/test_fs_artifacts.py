@@ -81,6 +81,16 @@ def test_write_text_failure_keeps_original(tmp_path: Path) -> None:
     assert path.read_text(encoding="utf-8") == "original"
 
 
+def test_tmp_path_is_unique_across_calls() -> None:
+    store = FsArtifactStore()
+    path = Path("dir/file.json")
+    a = store._tmp_path_for(path)
+    b = store._tmp_path_for(path)
+    assert a != b
+    assert a.name.endswith(".tmp")
+    assert b.name.endswith(".tmp")
+
+
 def test_concurrent_writes_to_different_files(tmp_path: Path) -> None:
     store = FsArtifactStore()
     n_threads = 8

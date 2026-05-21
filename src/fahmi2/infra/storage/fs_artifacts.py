@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -70,8 +71,12 @@ class FsArtifactStore:
 
     @staticmethod
     def _tmp_path_for(path: Path) -> Path:
-        """Retourne le chemin de l'artefact temporaire associé à ``path``."""
-        return path.with_suffix(path.suffix + _TMP_SUFFIX)
+        """Retourne un chemin temporaire **unique** associé à ``path``.
+
+        Le composant aléatoire (uuid4) évite toute collision entre deux
+        écritures concurrentes (défense en profondeur pour la parallélisation).
+        """
+        return path.with_suffix(f"{path.suffix}.{uuid.uuid4().hex}{_TMP_SUFFIX}")
 
     @staticmethod
     def _cleanup_tmp(tmp: Path) -> None:

@@ -77,6 +77,23 @@ class PhaseHandler(ABC):
     def is_per_video(self) -> bool:
         """Indique si la phase tourne par vidéo (``True``) ou en batch (``False``)."""
 
+    def max_parallel_workers(self, ctx: PhaseContext) -> int:
+        """Nombre d'unités per-video à traiter en parallèle pour cette phase.
+
+        Défaut : ``1`` (séquentiel). Les phases dont les unités per-video sont
+        indépendantes et I/O-bound surchargent cette méthode pour autoriser un
+        pool borné (cf. ``GenerationSettings.parallelism``). Ignoré pour les
+        phases batch (``is_per_video`` faux).
+
+        Args:
+            ctx: Contexte d'exécution (accès aux réglages).
+
+        Returns:
+            Le nombre maximal de workers (>= 1).
+        """
+        del ctx
+        return 1
+
     @abstractmethod
     def execute(
         self,

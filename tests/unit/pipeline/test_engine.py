@@ -159,6 +159,14 @@ def _make_engine(*handlers: PhaseHandler) -> PipelineEngine:
 # --- engine main flow --------------------------------------------------------
 
 
+def test_default_max_parallel_workers_is_one(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    ctx = _make_ctx(tmp_path, make_generation_settings, n_videos=1)
+    handler = _CountingHandler(PhaseId.STT, is_per_video=True)
+    assert handler.max_parallel_workers(ctx) == 1
+
+
 def test_engine_runs_phase_per_video(tmp_path: Path, make_generation_settings: Any) -> None:
     ctx = _make_ctx(tmp_path, make_generation_settings, n_videos=3)
     handler = _CountingHandler(PhaseId.STT, is_per_video=True)

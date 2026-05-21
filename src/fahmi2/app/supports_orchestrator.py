@@ -105,8 +105,9 @@ class SupportsOrchestrator:
             event_bus: Bus d'événements pédagogie.
 
         Returns:
-            ``COMPLETED`` (succès), ``FAILED`` (≥1 support échoué) ou
-            ``CANCELLED`` (annulé par l'utilisateur).
+            ``COMPLETED`` (succès), ``FAILED`` (≥1 support échoué),
+            ``CANCELLED`` (annulé par l'utilisateur) ou ``PAUSED`` (plafond de
+            coût atteint : génération interrompue à une frontière sûre).
 
         Raises:
             ConfigError: Si la pédagogie n'est pas configurée sur le projet.

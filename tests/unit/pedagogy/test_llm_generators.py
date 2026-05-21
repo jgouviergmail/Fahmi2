@@ -5,6 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import pytest
+
+from fahmi2.core.errors.exceptions import LLMError
 from fahmi2.core.retry.policy import RetryPolicy
 from fahmi2.domain.enums import Language, SupportType
 from fahmi2.domain.supports import (
@@ -121,6 +124,24 @@ def test_qcm_generator_parses_and_balances(make_pedagogy_settings: Any) -> None:
     assert all(isinstance(i, QcmItem) for i in artifact.items)
     indices = [i.correct_index for i in artifact.items if isinstance(i, QcmItem)]
     assert indices == [0, 1, 2]
+
+
+def test_qcm_invalid_correct_index_raises_llm_error(
+    make_pedagogy_settings: Any,
+) -> None:
+    """Un ``correct_index`` hors borne devient une ``LLMError`` typée (pas ValueError)."""
+    provider = _provider(
+        '{"questions": [{"question": "Q", "choices": ["a", "b"], '
+        '"correct_index": 9, "justification": "j"}]}'
+    )
+    with pytest.raises(LLMError) as exc_info:
+        QcmGenerator().generate(
+            _ctx(provider, make_pedagogy_settings),
+            language=Language.FR,
+            chapters=(_CHAPTER,),
+            glossary=(),
+        )
+    assert exc_info.value.code == "LLM.INVALID_SCHEMA"
 
 
 def test_qcm_separate_correction(make_pedagogy_settings: Any) -> None:

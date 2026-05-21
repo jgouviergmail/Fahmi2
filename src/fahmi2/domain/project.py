@@ -8,7 +8,7 @@ réglages dédiés par fonctionnalité — ici ``generation`` (cf. ``domain.gene
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
 
@@ -43,3 +43,36 @@ class Project:
     runs: tuple[RunId, ...] = ()
     generation: GenerationSettings | None = None
     pedagogy: PedagogySettings | None = None
+
+    def with_name(self, name: str) -> Project:
+        """Retourne une copie avec un nouveau ``name``.
+
+        Args:
+            name: Nouveau nom du projet.
+
+        Returns:
+            Nouvelle instance immuable (autres champs préservés).
+        """
+        return replace(self, name=name)
+
+    def with_generation(self, generation: GenerationSettings | None) -> Project:
+        """Retourne une copie avec de nouveaux réglages de génération.
+
+        Args:
+            generation: Réglages de génération, ou ``None``.
+
+        Returns:
+            Nouvelle instance immuable (notamment ``pedagogy`` préservé).
+        """
+        return replace(self, generation=generation)
+
+    def with_pedagogy(self, pedagogy: PedagogySettings | None) -> Project:
+        """Retourne une copie avec de nouveaux réglages Supports pédagogiques.
+
+        Args:
+            pedagogy: Réglages pédagogie, ou ``None``.
+
+        Returns:
+            Nouvelle instance immuable (notamment ``generation`` préservé).
+        """
+        return replace(self, pedagogy=pedagogy)

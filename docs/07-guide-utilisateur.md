@@ -191,7 +191,8 @@ Les supports sont écrits sous `<emplacement>/pedagogy/{support}/{langue}/`
 (`.json` structuré + `.md` lisible, plus `.corrige.md` pour les sujets évaluatifs
 avec corrigé séparé). Vous pouvez les éditer directement.
 
-Le bouton **📦 Exporter** propose trois formats :
+Le bouton **📦 Exporter** propose les formats que vous avez cochés dans les
+réglages (« ⚙ Réglages → Modèle & coût → Formats d'export ») :
 
 - **Anki (`.apkg`)** : paquet importable dans Anki — sous-decks par support,
   cartes Basic / Cloze / QCM, étiquettes (support / langue / niveau / chapitre).

@@ -8,6 +8,8 @@ sous-decks par support, tags (support / langue / difficulté / chapitre).
 from __future__ import annotations
 
 import hashlib
+import re
+import string
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -25,9 +27,12 @@ _QCM_MODEL_ID = 1_607_392_321
 _DECK_ID_MODULO = 1 << 31
 _DECK_SEPARATOR = "::"
 _CLOZE_MARKER = "___"
-_CHOICE_LETTERS = "ABCDEFGHIJ"
+_CHOICE_LETTERS = string.ascii_uppercase
 _CHOICE_SEPARATOR = "<br>"
 _ENCODING_UTF8 = "utf-8"
+#: Anki interdit les espaces dans les tags (séparateur de tags) : on les remplace.
+_TAG_WHITESPACE_RE = re.compile(r"\s+")
+_TAG_WHITESPACE_REPLACEMENT = "_"
 
 _SUPPORT_LABELS: dict[SupportType, str] = {
     SupportType.FLASHCARDS_GLOSSARY: "Flashcards Glossaire",
@@ -110,6 +115,22 @@ def _to_anki_cloze(text: str, answers: tuple[str, ...]) -> str:
             break
         result = result.replace(_CLOZE_MARKER, f"{{{{c{index}::{answer}}}}}", 1)
     return result
+
+
+def _sanitize_tag(value: str) -> str:
+    """Rend une valeur compatible avec un tag Anki (sans espace).
+
+    Anki sépare les tags sur les espaces ; ``genanki`` lève d'ailleurs si un tag
+    en contient. Les termes de glossaire multi-mots (``source_ref``) doivent donc
+    être assainis (espaces → ``_``).
+
+    Args:
+        value: Valeur brute (terme, ancre de chapitre, niveau…).
+
+    Returns:
+        La valeur sans espace (chaque suite d'espaces remplacée par ``_``).
+    """
+    return _TAG_WHITESPACE_RE.sub(_TAG_WHITESPACE_REPLACEMENT, value.strip())
 
 
 def _stable_deck_id(name: str) -> int:
@@ -275,6 +296,6 @@ class GenankiExporter:
         return [
             artifact.support_type.value,
             f"langue:{artifact.language.value}",
-            f"niveau:{difficulty}",
-            f"chapitre:{source_ref}",
+            f"niveau:{_sanitize_tag(difficulty)}",
+            f"chapitre:{_sanitize_tag(source_ref)}",
         ]

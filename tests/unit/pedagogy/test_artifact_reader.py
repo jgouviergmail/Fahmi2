@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from fahmi2.domain.enums import Language, SupportType
 from fahmi2.domain.supports import ClozeItem, Flashcard, QcmItem, SupportArtifact
@@ -81,3 +82,45 @@ def test_read_unexportable_returns_none(tmp_path: Path) -> None:
 
 def test_read_missing_file_returns_none(tmp_path: Path) -> None:
     assert read_artifact(tmp_path / "absent.json") is None
+
+
+def _write_raw(tmp_path: Path, support: SupportType, payload: dict[str, Any]) -> Path:
+    path = artifact_json_path(tmp_path, support, Language.FR)
+    FsArtifactStore().write_json_atomic(path, payload)
+    return path
+
+
+def test_read_item_with_invalid_qcm_returns_none(tmp_path: Path) -> None:
+    """Un QCM dont l'item viole une contrainte domaine n'est plus propagé."""
+    path = _write_raw(
+        tmp_path,
+        SupportType.QCM,
+        {
+            "support_type": SupportType.QCM.value,
+            "language": Language.FR.value,
+            "items": [
+                {
+                    "question": "Q",
+                    "choices": ["a", "b"],
+                    "correct_index": 5,  # hors borne
+                    "justification": "j",
+                    "source_ref": "1-c",
+                }
+            ],
+        },
+    )
+    assert read_artifact(path) is None
+
+
+def test_read_item_with_missing_key_returns_none(tmp_path: Path) -> None:
+    """Une clé d'item manquante n'est plus propagée (KeyError attrapé)."""
+    path = _write_raw(
+        tmp_path,
+        SupportType.FLASHCARDS_GLOSSARY,
+        {
+            "support_type": SupportType.FLASHCARDS_GLOSSARY.value,
+            "language": Language.FR.value,
+            "items": [{"front": "PIB"}],  # 'back'/'source_ref' manquants
+        },
+    )
+    assert read_artifact(path) is None

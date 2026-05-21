@@ -89,10 +89,12 @@ def read_artifact(json_path: Path) -> ParsedArtifact | None:
         payload = json.loads(json_path.read_text(encoding=_ENCODING_UTF8))
         support_type = SupportType(payload["support_type"])
         language = Language(payload["language"])
-    except (OSError, json.JSONDecodeError, KeyError, ValueError):
+        deserializer = _ITEM_DESERIALIZERS.get(support_type)
+        if deserializer is None:
+            return None
+        items = tuple(deserializer(dict(raw)) for raw in payload.get("items", []))
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, TypeError):
+        # Header *ou* item illisible/invalide (clé manquante, valeur d'enum ou
+        # entité hors contrainte) : on ignore l'artefact plutôt que de propager.
         return None
-    deserializer = _ITEM_DESERIALIZERS.get(support_type)
-    if deserializer is None:
-        return None
-    items = tuple(deserializer(dict(raw)) for raw in payload.get("items", []))
     return ParsedArtifact(support_type=support_type, language=language, items=items)

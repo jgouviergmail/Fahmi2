@@ -101,3 +101,12 @@ class GenerationTab(FeatureTab):
         """
         if project_id is not None:
             self._controller.on_project_selected(project_id)
+
+    def on_project_deleted(self, project_id: ProjectId) -> None:
+        """Réinitialise le cockpit si le projet supprimé était affiché.
+
+        Args:
+            project_id: Projet supprimé.
+        """
+        if self._controller.current_project_id == project_id:
+            self._controller.clear_current_project()

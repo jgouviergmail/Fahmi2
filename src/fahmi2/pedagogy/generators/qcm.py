@@ -8,6 +8,7 @@ produit via l'éditeur de prompts (design §12).
 
 from __future__ import annotations
 
+import string
 from typing import Any
 
 from fahmi2.domain.enums import Language, SupportType
@@ -20,11 +21,12 @@ from fahmi2.pedagogy.generators._base import (
     require_mapping,
     require_str,
     require_str_list,
+    schema_error,
 )
 
 _TEMPLATE_NAME = "pedagogy_qcm"
 _HEADING = "QCM"
-_CHOICE_LETTERS = "ABCDEFGHIJ"
+_CHOICE_LETTERS = string.ascii_uppercase
 _ANSWER_PREFIX = "Réponse"
 
 
@@ -88,19 +90,26 @@ class QcmGenerator(_EvaluativePerChapterLlmGenerator[QcmItem]):
         items: list[QcmItem] = []
         for raw in require_list(mapping, "questions", context_label=label):
             question = require_mapping(raw, context_label=label)
-            items.append(
-                QcmItem(
-                    question=require_str(question, "question", context_label=label),
-                    choices=require_str_list(question, "choices", context_label=label),
-                    correct_index=require_int(
-                        question, "correct_index", context_label=label
-                    ),
-                    justification=require_str(
-                        question, "justification", context_label=label
-                    ),
-                    source_ref=chapter.anchor,
+            try:
+                items.append(
+                    QcmItem(
+                        question=require_str(
+                            question, "question", context_label=label
+                        ),
+                        choices=require_str_list(
+                            question, "choices", context_label=label
+                        ),
+                        correct_index=require_int(
+                            question, "correct_index", context_label=label
+                        ),
+                        justification=require_str(
+                            question, "justification", context_label=label
+                        ),
+                        source_ref=chapter.anchor,
+                    )
                 )
-            )
+            except ValueError as exc:
+                raise schema_error(label, str(exc)) from exc
         return _balance(tuple(items))
 
     def _render_content(

@@ -6,8 +6,9 @@
 ## Branche & état
 
 - **Branche de travail** : `feat/sp1-coquille-multi-fonctionnalites` (poussée sur
-  `origin`). Tout le travail (SP1 + SP2 + SP3 complet : 01 → 03) y est commité.
-- **Vérifs au vert** au dernier point : `pytest` (637), `ruff`, `mypy --strict`.
+  `origin`). Tout le travail (SP1 + SP2 + SP3 complet : 01 → 03 + revue de code) y est
+  commité.
+- **Vérifs au vert** au dernier point : `pytest` (650), `ruff`, `mypy --strict`.
 
 ## Documents de référence (à lire avant d'agir)
 
@@ -101,6 +102,17 @@
   **clôture de la matrice chapeau** (R8–R19 ; R13 honnêtement *partiel* — sélection de
   chapitres hors v1). Lot **documentaire** (aucun code modifié, 637 verts inchangés). Plan :
   [`2026-05-20-sp3-03-docs-finales.md`](./2026-05-20-sp3-03-docs-finales.md).
+- **Revue de code (SP1–SP3)** : durcissement post-livraison — tags Anki assainis
+  (espaces → `_`, termes multi-mots), suppression de projet notifiée à **tous** les
+  onglets (`MainWindow.notify_project_deleted` + crochet `FeatureTab.on_project_deleted`),
+  with-méthodes `Project.with_name`/`with_generation`/`with_pedagogy` (plus de
+  reconstruction manuelle qui perdait `pedagogy`), menu export limité aux
+  `export_formats` cochés, parsing LLM robuste (`QcmItem`/`ClozeItem` invalides →
+  `LLMError` typée ; `read_artifact` ignore un item corrompu), borne `_MAX_QCM_CHOICES`,
+  statut `PAUSED` (plafond de coût) documenté + journalisé, helper d'ouverture de dossier
+  mutualisé (`ui/_file_explorer`), menu « ? → À propos » fonctionnel, magic numbers
+  retirés (estimateur). Métriques : **650 tests / 273 fichiers** verts (cf. CHANGELOG
+  « Corrigé — Revue de code »).
 
 ## Reste à faire (ordre) ⏭️
 

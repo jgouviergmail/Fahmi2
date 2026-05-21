@@ -53,7 +53,7 @@ def _now() -> datetime:
     return datetime.now(tz=UTC)
 
 
-def _schema_error(context_label: str, detail: str) -> LLMError:
+def schema_error(context_label: str, detail: str) -> LLMError:
     """Construit une ``LLMError`` de schéma invalide (non retryable).
 
     Args:
@@ -85,7 +85,7 @@ def require_mapping(value: Any, *, context_label: str) -> dict[str, Any]:  # noq
         LLMError: Si ``value`` n'est pas un dict.
     """
     if not isinstance(value, dict):
-        raise _schema_error(context_label, "objet JSON attendu")
+        raise schema_error(context_label, "objet JSON attendu")
     return value
 
 
@@ -107,7 +107,7 @@ def require_list(
     """
     value = mapping.get(key)
     if not isinstance(value, list):
-        raise _schema_error(context_label, f"liste attendue pour « {key} »")
+        raise schema_error(context_label, f"liste attendue pour « {key} »")
     return value
 
 
@@ -127,7 +127,7 @@ def require_str(mapping: dict[str, Any], key: str, *, context_label: str) -> str
     """
     value = mapping.get(key)
     if not isinstance(value, str) or not value.strip():
-        raise _schema_error(context_label, f"chaîne attendue pour « {key} »")
+        raise schema_error(context_label, f"chaîne attendue pour « {key} »")
     return value
 
 
@@ -147,7 +147,7 @@ def require_int(mapping: dict[str, Any], key: str, *, context_label: str) -> int
     """
     value = mapping.get(key)
     if isinstance(value, bool) or not isinstance(value, int):
-        raise _schema_error(context_label, f"entier attendu pour « {key} »")
+        raise schema_error(context_label, f"entier attendu pour « {key} »")
     return value
 
 
@@ -167,7 +167,7 @@ def require_bool(mapping: dict[str, Any], key: str, *, context_label: str) -> bo
     """
     value = mapping.get(key)
     if not isinstance(value, bool):
-        raise _schema_error(context_label, f"booléen attendu pour « {key} »")
+        raise schema_error(context_label, f"booléen attendu pour « {key} »")
     return value
 
 
@@ -190,7 +190,7 @@ def require_str_list(
     raw = require_list(mapping, key, context_label=context_label)
     out = [str(x) for x in raw if str(x).strip()]
     if not out:
-        raise _schema_error(context_label, f"liste de chaînes attendue pour « {key} »")
+        raise schema_error(context_label, f"liste de chaînes attendue pour « {key} »")
     return tuple(out)
 
 

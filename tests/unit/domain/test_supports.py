@@ -39,6 +39,17 @@ def test_qcm_item_requires_two_choices() -> None:
         )
 
 
+def test_qcm_item_rejects_too_many_choices() -> None:
+    with pytest.raises(ValueError, match="at most"):
+        QcmItem(
+            question="q",
+            choices=tuple(f"c{i}" for i in range(27)),
+            correct_index=0,
+            justification="j",
+            source_ref="r",
+        )
+
+
 def test_cloze_item_requires_answers() -> None:
     with pytest.raises(ValueError, match="answers"):
         ClozeItem(text="a ___", answers=(), source_ref="r")

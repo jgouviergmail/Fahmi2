@@ -16,14 +16,12 @@ Cette classe :
 from __future__ import annotations
 
 import shutil
-import subprocess
-import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 
-from PySide6.QtCore import QObject, Qt, QThread, QUrl, Signal
-from PySide6.QtGui import QCursor, QDesktopServices
+from PySide6.QtCore import QObject, Qt, QThread, Signal
+from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox, QWidget
 
 from fahmi2.app.cost_estimator import CostEstimation, CostEstimator
@@ -80,6 +78,7 @@ from fahmi2.pipeline.handlers.phase_7_coherence import Phase7CoherenceHandler
 from fahmi2.pipeline.pause_token import PauseToken
 from fahmi2.pipeline.phase_handler import PhaseContext
 from fahmi2.pipeline.phase_registry import PhaseRegistry
+from fahmi2.ui._file_explorer import open_in_file_explorer
 from fahmi2.ui.dialogs.generation_settings_view import GenerationSettingsView
 from fahmi2.ui.qt_event_bus import QtEventBus
 from fahmi2.ui.viewmodels.run_matrix import RunMatrixViewModel
@@ -593,7 +592,7 @@ class GenerationController(QObject):
                 "un run pour ce projet.",
             )
             return
-        _open_in_file_explorer(output_dir)
+        open_in_file_explorer(output_dir)
 
     def estimate_cost(self) -> None:
         """Slot : pré-estime le coût total du Run et affiche un rapport.
@@ -680,16 +679,7 @@ class GenerationController(QObject):
         generation = dialog.get_generation_settings()
         if generation is None:
             return
-        updated = Project(
-            id=project.id,
-            name=project.name,
-            workspace_folder=project.workspace_folder,
-            created_at=project.created_at,
-            last_run_at=project.last_run_at,
-            runs=project.runs,
-            generation=generation,
-        )
-        self._project_service.update_project(updated)
+        self._project_service.update_project(project.with_generation(generation))
         self.on_project_selected(project.id)
 
     def _current_output_dir(self) -> Path | None:
@@ -1150,26 +1140,6 @@ def _format_technical_details(details: dict[str, object]) -> str:
             text = text[:_TECHNICAL_DETAIL_TRUNCATE_LEN] + "…"
         parts.append(f"{key}={text}")
     return " ".join(parts)
-
-
-def _open_in_file_explorer(path: Path) -> None:
-    """Ouvre ``path`` dans l'explorateur de fichiers natif.
-
-    Sur Windows, utilise ``explorer.exe`` qui est non bloquant. Sur les
-    autres plateformes, fallback sur ``QDesktopServices.openUrl(file://)``.
-
-    Args:
-        path: Chemin du dossier à ouvrir.
-    """
-    if sys.platform == "win32":
-        explorer = shutil.which("explorer.exe") or "explorer.exe"
-        subprocess.Popen(  # noqa: S603
-            [explorer, str(path)], close_fds=True
-        )
-        return
-    QDesktopServices.openUrl(  # type: ignore[unreachable]
-        QUrl.fromLocalFile(str(path))
-    )
 
 
 def _format_duration_label(total_seconds: float) -> str:

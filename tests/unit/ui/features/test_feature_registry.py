@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QLabel, QWidget
 from fahmi2.domain.ids import ProjectId
 from fahmi2.ui.features.feature import FeatureId, FeatureTab
 from fahmi2.ui.features.registry import FeatureRegistry
+from fahmi2.ui.main_window import MainWindow
 
 
 class _StubTab(FeatureTab):
@@ -16,6 +17,7 @@ class _StubTab(FeatureTab):
         self._title = title
         self._widget = QLabel(title)
         self.selected: list[ProjectId | None] = []
+        self.deleted: list[ProjectId] = []
 
     @property
     def feature_id(self) -> FeatureId:
@@ -31,6 +33,9 @@ class _StubTab(FeatureTab):
 
     def on_project_selected(self, project_id: ProjectId | None) -> None:
         self.selected.append(project_id)
+
+    def on_project_deleted(self, project_id: ProjectId) -> None:
+        self.deleted.append(project_id)
 
 
 def test_registry_preserves_registration_order(qapp: object) -> None:
@@ -69,3 +74,16 @@ def test_default_on_project_selected_is_noop(qapp: object) -> None:
             return QLabel("X")
 
     _Minimal().on_project_selected(ProjectId.new())
+    _Minimal().on_project_deleted(ProjectId.new())
+
+
+def test_notify_project_deleted_dispatches_to_all_tabs(qapp: object) -> None:
+    del qapp
+    gen = _StubTab(FeatureId.GENERATION, "Génération")
+    ped = _StubTab(FeatureId.PEDAGOGY, "Supports")
+    window = MainWindow()
+    window.set_feature_tabs(FeatureRegistry([gen, ped]))
+    pid = ProjectId.new()
+    window.notify_project_deleted(pid)
+    assert gen.deleted == [pid]
+    assert ped.deleted == [pid]

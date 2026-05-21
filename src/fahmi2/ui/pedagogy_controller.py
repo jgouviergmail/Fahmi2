@@ -44,7 +44,7 @@ from fahmi2.core.errors.exceptions import Fahmi2Error
 from fahmi2.core.errors.severity import Severity
 from fahmi2.core.logging.event import LogEvent
 from fahmi2.core.retry.policy import RetryPolicy
-from fahmi2.domain.enums import Language, PhaseStatus, RunStatus
+from fahmi2.domain.enums import ExportFormat, Language, PhaseStatus, RunStatus
 from fahmi2.domain.generation import (
     GENERATION_OUTPUT_SUBDIR,
     GENERATION_WORKSPACE_SUBDIR,
@@ -67,9 +67,9 @@ from fahmi2.pedagogy.events import (
 from fahmi2.pedagogy.sources import consolidated_doc_path, load_chapters
 from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
 from fahmi2.pipeline.pause_token import PauseToken
+from fahmi2.ui._file_explorer import open_in_file_explorer
 from fahmi2.ui.dialogs.pedagogy_settings_view import PedagogySettingsView
-from fahmi2.ui.generation_controller import _open_in_file_explorer
-from fahmi2.ui.pedagogy_labels import support_label
+from fahmi2.ui.pedagogy_labels import EXPORT_LABELS, support_label
 from fahmi2.ui.qt_event_bus import PedagogyQtEventBus
 from fahmi2.ui.viewmodels.pedagogy_progress import PedagogyProgressViewModel
 from fahmi2.ui.viewmodels.pedagogy_state import PedagogyStateViewModel
@@ -79,10 +79,14 @@ from fahmi2.ui.widgets.project_header_bar import ProjectHeaderBar
 
 _APKG_SUFFIX = ".apkg"
 _APKG_FILTER = "Paquets Anki (*.apkg)"
-_FORMAT_ANKI = "Anki (.apkg)"
-_FORMAT_MARKDOWN = "Markdown"
-_FORMAT_PDF = "PDF"
-_EXPORT_FORMATS = (_FORMAT_ANKI, _FORMAT_MARKDOWN, _FORMAT_PDF)
+#: Libellé du format (messages) pour les exports documentaires.
+_LABEL_MARKDOWN = "Markdown"
+_LABEL_PDF = "PDF"
+#: Plafond de coût atteint : statut renvoyé par l'orchestrateur.
+_MSG_CEILING_REACHED = (
+    "Plafond de coût atteint — génération interrompue (supports restants non "
+    "générés)."
+)
 
 
 class _PedagogyWorker(QObject):
@@ -213,6 +217,18 @@ class PedagogyController(QObject):
         """
         return self._current_project.id if self._current_project is not None else None
 
+    def clear_current_project(self) -> None:
+        """Désélectionne le projet courant et réinitialise le cockpit pédagogique.
+
+        À appeler quand le projet affiché vient d'être supprimé : évite de
+        conserver une référence obsolète (et de ressusciter le projet en base via
+        ``update_project``). Ne touche pas à un worker éventuellement actif.
+        """
+        self._current_project = None
+        self._header_bar.set_idle()
+        self._header_bar.set_open_output_enabled(False)
+        self._progress_view.clear()
+
     def _sync_header_for_selected_project(self) -> None:
         """Aligne les boutons du header sur l'activité du worker."""
         if self._current_project is None:
@@ -256,18 +272,7 @@ class PedagogyController(QObject):
         pedagogy = dialog.get_pedagogy_settings()
         if pedagogy is None:
             return
-        self._project_service.update_project(
-            Project(
-                id=project.id,
-                name=project.name,
-                workspace_folder=project.workspace_folder,
-                created_at=project.created_at,
-                last_run_at=project.last_run_at,
-                runs=project.runs,
-                generation=project.generation,
-                pedagogy=pedagogy,
-            )
-        )
+        self._project_service.update_project(project.with_pedagogy(pedagogy))
         self.on_project_selected(project.id)
 
     # -------------------------------------------------------------- estimate
@@ -396,7 +401,7 @@ class PedagogyController(QObject):
                 "Aucun support n'a encore été généré pour ce projet.",
             )
             return
-        _open_in_file_explorer(pedagogy_dir)
+        open_in_file_explorer(pedagogy_dir)
 
     def export_apkg(self) -> None:
         """Exporte les supports générés vers un paquet Anki ``.apkg``."""
@@ -455,38 +460,69 @@ class PedagogyController(QObject):
         )
 
     def _on_export_requested(self) -> None:
-        """Propose le choix du format d'export et délègue à la bonne action."""
-        if self._current_project is None:
+        """Propose les formats d'export **configurés** et délègue à l'action.
+
+        Les formats proposés sont ceux cochés dans les réglages
+        (``PedagogySettings.export_formats``), dans l'ordre canonique de
+        ``ExportFormat``.
+        """
+        project = self._current_project
+        if project is None:
             QMessageBox.warning(
                 self._window,
                 "Aucun projet sélectionné",
                 "Sélectionne un projet dans la sidebar avant d'exporter.",
             )
             return
+        if project.pedagogy is None:
+            QMessageBox.information(
+                self._window,
+                "Supports non configurés",
+                "Configurez d'abord les supports pédagogiques (⚙ Réglages).",
+            )
+            return
+        configured = project.pedagogy.export_formats
+        formats = [fmt for fmt in ExportFormat if fmt in configured]
+        if not formats:
+            QMessageBox.information(
+                self._window,
+                "Aucun format d'export",
+                "Aucun format d'export n'est sélectionné dans les réglages "
+                "(⚙ Réglages → Modèle & coût).",
+            )
+            return
+        by_label = {EXPORT_LABELS[fmt]: fmt for fmt in formats}
         choice, ok = QInputDialog.getItem(
             self._window,
             "Exporter les supports",
             "Format :",
-            list(_EXPORT_FORMATS),
+            list(by_label),
             0,
             editable=False,
         )
         if not ok:
             return
-        if choice == _FORMAT_ANKI:
-            self.export_apkg()
-        elif choice == _FORMAT_MARKDOWN:
-            self.export_markdown()
-        elif choice == _FORMAT_PDF:
-            self.export_pdf()
+        self._export_actions()[by_label[choice]]()
+
+    def _export_actions(self) -> dict[ExportFormat, Callable[[], None]]:
+        """Mappe chaque format d'export à son action.
+
+        Returns:
+            Dictionnaire ``ExportFormat → action``.
+        """
+        return {
+            ExportFormat.APKG: self.export_apkg,
+            ExportFormat.MARKDOWN: self.export_markdown,
+            ExportFormat.PDF: self.export_pdf,
+        }
 
     def export_markdown(self) -> None:
         """Exporte les supports rendus en documents Markdown (sujet / corrigé)."""
-        self._export_documents(export_pedagogy_to_markdown, label="Markdown")
+        self._export_documents(export_pedagogy_to_markdown, label=_LABEL_MARKDOWN)
 
     def export_pdf(self) -> None:
         """Exporte les supports rendus en documents PDF (sujet / corrigé)."""
-        self._export_documents(export_pedagogy_to_pdf, label="PDF")
+        self._export_documents(export_pedagogy_to_pdf, label=_LABEL_PDF)
 
     def _export_documents(
         self,
@@ -761,6 +797,11 @@ def _pedagogy_event_to_log(event: PedagogyEvent) -> LogEvent:
             extra=extra,
         )
     if isinstance(event, SupportGenerationFinished):
+        ceiling_note = (
+            f" — {_MSG_CEILING_REACHED}"
+            if event.status is RunStatus.PAUSED
+            else ""
+        )
         return LogEvent(
             timestamp=event.timestamp,
             severity=(
@@ -771,7 +812,7 @@ def _pedagogy_event_to_log(event: PedagogyEvent) -> LogEvent:
             code="PEDAGOGY_FINISHED",
             message=(
                 f"Génération des supports terminée : {event.status.value} "
-                f"(coût total ${event.total_cost_usd:.4f})"
+                f"(coût total ${event.total_cost_usd:.4f}){ceiling_note}"
             ),
         )
     assert_never(event)

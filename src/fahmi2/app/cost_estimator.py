@@ -51,8 +51,11 @@ class _PhaseLoadFactor:
         batch_input_multiplier: Multiplicateur appliqué sur le total vidéo
             pour la phase batch.
         batch_output_factor: Sortie batch fixe en multiples du volume vidéo.
-        sub_loop_per_video: Si non-None, multiplicateur d'un sous-appel par
-            vidéo (utilisé par phase 5).
+        sub_loop_per_video: Si non-None, multiplicateur d'entrée d'un sous-appel
+            par vidéo (utilisé par phase 5).
+        sub_loop_output_factor: Multiplicateur de sortie du sous-appel par vidéo
+            (relatif au volume vidéo), appliqué quand ``sub_loop_per_video`` est
+            défini.
     """
 
     input_per_video: float
@@ -61,6 +64,7 @@ class _PhaseLoadFactor:
     batch_input_multiplier: float = 0.0
     batch_output_factor: float = 0.0
     sub_loop_per_video: float | None = None
+    sub_loop_output_factor: float = 0.0
 
 
 _LOAD_FACTORS: dict[PhaseId, _PhaseLoadFactor] = {
@@ -93,6 +97,7 @@ _LOAD_FACTORS: dict[PhaseId, _PhaseLoadFactor] = {
         batch_input_multiplier=0.3,
         batch_output_factor=0.5,
         sub_loop_per_video=0.2,
+        sub_loop_output_factor=0.1,
     ),
     PhaseId.TRANSLATION: _PhaseLoadFactor(
         input_per_video=1.0,
@@ -272,7 +277,11 @@ class CostEstimator:
                         * base_tokens_per_video
                         * n_videos
                     )
-                    sub_output = 0.1 * base_tokens_per_video * n_videos
+                    sub_output = (
+                        factor.sub_loop_output_factor
+                        * base_tokens_per_video
+                        * n_videos
+                    )
                     total += pricing.cost_for(
                         prompt_tokens=int(sub_input),
                         completion_tokens=int(sub_output * thinking_mult),

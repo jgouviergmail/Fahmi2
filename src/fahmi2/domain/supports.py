@@ -13,6 +13,8 @@ from fahmi2.domain.enums import Language, SupportType
 
 #: Nombre minimal de propositions pour un item de QCM.
 _MIN_QCM_CHOICES = 2
+#: Nombre maximal de propositions pour un item de QCM (lettres A..Z au rendu).
+_MAX_QCM_CHOICES = 26
 
 
 @dataclass(frozen=True)
@@ -54,6 +56,10 @@ class QcmItem:
         if len(self.choices) < _MIN_QCM_CHOICES:
             raise ValueError(
                 f"choices must contain at least {_MIN_QCM_CHOICES} options"
+            )
+        if len(self.choices) > _MAX_QCM_CHOICES:
+            raise ValueError(
+                f"choices must contain at most {_MAX_QCM_CHOICES} options"
             )
         if not 0 <= self.correct_index < len(self.choices):
             raise ValueError(

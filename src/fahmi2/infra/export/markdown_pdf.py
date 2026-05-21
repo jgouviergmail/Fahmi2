@@ -5,6 +5,12 @@ assemble les documents agrégés et rend le PDF via ``markdown`` → HTML →
 ``fpdf2.write_html``. La police PDF est une police Unicode système Windows
 (``Arial``) : les polices cœur de fpdf2 sont latin-1 et lèvent sur les
 caractères typographiques français (« — », « … »).
+
+Limite connue : ``fpdf2.write_html`` rend les blocs de code (``<pre>``/``<code>``)
+avec sa police monospace cœur (latin-1). Les rendus de supports pédagogiques n'en
+produisent pas ; un éventuel bloc de code (issu d'un chapitre) contenant des
+caractères non latin-1 pourrait faire échouer le rendu PDF (l'export Markdown
+reste alors disponible).
 """
 
 from __future__ import annotations

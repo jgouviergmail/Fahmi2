@@ -56,3 +56,14 @@ class FeatureTab(ABC):
         Args:
             project_id: Projet sélectionné, ou ``None`` si désélection.
         """
+
+    def on_project_deleted(self, project_id: ProjectId) -> None:  # noqa: B027
+        """Réagit à la suppression d'un projet.
+
+        Crochet optionnel (no-op par défaut) : un onglet qui affiche ce projet
+        doit réinitialiser son état pour ne pas conserver une référence obsolète
+        (cf. ``MainWindow.notify_project_deleted``).
+
+        Args:
+            project_id: Projet supprimé.
+        """

@@ -18,7 +18,6 @@ from fahmi2.app.prompts_service import PromptsService
 from fahmi2.app.secrets_service import SecretsService
 from fahmi2.core.config.paths import AppPaths
 from fahmi2.domain.ids import ProjectId
-from fahmi2.domain.project import Project
 from fahmi2.infra.secrets.interface import InMemorySecretsStore, SecretsStore
 from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.pedagogy.default_registry import build_default_support_registry
@@ -128,19 +127,9 @@ def main() -> int:  # noqa: PLR0915, C901
         new_name = dialog.get_name()
         if not new_name:
             return
-        updated = Project(
-            id=project.id,
-            name=new_name,
-            workspace_folder=project.workspace_folder,
-            created_at=project.created_at,
-            last_run_at=project.last_run_at,
-            runs=project.runs,
-            generation=project.generation,
-            pedagogy=project.pedagogy,
-        )
-        project_service.update_project(updated)
+        project_service.update_project(project.with_name(new_name))
         _refresh_sidebar()
-        window.projects_sidebar.select_project(updated.id)
+        window.projects_sidebar.select_project(project.id)
 
     def _delete_project(project_id: ProjectId) -> None:
         project = project_service.get_project(project_id)
@@ -163,13 +152,11 @@ def main() -> int:  # noqa: PLR0915, C901
         # chaque appel : l'identite ('is') avec QMessageBox.StandardButton.Yes n'est
         # pas garantie. On compare donc explicitement avec '=='.
         if reply == QMessageBox.StandardButton.Yes:
-            was_current = (
-                generation_tab.controller.current_project_id == project_id
-            )
             project_service.delete_project(project_id)
             _refresh_sidebar()
-            if was_current:
-                generation_tab.controller.clear_current_project()
+            # Notifie tous les onglets (pas seulement la Génération) pour qu'aucun
+            # ne conserve une référence au projet supprimé.
+            window.notify_project_deleted(project_id)
 
     window.projects_sidebar.set_on_edit_requested(_edit_project)
     window.projects_sidebar.set_on_delete_requested(_delete_project)

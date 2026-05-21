@@ -88,7 +88,8 @@ class SupportGenerationFinished:
 
     Attributes:
         timestamp: Horodatage.
-        status: ``COMPLETED``, ``FAILED`` (≥1 support échoué) ou ``CANCELLED``.
+        status: ``COMPLETED``, ``FAILED`` (≥1 support échoué), ``CANCELLED``
+            (annulé) ou ``PAUSED`` (plafond de coût atteint).
         total_cost_usd: Coût LLM cumulé.
     """
 

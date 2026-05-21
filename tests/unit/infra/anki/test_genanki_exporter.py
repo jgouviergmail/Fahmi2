@@ -7,12 +7,48 @@ from pathlib import Path
 
 from fahmi2.domain.enums import Language, SupportType
 from fahmi2.domain.supports import ClozeItem, Flashcard, QcmItem
-from fahmi2.infra.anki.genanki_exporter import GenankiExporter, _to_anki_cloze
+from fahmi2.infra.anki.genanki_exporter import (
+    GenankiExporter,
+    _sanitize_tag,
+    _to_anki_cloze,
+)
 from fahmi2.pedagogy.artifact_reader import ParsedArtifact
 
 
 def test_to_anki_cloze() -> None:
     assert _to_anki_cloze("a ___ b ___", ("x", "y")) == "a {{c1::x}} b {{c2::y}}"
+
+
+def test_sanitize_tag_replaces_whitespace() -> None:
+    assert _sanitize_tag("Intelligence artificielle") == "Intelligence_artificielle"
+    assert _sanitize_tag("master expert") == "master_expert"
+    assert _sanitize_tag("  multi   espaces ") == "multi_espaces"
+
+
+def test_export_multiword_glossary_term_does_not_raise(tmp_path: Path) -> None:
+    """Un terme de glossaire multi-mots (tag avec espace) ne fait plus échouer."""
+    artifacts = [
+        ParsedArtifact(
+            support_type=SupportType.FLASHCARDS_GLOSSARY,
+            language=Language.FR,
+            items=(
+                Flashcard(
+                    front="Intelligence artificielle",
+                    back="def",
+                    source_ref="Intelligence artificielle",
+                ),
+            ),
+        ),
+    ]
+    out = tmp_path / "deck.apkg"
+    result = GenankiExporter().export_to_file(
+        artifacts,
+        deck_root="Projet",
+        difficulty="master expert",
+        output_path=out,
+    )
+    assert result.note_count == 1
+    assert out.exists()
 
 
 def test_to_anki_cloze_more_blanks_than_answers() -> None:

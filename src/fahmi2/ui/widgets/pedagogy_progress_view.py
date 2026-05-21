@@ -77,8 +77,21 @@ class PedagogyProgressView(QWidget):
             info: État + message à afficher.
         """
         self._banner.setText(info.message)
-        self._banner.setProperty("state", info.state.value)
-        # Force le re-style (propriété dynamique QSS).
+        self._set_banner_state(info.state.value)
+
+    def clear(self) -> None:
+        """Vide la table de progression et le bandeau (aucun projet sélectionné)."""
+        self._table.setRowCount(0)
+        self._banner.setText("")
+        self._set_banner_state("")
+
+    def _set_banner_state(self, state: str) -> None:
+        """Applique la propriété QSS dynamique ``state`` et force le re-style.
+
+        Args:
+            state: Valeur de l'état (``""`` pour réinitialiser).
+        """
+        self._banner.setProperty("state", state)
         style = self._banner.style()
         if style is not None:
             style.unpolish(self._banner)

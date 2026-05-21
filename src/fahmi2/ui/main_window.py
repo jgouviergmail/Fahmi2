@@ -15,11 +15,13 @@ La sélection d'un projet dans la sidebar est **dispatchée** à chaque onglet
 from __future__ import annotations
 
 from collections.abc import Callable
+from importlib.metadata import PackageNotFoundError, version
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QMainWindow,
+    QMessageBox,
     QSplitter,
     QTabWidget,
     QWidget,
@@ -33,6 +35,14 @@ from fahmi2.ui.widgets.projects_sidebar import ProjectsSidebar
 _WINDOW_TITLE = "Fahmi2"
 _SIDEBAR_WIDTH_PX = 220
 _CENTRAL_WIDTH_PX = 980
+_PACKAGE_NAME = "fahmi2"
+_VERSION_UNKNOWN = "dev"
+_ABOUT_TITLE = "À propos de Fahmi2"
+_ABOUT_TEXT = (
+    "<b>Fahmi2</b> — version {version}<br><br>"
+    "Transforme un dossier de vidéos de cours en documents Markdown consolidés "
+    "et en supports de révision (flashcards, QCM, examens blancs…)."
+)
 
 
 class MainWindow(QMainWindow):
@@ -108,6 +118,20 @@ class MainWindow(QMainWindow):
         for tab in self._feature_registry.ordered():
             tab.on_project_selected(project_id)
 
+    def notify_project_deleted(self, project_id: ProjectId) -> None:
+        """Notifie **tous** les onglets de la suppression d'un projet.
+
+        Chaque onglet réinitialise son état s'il affichait ce projet, évitant
+        toute référence obsolète (et toute résurrection involontaire en base).
+
+        Args:
+            project_id: Projet supprimé.
+        """
+        if self._feature_registry is None:
+            return
+        for tab in self._feature_registry.ordered():
+            tab.on_project_deleted(project_id)
+
     def set_on_open_settings(self, callback: Callable[[], None]) -> None:
         """Définit le callback du menu Édition > Paramètres globaux.
 
@@ -156,4 +180,13 @@ class MainWindow(QMainWindow):
         help_menu = menubar.addMenu("?")
         assert help_menu is not None
         about_action = QAction("À propos", self)
+        about_action.triggered.connect(self._show_about)
         help_menu.addAction(about_action)
+
+    def _show_about(self) -> None:
+        """Affiche la boîte de dialogue « À propos » (nom + version)."""
+        try:
+            app_version = version(_PACKAGE_NAME)
+        except PackageNotFoundError:
+            app_version = _VERSION_UNKNOWN
+        QMessageBox.about(self, _ABOUT_TITLE, _ABOUT_TEXT.format(version=app_version))

@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QFormLayout,
     QGridLayout,
+    QLabel,
     QMessageBox,
     QTextEdit,
     QVBoxLayout,
@@ -55,6 +56,7 @@ _CAT_LANGUAGES = "Langues"
 _CAT_MODEL = "Modèle & coût"
 
 _SEPARATE_CORRECTION_LABEL = "corrigé séparé"
+_EXPORT_FORMATS_LABEL = "Formats d'export :"
 _REASONING_DEFAULT_LABEL = "Défaut serveur"
 _DIRECTIVES_PLACEHOLDER = (
     "Directives pédagogiques libres. Ex : « privilégier des exemples concrets, "
@@ -317,6 +319,7 @@ class PedagogySettingsView(QDialog):
         form.addRow("Température :", self._temperature_input)
         form.addRow("Plafond budget :", self._cost_ceiling_input)
         outer.addLayout(form)
+        outer.addWidget(QLabel(_EXPORT_FORMATS_LABEL, page))
         for cb in self._export_checks.values():
             outer.addWidget(cb)
         outer.addStretch(1)

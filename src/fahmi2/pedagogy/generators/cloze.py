@@ -13,6 +13,7 @@ from fahmi2.pedagogy.generators._base import (
     require_mapping,
     require_str,
     require_str_list,
+    schema_error,
 )
 
 _TEMPLATE_NAME = "pedagogy_cloze"
@@ -51,13 +52,18 @@ class ClozeGenerator(_EvaluativePerChapterLlmGenerator[ClozeItem]):
         items: list[ClozeItem] = []
         for raw in require_list(mapping, "items", context_label=label):
             entry = require_mapping(raw, context_label=label)
-            items.append(
-                ClozeItem(
-                    text=require_str(entry, "text", context_label=label),
-                    answers=require_str_list(entry, "answers", context_label=label),
-                    source_ref=chapter.anchor,
+            try:
+                items.append(
+                    ClozeItem(
+                        text=require_str(entry, "text", context_label=label),
+                        answers=require_str_list(
+                            entry, "answers", context_label=label
+                        ),
+                        source_ref=chapter.anchor,
+                    )
                 )
-            )
+            except ValueError as exc:
+                raise schema_error(label, str(exc)) from exc
         return tuple(items)
 
     def _render_content(

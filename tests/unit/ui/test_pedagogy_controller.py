@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import pytest
 from PySide6.QtWidgets import (
     QDialog,
     QFileDialog,
@@ -20,7 +21,13 @@ from fahmi2.app.secrets_service import SecretsService
 from fahmi2.app.supports_orchestrator import SupportsOrchestrator
 from fahmi2.core.config.paths import AppPaths
 from fahmi2.core.retry.policy import RetryPolicy
-from fahmi2.domain.enums import Language, PhaseStatus, RunStatus, SupportType
+from fahmi2.domain.enums import (
+    ExportFormat,
+    Language,
+    PhaseStatus,
+    RunStatus,
+    SupportType,
+)
 from fahmi2.domain.generation import (
     GENERATION_OUTPUT_SUBDIR,
     GENERATION_WORKSPACE_SUBDIR,
@@ -50,11 +57,11 @@ from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
 from fahmi2.pipeline.pause_token import PauseToken
 from fahmi2.ui import pedagogy_controller as pc_module
 from fahmi2.ui.pedagogy_controller import (
-    _FORMAT_MARKDOWN,
     PedagogyController,
     _pedagogy_event_to_log,
     _PedagogyWorker,
 )
+from fahmi2.ui.pedagogy_labels import EXPORT_LABELS
 from fahmi2.ui.qt_event_bus import PedagogyQtEventBus
 from fahmi2.ui.viewmodels.pedagogy_state import PedagogyState
 from fahmi2.ui.widgets.logs_dock import LogsDock
@@ -272,16 +279,98 @@ def test_on_export_requested_dispatches_markdown(
         name="P",
         workspace_folder=tmp_path / "ws",
         generation=make_generation_settings(),
-        pedagogy=make_pedagogy_settings(),
+        pedagogy=make_pedagogy_settings(
+            export_formats=frozenset({ExportFormat.MARKDOWN})
+        ),
     )
     controller.on_project_selected(project.id)
     called: list[str] = []
     monkeypatch.setattr(controller, "export_markdown", lambda: called.append("md"))
     monkeypatch.setattr(
-        QInputDialog, "getItem", lambda *args, **kwargs: (_FORMAT_MARKDOWN, True)
+        QInputDialog,
+        "getItem",
+        lambda *args, **kwargs: (EXPORT_LABELS[ExportFormat.MARKDOWN], True),
     )
     controller._on_export_requested()  # noqa: SLF001
     assert called == ["md"]
+
+
+def test_on_export_requested_only_offers_configured_formats(
+    qtbot: QtBot,
+    tmp_path: Path,
+    monkeypatch: Any,
+    make_generation_settings: Any,
+    make_pedagogy_settings: Any,
+) -> None:
+    controller, project_service, _ = _make_controller(qtbot, tmp_path)
+    project = project_service.create_project(
+        name="P",
+        workspace_folder=tmp_path / "ws",
+        generation=make_generation_settings(),
+        pedagogy=make_pedagogy_settings(
+            export_formats=frozenset({ExportFormat.PDF})
+        ),
+    )
+    controller.on_project_selected(project.id)
+    offered: list[list[str]] = []
+
+    def _capture(*args: Any, **kwargs: Any) -> tuple[str, bool]:
+        del kwargs
+        offered.append(list(args[3]))  # items
+        return "", False  # annule
+
+    monkeypatch.setattr(QInputDialog, "getItem", _capture)
+    controller._on_export_requested()  # noqa: SLF001
+    assert offered == [[EXPORT_LABELS[ExportFormat.PDF]]]
+
+
+def test_on_export_requested_no_configured_format(
+    qtbot: QtBot,
+    tmp_path: Path,
+    monkeypatch: Any,
+    make_generation_settings: Any,
+    make_pedagogy_settings: Any,
+) -> None:
+    controller, project_service, _ = _make_controller(qtbot, tmp_path)
+    project = project_service.create_project(
+        name="P",
+        workspace_folder=tmp_path / "ws",
+        generation=make_generation_settings(),
+        pedagogy=make_pedagogy_settings(export_formats=frozenset()),
+    )
+    controller.on_project_selected(project.id)
+    shown: list[str] = []
+    monkeypatch.setattr(
+        QMessageBox, "information", lambda *a, **k: shown.append(a[1])
+    )
+    monkeypatch.setattr(
+        QInputDialog,
+        "getItem",
+        lambda *a, **k: pytest.fail("ne doit pas proposer de format"),
+    )
+    controller._on_export_requested()  # noqa: SLF001
+    assert shown  # un message d'information a été affiché
+
+
+def test_clear_current_project_resets_cockpit(
+    qtbot: QtBot,
+    tmp_path: Path,
+    make_generation_settings: Any,
+    make_pedagogy_settings: Any,
+) -> None:
+    controller, project_service, _ = _make_controller(qtbot, tmp_path)
+    project = project_service.create_project(
+        name="P",
+        workspace_folder=tmp_path / "ws",
+        generation=make_generation_settings(),
+        pedagogy=make_pedagogy_settings(),
+    )
+    controller.on_project_selected(project.id)
+    assert controller.current_project_id == project.id
+    controller.clear_current_project()
+    assert controller._progress_view.banner_text() == ""  # noqa: SLF001
+    assert controller._progress_view.row_count() == 0  # noqa: SLF001
+    assert controller.current_project_id is None
 
 
 def test_worker_runs_orchestrator(

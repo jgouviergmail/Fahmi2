@@ -7,6 +7,29 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+### Corrigé — Revue de code (SP1–SP3)
+
+- **Export Anki** : les tags sont désormais assainis (les espaces deviennent `_`).
+  Un terme de glossaire multi-mots (« Intelligence artificielle ») ne fait plus
+  échouer l'export `.apkg` (`genanki` refuse les tags contenant un espace).
+- **Suppression d'un projet** : tous les onglets sont notifiés
+  (`MainWindow.notify_project_deleted`) — l'onglet Supports pédagogiques ne
+  conserve plus une référence au projet supprimé (qui pouvait le **ressusciter**
+  en base lors d'un enregistrement de réglages).
+- **Réglages de génération** : modifier la génération ne **perd plus** les réglages
+  Supports pédagogiques (reconstruction du `Project` via `with_generation`).
+- **Formats d'export** : le menu « 📦 Exporter » ne propose plus que les formats
+  **réellement cochés** dans les réglages (`PedagogySettings.export_formats`).
+- **Robustesse parsing LLM** : un QCM/cloze de schéma invalide (index hors borne,
+  trop de propositions, réponses vides) lève une `LLMError` typée au lieu d'une
+  exception non gérée ; `read_artifact` ignore proprement un artefact d'item
+  corrompu (retourne `None`).
+- **Plafond de coût pédagogie** : le statut `PAUSED` est désormais documenté et le
+  journal indique explicitement « plafond de coût atteint ».
+- **Divers** : menu « ? → À propos » fonctionnel (nom + version) ; libellé
+  « Formats d'export » dans les réglages ; helper d'ouverture de dossier mutualisé
+  (`ui/_file_explorer`) ; suppression de magic numbers (estimateur de coût).
+
 ### Ajouté — Export Markdown / PDF (SP3/02)
 
 - **Export Markdown et PDF** des supports depuis l'onglet pédagogique : le bouton

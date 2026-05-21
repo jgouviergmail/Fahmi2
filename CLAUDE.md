@@ -72,7 +72,9 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
 - `core/` — transverse : `errors` (hiérarchie `Fahmi2Error` + `ErrorInfo`
   sérialisable + messages FR), `retry` (`RetryPolicy` + `with_retry`), `logging`
   (JSONL + redaction secrets), `config/paths` (`AppPaths` Windows + résolution
-  ffmpeg bundlé runtime), `migrations`, `retrieval` (TF-IDF glossaire), `ids`.
+  ffmpeg bundlé runtime), `migrations`, `retrieval` (TF-IDF glossaire),
+  `concurrency` (`map_bounded` : pool borné, fail-fast, ordre préservé, honore le
+  `PauseToken` ; partagé pour paralléliser les appels LLM/STT I/O-bound), `ids`.
 - `domain/` — entités pures immuables (`Project` [identité minimale : nom +
   emplacement + réglages par fonctionnalité], `GenerationSettings`,
   `PedagogySettings`, `Run`, `VideoExecution`, `PhaseExecution`, `Term`,
@@ -168,8 +170,13 @@ checkpoint/reprise. Les phases batch sont persistées avec `video_id IS NULL`.
   change la base pour tous, mais un override `%APPDATA%` le masque. Le catalogue
   couvre les 8 phases **et** les 8 templates `pedagogy_*` (tous éditables pareil).
 - **Supports pédagogiques** : 8 types, tous LLM, générés par un **orchestrateur
-  dédié léger** (`SupportsOrchestrator`, **pas** le `PipelineEngine`) qui boucle
-  supports × langues. Les entrants sont lus **sur disque** comme le pipeline :
+  dédié léger** (`SupportsOrchestrator`, **pas** le `PipelineEngine`) qui
+  **parallélise les unités (langue × support)** via `core/concurrency/map_bounded`
+  (borné par `PedagogySettings.llm_workers`, défaut 16, plage 1–64 exposée en
+  réglage ; verrou sur le manifeste, compteur de coût partagé). Le **plafond de
+  coût est best-effort** en parallèle (léger dépassement toléré par les requêtes
+  en vol). Détails : `docs/superpowers/specs/2026-05-21-parallelisation-traitements-design.md`.
+  Les entrants sont lus **sur disque** comme le pipeline :
   document consolidé (parsé en chapitres ; une **langue de contenu** est résolue
   parmi les `consolidated.{lang}.md` existants — la langue cible peut donc différer)
   et glossaire (`glossary_master.json` ; pas de table SQLite). Les supports sont

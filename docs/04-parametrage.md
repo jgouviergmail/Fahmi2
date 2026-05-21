@@ -228,7 +228,7 @@ Onglet **Supports pédagogiques → ⚙ Réglages** (vue master-detail) :
 | **Supports** | Sélection parmi les 8 types ; case « corrigé séparé » sur les supports évaluatifs (QCM, vrai/faux, cloze, questions ouvertes, examen blanc). |
 | **Difficulté** | Public cible (découverte / lycée / licence / master-expert), objectif Bloom (auto / restituer / comprendre & appliquer / analyser & au-delà), densité (légère / standard / dense), directives libres. |
 | **Langues** | Toutes les langues supportées : les supports sont rédigés dans la langue choisie même si le document source est dans une autre langue (l'orchestrateur résout une langue de contenu à partir d'un `consolidated.{lang}.md` existant). |
-| **Modèle & coût** | Modèle LLM, mode raisonnement + niveau d'effort, température, **plafond budget** (interrompt proprement à la frontière sûre). |
+| **Modèle & coût** | Modèle LLM, mode raisonnement + niveau d'effort, température, **plafond budget** (interrompt proprement ; en génération parallèle, léger dépassement toléré par les requêtes déjà en vol), **tâches en parallèle** (défaut 16, plage 1–64 : nombre d'appels LLM concurrents pour générer les supports — la limite DeepSeek étant par concurrence, une valeur élevée reste sûre ; le parallélisme effectif est borné par le nombre de supports × langues). |
 | **Export** | Formats proposés au bouton **Exporter** : Anki (`.apkg`), Markdown agrégé, PDF, HTML (document autonome). Le Markdown des champs est converti en HTML à l'export Anki ; les documents Markdown/PDF/HTML agrègent les supports par langue (sujet / corrigé séparés). |
 
 Le bouton **Estimer le coût** donne un ordre de grandeur (par support × langue ×

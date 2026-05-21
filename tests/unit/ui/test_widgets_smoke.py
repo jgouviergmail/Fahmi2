@@ -18,7 +18,6 @@ from fahmi2.ui.viewmodels.stats_strip import StatsSnapshot
 from fahmi2.ui.widgets.logs_dock import LogsDock
 from fahmi2.ui.widgets.project_header_bar import ProjectHeaderBar
 from fahmi2.ui.widgets.projects_sidebar import ProjectsSidebar
-from fahmi2.ui.widgets.run_matrix_view import RunMatrixView
 from fahmi2.ui.widgets.stats_strip import StatsStripWidget
 
 
@@ -39,12 +38,6 @@ def test_stats_strip_renders_snapshot(qtbot: QtBot) -> None:
         elapsed_seconds=12.5,
     )
     widget.apply_snapshot(snapshot)
-
-
-def test_run_matrix_view_is_constructible(qtbot: QtBot) -> None:
-    widget = RunMatrixView()
-    qtbot.addWidget(widget)
-    assert widget.model() is not None
 
 
 def test_project_header_bar_signals_emit(qtbot: QtBot) -> None:

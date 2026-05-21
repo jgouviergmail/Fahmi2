@@ -83,9 +83,9 @@ from fahmi2.ui.dialogs.generation_settings_view import GenerationSettingsView
 from fahmi2.ui.qt_event_bus import QtEventBus
 from fahmi2.ui.viewmodels.run_matrix import RunMatrixViewModel
 from fahmi2.ui.viewmodels.stats_strip import StatsStripViewModel
+from fahmi2.ui.widgets.cost_matrix_view import EMPTY_COST_MATRIX, CostMatrixView
 from fahmi2.ui.widgets.logs_dock import LogsDock
 from fahmi2.ui.widgets.project_header_bar import ProjectHeaderBar
-from fahmi2.ui.widgets.run_matrix_view import RunMatrixView
 from fahmi2.ui.widgets.stats_strip import StatsStripWidget
 
 
@@ -173,7 +173,7 @@ class GenerationController(QObject):
         *,
         header_bar: ProjectHeaderBar,
         stats_strip: StatsStripWidget,
-        run_matrix: RunMatrixView,
+        run_matrix: CostMatrixView,
         logs_dock: LogsDock,
         window: QWidget,
         project_service: ProjectService,
@@ -329,20 +329,14 @@ class GenerationController(QObject):
     def _show_preview_for_project(self, project: Project) -> None:
         """Affiche une prévisualisation du Run à venir.
 
-        Scanne le dossier d'entrée et construit un ``MatrixSnapshot`` où
-        chaque vidéo détectée occupe une ligne, toutes les phases marquées
-        ``PENDING``. Échec silencieux du scan → vues vides.
+        Scanne le dossier d'entrée et construit un ``CostMatrixSnapshot`` de
+        prévisualisation (une ligne par vidéo détectée, toutes phases ``PENDING``)
+        via ``RunMatrixViewModel.preview_cost_matrix``. Échec silencieux du scan →
+        vues vides.
 
         Args:
             project: Projet courant.
         """
-        from fahmi2.domain.enums import PhaseStatus  # noqa: PLC0415
-        from fahmi2.domain.ids import RunId  # noqa: PLC0415
-        from fahmi2.ui.viewmodels.run_matrix import (  # noqa: PLC0415
-            MatrixCell,
-            MatrixRow,
-            MatrixSnapshot,
-        )
         from fahmi2.ui.viewmodels.stats_strip import StatsSnapshot  # noqa: PLC0415
 
         if project.generation is None:
@@ -354,30 +348,8 @@ class GenerationController(QObject):
             self._reset_views()
             return
 
-        phases = tuple(h.phase_id for h in self._registry.ordered_handlers())
-        per_video_phases = {
-            h.phase_id for h in self._registry.ordered_handlers() if h.is_per_video
-        }
-        rows = tuple(
-            MatrixRow(
-                video_id=v.video_id,
-                video_label=v.source_path.name,
-                cells={
-                    phase_id: MatrixCell(
-                        phase_id=phase_id,
-                        status=PhaseStatus.PENDING,
-                        cost_usd=0.0,
-                        retry_count=0,
-                        is_batch=phase_id not in per_video_phases,
-                    )
-                    for phase_id in phases
-                },
-            )
-            for v in videos
-        )
-        self._run_matrix.apply_snapshot(
-            MatrixSnapshot(run_id=RunId.new(), phases_in_order=phases, rows=rows)
-        )
+        matrix_vm = RunMatrixViewModel(state=self._state, registry=self._registry)
+        self._run_matrix.apply_snapshot(matrix_vm.preview_cost_matrix(tuple(videos)))
 
         now = datetime.now(tz=UTC)
         self._stats_strip.apply_snapshot(
@@ -397,14 +369,9 @@ class GenerationController(QObject):
 
     def _reset_views(self) -> None:
         """Vide la matrice et la bande de stats (fallback si pas de vidéos)."""
-        from fahmi2.domain.ids import RunId  # noqa: PLC0415
-        from fahmi2.ui.viewmodels.run_matrix import MatrixSnapshot  # noqa: PLC0415
         from fahmi2.ui.viewmodels.stats_strip import StatsSnapshot  # noqa: PLC0415
 
-        empty_matrix = MatrixSnapshot(
-            run_id=RunId.new(), phases_in_order=(), rows=()
-        )
-        self._run_matrix.apply_snapshot(empty_matrix)
+        self._run_matrix.apply_snapshot(EMPTY_COST_MATRIX)
         now = datetime.now(tz=UTC)
         empty_stats = StatsSnapshot(
             run_status=RunStatus.CREATED,
@@ -987,7 +954,7 @@ class GenerationController(QObject):
         """
         matrix_vm = RunMatrixViewModel(state=self._state, registry=self._registry)
         stats_vm = StatsStripViewModel(state=self._state, registry=self._registry)
-        self._run_matrix.apply_snapshot(matrix_vm.snapshot(run))
+        self._run_matrix.apply_snapshot(matrix_vm.cost_matrix_snapshot(run))
         self._stats_strip.apply_snapshot(stats_vm.snapshot(run))
 
 

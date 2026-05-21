@@ -53,21 +53,16 @@ _LABEL_BG = QColor("#ffffff")
 _LABEL_FG = QColor("#1f2328")
 
 
-def _empty_snapshot() -> CostMatrixSnapshot:
-    """Snapshot vide pour l'initialisation.
-
-    Returns:
-        Un ``CostMatrixSnapshot`` sans ligne ni colonne.
-    """
-    return CostMatrixSnapshot(
-        row_header="",
-        column_labels=(),
-        row_labels=(),
-        cells=(),
-        row_totals=(),
-        column_totals=(),
-        grand_total=0.0,
-    )
+#: Snapshot vide réutilisable (initialisation / réinitialisation des dashboards).
+EMPTY_COST_MATRIX = CostMatrixSnapshot(
+    row_header="",
+    column_labels=(),
+    row_labels=(),
+    cells=(),
+    row_totals=(),
+    column_totals=(),
+    grand_total=0.0,
+)
 
 
 def _fmt_cost(value: float | None) -> str:
@@ -283,7 +278,7 @@ class CostMatrixView(QTableView):
         """
         super().__init__(parent)
         self.setObjectName("costMatrix")
-        self._model = _CostMatrixModel(snapshot or _empty_snapshot())
+        self._model = _CostMatrixModel(snapshot or EMPTY_COST_MATRIX)
         self.setModel(self._model)
         self.setItemDelegate(_CostCellDelegate(self))
         self.setEditTriggers(QTableView.EditTrigger.NoEditTriggers)

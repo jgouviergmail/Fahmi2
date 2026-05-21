@@ -17,9 +17,9 @@ from fahmi2.domain.ids import ProjectId
 from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.ui.features.feature import FeatureId, FeatureTab
 from fahmi2.ui.generation_controller import GenerationController
+from fahmi2.ui.widgets.cost_matrix_view import CostMatrixView
 from fahmi2.ui.widgets.logs_dock import LogsDock
 from fahmi2.ui.widgets.project_header_bar import ProjectHeaderBar
-from fahmi2.ui.widgets.run_matrix_view import RunMatrixView
 from fahmi2.ui.widgets.stats_strip import StatsStripWidget
 
 _TAB_TITLE = "Génération"
@@ -55,7 +55,7 @@ class GenerationTab(FeatureTab):
         layout.setContentsMargins(0, 0, 0, 0)
         self._header_bar = ProjectHeaderBar(self._widget)
         self._stats_strip = StatsStripWidget(self._widget)
-        self._run_matrix = RunMatrixView(parent=self._widget)
+        self._run_matrix = CostMatrixView(parent=self._widget)
         layout.addWidget(self._header_bar)
         layout.addWidget(self._stats_strip)
         layout.addWidget(self._run_matrix, stretch=1)

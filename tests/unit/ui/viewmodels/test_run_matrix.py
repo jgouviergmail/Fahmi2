@@ -1,4 +1,6 @@
-"""Tests de RunMatrixViewModel."""
+"""Tests de RunMatrixViewModel (matrice de coût générique)."""
+
+from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
@@ -58,64 +60,64 @@ def _setup(
     return state, run, registry
 
 
-def test_snapshot_has_row_per_video(tmp_path: Path, make_generation_settings: Any) -> None:
-    state, run, registry = _setup(tmp_path, make_generation_settings)
-    viewmodel = RunMatrixViewModel(state=state, registry=registry)
-    snap = viewmodel.snapshot(run)
-    assert len(snap.rows) == 2
-
-
-def test_snapshot_columns_match_phases_in_canonical_order(
+def test_snapshot_row_per_video_and_phase_columns(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:
     state, run, registry = _setup(tmp_path, make_generation_settings)
-    viewmodel = RunMatrixViewModel(state=state, registry=registry)
-    snap = viewmodel.snapshot(run)
-    assert snap.phases_in_order == (
-        PhaseId.STT,
-        PhaseId.TERM_EXTRACTION,
-        PhaseId.GLOSSARY_RECONCILIATION,
-    )
+    vm = RunMatrixViewModel(state=state, registry=registry)
+    snap = vm.cost_matrix_snapshot(run)
+    assert len(snap.row_labels) == 2  # 2 vidéos
+    assert snap.column_labels == ("STT", "Termes", "Glossaire")
+    assert snap.row_labels[0] == run.videos[0].source_path.name
 
 
-def test_cell_status_reflects_state(tmp_path: Path, make_generation_settings: Any) -> None:
-    state, run, registry = _setup(tmp_path, make_generation_settings)
-    first_video = run.videos[0]
-    pe = PhaseExecution(phase_id=PhaseId.STT, status=PhaseStatus.SUCCEEDED)
-    state.upsert_phase_execution(run.id, pe, video_id=first_video.video_id)
-
-    viewmodel = RunMatrixViewModel(state=state, registry=registry)
-    snap = viewmodel.snapshot(run)
-    cell = snap.rows[0].cells[PhaseId.STT]
-    assert cell.status is PhaseStatus.SUCCEEDED
-    assert cell.is_batch is False
-
-
-def test_batch_phase_marked_as_batch(tmp_path: Path, make_generation_settings: Any) -> None:
-    state, run, registry = _setup(tmp_path, make_generation_settings)
-    viewmodel = RunMatrixViewModel(state=state, registry=registry)
-    snap = viewmodel.snapshot(run)
-    batch_cell = snap.rows[0].cells[PhaseId.GLOSSARY_RECONCILIATION]
-    assert batch_cell.is_batch is True
-    assert batch_cell.status is PhaseStatus.PENDING
-
-
-def test_batch_phase_status_after_succeeded(
+def test_per_video_cost_in_cell_and_row_total(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:
     state, run, registry = _setup(tmp_path, make_generation_settings)
-    pe = PhaseExecution(
-        phase_id=PhaseId.GLOSSARY_RECONCILIATION, status=PhaseStatus.SUCCEEDED
+    state.upsert_phase_execution(
+        run.id,
+        PhaseExecution(
+            phase_id=PhaseId.STT, status=PhaseStatus.SUCCEEDED, cost_usd=0.05
+        ),
+        video_id=run.videos[0].video_id,
     )
-    state.upsert_phase_execution(run.id, pe, video_id=None)
-    viewmodel = RunMatrixViewModel(state=state, registry=registry)
-    snap = viewmodel.snapshot(run)
-    cell = snap.rows[0].cells[PhaseId.GLOSSARY_RECONCILIATION]
-    assert cell.status is PhaseStatus.SUCCEEDED
+    vm = RunMatrixViewModel(state=state, registry=registry)
+    snap = vm.cost_matrix_snapshot(run)
+    assert snap.cells[0][0].status is PhaseStatus.SUCCEEDED
+    assert snap.cells[0][0].cost_usd == 0.05
+    assert snap.row_totals[0] == 0.05  # somme des phases par-vidéo de la vidéo 0
 
 
-def test_video_label_is_filename(tmp_path: Path, make_generation_settings: Any) -> None:
+def test_batch_phase_cost_in_column_total_not_in_cell(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
     state, run, registry = _setup(tmp_path, make_generation_settings)
-    viewmodel = RunMatrixViewModel(state=state, registry=registry)
-    snap = viewmodel.snapshot(run)
-    assert snap.rows[0].video_label == run.videos[0].source_path.name
+    state.upsert_phase_execution(
+        run.id,
+        PhaseExecution(
+            phase_id=PhaseId.GLOSSARY_RECONCILIATION,
+            status=PhaseStatus.SUCCEEDED,
+            cost_usd=0.20,
+        ),
+        video_id=None,
+    )
+    vm = RunMatrixViewModel(state=state, registry=registry)
+    snap = vm.cost_matrix_snapshot(run)
+    # colonne 2 = Glossaire (batch) : statut visible, coût cellule None,
+    # total colonne = coût run.
+    assert snap.cells[0][2].status is PhaseStatus.SUCCEEDED
+    assert snap.cells[0][2].cost_usd is None
+    assert snap.column_totals[2] == 0.20
+    assert snap.grand_total == 0.20  # batch compté une seule fois
+
+
+def test_preview_all_pending(tmp_path: Path, make_generation_settings: Any) -> None:
+    state, run, registry = _setup(tmp_path, make_generation_settings)
+    vm = RunMatrixViewModel(state=state, registry=registry)
+    snap = vm.preview_cost_matrix(run.videos)
+    assert len(snap.row_labels) == 2
+    assert all(
+        cell.status is PhaseStatus.PENDING for row in snap.cells for cell in row
+    )
+    assert snap.grand_total == 0.0

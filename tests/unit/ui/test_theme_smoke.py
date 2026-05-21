@@ -12,7 +12,7 @@ def test_load_theme_qss_returns_non_empty_string() -> None:
     # Quelques object names attendus pour garantir la coordination Python/QSS
     assert "#statCard" in qss
     assert "#projectHeaderBar" in qss
-    assert "#runMatrix" in qss
+    assert "#costMatrix" in qss
     assert "#logsDockArea" in qss
 
 

@@ -9,11 +9,13 @@ Application desktop Windows, mono-utilisateur, **installation en double-clic**
 (transcription Whisper + 7 phases LLM DeepSeek v4), entièrement
 paramétrable via l'interface graphique.
 
-## Capacités v0.2
+## Capacités
 
 - 2 langues de sortie : **français** et **anglais**.
 - 2 providers STT : **faster-whisper-large-v3-turbo** local (GPU NVIDIA) ou
-  **OpenAI Whisper** cloud.
+  **OpenAI Whisper** cloud — ce dernier gère **toute durée de cours**
+  (compression Opus + découpage aux silences automatiques pour franchir la
+  limite des 25 Mo d'OpenAI, de façon transparente).
 - 2 modèles LLM : **DeepSeek v4 Flash** (économique) ou **Pro** (capacité
   supérieure). Mode raisonnement (`thinking` + `reasoning_effort`
   HIGH/MAX) et température configurables **par phase**.
@@ -31,6 +33,9 @@ paramétrable via l'interface graphique.
   prompts…) avec validation Jinja2 et restauration au défaut.
 - **Checkpointing fin par phase** : aucun travail perdu en cas de pause,
   annulation ou crash.
+- **Traitement parallèle** : vidéos (phases per-vidéo) et supports pédagogiques
+  traités concurremment, avec un nombre de workers réglable, pour réduire le
+  délai sur les gros lots.
 - **Concept de Projet persistant** avec historique de runs et reprise.
 - **Stockage chiffré** des clés API (Windows DPAPI).
 
@@ -47,7 +52,7 @@ paramétrable via l'interface graphique.
 | [Guide utilisateur](docs/07-guide-utilisateur.md) | Utilisateur final non-technicien (démarrage rapide) |
 | [CHANGELOG](CHANGELOG.md) | Historique des versions |
 | [Spec design v1](docs/superpowers/specs/2026-05-19-fahmi2-design.md) | Architecture détaillée |
-| [Plans d'implémentation](docs/superpowers/plans/) | Détail des 12 jalons |
+| [Plans d'implémentation](docs/superpowers/plans/) | Détail des jalons d'implémentation |
 | [Packaging](packaging/README.md) | Build et distribution |
 
 ## Démarrage rapide (utilisateur final)
@@ -119,7 +124,7 @@ pour le détail complet.
 
 ## Statut
 
-**v0.2.0** (alpha+) — pipeline complet fonctionnel, UI cockpit dense
+**Pré-version** (non publiée — `pyproject` = `0.1.0.dev0`) — pipeline complet fonctionnel, UI cockpit dense
 thème Clair Fluent, packaging Windows portable opérationnel, document
 consolidé navigable (numérotation hiérarchique + sommaire), glossaire
 en tableau avec colonne Signification, édition des prompts depuis l'UI,
@@ -132,9 +137,10 @@ consolidé et du glossaire) ; identité projet réduite à nom + emplacement, r�
 par fonctionnalité.
 
 Export des supports en **Anki `.apkg`** (flashcards / cloze / QCM, ré-import sans
-doublon), **Markdown** et **PDF** (sujet / corrigé séparés).
+doublon), **Markdown**, **PDF** et **HTML** (documents autonomes, sujet / corrigé
+séparés).
 
-650 tests passants, `mypy --strict` et `ruff` propres sur 273 fichiers.
+751 tests passants, `mypy --strict` et `ruff` propres sur 291 fichiers.
 
 ## Licence
 

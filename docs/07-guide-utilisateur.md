@@ -61,8 +61,8 @@ configurer la génération (vue à 5 catégories) :
 |-----------|--------|
 | **Entrée & langues** | Dossier des vidéos · Langue source · Langues de sortie |
 | **Style** | Style (`décontracté`/`standard`/`professionnel`/`académique`) · Directives libres |
-| **Transcription** | Provider STT (`openai_cloud` sans GPU, sinon `faster_whisper_local`) |
-| **Modèle & coût** | Modèle LLM (`deepseek-v4-flash` pour démarrer) · Plafond budget |
+| **Transcription** | Provider STT (`openai_cloud` sans GPU, sinon `faster_whisper_local`) · *Transcriptions en parallèle* (cloud) |
+| **Modèle & coût** | Modèle LLM (`deepseek-v4-flash` pour démarrer) · Plafond budget · *Appels LLM en parallèle* |
 | **Phases** | Thinking, effort, température, retries par phase LLM (avancé) |
 
 Validez : l'aperçu des vidéos détectées s'affiche dans le cockpit.
@@ -181,7 +181,7 @@ sur **⚙ Réglages** (même vue à catégories que la Génération) :
 | **Supports** | Types à générer (flashcards, QCM, fiches…) · corrigé séparé pour les supports évaluatifs |
 | **Difficulté** | Public cible (requis) · objectif Bloom (`Auto` / `Restituer` / `Comprendre & Appliquer` / `Analyser & au-delà`) · directives pédagogiques libres · densité (`léger` / `standard` / `dense`) |
 | **Langues** | Langues des supports (par défaut : celles effectivement produites par la Génération) |
-| **Modèle & coût** | Modèle LLM · mode raisonnement · plafond de coût |
+| **Modèle & coût** | Modèle LLM · mode raisonnement · plafond de coût · *Tâches en parallèle* |
 
 ### Estimer et générer
 

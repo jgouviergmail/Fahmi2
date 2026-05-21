@@ -46,9 +46,9 @@ des **réglages** (⚙ : supports, difficulté, langues, modèle & coût), un bo
 **Générer** et **Estimer le coût**, une **table de progression** (support × langue)
 et un **bandeau d'état** (« génération requise » / « prêt » / « à jour » /
 « périmé »). Les supports sont écrits sous `<emplacement>/pedagogy/`. Un bouton
-**Exporter** propose 3 formats : **Anki `.apkg`** (flashcards, textes à trous, QCM ;
-ré-import sans doublon), **Markdown** et **PDF** (documents agrégés par langue,
-sujet et corrigé séparés).
+**Exporter** propose 4 formats : **Anki `.apkg`** (flashcards, textes à trous, QCM ;
+ré-import sans doublon), **Markdown**, **PDF** et **HTML** (documents agrégés par
+langue, sujet et corrigé séparés).
 
 - Création d'un projet via un **dialogue minimal** (nom + emplacement) ; les
   réglages de génération se configurent ensuite depuis l'onglet **Génération →
@@ -78,7 +78,8 @@ documents :
 L'utilisateur configure **via l'interface** (et **uniquement** via l'interface) :
 
 - **Clés API** : OpenAI (pour Whisper cloud), DeepSeek (pour les phases LLM).
-- **Provider STT** : Whisper local (GPU NVIDIA requis) ou OpenAI cloud.
+- **Provider STT** : Whisper local (GPU NVIDIA requis) ou OpenAI cloud (gère les
+  longues vidéos via compression Opus + découpage automatiques, transparent).
 - **Modèle LLM** : DeepSeek v4 Flash ou Pro.
 - **Mode raisonnement** (`thinking` activé / désactivé), **niveau de
   raisonnement** (`HIGH` / `MAX`) et **température**, configurables
@@ -89,8 +90,8 @@ L'utilisateur configure **via l'interface** (et **uniquement** via l'interface) 
 - **Plafond budget** optionnel avec arrêt automatique propre.
 - **Surcouche utilisateur des prompts** via éditeur intégré
   (menu **Édition → Modifier les prompts…**) : tous les templates des 7
-  phases LLM peuvent être personnalisés sans toucher au code, avec
-  validation Jinja2 et retour au défaut bundlé d'un clic.
+  phases LLM **et des 8 supports pédagogiques** peuvent être personnalisés sans
+  toucher au code, avec validation Jinja2 et retour au défaut bundlé d'un clic.
 
 ### 4.4 Pilotage d'un run
 
@@ -106,6 +107,11 @@ L'utilisateur configure **via l'interface** (et **uniquement** via l'interface) 
   Run.
 - **Ouvrir le dossier de sortie** en un clic depuis la barre
   d'en-tête à la fin du Run.
+- **Traitement parallèle** : les phases par vidéo (transcription cloud,
+  extraction de termes, reformulation, structuration) traitent plusieurs vidéos
+  simultanément, et les phases finales parallélisent traduction et cohérence ;
+  le nombre d'appels concurrents est réglable. La transcription **locale** reste
+  séquentielle (un seul GPU).
 
 ### 4.5 Visualisation de l'avancement
 
@@ -211,14 +217,17 @@ pandoc.
 - 2 providers STT (FasterWhisper local + OpenAI cloud).
 - 1 fournisseur LLM (**DeepSeek v4**, deux modèles).
 - 4 styles de rendu.
-- Format de sortie : **Markdown** uniquement.
+- Formats de sortie : génération en **Markdown** ; supports pédagogiques
+  exportables en **Anki `.apkg`**, **Markdown**, **PDF** et **HTML**.
 - Plateforme : **Windows 11** (10 minimum).
 
 ### Hors v1
 
 - Multi-utilisateur, collaboration, cloud sync.
 - Édition manuelle des transcriptions dans l'UI.
-- Export PDF / DOCX / HTML natif (conversion externe possible).
+- Export **DOCX** natif pour la génération (conversion externe via pandoc
+  possible). *(Le PDF et le HTML sont en revanche des exports **natifs** pour les
+  supports pédagogiques.)*
 - Autres langues que FR / EN.
 - Autres LLM que DeepSeek (architecture prête mais non implémenté).
 - Auto-update.

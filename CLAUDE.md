@@ -92,7 +92,7 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   sans STT/SQLite) : `SupportGenerator` (ABC) + `SupportContext` (DI),
   `SupportGeneratorRegistry` + `build_default_support_registry`, `chapters`
   (parseur), `sources`, `events`, `manifest` (fraîcheur), `artifact_writer`/
-  `artifact_reader`, `generators/` (`_base` per-chapitre + mixin évaluatif + 9
+  `artifact_reader`, `generators/` (`_base` per-chapitre + mixin évaluatif + 8
   générateurs LLM : flashcards concepts, QCM, vrai/faux, cloze, questions
   ouvertes, fiche, points clés, examen blanc), `labels`.
 - `infra/` — adapters (ports/adapters) : `stt/` (FasterWhisper local + OpenAI

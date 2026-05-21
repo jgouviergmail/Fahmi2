@@ -27,9 +27,10 @@
 Le script orchestre automatiquement :
 
 1. **fetch-ffmpeg.ps1** — téléchargement de `ffmpeg-release-essentials.zip`
-   depuis https://www.gyan.dev/ffmpeg/, vérification SHA256, extraction de
-   `ffmpeg.exe` et `ffprobe.exe` dans `vendor/ffmpeg/bin/`. Idempotent :
-   skip si les binaires sont déjà présents.
+   depuis https://www.gyan.dev/ffmpeg/, vérification SHA256, **vérification de la
+   présence de l'encodeur `libopus`** (requis pour la préparation audio du STT
+   cloud — le build échoue sinon), extraction de `ffmpeg.exe` et `ffprobe.exe`
+   dans `vendor/ffmpeg/bin/`. Idempotent : skip si les binaires sont déjà présents.
 2. Nettoyage des anciens `build/` et `dist/`.
 3. Vérification de la présence de `pyinstaller`.
 4. **PyInstaller `--onedir`** : produit `dist/Fahmi2/` contenant
@@ -110,8 +111,10 @@ dist/Fahmi2/
 ### Dépendances supports pédagogiques (genanki / markdown / fpdf2)
 
 Les exports des supports de révision (Anki / Markdown / PDF) ajoutent trois
-dépendances à collecter par PyInstaller. À vérifier dans `packaging/fahmi2.spec`
-(gitignored — modification non versionnée) au prochain build :
+dépendances à collecter par PyInstaller (l'export **HTML** est généré en pur
+Python, sans dépendance supplémentaire à bundler). À vérifier dans
+`packaging/fahmi2.spec` (gitignored — modification non versionnée) au prochain
+build :
 
 - **`genanki`** (export `.apkg`) embarque des **fichiers de données**
   (`apkg_schema.sql`, `apkg_col.anki2`) qui ne sont pas détectés par l'analyse

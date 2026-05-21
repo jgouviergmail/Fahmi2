@@ -354,7 +354,10 @@ python -m memory_profiler script.py
 ## 11. Ajouter une nouvelle phase au pipeline
 
 1. Créer `src/fahmi2/pipeline/handlers/phase_N_xxx.py` qui hérite de
-   `PhaseHandler`.
+   `PhaseHandler`. Si la phase est **per-vidéo et parallélisable** (unités
+   indépendantes, I/O-bound), surcharger `max_parallel_workers(ctx)` pour
+   retourner le pool voulu (défaut hérité : `1` = séquentiel). Pour une phase
+   batch, paralléliser ses boucles internes via `core/concurrency/map_bounded`.
 2. Créer le template Jinja2 par défaut dans
    `src/fahmi2/infra/prompts/defaults/phase_N_xxx.j2`.
 3. Ajouter `PhaseId.XXX` dans `src/fahmi2/domain/enums.py`.
@@ -373,7 +376,9 @@ python -m memory_profiler script.py
    `src/fahmi2/infra/llm/<provider>_adapter.py`.
 2. Ajouter une grille de tarifs dans `src/fahmi2/infra/llm/_pricing.py`.
 3. Étendre l'enum `LLMModel` dans `src/fahmi2/domain/enums.py`.
-4. Ajouter le mapping dans `NewProjectDialog`.
+4. Exposer le modèle dans les vues de réglages (`GenerationSettingsView` /
+   `PedagogySettingsView`) — combos alimentés par l'enum `LLMModel` (le
+   `NewProjectDialog` ne porte plus que le nom + l'emplacement du projet).
 5. Écrire les tests (avec mock du SDK ou `responses`).
 
 ## 13. Audit qualité

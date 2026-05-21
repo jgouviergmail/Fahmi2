@@ -7,6 +7,24 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+### Corrigé — Glossaire homogène (Lot 1b)
+
+- **Flashcards de glossaire vides / injection terminologique vide** : la pédagogie
+  lit désormais le glossaire **sur disque** (`glossary_master.json`), exactement
+  comme le pipeline (`load_glossary_master`), au lieu d'une table SQLite jamais
+  peuplée. Les générateurs LLM reçoivent à nouveau les termes dans leurs prompts.
+
+### Supprimé — Glossaire homogène (Lot 1b)
+
+- **Anomalie de persistance du glossaire** : suppression de la table SQLite
+  `glossary_terms` (migration `DROP TABLE` idempotente), des méthodes
+  `upsert_glossary_term` / `list_glossary_terms`, et du service mort
+  `GlossaryReconciler`. Le parsing du glossaire master et le rendu Markdown
+  (`parse_glossary_master_terms`, `render_glossary_markdown_table`) remontent dans
+  `domain/glossary.py` (réutilisés par pipeline et pédagogie). Aucun document
+  généré n'a de table de contenu en DB : le glossaire suit le même traitement
+  (artefact disque + `PhaseExecution`).
+
 ### Ajouté — Finitions UI (Lot 1a)
 
 - **Conserver l'audio** : nouvelle case « Conserver les fichiers audio extraits »

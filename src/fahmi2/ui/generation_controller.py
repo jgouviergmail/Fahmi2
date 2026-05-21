@@ -41,10 +41,12 @@ from fahmi2.domain.enums import PhaseId, RunStatus, SttProvider
 from fahmi2.domain.generation import (
     GENERATION_OUTPUT_SUBDIR,
     GENERATION_WORKSPACE_SUBDIR,
+    GenerationSettings,
 )
 from fahmi2.domain.ids import ProjectId
 from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
+from fahmi2.infra.audio.cloud_audio_preparer import CloudAudioPreparer
 from fahmi2.infra.audio.ffmpeg_extractor import FFmpegExtractor
 from fahmi2.infra.llm.deepseek_adapter import DeepSeekAdapter
 from fahmi2.infra.llm.interface import LLMProvider
@@ -126,6 +128,50 @@ def build_ffmpeg_from_runtime() -> FFmpegExtractor:
         ffmpeg_binary=resolve_ffmpeg_binary_or_none(),
         ffprobe_binary=resolve_ffprobe_binary_or_none(),
     )
+
+
+def build_stt_provider(
+    *,
+    settings: GenerationSettings,
+    openai_api_key: str | None,
+    models_dir: Path,
+) -> STTProvider:
+    """Construit le ``STTProvider`` selon les réglages (testable sans Qt).
+
+    Args:
+        settings: Réglages de génération (porteur de ``stt_provider``).
+        openai_api_key: Clé OpenAI (requise en mode cloud).
+        models_dir: Dossier de cache des modèles (mode local).
+
+    Returns:
+        Le provider STT. En mode cloud, l'adapter est muni d'un
+        ``CloudAudioPreparer`` (binaires ffmpeg bundlés) pour respecter la limite
+        des 25 Mo d'OpenAI Whisper.
+
+    Raises:
+        ConfigError: Si la clé OpenAI manque en mode cloud.
+    """
+    from fahmi2.core.config.paths import (  # noqa: PLC0415 — éviter cycle
+        resolve_ffmpeg_binary_or_none,
+        resolve_ffprobe_binary_or_none,
+    )
+    from fahmi2.core.errors.exceptions import ConfigError  # noqa: PLC0415
+
+    if settings.stt_provider is SttProvider.OPENAI_CLOUD:
+        if not openai_api_key:
+            raise ConfigError(
+                code="CONFIG.MISSING_OPENAI_KEY",
+                user_message="Clé OpenAI manquante. Édition → Paramètres globaux.",
+                severity=Severity.ERROR,
+            )
+        return OpenAIWhisperAdapter(
+            api_key=openai_api_key,
+            preparer=CloudAudioPreparer(
+                ffmpeg_binary=resolve_ffmpeg_binary_or_none(),
+                ffprobe_binary=resolve_ffprobe_binary_or_none(),
+            ),
+        )
+    return FasterWhisperAdapter(model_cache_dir=models_dir)
 
 
 class _RunWorker(QObject):
@@ -900,19 +946,11 @@ class GenerationController(QObject):
                 user_message="La génération n'est pas configurée pour ce projet.",
                 severity=Severity.ERROR,
             )
-        if project.generation.stt_provider is SttProvider.OPENAI_CLOUD:
-            api_key = self._secrets_service.get_openai_api_key()
-            if not api_key:
-                raise ConfigError(
-                    code="CONFIG.MISSING_OPENAI_KEY",
-                    user_message=(
-                        "Clé OpenAI manquante. Édition → Paramètres globaux."
-                    ),
-                    severity=Severity.ERROR,
-                )
-            return OpenAIWhisperAdapter(api_key=api_key)
-        # Mode local
-        return FasterWhisperAdapter(model_cache_dir=self._app_paths.models_dir)
+        return build_stt_provider(
+            settings=project.generation,
+            openai_api_key=self._secrets_service.get_openai_api_key(),
+            models_dir=self._app_paths.models_dir,
+        )
 
     def _build_llm_provider(self, project: Project) -> LLMProvider:
         """Instancie le ``LLMProvider`` (DeepSeek) avec la clé stockée.

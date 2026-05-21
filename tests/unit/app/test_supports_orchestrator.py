@@ -74,8 +74,6 @@ def _build(
     state = SqliteState(tmp_path / "t.db")
     project_service = ProjectService(state)
     orchestrator = SupportsOrchestrator(
-        state=state,
-        project_service=project_service,
         registry=registry,
         artifacts=FsArtifactStore(),
         llm_provider=llm_provider if llm_provider is not None else FakeLLMProvider(),
@@ -354,6 +352,39 @@ class _CostlyGen(SupportGenerator):
             rendered_markdown="x",
             cost_usd=self._cost_usd,
         )
+
+
+def test_target_language_without_doc_uses_fallback_content(
+    tmp_path: Path, make_generation_settings: Any, make_pedagogy_settings: Any
+) -> None:
+    registry = SupportGeneratorRegistry([_StubGen(SupportType.FLASHCARDS_CONCEPTS)])
+    orchestrator, _, project_service = _build(tmp_path, registry)
+    ws = tmp_path / "ws"
+    project = project_service.create_project(
+        name="P",
+        workspace_folder=ws,
+        generation=make_generation_settings(source_language=Language.FR),
+        pedagogy=make_pedagogy_settings(
+            selected_supports=frozenset({SupportType.FLASHCARDS_CONCEPTS}),
+            languages=(Language.EN,),
+        ),
+    )
+    # Seul le doc FR (source) existe ; la cible EN l'utilise comme contenu.
+    FsArtifactStore().write_text_atomic(
+        ws
+        / GENERATION_WORKSPACE_SUBDIR
+        / GENERATION_OUTPUT_SUBDIR
+        / consolidated_doc_filename(Language.FR),
+        "# Cours\n\n# 1. Bases\n\nContenu.\n",
+    )
+    status = orchestrator.generate(
+        project, pause_token=PauseToken(), event_bus=EventBus()
+    )
+    assert status is RunStatus.COMPLETED
+    # Artefact écrit sous la langue cible EN.
+    assert artifact_json_path(
+        ws / "pedagogy", SupportType.FLASHCARDS_CONCEPTS, Language.EN
+    ).exists()
 
 
 def test_cost_ceiling_stops_generation(

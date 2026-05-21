@@ -64,7 +64,7 @@ from fahmi2.pedagogy.events import (
     SupportRetryAttempt,
     SupportStarted,
 )
-from fahmi2.pedagogy.sources import consolidated_doc_path, load_chapters
+from fahmi2.pedagogy.sources import load_chapters
 from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
 from fahmi2.pipeline.pause_token import PauseToken
 from fahmi2.ui._file_explorer import open_in_file_explorer
@@ -329,8 +329,6 @@ class PedagogyController(QObject):
         api_key = self._secrets_service.get_deepseek_api_key()
         assert api_key is not None  # garanti par _validate
         orchestrator = SupportsOrchestrator(
-            state=self._state,
-            project_service=self._project_service,
             registry=self._registry,
             artifacts=FsArtifactStore(),
             llm_provider=DeepSeekAdapter(api_key=api_key),
@@ -697,21 +695,21 @@ class PedagogyController(QObject):
         )
 
     def _available_languages(self, project: Project) -> tuple[Language, ...]:
-        """Langues proposées : celles ayant un doc consolidé (sinon toutes).
+        """Langues proposées : toutes les langues supportées.
+
+        Les supports sont produits par LLM dans la langue cible quelle que soit la
+        langue du document source ; l'orchestrateur résout une langue de contenu
+        (doc consolidé existant) indépendamment de la langue choisie. Le choix
+        n'est donc pas restreint à ce que la génération a produit.
 
         Args:
-            project: Projet courant.
+            project: Projet courant (inutilisé : indépendant de la génération).
 
         Returns:
-            Tuple des langues proposées.
+            Toutes les langues supportées.
         """
-        generation_output_dir = self._generation_output_dir(project)
-        present = tuple(
-            language
-            for language in Language
-            if consolidated_doc_path(generation_output_dir, language).exists()
-        )
-        return present or tuple(Language)
+        del project
+        return tuple(Language)
 
     @staticmethod
     def _generation_output_dir(project: Project) -> Path:

@@ -57,6 +57,10 @@ _CAT_MODEL = "Modèle & coût"
 
 _SEPARATE_CORRECTION_LABEL = "corrigé séparé"
 _EXPORT_FORMATS_LABEL = "Formats d'export :"
+_LANGUAGES_HINT = (
+    "Les supports sont rédigés dans la langue choisie, même si le document source "
+    "est dans une autre langue."
+)
 _REASONING_DEFAULT_LABEL = "Défaut serveur"
 _DIRECTIVES_PLACEHOLDER = (
     "Directives pédagogiques libres. Ex : « privilégier des exemples concrets, "
@@ -299,6 +303,9 @@ class PedagogySettingsView(QDialog):
         """
         page = QWidget(self)
         outer = QVBoxLayout(page)
+        hint = QLabel(_LANGUAGES_HINT, page)
+        hint.setWordWrap(True)
+        outer.addWidget(hint)
         for cb in self._language_checks.values():
             outer.addWidget(cb)
         outer.addStretch(1)

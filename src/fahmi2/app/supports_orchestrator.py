@@ -1,18 +1,19 @@
 """``SupportsOrchestrator`` — service applicatif pilotant la génération des supports.
 
 Orchestrateur dédié **léger** (design §2.1) : ne réutilise pas le ``PipelineEngine``.
-Pour chaque langue, charge les entrants (chapitres du doc consolidé + glossaire du
-dernier run COMPLETED), itère les supports sélectionnés dans l'ordre canonique du
-registre, invoque le générateur, écrit les artefacts (JSON + Markdown), met à jour
-le manifeste de fraîcheur (reprise coarse) et émet les événements pédagogie. Gère
+Pour chaque langue cible, charge les entrants **sur disque** (chapitres du doc
+consolidé d'une langue de contenu résolue + glossaire master), itère les supports
+sélectionnés dans l'ordre canonique du registre, invoque le générateur (qui rédige
+dans la langue cible), écrit les artefacts (JSON + Markdown), met à jour le
+manifeste de fraîcheur (reprise coarse) et émet les événements pédagogie. Gère
 pause/annulation aux frontières sûres (entre supports).
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 
-from fahmi2.app.project_service import ProjectService
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.exceptions import ConfigError, Fahmi2Error, PausedError
 from fahmi2.core.errors.severity import Severity
@@ -29,7 +30,6 @@ from fahmi2.domain.supports import SupportArtifact
 from fahmi2.infra.llm.interface import LLMProvider
 from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
-from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.pedagogy.artifact_writer import (
     artifact_correction_markdown_path,
     artifact_json_path,
@@ -51,6 +51,7 @@ from fahmi2.pedagogy.manifest import (
     write_manifest,
 )
 from fahmi2.pedagogy.sources import (
+    consolidated_doc_path,
     load_chapters,
     load_glossary_master_terms,
     source_mtime_ns,
@@ -67,8 +68,6 @@ class SupportsOrchestrator:
     def __init__(
         self,
         *,
-        state: SqliteState,
-        project_service: ProjectService,
         registry: SupportGeneratorRegistry,
         artifacts: FsArtifactStore,
         llm_provider: LLMProvider,
@@ -77,17 +76,16 @@ class SupportsOrchestrator:
     ) -> None:
         """Construit l'orchestrateur.
 
+        Le glossaire et le document consolidé sont lus **sur disque** (comme le
+        pipeline) ; l'orchestrateur n'a donc pas besoin d'accès SQLite.
+
         Args:
-            state: Stockage SQLite (lecture glossaire).
-            project_service: Service projet (dernier run COMPLETED).
             registry: Registre des générateurs.
             artifacts: Écriture atomique d'artefacts.
             llm_provider: Provider LLM (générateurs LLM).
             prompts: Loader de prompts.
             retry_policy: Politique de retry des appels LLM des générateurs.
         """
-        self._state = state
-        self._project_service = project_service
         self._registry = registry
         self._artifacts = artifacts
         self._llm_provider = llm_provider
@@ -137,8 +135,19 @@ class SupportsOrchestrator:
         glossary = self._load_glossary(project)
         try:
             for language in pedagogy.languages:
-                source_mtime = source_mtime_ns(ctx.generation_output_dir, language)
-                chapters = load_chapters(ctx.generation_output_dir, language)
+                content_lang = self._resolve_content_language(
+                    ctx.generation_output_dir, language, project
+                )
+                source_mtime = (
+                    source_mtime_ns(ctx.generation_output_dir, content_lang)
+                    if content_lang is not None
+                    else None
+                )
+                chapters = (
+                    load_chapters(ctx.generation_output_dir, content_lang)
+                    if content_lang is not None
+                    else ()
+                )
                 for support_type in self._registry.canonical_order():
                     if support_type not in pedagogy.selected_supports:
                         continue
@@ -345,6 +354,34 @@ class SupportsOrchestrator:
         """
         generation_dir = project.workspace_folder / GENERATION_WORKSPACE_SUBDIR
         return load_glossary_master_terms(generation_dir)
+
+    def _resolve_content_language(
+        self, output_dir: Path, target: Language, project: Project
+    ) -> Language | None:
+        """Choisit la langue du document de contenu pour une langue cible.
+
+        Préfère le doc de la langue cible (meilleure fidélité, pas de
+        re-traduction par le LLM) ; sinon la langue source de la génération ;
+        sinon la première langue produite disponible. Le support est de toute
+        façon rédigé dans la **langue cible** par le générateur LLM.
+
+        Args:
+            output_dir: Dossier des livrables de génération.
+            target: Langue cible du support.
+            project: Projet (pour la langue source de génération).
+
+        Returns:
+            La langue de contenu, ou ``None`` si aucun doc consolidé n'existe.
+        """
+        if consolidated_doc_path(output_dir, target).exists():
+            return target
+        source = project.generation.source_language if project.generation else None
+        if source is not None and consolidated_doc_path(output_dir, source).exists():
+            return source
+        for language in Language:
+            if consolidated_doc_path(output_dir, language).exists():
+                return language
+        return None
 
 
 def _ceiling_reached(pedagogy: PedagogySettings, total_cost: float) -> bool:

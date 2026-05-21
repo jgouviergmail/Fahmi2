@@ -420,8 +420,6 @@ def test_worker_runs_orchestrator(
     )
     _seed_completed_run_with_glossary(state, project, make_generation_settings())
     orchestrator = SupportsOrchestrator(
-        state=state,
-        project_service=project_service,
         registry=SupportGeneratorRegistry([_StubGen(SupportType.FLASHCARDS_CONCEPTS)]),
         artifacts=FsArtifactStore(),
         llm_provider=FakeLLMProvider(),
@@ -439,6 +437,23 @@ def test_worker_runs_orchestrator(
     worker.finished.connect(statuses.append)
     worker.run_generation()
     assert statuses == [RunStatus.COMPLETED]
+
+
+def test_available_languages_offers_all(
+    qtbot: QtBot,
+    tmp_path: Path,
+    make_generation_settings: Any,
+    make_pedagogy_settings: Any,
+) -> None:
+    controller, project_service, _ = _make_controller(qtbot, tmp_path)
+    project = project_service.create_project(
+        name="P",
+        workspace_folder=tmp_path / "ws",
+        generation=make_generation_settings(),
+        pedagogy=make_pedagogy_settings(),
+    )
+    langs = controller._available_languages(project)  # noqa: SLF001
+    assert set(langs) == set(Language)
 
 
 def _seed_completed_run(state: SqliteState, project_id: Any, settings: Any) -> None:

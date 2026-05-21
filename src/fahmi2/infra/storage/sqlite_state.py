@@ -20,7 +20,6 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
-from collections.abc import Iterable
 from dataclasses import replace
 from datetime import datetime
 from importlib.resources import files
@@ -47,7 +46,6 @@ from fahmi2.domain.enums import (
     TargetAudience,
 )
 from fahmi2.domain.generation import GenerationSettings, ParallelismConfig
-from fahmi2.domain.glossary import Term
 from fahmi2.domain.ids import ProjectId, RunId, VideoId
 from fahmi2.domain.pedagogy import PedagogySettings
 from fahmi2.domain.phase import PhaseConfig, PhaseExecution
@@ -760,70 +758,6 @@ class SqliteState:
         ).fetchall()
         return [self._row_to_phase_execution(row) for row in rows]
 
-    # ------------------------------------------------------------- glossary_terms
-
-    def upsert_glossary_term(
-        self,
-        run_id: RunId,
-        language: Language,
-        term: Term,
-    ) -> None:
-        """Insère ou met à jour un terme du glossaire.
-
-        Args:
-            run_id: Run propriétaire.
-            language: Langue du glossaire.
-            term: Terme à persister.
-        """
-        self._get_connection().execute(
-            """
-            INSERT INTO glossary_terms (
-                run_id, language, term, definition, acronym, acronym_expansion,
-                sources_json, aliases_json, cross_lang_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(run_id, language, term) DO UPDATE SET
-                definition         = excluded.definition,
-                acronym            = excluded.acronym,
-                acronym_expansion  = excluded.acronym_expansion,
-                sources_json       = excluded.sources_json,
-                aliases_json       = excluded.aliases_json,
-                cross_lang_json    = excluded.cross_lang_json
-            """,
-            (
-                run_id.value,
-                str(language),
-                term.term,
-                term.definition,
-                term.acronym,
-                term.acronym_expansion,
-                json.dumps([s.value for s in term.sources], ensure_ascii=False),
-                json.dumps(list(term.aliases), ensure_ascii=False),
-                json.dumps(
-                    {str(k): v for k, v in term.cross_lang.items()},
-                    ensure_ascii=False,
-                ),
-            ),
-        )
-        self._get_connection().commit()
-
-    def list_glossary_terms(self, run_id: RunId, language: Language) -> list[Term]:
-        """Liste les termes du glossaire pour un Run et une langue.
-
-        Args:
-            run_id: Run propriétaire.
-            language: Langue.
-
-        Returns:
-            Liste des termes ordonnée par ``term`` croissant.
-        """
-        rows = self._get_connection().execute(
-            "SELECT term, definition, acronym, acronym_expansion, sources_json, "
-            "aliases_json, cross_lang_json FROM glossary_terms "
-            "WHERE run_id = ? AND language = ? ORDER BY term",
-            (run_id.value, str(language)),
-        ).fetchall()
-        return [self._row_to_term(row) for row in rows]
-
     # ----------------------------------------------------------------- internals
 
     def _get_connection(self) -> sqlite3.Connection:
@@ -866,16 +800,10 @@ class SqliteState:
         Args:
             conn: Connexion SQLite ouverte sur la DB.
         """
-        existing_cols = {
-            row[1]
-            for row in conn.execute("PRAGMA table_info(glossary_terms)").fetchall()
-        }
-        if "acronym" not in existing_cols:
-            conn.execute("ALTER TABLE glossary_terms ADD COLUMN acronym TEXT")
-        if "acronym_expansion" not in existing_cols:
-            conn.execute(
-                "ALTER TABLE glossary_terms ADD COLUMN acronym_expansion TEXT"
-            )
+        # La table glossary_terms (intention de socle jamais branchée) est
+        # retirée : le glossaire est lu sur disque comme les autres documents
+        # générés (glossary_master.json).
+        conn.execute("DROP TABLE IF EXISTS glossary_terms")
 
         # Nettoyage rétroactif : SQLite a permis l'accumulation de doublons sur
         # les phases batch (video_id NULL) tant que upsert_phase_execution ne
@@ -963,26 +891,3 @@ class SqliteState:
             error=_deserialize_error_info(error_json),
         )
 
-    @staticmethod
-    def _row_to_term(row: tuple[Any, ...]) -> Term:
-        (
-            term_str,
-            definition,
-            acronym,
-            acronym_expansion,
-            sources_json,
-            aliases_json,
-            cross_lang_json,
-        ) = row
-        sources: Iterable[str] = json.loads(sources_json)
-        aliases: Iterable[str] = json.loads(aliases_json)
-        cross_lang_raw: dict[str, str] = json.loads(cross_lang_json)
-        return Term(
-            term=term_str,
-            definition=definition,
-            acronym=acronym,
-            acronym_expansion=acronym_expansion,
-            sources=tuple(VideoId(value=sid) for sid in sources),
-            aliases=tuple(aliases),
-            cross_lang={Language(k): v for k, v in cross_lang_raw.items()},
-        )

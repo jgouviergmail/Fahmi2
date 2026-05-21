@@ -11,8 +11,7 @@ import pytest
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.core.errors.severity import Severity
-from fahmi2.domain.enums import Language, PhaseId, PhaseStatus, RunStatus
-from fahmi2.domain.glossary import Term
+from fahmi2.domain.enums import PhaseId, PhaseStatus, RunStatus
 from fahmi2.domain.ids import ProjectId, RunId, VideoId
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.project import Project
@@ -275,53 +274,6 @@ def test_get_phase_status_missing_returns_none(
         run = _make_run(project)
         state.upsert_run(run)
         assert state.get_phase_status(run.id, PhaseId.STT, video_id=None) is None
-
-
-# --- Tests glossary -----------------------------------------------------------
-
-
-def test_upsert_and_list_glossary_terms(
-    tmp_path: Path, make_generation_settings: Any
-) -> None:
-    with SqliteState(tmp_path / "t.db") as state:
-        project = _make_project(make_generation_settings)
-        state.upsert_project(project)
-        run = _make_run(project)
-        state.upsert_run(run)
-        vid = VideoId.new()
-        term = Term(
-            term="PIB",
-            definition="produit intérieur brut",
-            acronym="PIB",
-            acronym_expansion="Produit Intérieur Brut",
-            sources=(vid,),
-            aliases=("Produit Intérieur Brut",),
-            cross_lang={Language.EN: "GDP"},
-        )
-        state.upsert_glossary_term(run.id, Language.FR, term)
-        terms = state.list_glossary_terms(run.id, Language.FR)
-        assert len(terms) == 1
-        loaded = terms[0]
-        assert loaded.term == "PIB"
-        assert loaded.acronym == "PIB"
-        assert loaded.acronym_expansion == "Produit Intérieur Brut"
-        assert loaded.aliases == ("Produit Intérieur Brut",)
-        assert loaded.cross_lang == {Language.EN: "GDP"}
-        assert loaded.sources == (vid,)
-
-
-def test_glossary_terms_filtered_by_language(
-    tmp_path: Path, make_generation_settings: Any
-) -> None:
-    with SqliteState(tmp_path / "t.db") as state:
-        project = _make_project(make_generation_settings)
-        state.upsert_project(project)
-        run = _make_run(project)
-        state.upsert_run(run)
-        state.upsert_glossary_term(run.id, Language.FR, Term(term="A", definition="a"))
-        state.upsert_glossary_term(run.id, Language.EN, Term(term="B", definition="b"))
-        assert [t.term for t in state.list_glossary_terms(run.id, Language.FR)] == ["A"]
-        assert [t.term for t in state.list_glossary_terms(run.id, Language.EN)] == ["B"]
 
 
 # --- Test de concurrence ------------------------------------------------------

@@ -33,7 +33,6 @@ from fahmi2.domain.generation import (
     GENERATION_WORKSPACE_SUBDIR,
     consolidated_doc_filename,
 )
-from fahmi2.domain.glossary import Term
 from fahmi2.domain.ids import RunId
 from fahmi2.domain.run import Run
 from fahmi2.domain.supports import Flashcard, SupportArtifact
@@ -385,7 +384,7 @@ def test_worker_runs_orchestrator(
         generation=make_generation_settings(),
         pedagogy=make_pedagogy_settings(languages=(Language.FR,)),
     )
-    _seed_completed_run_with_glossary(state, project.id, make_generation_settings())
+    _seed_completed_run_with_glossary(state, project, make_generation_settings())
     orchestrator = SupportsOrchestrator(
         state=state,
         project_service=project_service,
@@ -421,18 +420,20 @@ def _seed_completed_run(state: SqliteState, project_id: Any, settings: Any) -> N
 
 
 def _seed_completed_run_with_glossary(
-    state: SqliteState, project_id: Any, settings: Any
+    state: SqliteState, project: Any, settings: Any
 ) -> None:
-    run = Run(
-        id=RunId.new(),
-        project_id=project_id,
-        started_at=datetime.now(tz=UTC),
-        status=RunStatus.COMPLETED,
-        settings_snapshot=settings,
+    state.upsert_run(
+        Run(
+            id=RunId.new(),
+            project_id=project.id,
+            started_at=datetime.now(tz=UTC),
+            status=RunStatus.COMPLETED,
+            settings_snapshot=settings,
+        )
     )
-    state.upsert_run(run)
-    state.upsert_glossary_term(
-        run.id, Language.FR, Term(term="PIB", definition="Produit intérieur brut")
+    FsArtifactStore().write_json_atomic(
+        project.workspace_folder / GENERATION_WORKSPACE_SUBDIR / "glossary_master.json",
+        {"terms": [{"term": "PIB", "definition": "Produit intérieur brut"}]},
     )
 
 

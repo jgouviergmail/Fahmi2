@@ -305,8 +305,7 @@ def _render_glossary_md(payload: dict[str, Any], language: Language) -> str:
         Le glossaire au format tableau Markdown ``| Terme | Acronyme |
         Signification | Définition |``.
     """
-    from fahmi2.app.glossary_reconciler import render_glossary_markdown_table  # noqa: PLC0415
-    from fahmi2.domain.glossary import Term  # noqa: PLC0415
+    from fahmi2.domain.glossary import Term, render_glossary_markdown_table  # noqa: PLC0415
 
     title_by_lang = {Language.FR: "Glossaire", Language.EN: "Glossary"}
     raw_terms = payload.get("terms", [])

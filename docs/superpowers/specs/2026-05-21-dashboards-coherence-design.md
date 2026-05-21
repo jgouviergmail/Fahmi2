@@ -18,14 +18,20 @@ deux, y compris une **estimation pré-run granulaire** avec **fourchette**.
    (existant) ; pédagogie = `supports × langues` (remplace la table plate).
 2. **Cellule = statut + coût** : glyphe de statut colorisé **et** coût de la tâche,
    avec **colonne Total** (par ligne), **ligne Total** (par colonne) et **total
-   général** (coin).
+   général** (coin). Le coût par cellule est rendu **secondaire** (petit, grisé,
+   sous le glyphe) ; les **totaux** sont le **signal de coût principal** (mis en
+   avant). Règle **uniforme** aux deux dashboards : reste lisible sur la petite
+   grille pédagogie (≤ 8 supports × 2 langues) **comme** sur la grande matrice
+   génération (8 phases × N vidéos).
 3. **Estimation pré-run granulaire** : décomposition **par phase** (génération) /
    **par support** (pédagogie), **même présentation**.
 4. **Fourchette ±33 %** sur le **total** (format : `≈ $X` + sous-info
    `fourchette $low – $high (±33 %)`), **estimations ponctuelles par ligne** (pas de
-   fourchette par ligne). Ratio en **constante centralisée**, identique aux deux
-   fonctionnalités. **Avertissement** quand le **haut de fourchette dépasse le
-   plafond** de coût.
+   fourchette par ligne ; c'est la fourchette du **total** qui porte l'honnêteté).
+   Ratio en **constante centralisée**, identique aux deux fonctionnalités.
+   **Avertissement** quand le **haut de fourchette dépasse le plafond** de coût.
+   Libellé UI **« estimation indicative »** pour signaler le caractère heuristique
+   (ce n'est pas un intervalle statistique).
 5. **Brique matrice générique partagée** : un composant unique `CostMatrixView`
    (+ viewmodel) utilisé par les deux dashboards ; la `RunMatrixView` existante est
    **migrée** vers ce composant. Brique de **tuile/bande** réutilisable de même.
@@ -45,11 +51,13 @@ piloté par un `MatrixSnapshot` immuable dont les cellules portent **déjà** le
     row_totals: tuple[float, ...], column_totals: tuple[float, ...],
     grand_total: float)`.
   - Helpers de construction + calcul des totaux (somme des coûts non-`None`).
-- **Widget** (`ui/widgets/cost_matrix_view.py`) : `QTableView` + modèle générique,
-  rendu **statut (glyphe coloré) + coût** par cellule (deux lignes), colonne 0 =
-  libellé de ligne, dernière colonne = **Total** ligne, dernière ligne = **Total**
-  colonne + **total général**. Réutilise les couleurs/symboles de statut et le QSS
-  `#runMatrix` (renommé/partagé en `#costMatrix`). Infobulle conservée.
+- **Widget** (`ui/widgets/cost_matrix_view.py`) : `QTableView` + modèle générique.
+  Par cellule : **glyphe de statut coloré** (proéminent) + **coût en secondaire**
+  (petit, grisé, sous le glyphe). Colonne 0 = libellé de ligne ; dernière colonne =
+  **Total** ligne, dernière ligne = **Total** colonne + **total général** — les
+  totaux sont **mis en avant** (gras), signal de coût principal. Réutilise les
+  couleurs/symboles de statut et le QSS `#runMatrix` (renommé/partagé en
+  `#costMatrix`). Infobulle conservée.
 - **Cohérence** : les deux dashboards injectent leurs axes (libellés de lignes /
   colonnes) et leurs cellules ; la logique de rendu, colorisation et totaux est
   **unique**.
@@ -79,8 +87,11 @@ piloté par un `MatrixSnapshot` immuable dont les cellules portent **déjà** le
   totaux (le coût est déjà dans le snapshot). En-têtes courts de phases conservés
   (libellés de colonnes injectés).
 - `RunMatrixViewModel` : produit un `CostMatrixSnapshot` (lignes = vidéos, colonnes =
-  phases, cellule = statut+coût `PhaseExecution.cost_usd`) + totaux. La tuile **Coût**
-  de `StatsStripWidget` reste le total général (cohérent avec le coin de la matrice).
+  phases, cellule = statut+coût `PhaseExecution.cost_usd`) + totaux. Sur cette grande
+  matrice (8 phases × N vidéos), les **totaux** (colonne = coût par phase, ligne =
+  coût par vidéo, général) sont le **signal de coût principal** ; le coût par cellule
+  reste présent mais **discret**. La tuile **Coût** de `StatsStripWidget` reste le
+  total général (cohérent avec le coin de la matrice).
 
 ### 3.5 Estimation granulaire + fourchette (Lot 3d)
 
@@ -130,9 +141,10 @@ Ordre : **3a** (socle) → **3b** / **3c** (consommateurs, indépendants entre e
 
 - Pas de changement du **moteur** (pipeline/orchestrateur), du **domaine**, ni de la
   **persistance**.
-- Densité : avec 8 colonnes de phases, le coût par cellule densifie la matrice
-  génération ; les **totaux** restent l'agrégat de lecture rapide. Pas de bascule
-  Statut/Coût en v1 (A1 retenu : tout visible).
+- Densité : avec 8 colonnes de phases, le coût par cellule est rendu **discret**
+  (petit, grisé) ; les **totaux** (mis en avant) sont l'agrégat de lecture rapide.
+  Pas de bascule Statut/Coût en v1 (A1 raffiné : statut proéminent, coût secondaire,
+  totaux principaux).
 - #6 (workspaces versionnés) reste un sous-chantier distinct.
 
 ## 8. Vérifications

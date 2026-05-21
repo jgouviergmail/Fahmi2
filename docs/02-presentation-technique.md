@@ -212,14 +212,18 @@ Qt PySide6 :
     Partagée par les dashboards Génération (vidéos × phases) et Pédagogie
     (supports × langues). Libellés de statut/accents partagés (`ui/status_labels`).
   - `PedagogyProgressView` — bandeau de fraîcheur + bande de tuiles + `CostMatrixView`.
-  - `ProjectsSidebar` — menu contextuel Modifier / Supprimer
-    (`contextMenuEvent` utilise `viewport().mapFromGlobal()` pour rester
-    insensible au padding QSS).
-  - `LogsDock` — rendu HTML coloré par sévérité.
+  - `ProjectsSidebar` — liste des projets préfixés par leurs **icônes de statut**
+    `G <icône> / P <icône>` (dernier run génération + pédagogie ; `ProjectListEntry`,
+    `update_statuses` pour le rafraîchissement live sans perdre la sélection) ; menu
+    contextuel Modifier / Supprimer (`contextMenuEvent` utilise
+    `viewport().mapFromGlobal()` pour rester insensible au padding QSS).
+  - `LogsDock` — rendu HTML coloré par sévérité ; le filtre « Niveau minimum »
+    re-filtre l'affichage existant (tous les events sont conservés).
   - `ProjectHeaderBar` — boutons typés `primary` / `default` / `danger`
     via propriété QSS, **bouton « 💵 Estimer le coût »**, **bouton
-    « 📂 Dossier de sortie »** et **bouton « 📦 Exporter » optionnel**
-    (infobulles paramétrables ; réutilisé par les onglets Génération et Pédagogie).
+    « 📂 Dossier de sortie »**, **bouton « 📦 Exporter » optionnel** et
+    **bouton « ↺ Réinitialiser »** (réinitialisation par fonctionnalité, désactivé
+    pendant un run ; infobulles paramétrables ; réutilisé par les deux onglets).
   - `PhaseConfigsWidget` — grille de configuration par phase LLM
     (thinking, reasoning_effort HIGH / MAX, température, max retries).
   - `PedagogyProgressView` — bandeau d'état + table de progression (support × langue).

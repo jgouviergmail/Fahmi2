@@ -19,7 +19,12 @@ from PySide6.QtWidgets import (
 
 from fahmi2.domain.enums import RunStatus
 from fahmi2.ui._format import format_duration, format_languages
-from fahmi2.ui.status_labels import cost_accent, run_status_accent, run_status_label
+from fahmi2.ui.status_labels import (
+    cost_accent,
+    run_status_accent,
+    run_status_icon,
+    run_status_label,
+)
 from fahmi2.ui.viewmodels.stats_strip import StatsSnapshot
 from fahmi2.ui.widgets.stat_card import StatCard
 
@@ -27,15 +32,6 @@ _LIVE_REFRESH_INTERVAL_MS = 1000
 # Tolérance pour considérer deux ``started_at`` identiques (réception de
 # deux snapshots successifs du même Run sans décalage suspect).
 _SAME_RUN_TIMESTAMP_TOLERANCE_S = 0.1
-
-_RUN_STATUS_ICON: dict[RunStatus, str] = {
-    RunStatus.CREATED: "⏳",
-    RunStatus.RUNNING: "▶",
-    RunStatus.PAUSED: "⏸",
-    RunStatus.COMPLETED: "✓",
-    RunStatus.FAILED: "✗",
-    RunStatus.CANCELLED: "⊘",
-}
 
 _LIVE_STATUSES: frozenset[RunStatus] = frozenset({RunStatus.RUNNING})
 
@@ -182,7 +178,7 @@ class StatsStripWidget(QWidget):
             snapshot: Snapshot à rendre.
         """
         status_label = run_status_label(snapshot.run_status)
-        status_icon = _RUN_STATUS_ICON.get(snapshot.run_status, "●")
+        status_icon = run_status_icon(snapshot.run_status)
         self._card_status.set_value(f"{status_icon} {status_label}")
         self._card_status.set_accent(run_status_accent(snapshot.run_status))
 

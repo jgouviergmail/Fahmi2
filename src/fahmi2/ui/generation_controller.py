@@ -79,6 +79,7 @@ from fahmi2.pipeline.pause_token import PauseToken
 from fahmi2.pipeline.phase_handler import PhaseContext
 from fahmi2.pipeline.phase_registry import PhaseRegistry
 from fahmi2.ui._file_explorer import open_in_file_explorer
+from fahmi2.ui._fs import remove_feature_dir
 from fahmi2.ui.dialogs.generation_settings_view import GenerationSettingsView
 from fahmi2.ui.qt_event_bus import QtEventBus
 from fahmi2.ui.viewmodels.run_matrix import RunMatrixViewModel
@@ -168,6 +169,10 @@ class _RunWorker(QObject):
 class GenerationController(QObject):
     """Orchestre le lifecycle d'un Run depuis l'onglet Génération."""
 
+    #: Émis quand le statut du run change (démarrage / fin / échec / réinit.),
+    #: pour rafraîchir les icônes de la sidebar.
+    run_state_changed = Signal()
+
     def __init__(
         self,
         *,
@@ -233,6 +238,7 @@ class GenerationController(QObject):
         self._header_bar.open_output_requested.connect(self.open_output_folder)
         self._header_bar.estimate_cost_requested.connect(self.estimate_cost)
         self._header_bar.settings_requested.connect(self.open_generation_settings)
+        self._header_bar.reset_requested.connect(self.reset_generation)
 
     # ------------------------------------------------------------------ project
 
@@ -497,6 +503,7 @@ class GenerationController(QObject):
         self._worker = worker
         self._thread = thread
         thread.start()
+        self.run_state_changed.emit()
 
     # ---------------------------------------------------------- pause / cancel
 
@@ -757,6 +764,62 @@ class GenerationController(QObject):
             )
         )
 
+    def reset_generation(self) -> None:
+        """Slot : supprime tout ce qui a été généré (runs en base + disque).
+
+        Demande confirmation, refuse pendant un run, puis efface l'historique des
+        runs du projet et le dossier de travail ``generation/``. Réinitialise le
+        cockpit et notifie la sidebar.
+        """
+        project = self._current_project
+        if project is None:
+            QMessageBox.warning(
+                self._window,
+                "Aucun projet sélectionné",
+                "Sélectionne un projet dans la sidebar avant de réinitialiser.",
+            )
+            return
+        if self._thread is not None:
+            QMessageBox.warning(
+                self._window,
+                "Run en cours",
+                "Impossible de réinitialiser pendant un run. Annule-le d'abord.",
+            )
+            return
+        reply = QMessageBox.question(
+            self._window,
+            "Réinitialiser la génération ?",
+            (
+                f"Réinitialiser la génération de « {project.name} » ?\n\n"
+                "Tous les livrables produits (transcriptions, glossaire, documents) "
+                "et l'historique des runs en base seront supprimés. Le dossier "
+                "d'entrée n'est pas touché. Cette action est irréversible."
+            ),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        self._state.delete_runs_for_project(project.id)
+        remove_feature_dir(
+            self._logs_dock,
+            project.workspace_folder / GENERATION_WORKSPACE_SUBDIR,
+            label="génération",
+        )
+        self._current_run = None
+        self._reset_views()
+        self._header_bar.set_idle()
+        self._header_bar.set_open_output_enabled(False)
+        self._logs_dock.append_event(
+            LogEvent(
+                timestamp=datetime.now(tz=UTC),
+                severity=Severity.INFO,
+                code="GENERATION_RESET",
+                message=f"Génération réinitialisée pour « {project.name} ».",
+            )
+        )
+        self.run_state_changed.emit()
+
     def _on_worker_failed(self, error_message: str) -> None:
         """Slot : run terminé sur exception non gérée.
 
@@ -795,6 +858,9 @@ class GenerationController(QObject):
         self._thread = None
         self._current_pause_token = None
         self._active_worker_project_id = None
+        # Le run vient de se terminer (succès / échec / annulation) : rafraîchir
+        # les icônes de statut de la sidebar.
+        self.run_state_changed.emit()
 
     # ---------------------------------------------------------- providers DI
 

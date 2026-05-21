@@ -7,6 +7,16 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+### Ajouté — Sidebar : statut par projet & bouton « Réinitialiser »
+
+- **Icônes de statut dans la sidebar** : chaque projet est préfixé par le statut du
+  dernier run de **génération** (G) puis de **pédagogie** (P) — ex. `G ✓ / P ▶  Nom` —,
+  rafraîchies en direct quand un run démarre ou se termine (infobulle détaillée).
+- **Bouton « Réinitialiser »** (par onglet) : supprime tout ce qui a été généré pour
+  la fonctionnalité — livrables disque **et** historique en base (runs/phases) pour
+  la génération ; dossier des supports (artefacts + manifeste + état) pour la
+  pédagogie. Confirmation obligatoire ; désactivé pendant un run.
+
 ### Ajouté — Dashboards : homogénéité génération / pédagogie
 
 - **Statut d'exécution pédagogie persisté** (`pedagogy/run_state.json`) : la

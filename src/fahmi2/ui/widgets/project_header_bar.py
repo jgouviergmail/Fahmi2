@@ -17,6 +17,10 @@ _DEFAULT_OPEN_OUTPUT_TOOLTIP = (
     "Ouvre dans l'explorateur le dossier contenant les fichiers Markdown "
     "produits (consolidated, glossary, per-video par langue)."
 )
+_DEFAULT_RESET_TOOLTIP = (
+    "Supprime tout ce qui a été généré pour cette fonctionnalité (livrables sur "
+    "disque et état en base). Action irréversible."
+)
 
 
 class ProjectHeaderBar(QWidget):
@@ -30,6 +34,7 @@ class ProjectHeaderBar(QWidget):
     estimate_cost_requested = Signal()
     settings_requested = Signal()
     export_requested = Signal()
+    reset_requested = Signal()
 
     def __init__(
         self,
@@ -40,6 +45,7 @@ class ProjectHeaderBar(QWidget):
         open_output_tooltip: str = _DEFAULT_OPEN_OUTPUT_TOOLTIP,
         show_export: bool = False,
         export_tooltip: str = "",
+        reset_tooltip: str = _DEFAULT_RESET_TOOLTIP,
     ) -> None:
         """Construit la barre.
 
@@ -51,6 +57,7 @@ class ProjectHeaderBar(QWidget):
             open_output_tooltip: Infobulle du bouton « Dossier de sortie ».
             show_export: Affiche le bouton « Exporter » (masqué par défaut).
             export_tooltip: Infobulle du bouton « Exporter ».
+            reset_tooltip: Infobulle du bouton « Réinitialiser ».
         """
         super().__init__(parent)
         self.setObjectName("projectHeaderBar")
@@ -75,6 +82,8 @@ class ProjectHeaderBar(QWidget):
         self._export_button = self._make_button("📦  Exporter", role="default")
         self._export_button.setToolTip(export_tooltip)
         self._export_button.setVisible(show_export)
+        self._reset_button = self._make_button("↺  Réinitialiser", role="danger")
+        self._reset_button.setToolTip(reset_tooltip)
 
         self._settings_button.clicked.connect(self.settings_requested)
         self._estimate_cost_button.clicked.connect(self.estimate_cost_requested)
@@ -84,6 +93,7 @@ class ProjectHeaderBar(QWidget):
         self._cancel_button.clicked.connect(self.cancel_requested)
         self._open_output_button.clicked.connect(self.open_output_requested)
         self._export_button.clicked.connect(self.export_requested)
+        self._reset_button.clicked.connect(self.reset_requested)
 
         for btn in (
             self._settings_button,
@@ -94,6 +104,7 @@ class ProjectHeaderBar(QWidget):
             self._cancel_button,
             self._open_output_button,
             self._export_button,
+            self._reset_button,
         ):
             layout.addWidget(btn)
         layout.addStretch(1)
@@ -131,6 +142,7 @@ class ProjectHeaderBar(QWidget):
         self._pause_button.setEnabled(False)
         self._resume_button.setEnabled(False)
         self._cancel_button.setEnabled(False)
+        self._reset_button.setEnabled(True)
 
     def set_running(self) -> None:
         """Affichage état running."""
@@ -138,6 +150,7 @@ class ProjectHeaderBar(QWidget):
         self._pause_button.setEnabled(True)
         self._resume_button.setEnabled(False)
         self._cancel_button.setEnabled(True)
+        self._reset_button.setEnabled(False)
 
     def set_paused(self) -> None:
         """Affichage état paused."""
@@ -145,6 +158,7 @@ class ProjectHeaderBar(QWidget):
         self._pause_button.setEnabled(False)
         self._resume_button.setEnabled(True)
         self._cancel_button.setEnabled(True)
+        self._reset_button.setEnabled(False)
 
     def set_finished(self) -> None:
         """Affichage état terminé."""
@@ -152,3 +166,4 @@ class ProjectHeaderBar(QWidget):
         self._pause_button.setEnabled(False)
         self._resume_button.setEnabled(False)
         self._cancel_button.setEnabled(False)
+        self._reset_button.setEnabled(True)

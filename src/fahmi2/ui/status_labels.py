@@ -30,6 +30,18 @@ _RUN_STATUS_ACCENT: dict[RunStatus, str] = {
     RunStatus.CANCELLED: "danger",
 }
 
+#: Glyphe Unicode par statut de Run (tuile Statut, icônes de la sidebar).
+_RUN_STATUS_ICON: dict[RunStatus, str] = {
+    RunStatus.CREATED: "⏳",
+    RunStatus.RUNNING: "▶",
+    RunStatus.PAUSED: "⏸",
+    RunStatus.COMPLETED: "✓",
+    RunStatus.FAILED: "✗",
+    RunStatus.CANCELLED: "⊘",
+}
+#: Glyphe de repli si le statut est inconnu.
+_DEFAULT_STATUS_ICON = "●"
+
 #: Accent neutre par défaut (statut sans accent ou inconnu).
 ACCENT_NEUTRAL = "neutral"
 
@@ -62,6 +74,18 @@ def run_status_accent(status: RunStatus) -> str:
         ``"neutral"`` (statut sans accent dédié).
     """
     return _RUN_STATUS_ACCENT.get(status, ACCENT_NEUTRAL)
+
+
+def run_status_icon(status: RunStatus) -> str:
+    """Glyphe Unicode d'un statut de Run (tuile Statut, sidebar).
+
+    Args:
+        status: Statut du Run.
+
+    Returns:
+        Le glyphe (``●`` en repli).
+    """
+    return _RUN_STATUS_ICON.get(status, _DEFAULT_STATUS_ICON)
 
 
 def cost_accent(cost_usd: float, ceiling_usd: float | None) -> str:

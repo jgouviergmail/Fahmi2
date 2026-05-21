@@ -462,6 +462,64 @@ def test_available_languages_offers_all(
     assert set(langs) == set(Language)
 
 
+def test_reset_pedagogy_removes_dir_and_refreshes(
+    qtbot: QtBot,
+    tmp_path: Path,
+    monkeypatch: Any,
+    make_generation_settings: Any,
+    make_pedagogy_settings: Any,
+) -> None:
+    controller, project_service, _ = _make_controller(qtbot, tmp_path)
+    project = project_service.create_project(
+        name="P",
+        workspace_folder=tmp_path / "ws",
+        generation=make_generation_settings(),
+        pedagogy=make_pedagogy_settings(),
+    )
+    controller.on_project_selected(project.id)
+    ped_dir = tmp_path / "ws" / "pedagogy"
+    ped_dir.mkdir(parents=True, exist_ok=True)
+    (ped_dir / "qcm").mkdir()
+    (ped_dir / "manifest.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(
+        QMessageBox,
+        "question",
+        lambda *a, **k: QMessageBox.StandardButton.Yes,
+    )
+    emitted: list[int] = []
+    controller.run_state_changed.connect(lambda: emitted.append(1))
+
+    controller.reset_pedagogy()
+
+    assert not ped_dir.exists()
+    assert emitted  # la sidebar est notifiée du changement de statut
+
+
+def test_reset_pedagogy_cancelled_keeps_dir(
+    qtbot: QtBot,
+    tmp_path: Path,
+    monkeypatch: Any,
+    make_generation_settings: Any,
+    make_pedagogy_settings: Any,
+) -> None:
+    controller, project_service, _ = _make_controller(qtbot, tmp_path)
+    project = project_service.create_project(
+        name="P",
+        workspace_folder=tmp_path / "ws",
+        generation=make_generation_settings(),
+        pedagogy=make_pedagogy_settings(),
+    )
+    controller.on_project_selected(project.id)
+    ped_dir = tmp_path / "ws" / "pedagogy"
+    ped_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.No
+    )
+    controller.reset_pedagogy()
+    # Annulation : le dossier est conservé.
+    assert ped_dir.exists()
+
+
 def test_on_project_selected_shows_preview(
     qtbot: QtBot,
     tmp_path: Path,

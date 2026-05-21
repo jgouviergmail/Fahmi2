@@ -17,7 +17,7 @@ from fahmi2.domain.enums import Language, RunStatus
 from fahmi2.ui.viewmodels.stats_strip import StatsSnapshot
 from fahmi2.ui.widgets.logs_dock import LogsDock
 from fahmi2.ui.widgets.project_header_bar import ProjectHeaderBar
-from fahmi2.ui.widgets.projects_sidebar import ProjectsSidebar
+from fahmi2.ui.widgets.projects_sidebar import ProjectListEntry, ProjectsSidebar
 from fahmi2.ui.widgets.stats_strip import StatsStripWidget
 
 
@@ -113,7 +113,12 @@ def test_projects_sidebar_select_project_triggers_callback(
     qtbot.addWidget(widget)
     received: list[str] = []
     widget.set_on_project_selected(lambda pid: received.append(pid.value))
-    widget.set_projects([p1, p2])
+    widget.set_projects(
+        [
+            ProjectListEntry(p1, RunStatus.CREATED, RunStatus.CREATED),
+            ProjectListEntry(p2, RunStatus.COMPLETED, RunStatus.RUNNING),
+        ]
+    )
     widget.select_project(p2.id)
     assert received[-1] == p2.id.value
 

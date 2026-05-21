@@ -1,6 +1,8 @@
 """Widget ``ProjectsSidebar`` — liste latérale des projets.
 
-Expose un menu contextuel (clic droit) avec deux actions :
+Chaque entrée préfixe le nom du projet par deux icônes de statut — génération puis
+pédagogie — sous la forme ``G ✓ / P ▶  Nom`` (statut du dernier run de chaque
+fonctionnalité). Expose un menu contextuel (clic droit) avec deux actions :
 
 - **Modifier…** : déclenche le callback d'édition pour le projet ciblé.
 - **Supprimer…** : déclenche le callback de suppression pour le projet ciblé.
@@ -8,16 +10,63 @@ Expose un menu contextuel (clic droit) avec deux actions :
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QAction, QContextMenuEvent
 from PySide6.QtWidgets import QListWidget, QListWidgetItem, QMenu, QWidget
 
+from fahmi2.domain.enums import RunStatus
 from fahmi2.domain.ids import ProjectId
 from fahmi2.domain.project import Project
+from fahmi2.ui.status_labels import run_status_icon, run_status_label
 
 _PROJECT_ID_ROLE = Qt.ItemDataRole.UserRole
+
+
+@dataclass(frozen=True)
+class ProjectListEntry:
+    """Projet + statuts à afficher dans la sidebar.
+
+    Attributes:
+        project: Projet.
+        generation_status: Statut du dernier run de génération.
+        pedagogy_status: Statut de la dernière exécution pédagogie.
+    """
+
+    project: Project
+    generation_status: RunStatus
+    pedagogy_status: RunStatus
+
+
+def _entry_label(entry: ProjectListEntry) -> str:
+    """Libellé d'une entrée : ``G <icône> / P <icône>  <nom>``.
+
+    Args:
+        entry: Entrée à formater.
+
+    Returns:
+        Le libellé affiché dans la liste.
+    """
+    gen = run_status_icon(entry.generation_status)
+    ped = run_status_icon(entry.pedagogy_status)
+    return f"G {gen} / P {ped}   {entry.project.name}"
+
+
+def _entry_tooltip(entry: ProjectListEntry) -> str:
+    """Infobulle détaillant les statuts en clair.
+
+    Args:
+        entry: Entrée à formater.
+
+    Returns:
+        Texte d'infobulle.
+    """
+    return (
+        f"Génération : {run_status_label(entry.generation_status)}\n"
+        f"Pédagogie : {run_status_label(entry.pedagogy_status)}"
+    )
 
 
 class ProjectsSidebar(QListWidget):
@@ -65,17 +114,49 @@ class ProjectsSidebar(QListWidget):
         """
         self._on_delete = callback
 
-    def set_projects(self, projects: list[Project]) -> None:
-        """Remplit la sidebar avec une liste de projets.
+    def set_projects(self, entries: Iterable[ProjectListEntry]) -> None:
+        """Remplit la sidebar (reconstruction complète : ajout/suppression).
 
         Args:
-            projects: Projets à afficher.
+            entries: Entrées (projet + statuts) à afficher.
         """
         self.clear()
-        for project in projects:
-            item = QListWidgetItem(project.name)
-            item.setData(_PROJECT_ID_ROLE, project.id.value)
+        for entry in entries:
+            item = QListWidgetItem(_entry_label(entry))
+            item.setData(_PROJECT_ID_ROLE, entry.project.id.value)
+            item.setToolTip(_entry_tooltip(entry))
             self.addItem(item)
+
+    def update_statuses(self, entries: Iterable[ProjectListEntry]) -> None:
+        """Met à jour les icônes de statut des items existants, sans reconstruire.
+
+        Préserve la sélection courante (pas de ``clear``). Les entrées dont le
+        projet n'est pas dans la liste sont ignorées (un ajout/suppression passe
+        par ``set_projects``).
+
+        Args:
+            entries: Entrées (projet + statuts) à refléter.
+        """
+        by_id = {entry.project.id.value: entry for entry in entries}
+        for i in range(self.count()):
+            item = self.item(i)
+            value = item.data(_PROJECT_ID_ROLE)
+            entry = by_id.get(value) if isinstance(value, str) else None
+            if entry is not None:
+                item.setText(_entry_label(entry))
+                item.setToolTip(_entry_tooltip(entry))
+
+    def current_project_id(self) -> ProjectId | None:
+        """Identifiant du projet actuellement sélectionné, ou ``None``.
+
+        Returns:
+            Le ``ProjectId`` sélectionné, ou ``None`` si aucune sélection.
+        """
+        row = self.currentRow()
+        if row < 0:
+            return None
+        value = self.item(row).data(_PROJECT_ID_ROLE)
+        return ProjectId(value=value) if isinstance(value, str) else None
 
     def select_project(self, project_id: ProjectId) -> None:
         """Sélectionne le projet correspondant à ``project_id`` dans la liste.

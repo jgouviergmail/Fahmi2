@@ -308,6 +308,31 @@ def test_list_phase_cells_returns_status_and_cost(
         assert by_key[(PhaseId.GLOSSARY_RECONCILIATION, None)].cost_usd == 0.20
 
 
+def test_delete_runs_for_project_keeps_project(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    with SqliteState(tmp_path / "t.db") as state:
+        project = _make_project(make_generation_settings)
+        state.upsert_project(project)
+        run = _make_run(project)
+        state.upsert_run(run)
+        state.upsert_phase_execution(
+            run.id,
+            PhaseExecution(
+                phase_id=PhaseId.STT, status=PhaseStatus.SUCCEEDED, cost_usd=0.07
+            ),
+            video_id=VideoId.new(),
+        )
+
+        state.delete_runs_for_project(project.id)
+
+        # Le projet est conservé, mais ses runs (et phases en cascade) effacés.
+        assert state.get_project(project.id) is not None
+        assert state.list_runs_for_project(project.id) == []
+        assert state.get_run(run.id) is None
+        assert state.list_phase_cells(run.id) == []
+
+
 # --- Test de concurrence ------------------------------------------------------
 
 

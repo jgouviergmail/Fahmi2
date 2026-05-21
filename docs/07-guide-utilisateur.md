@@ -112,6 +112,14 @@ colorés par niveau (gris/orange/rouge).
   travail n'est refait.
 - **✕ Annuler** : marque le run comme annulé. Vous pourrez relancer plus
   tard si vous le souhaitez.
+- **↺ Réinitialiser** : supprime **tout ce qui a été généré** pour l'onglet
+  courant (livrables et historique pour la Génération ; supports pour les Supports
+  pédagogiques), après confirmation. Irréversible ; indisponible pendant un run.
+
+Dans la liste des projets (gauche), chaque projet est préfixé par deux icônes de
+statut — **G** (Génération) puis **P** (Supports pédagogiques) — reflétant le
+dernier état de chaque fonctionnalité (créé, en cours ▶, terminé ✓, échec ✗,
+annulé ⊘) ; survolez pour le détail.
 
 ## 7. Récupérer les fichiers produits
 

@@ -7,8 +7,17 @@ from fahmi2.ui.status_labels import (
     ACCENT_NEUTRAL,
     cost_accent,
     run_status_accent,
+    run_status_icon,
     run_status_label,
 )
+
+
+def test_run_status_icon_per_status() -> None:
+    # Chaque statut a un glyphe distinct (pas le repli) ; tous différents.
+    icons = {run_status_icon(s) for s in RunStatus}
+    assert len(icons) == len(list(RunStatus))
+    assert run_status_icon(RunStatus.COMPLETED) == "✓"
+    assert run_status_icon(RunStatus.RUNNING) == "▶"
 
 
 def test_run_status_label_known() -> None:

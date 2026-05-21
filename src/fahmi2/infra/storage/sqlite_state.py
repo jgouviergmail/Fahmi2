@@ -541,6 +541,20 @@ class SqliteState:
         )
         self._get_connection().commit()
 
+    def delete_runs_for_project(self, project_id: ProjectId) -> None:
+        """Supprime tous les runs d'un projet (sans supprimer le projet).
+
+        Les ``videos`` et ``phase_executions`` liés sont supprimés par cascade
+        (``ON DELETE CASCADE``). Utilisé par la « Réinitialisation » de la
+        Génération (le projet est conservé, son historique d'exécution effacé).
+
+        Args:
+            project_id: Projet dont les runs sont supprimés.
+        """
+        conn = self._get_connection()
+        conn.execute("DELETE FROM runs WHERE project_id = ?", (project_id.value,))
+        conn.commit()
+
     # --------------------------------------------------------------------- runs
 
     def upsert_run(self, run: Run) -> None:

@@ -17,10 +17,14 @@ from fahmi2.app.project_service import ProjectService
 from fahmi2.app.prompts_service import PromptsService
 from fahmi2.app.secrets_service import SecretsService
 from fahmi2.core.config.paths import AppPaths
+from fahmi2.domain.enums import RunStatus
 from fahmi2.domain.ids import ProjectId
+from fahmi2.domain.pedagogy import PEDAGOGY_WORKSPACE_SUBDIR
+from fahmi2.domain.project import Project
 from fahmi2.infra.secrets.interface import InMemorySecretsStore, SecretsStore
 from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.pedagogy.default_registry import build_default_support_registry
+from fahmi2.pedagogy.run_state import read_run_state
 from fahmi2.ui.dialogs.global_settings_dialog import GlobalSettingsDialog
 from fahmi2.ui.dialogs.new_project_dialog import NewProjectDialog
 from fahmi2.ui.dialogs.prompts_editor_dialog import PromptsEditorDialog
@@ -29,6 +33,7 @@ from fahmi2.ui.features.pedagogy_tab import PedagogyTab
 from fahmi2.ui.features.registry import FeatureRegistry
 from fahmi2.ui.main_window import MainWindow
 from fahmi2.ui.theme import apply_theme
+from fahmi2.ui.widgets.projects_sidebar import ProjectListEntry
 
 _DB_FILENAME = "projects.db"
 
@@ -86,10 +91,41 @@ def main() -> int:  # noqa: PLR0915, C901
         registry=build_default_support_registry(),
     )
     window.set_feature_tabs(FeatureRegistry([generation_tab, pedagogy_tab]))
-    window.projects_sidebar.set_projects(project_service.list_projects())
+
+    def _project_entry(project: Project) -> ProjectListEntry:
+        last_run = project_service.get_last_run(project.id)
+        generation_status = (
+            last_run.status if last_run is not None else RunStatus.CREATED
+        )
+        run_state = read_run_state(
+            project.workspace_folder / PEDAGOGY_WORKSPACE_SUBDIR
+        )
+        pedagogy_status = (
+            run_state.status if run_state is not None else RunStatus.CREATED
+        )
+        return ProjectListEntry(
+            project=project,
+            generation_status=generation_status,
+            pedagogy_status=pedagogy_status,
+        )
+
+    def _entries() -> list[ProjectListEntry]:
+        return [_project_entry(p) for p in project_service.list_projects()]
 
     def _refresh_sidebar() -> None:
-        window.projects_sidebar.set_projects(project_service.list_projects())
+        """Reconstruit la sidebar (ajout/suppression) en préservant la sélection."""
+        current = window.projects_sidebar.current_project_id()
+        window.projects_sidebar.set_projects(_entries())
+        if current is not None:
+            window.projects_sidebar.select_project(current)
+
+    def _refresh_statuses() -> None:
+        """Met à jour les icônes de statut (live, sans reconstruire la liste)."""
+        window.projects_sidebar.update_statuses(_entries())
+
+    window.projects_sidebar.set_projects(_entries())
+    generation_tab.controller.run_state_changed.connect(_refresh_statuses)
+    pedagogy_tab.controller.run_state_changed.connect(_refresh_statuses)
 
     def _open_settings() -> None:
         dialog = GlobalSettingsDialog(secrets_service, parent=window)

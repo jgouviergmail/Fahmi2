@@ -71,6 +71,7 @@ from fahmi2.pedagogy.sources import load_chapters
 from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
 from fahmi2.pipeline.pause_token import PauseToken
 from fahmi2.ui._file_explorer import open_in_file_explorer
+from fahmi2.ui._fs import remove_feature_dir
 from fahmi2.ui.dialogs.pedagogy_settings_view import PedagogySettingsView
 from fahmi2.ui.pedagogy_labels import EXPORT_LABELS, support_label
 from fahmi2.ui.qt_event_bus import PedagogyQtEventBus
@@ -141,6 +142,10 @@ class _PedagogyWorker(QObject):
 class PedagogyController(QObject):
     """Orchestre la génération des supports depuis l'onglet pédagogique."""
 
+    #: Émis quand le statut de la génération change (démarrage / fin / échec /
+    #: réinitialisation), pour rafraîchir les icônes de la sidebar.
+    run_state_changed = Signal()
+
     def __init__(
         self,
         *,
@@ -194,6 +199,7 @@ class PedagogyController(QObject):
         self._header_bar.cancel_requested.connect(self.cancel)
         self._header_bar.open_output_requested.connect(self.open_folder)
         self._header_bar.export_requested.connect(self._on_export_requested)
+        self._header_bar.reset_requested.connect(self.reset_pedagogy)
 
     # ------------------------------------------------------------------ project
 
@@ -411,6 +417,7 @@ class PedagogyController(QObject):
         self._thread = thread
         self._header_bar.set_running()
         thread.start()
+        self.run_state_changed.emit()
 
     def pause(self) -> None:
         """Demande la pause de la génération en cours."""
@@ -445,6 +452,58 @@ class PedagogyController(QObject):
             )
             return
         open_in_file_explorer(pedagogy_dir)
+
+    def reset_pedagogy(self) -> None:
+        """Slot : supprime tous les supports générés (dossier ``pedagogy/``).
+
+        Demande confirmation, refuse pendant une génération, puis efface le dossier
+        des supports (artefacts + manifeste + état d'exécution). Réaffiche un
+        dashboard vide et notifie la sidebar.
+        """
+        project = self._current_project
+        if project is None:
+            QMessageBox.warning(
+                self._window,
+                "Aucun projet sélectionné",
+                "Sélectionne un projet dans la sidebar avant de réinitialiser.",
+            )
+            return
+        if self._thread is not None:
+            QMessageBox.warning(
+                self._window,
+                "Génération en cours",
+                "Impossible de réinitialiser pendant une génération. Annule-la "
+                "d'abord.",
+            )
+            return
+        reply = QMessageBox.question(
+            self._window,
+            "Réinitialiser les supports ?",
+            (
+                f"Réinitialiser les supports pédagogiques de « {project.name} » ?\n\n"
+                "Tous les supports générés, leurs exports intermédiaires et l'état "
+                "d'exécution seront supprimés. Cette action est irréversible."
+            ),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        remove_feature_dir(
+            self._logs_dock, self._pedagogy_dir(project), label="pédagogie"
+        )
+        self._logs_dock.append_event(
+            LogEvent(
+                timestamp=datetime.now(tz=UTC),
+                severity=Severity.INFO,
+                code="PEDAGOGY_RESET",
+                message=f"Supports pédagogiques réinitialisés pour « {project.name} ».",
+            )
+        )
+        self._header_bar.set_open_output_enabled(False)
+        self._refresh_state()
+        self._show_progress_for_selected_project(project)
+        self.run_state_changed.emit()
 
     def export_apkg(self) -> None:
         """Exporte les supports générés vers un paquet Anki ``.apkg``."""
@@ -701,6 +760,9 @@ class PedagogyController(QObject):
         self._thread = None
         self._current_pause_token = None
         self._active_worker_project_id = None
+        # Fin de génération (succès / échec / annulation / plafond) : rafraîchir
+        # les icônes de statut de la sidebar.
+        self.run_state_changed.emit()
 
     # -------------------------------------------------------------- helpers
 

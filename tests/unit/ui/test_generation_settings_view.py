@@ -10,6 +10,7 @@ from pytestqt.qtbot import QtBot
 
 from fahmi2.app.hardware_probe import HardwareInfo
 from fahmi2.domain.enums import Language
+from fahmi2.domain.generation import ParallelismConfig
 from fahmi2.ui.dialogs.generation_settings_view import GenerationSettingsView
 
 _HW = HardwareInfo(cuda_available=False, gpu_name="", cuda_version="")
@@ -74,3 +75,18 @@ def test_edit_mode_reflects_keep_audio(
     view = GenerationSettingsView(_HW, initial=gen)
     qtbot.addWidget(view)
     assert view._keep_audio_checkbox.isChecked() is True  # noqa: SLF001
+
+
+def test_parallelism_round_trips(
+    qtbot: QtBot, make_generation_settings: Any
+) -> None:
+    gen = make_generation_settings(
+        parallelism=ParallelismConfig(stt_cloud_workers=5, llm_workers=20)
+    )
+    view = GenerationSettingsView(_HW, initial=gen)
+    qtbot.addWidget(view)
+    view._on_accept()  # noqa: SLF001
+    result = view.get_generation_settings()
+    assert result is not None
+    assert result.parallelism.stt_cloud_workers == 5
+    assert result.parallelism.llm_workers == 20

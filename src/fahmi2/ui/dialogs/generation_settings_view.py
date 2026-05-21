@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QSpinBox,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -29,7 +30,12 @@ from PySide6.QtWidgets import (
 
 from fahmi2.app.hardware_probe import HardwareInfo
 from fahmi2.domain.enums import Language, LLMModel, SttProvider, StylePreset
-from fahmi2.domain.generation import GenerationSettings, ParallelismConfig
+from fahmi2.domain.generation import (
+    MAX_LLM_WORKERS,
+    MAX_STT_CLOUD_WORKERS,
+    GenerationSettings,
+    ParallelismConfig,
+)
 from fahmi2.ui.widgets.phase_configs_widget import PhaseConfigsWidget
 from fahmi2.ui.widgets.settings_view import SettingsView
 
@@ -170,6 +176,20 @@ class GenerationSettingsView(QDialog):
 
         self._phase_configs_widget = PhaseConfigsWidget(self)
 
+        defaults = ParallelismConfig()
+        self._stt_workers_input = QSpinBox(self)
+        self._stt_workers_input.setRange(1, MAX_STT_CLOUD_WORKERS)
+        self._stt_workers_input.setValue(defaults.stt_cloud_workers)
+        self._stt_workers_input.setToolTip(
+            "Transcriptions cloud simultanées (sans effet en STT local : 1 GPU)."
+        )
+        self._llm_workers_input = QSpinBox(self)
+        self._llm_workers_input.setRange(1, MAX_LLM_WORKERS)
+        self._llm_workers_input.setValue(defaults.llm_workers)
+        self._llm_workers_input.setToolTip(
+            "Appels LLM simultanés (limite DeepSeek par concurrence, très haute)."
+        )
+
     # ------------------------------------------------------------------- pages
 
     def _build_input_page(self) -> QWidget:
@@ -221,6 +241,7 @@ class GenerationSettingsView(QDialog):
         form = QFormLayout()
         form.addRow("Provider STT :", self._stt_combo)
         form.addRow(self._keep_audio_checkbox)
+        form.addRow("Transcriptions en parallèle :", self._stt_workers_input)
         outer.addLayout(form)
         outer.addStretch(1)
         return page
@@ -236,6 +257,7 @@ class GenerationSettingsView(QDialog):
         form = QFormLayout()
         form.addRow("Modèle LLM :", self._llm_combo)
         form.addRow("Plafond budget :", self._cost_ceiling_input)
+        form.addRow("Appels LLM en parallèle :", self._llm_workers_input)
         outer.addLayout(form)
         outer.addStretch(1)
         return page
@@ -305,6 +327,8 @@ class GenerationSettingsView(QDialog):
         if llm_idx >= 0:
             self._llm_combo.setCurrentIndex(llm_idx)
         self._cost_ceiling_input.setValue(generation.cost_ceiling_usd or 0.0)
+        self._stt_workers_input.setValue(generation.parallelism.stt_cloud_workers)
+        self._llm_workers_input.setValue(generation.parallelism.llm_workers)
         self._phase_configs_widget.set_phase_configs(generation.phases_config)
 
     def _on_accept(self) -> None:
@@ -338,7 +362,10 @@ class GenerationSettingsView(QDialog):
             llm_model=self._llm_combo.currentData(),
             phases_config=self._phase_configs_widget.get_phase_configs(),
             cost_ceiling_usd=cost_ceiling,
-            parallelism=ParallelismConfig(),
+            parallelism=ParallelismConfig(
+                stt_cloud_workers=self._stt_workers_input.value(),
+                llm_workers=self._llm_workers_input.value(),
+            ),
             delete_audio_after_stt=not self._keep_audio_checkbox.isChecked(),
         )
         self.accept()

@@ -12,6 +12,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from fahmi2.app.project_service import ProjectService
+from fahmi2.domain.enums import Language
 from fahmi2.domain.generation import (
     GENERATION_OUTPUT_SUBDIR,
     GENERATION_WORKSPACE_SUBDIR,
@@ -20,17 +21,21 @@ from fahmi2.domain.pedagogy import PEDAGOGY_WORKSPACE_SUBDIR, PedagogySettings
 from fahmi2.domain.project import Project
 from fahmi2.pedagogy.artifact_writer import artifact_json_path
 from fahmi2.pedagogy.manifest import compute_settings_hash, read_manifest
-from fahmi2.pedagogy.sources import consolidated_doc_path, source_mtime_ns
+from fahmi2.pedagogy.sources import (
+    consolidated_doc_path,
+    resolve_content_language,
+    source_mtime_ns,
+)
 
 _MSG_NOT_CONFIGURED = (
     "Supports pédagogiques non configurés — cliquez sur « ⚙ Réglages »."
 )
 _MSG_GENERATION_REQUIRED = (
-    "Génération requise : lancez d'abord la Génération pour produire le document "
-    "consolidé et le glossaire des langues sélectionnées."
+    "Génération requise : lancez d'abord la Génération pour produire au moins un "
+    "document consolidé (toute langue) et le glossaire."
 )
 _MSG_READY = "Prêt à générer les supports."
-_MSG_UP_TO_DATE = "Supports à jour."
+_MSG_UP_TO_DATE = "Supports à jour — « Générer » les régénère."
 _MSG_STALE = "Supports périmés (réglages ou source modifiés) — régénérez."
 
 
@@ -100,9 +105,13 @@ class PedagogyStateViewModel:
             / GENERATION_WORKSPACE_SUBDIR
             / GENERATION_OUTPUT_SUBDIR
         )
-        if any(
-            not consolidated_doc_path(generation_output_dir, language).exists()
-            for language in pedagogy.languages
+        # La langue cible n'a pas besoin d'avoir été produite : l'orchestrateur
+        # résout une langue de contenu (cf. ``resolve_content_language``) et le LLM
+        # rédige dans la langue cible. Il suffit donc qu'**au moins un** document
+        # consolidé existe (toute langue).
+        if not any(
+            consolidated_doc_path(generation_output_dir, language).exists()
+            for language in Language
         ):
             return self._info(PedagogyState.GENERATION_REQUIRED, can_generate=False)
 
@@ -130,11 +139,25 @@ class PedagogyStateViewModel:
         pedagogy_dir = project.workspace_folder / PEDAGOGY_WORKSPACE_SUBDIR
         manifest = read_manifest(pedagogy_dir)
         settings_hash = compute_settings_hash(pedagogy)
+        source_language = (
+            project.generation.source_language
+            if project.generation is not None
+            else None
+        )
 
         any_generated = False
         any_stale = False
         for language in pedagogy.languages:
-            source_mtime = source_mtime_ns(generation_output_dir, language)
+            # mtime du doc de contenu réellement utilisé (la cible peut différer),
+            # pour ne pas marquer « périmé » un support généré depuis une autre langue.
+            content_lang = resolve_content_language(
+                generation_output_dir, language, source_language
+            )
+            source_mtime = (
+                source_mtime_ns(generation_output_dir, content_lang)
+                if content_lang is not None
+                else None
+            )
             for support in pedagogy.selected_supports:
                 if not artifact_json_path(pedagogy_dir, support, language).exists():
                     continue

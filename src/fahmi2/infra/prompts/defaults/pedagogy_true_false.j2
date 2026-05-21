@@ -7,7 +7,9 @@ Densité attendue : {{ density_label }}.
 Directives supplémentaires : {{ pedagogy_directives }}
 {%- endif %}
 
-Rédige en {{ output_language_label }}. Équilibre les affirmations vraies et fausses. ``is_true`` vaut true si l'affirmation est exacte, false sinon. ``justification`` explique la réponse, fidèlement au contenu (aucune invention).
+Rédige en {{ output_language_label }}. Équilibre les affirmations vraies et fausses. Chaque affirmation porte sur **une seule idée vérifiable** et cible une confusion fréquente plutôt qu'une évidence ; évite les tournures négatives ambiguës et les pièges purement lexicaux. ``is_true`` vaut true si l'affirmation est exacte, false sinon. ``justification`` explique la réponse en 1 à 2 phrases, fidèlement au contenu (aucune invention).
+
+Mise en forme : la justification reste un court paragraphe ; **gras** inline possible, sans liste ni saut de ligne.
 {% if glossary_terms %}
 Glossaire de référence (réutilise la terminologie exacte) :
 {{ glossary_terms }}

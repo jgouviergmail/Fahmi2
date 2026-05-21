@@ -3,9 +3,9 @@
 Estime, par (support LLM × langue × chapitre), un coût en USD : les tokens
 d'entrée sont déduits de la taille du chapitre, les tokens de sortie d'une table
 par densité, et le mode thinking applique un multiplicateur (cf. ``_cost_common``).
-Les flashcards glossaire (sans LLM) coûtent 0. L'examen blanc consomme tout le
-document en un appel par langue. Objectif : un ordre de grandeur, pas une
-prédiction au cent près.
+Les supports sans appel LLM (``NO_LLM_SUPPORTS``, actuellement vide) coûtent 0.
+L'examen blanc consomme tout le document en un appel par langue. Objectif : un
+ordre de grandeur, pas une prédiction au cent près.
 """
 
 from __future__ import annotations

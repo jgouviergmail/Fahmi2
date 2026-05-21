@@ -95,6 +95,66 @@ def test_ready_when_source_present_nothing_generated(
     assert info.can_generate is True
 
 
+def test_can_generate_target_language_without_own_doc(
+    tmp_path: Path, make_generation_settings: Any, make_pedagogy_settings: Any
+) -> None:
+    # Cible EN sans doc consolidé EN, mais le doc source FR existe : la génération
+    # pédagogie doit rester possible (le LLM rédige en EN depuis le contenu FR).
+    state = SqliteState(tmp_path / "t.db")
+    service = ProjectService(state)
+    ws = tmp_path / "ws"
+    project = service.create_project(
+        name="P",
+        workspace_folder=ws,
+        generation=make_generation_settings(source_language=Language.FR),
+        pedagogy=make_pedagogy_settings(languages=(Language.EN,)),
+    )
+    _seed_completed_run(state, project.id, make_generation_settings())
+    _write_consolidated(ws, Language.FR)  # seule la langue source est produite
+    info = PedagogyStateViewModel(project_service=service).compute(project)
+    assert info.can_generate is True
+    assert info.state is PedagogyState.READY
+
+
+def test_up_to_date_target_en_generated_from_fr_content(
+    tmp_path: Path, make_generation_settings: Any, make_pedagogy_settings: Any
+) -> None:
+    # Un support EN généré depuis le contenu FR ne doit pas être marqué « périmé »
+    # (la fraîcheur suit le mtime du doc de contenu réellement utilisé, pas EN).
+    state = SqliteState(tmp_path / "t.db")
+    service = ProjectService(state)
+    ws = tmp_path / "ws"
+    pedagogy = make_pedagogy_settings(
+        selected_supports=frozenset({SupportType.FLASHCARDS_CONCEPTS}),
+        languages=(Language.EN,),
+    )
+    project = service.create_project(
+        name="P",
+        workspace_folder=ws,
+        generation=make_generation_settings(source_language=Language.FR),
+        pedagogy=pedagogy,
+    )
+    _seed_completed_run(state, project.id, make_generation_settings())
+    _write_consolidated(ws, Language.FR)
+    gen_out = ws / GENERATION_WORKSPACE_SUBDIR / GENERATION_OUTPUT_SUBDIR
+    pedagogy_dir = ws / PEDAGOGY_WORKSPACE_SUBDIR
+    artifacts = FsArtifactStore()
+    artifacts.write_json_atomic(
+        artifact_json_path(pedagogy_dir, SupportType.FLASHCARDS_CONCEPTS, Language.EN),
+        {"items": []},
+    )
+    manifest = PedagogyManifest()
+    manifest.record(
+        SupportType.FLASHCARDS_CONCEPTS,
+        Language.EN,
+        settings_hash=compute_settings_hash(pedagogy),
+        source_mtime_ns=source_mtime_ns(gen_out, Language.FR),
+    )
+    write_manifest(artifacts, pedagogy_dir, manifest)
+    info = PedagogyStateViewModel(project_service=service).compute(project)
+    assert info.state is PedagogyState.UP_TO_DATE
+
+
 def test_up_to_date_when_fresh(
     tmp_path: Path, make_generation_settings: Any, make_pedagogy_settings: Any
 ) -> None:

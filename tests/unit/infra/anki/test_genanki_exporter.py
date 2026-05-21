@@ -105,6 +105,47 @@ def test_export_empty_writes_valid_package(tmp_path: Path) -> None:
     assert out.exists()
 
 
+def test_flashcard_markdown_back_converted_to_html() -> None:
+    exporter = GenankiExporter()
+    artifact = ParsedArtifact(
+        support_type=SupportType.FLASHCARDS_CONCEPTS,
+        language=Language.FR,
+        items=(
+            Flashcard(front="Terme", back="- point 1\n- point 2", source_ref="x"),
+        ),
+    )
+    note = exporter._note_for(  # noqa: SLF001
+        artifact, artifact.items[0], difficulty="licence"
+    )
+    assert note is not None
+    # Le Markdown (liste) du verso est rendu en HTML pour Anki…
+    assert "<ul>" in note.fields[1]
+    # …et le recto court ne porte pas de <p> englobant superflu.
+    assert note.fields[0] == "Terme"
+
+
+def test_qcm_justification_inline_markdown_converted() -> None:
+    exporter = GenankiExporter()
+    artifact = ParsedArtifact(
+        support_type=SupportType.QCM,
+        language=Language.FR,
+        items=(
+            QcmItem(
+                question="Q",
+                choices=("a", "b"),
+                correct_index=0,
+                justification="le **PIB**",
+                source_ref="x",
+            ),
+        ),
+    )
+    note = exporter._note_for(  # noqa: SLF001
+        artifact, artifact.items[0], difficulty="licence"
+    )
+    assert note is not None
+    assert "<strong>PIB</strong>" in note.fields[3]
+
+
 def test_guid_is_stable() -> None:
     artifact = ParsedArtifact(
         support_type=SupportType.FLASHCARDS_CONCEPTS,

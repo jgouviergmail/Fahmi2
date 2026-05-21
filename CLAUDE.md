@@ -10,7 +10,7 @@ LLM DeepSeek. Application desktop Windows mono-utilisateur, PySide6, packagée e
 `.zip` portable (installation double-clic, ffmpeg bundlé).
 
 L'app est organisée en **onglets de fonctionnalité** (Génération ; Supports
-pédagogiques — 8 types de supports de révision avec exports Anki/Markdown/PDF) :
+pédagogiques — 8 types de supports de révision avec exports Anki/Markdown/PDF/HTML) :
 un `Project` ne porte que son nom + son emplacement, les réglages métier vivant
 par fonctionnalité (`GenerationSettings`, `PedagogySettings`).
 
@@ -101,9 +101,10 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   `prompts/loader` + `defaults/*.j2` (8 phases + 8 `pedagogy_*`).
 - `app/` — use-cases : `ProjectService` (+ `get_last_completed_run`),
   `RunOrchestrator`, `SupportsOrchestrator`, `CostEstimator`,
-  `PedagogyCostEstimator`, `pedagogy_export` (Anki/MD/PDF), `_cost_common`,
-  `GlossaryReconciler`, `PromptsService`, `SecretsService`, `VideoScanner`,
-  `HardwareProbe`.
+  `PedagogyCostEstimator`, `pedagogy_export` (Anki/MD/PDF/HTML), `_cost_common`,
+  `PromptsService`, `SecretsService`, `VideoScanner`,
+  `HardwareProbe`. (Le glossaire est lu sur disque — `glossary_master.json` —
+  comme le pipeline ; parsing/rendu dans `domain/glossary`, pas de service dédié.)
 - `ui/` — PySide6 : `features/` (abstraction onglet : `FeatureId`, `FeatureTab`,
   `FeatureRegistry`, `GenerationTab`, `PedagogyTab` réel), `viewmodels/` (logique
   testable **sans Qt**, dont `PedagogyProgressViewModel`/`PedagogyStateViewModel`),
@@ -173,15 +174,24 @@ checkpoint/reprise. Les phases batch sont persistées avec `video_id IS NULL`.
   parmi les `consolidated.{lang}.md` existants — la langue cible peut donc différer)
   et glossaire (`glossary_master.json` ; pas de table SQLite). Les supports sont
   rédigés par le LLM dans la **langue cible** choisie, indépendamment de la langue
-  du document source. Pas de checkpoint SQLite : la **reprise est *coarse*** via le
-  `pedagogy/manifest.json` (hash des réglages + mtime source par langue) — un support
-  frais et déjà écrit est *skippé*, une source régénérée **périme** les supports
-  (bandeau d'état UI). Le `SupportsOrchestrator` applique
+  du document source. Pas de checkpoint SQLite : la fraîcheur est suivie par le
+  `pedagogy/manifest.json` (hash des réglages + mtime source par langue), une source
+  régénérée **périme** les supports (bandeau d'état UI). **Alignement sur la
+  génération** (`_is_complete`) : relancer un ensemble **complet** (tout présent +
+  frais) **régénère** tout (écrase, comme un nouveau run) ; un ensemble **incomplet**
+  (interruption / plafond) est **repris** *coarse* (supports frais skippés, manquants
+  générés). Le statut de la dernière exécution est persisté sur disque
+  (`pedagogy/run_state.json` : `RunStatus` + horodatages + coût) pour un statut
+  homogène avec la génération (sidebar, tuiles), lisible hors session active. Le
+  `SupportsOrchestrator` applique
   un **plafond de coût** (`PedagogyCostEstimator`). Les générateurs LLM partagent
   le retry du pipeline (`core/retry/classification.default_classify`) via
   `pedagogy/generators/_base.py` (parsing JSON typé). Les supports **évaluatifs**
   « corrigé séparé » produisent un `<support>.corrige.md` distinct du sujet.
-  Exports : `.apkg` (genanki), Markdown et PDF via `app/pedagogy_export.py`.
+  Exports : `.apkg` (genanki), Markdown et PDF via `app/pedagogy_export.py`. Les
+  prompts autorisent un Markdown léger dans le contenu ; l'export Anki **convertit
+  les champs Markdown en HTML** (`genanki_exporter._md_to_html`) — sauf le texte
+  cloze (mécanique `{{cN::}}` préservée). MD/PDF consomment le Markdown rendu tel quel.
 - **Erreurs → UI** : une exception levée par un handler **doit** être une
   `Fahmi2Error` (code + user_message + technical_details). Le moteur la convertit
   en `ErrorInfo`, la propage dans `PhaseFinished.error`, et `generation_controller._to_log_event`

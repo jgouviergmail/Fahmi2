@@ -2,14 +2,25 @@
 
 Aligné sur le dashboard Génération : un **bandeau d'état** (fraîcheur, via la
 propriété QSS ``state``), une **bande de tuiles** (Statut / Supports / Langues /
-Coût) et une **matrice de coût** supports × langues (``CostMatrixView``).
+Durée / Coût) et une **matrice de coût** supports × langues (``CostMatrixView``).
+Un ``QTimer`` rafraîchit la durée tant que la génération est ``RUNNING``.
 """
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from fahmi2.domain.enums import RunStatus
+from fahmi2.ui._format import format_duration, format_languages
+from fahmi2.ui.status_labels import (
+    ACCENT_NEUTRAL,
+    cost_accent,
+    run_status_accent,
+    run_status_label,
+)
 from fahmi2.ui.viewmodels.cost_matrix import CostMatrixSnapshot
 from fahmi2.ui.viewmodels.pedagogy_progress import PedagogyStatsSnapshot
 from fahmi2.ui.viewmodels.pedagogy_state import PedagogyStateInfo
@@ -18,22 +29,7 @@ from fahmi2.ui.widgets.stat_card import StatCard
 
 _BANNER_OBJECT_NAME = "pedagogyStateBanner"
 _COST_DECIMALS = 2
-
-_STATUS_LABEL: dict[RunStatus, str] = {
-    RunStatus.CREATED: "Créé",
-    RunStatus.RUNNING: "En cours",
-    RunStatus.PAUSED: "En pause",
-    RunStatus.COMPLETED: "Terminé",
-    RunStatus.FAILED: "Échec",
-    RunStatus.CANCELLED: "Annulé",
-}
-_STATUS_ACCENT: dict[RunStatus, str] = {
-    RunStatus.RUNNING: "running",
-    RunStatus.PAUSED: "warning",
-    RunStatus.COMPLETED: "success",
-    RunStatus.FAILED: "danger",
-    RunStatus.CANCELLED: "danger",
-}
+_LIVE_REFRESH_INTERVAL_MS = 1000
 
 _EMPTY_MATRIX = CostMatrixSnapshot(
     row_header="Support",
@@ -44,6 +40,23 @@ _EMPTY_MATRIX = CostMatrixSnapshot(
     column_totals=(),
     grand_total=0.0,
 )
+
+
+def _elapsed_seconds(stats: PedagogyStatsSnapshot, now: datetime) -> float:
+    """Durée écoulée d'une exécution pédagogie.
+
+    Args:
+        stats: Indicateurs agrégés (horodatages de la dernière exécution).
+        now: Instant de référence (pour une exécution en cours).
+
+    Returns:
+        ``finished_at - started_at`` si terminé, ``now - started_at`` si en cours,
+        ``0`` si jamais lancé.
+    """
+    if stats.started_at is None:
+        return 0.0
+    end = stats.finished_at or now
+    return max(0.0, (end - stats.started_at).total_seconds())
 
 
 class PedagogyProgressView(QWidget):
@@ -71,17 +84,23 @@ class PedagogyProgressView(QWidget):
         self._card_status = StatCard(icon="●", title="Statut", parent=strip)
         self._card_supports = StatCard(icon="▤", title="Supports", parent=strip)
         self._card_languages = StatCard(icon="🌐", title="Langues", parent=strip)
+        self._card_duration = StatCard(icon="⏱", title="Durée", parent=strip)
         self._card_cost = StatCard(icon="$", title="Coût", parent=strip)
         for card in (
             self._card_status,
             self._card_supports,
             self._card_languages,
+            self._card_duration,
             self._card_cost,
         ):
             strip_layout.addWidget(card, stretch=1)
 
         self._matrix = CostMatrixView(parent=self)
         self._row_count = 0
+        self._last_stats: PedagogyStatsSnapshot | None = None
+        self._timer = QTimer(self)
+        self._timer.setInterval(_LIVE_REFRESH_INTERVAL_MS)
+        self._timer.timeout.connect(self._on_tick)
 
         layout.addWidget(self._banner)
         layout.addWidget(strip)
@@ -98,30 +117,51 @@ class PedagogyProgressView(QWidget):
         """
         self._matrix.apply_snapshot(matrix)
         self._row_count = len(matrix.row_labels)
+        self._last_stats = stats
         self._render_stats(stats)
+        if stats.overall_status is RunStatus.RUNNING:
+            if not self._timer.isActive():
+                self._timer.start()
+        elif self._timer.isActive():
+            self._timer.stop()
 
     def _render_stats(self, stats: PedagogyStatsSnapshot) -> None:
-        """Met à jour les 4 tuiles.
+        """Met à jour les 5 tuiles (statut, supports, langues, durée, coût).
 
         Args:
             stats: Indicateurs agrégés.
         """
         if stats.overall_status is not None:
-            self._card_status.set_value(
-                _STATUS_LABEL.get(stats.overall_status, stats.overall_status.value)
-            )
-            self._card_status.set_accent(
-                _STATUS_ACCENT.get(stats.overall_status, "neutral")
-            )
+            self._card_status.set_value(run_status_label(stats.overall_status))
+            self._card_status.set_accent(run_status_accent(stats.overall_status))
         else:
             self._card_status.set_value("—")
-            self._card_status.set_accent("neutral")
+            self._card_status.set_accent(ACCENT_NEUTRAL)
         self._card_supports.set_value(
             f"{stats.tasks_done} / {stats.tasks_total}", "tâches"
         )
-        langs = " · ".join(lang.value.upper() for lang in stats.languages) or "—"
-        self._card_languages.set_value(langs)
-        self._card_cost.set_value(f"${stats.total_cost_usd:.{_COST_DECIMALS}f}")
+        self._card_languages.set_value(format_languages(stats.languages))
+        self._card_duration.set_value(
+            format_duration(_elapsed_seconds(stats, datetime.now(tz=UTC)))
+        )
+        if stats.cost_ceiling_usd is not None:
+            cost_sub = f"plafond ${stats.cost_ceiling_usd:.{_COST_DECIMALS}f}"
+        else:
+            cost_sub = "sans plafond"
+        self._card_cost.set_value(
+            f"${stats.total_cost_usd:.{_COST_DECIMALS}f}", cost_sub
+        )
+        self._card_cost.set_accent(
+            cost_accent(stats.total_cost_usd, stats.cost_ceiling_usd)
+        )
+
+    def _on_tick(self) -> None:
+        """Rafraîchit la durée affichée entre deux snapshots (génération active)."""
+        if self._last_stats is None:
+            return
+        self._card_duration.set_value(
+            format_duration(_elapsed_seconds(self._last_stats, datetime.now(tz=UTC)))
+        )
 
     def set_state(self, info: PedagogyStateInfo) -> None:
         """Met à jour le bandeau d'état.
@@ -134,6 +174,9 @@ class PedagogyProgressView(QWidget):
 
     def clear(self) -> None:
         """Réinitialise (aucun projet sélectionné)."""
+        if self._timer.isActive():
+            self._timer.stop()
+        self._last_stats = None
         self._matrix.apply_snapshot(_EMPTY_MATRIX)
         self._row_count = 0
         self._banner.setText("")
@@ -142,10 +185,11 @@ class PedagogyProgressView(QWidget):
             self._card_status,
             self._card_supports,
             self._card_languages,
+            self._card_duration,
             self._card_cost,
         ):
             card.set_value("—")
-            card.set_accent("neutral")
+            card.set_accent(ACCENT_NEUTRAL)
 
     def _set_banner_state(self, state: str) -> None:
         """Applique la propriété QSS dynamique ``state`` et force le re-style.

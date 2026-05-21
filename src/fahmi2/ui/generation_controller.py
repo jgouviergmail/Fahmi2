@@ -364,6 +364,7 @@ class GenerationController(QObject):
                 started_at=now,
                 finished_at=now,
                 elapsed_seconds=0.0,
+                languages=project.generation.output_languages,
             )
         )
 
@@ -384,6 +385,7 @@ class GenerationController(QObject):
             started_at=now,
             finished_at=now,
             elapsed_seconds=0.0,
+            languages=(),
         )
         self._stats_strip.apply_snapshot(empty_stats)
 

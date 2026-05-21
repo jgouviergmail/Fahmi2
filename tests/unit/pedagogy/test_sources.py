@@ -10,8 +10,15 @@ from fahmi2.pedagogy.sources import (
     consolidated_doc_path,
     load_chapters,
     load_glossary_master_terms,
+    resolve_content_language,
     source_mtime_ns,
 )
+
+
+def _write_doc(tmp_path: Path, language: Language) -> None:
+    FsArtifactStore().write_text_atomic(
+        consolidated_doc_path(tmp_path, language), "# Cours\n\n# 1. Bases\n\nX.\n"
+    )
 
 
 def test_consolidated_doc_path(tmp_path: Path) -> None:
@@ -50,3 +57,27 @@ def test_load_glossary_master_terms_reads_disk(tmp_path: Path) -> None:
 
 def test_load_glossary_master_terms_absent_returns_empty(tmp_path: Path) -> None:
     assert load_glossary_master_terms(tmp_path / "generation") == ()
+
+
+def test_resolve_content_language_prefers_target(tmp_path: Path) -> None:
+    _write_doc(tmp_path, Language.FR)
+    _write_doc(tmp_path, Language.EN)
+    assert resolve_content_language(tmp_path, Language.EN, Language.FR) is Language.EN
+
+
+def test_resolve_content_language_falls_back_to_source(tmp_path: Path) -> None:
+    # Cible EN sans doc, mais doc source FR présent -> contenu FR.
+    _write_doc(tmp_path, Language.FR)
+    assert resolve_content_language(tmp_path, Language.EN, Language.FR) is Language.FR
+
+
+def test_resolve_content_language_falls_back_to_first_available(
+    tmp_path: Path,
+) -> None:
+    # Ni la cible ni la source n'ont de doc : on prend la première langue produite.
+    _write_doc(tmp_path, Language.EN)
+    assert resolve_content_language(tmp_path, Language.FR, None) is Language.EN
+
+
+def test_resolve_content_language_none_when_no_doc(tmp_path: Path) -> None:
+    assert resolve_content_language(tmp_path, Language.FR, Language.FR) is None

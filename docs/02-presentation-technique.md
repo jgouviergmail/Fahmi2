@@ -24,13 +24,13 @@
 ```
 ┌────────────────────────────────────────────────────────────────────┐
 │                          UI (PySide6 — MVVM)                       │
-│  MainWindow  ProjectsSidebar  RunMatrixView  LogsDock  Dialogs     │
+│  MainWindow  ProjectsSidebar  CostMatrixView  LogsDock  Dialogs    │
 └─────────────────────────────┬──────────────────────────────────────┘
                               │ signaux Qt, ViewModels (sans Qt)
 ┌─────────────────────────────▼──────────────────────────────────────┐
 │                       Application (use-cases)                      │
 │   ProjectService · RunOrchestrator · CostEstimator                 │
-│   GlossaryReconciler · SecretsService · HardwareProbe              │
+│   SupportsOrchestrator · SecretsService · HardwareProbe            │
 └────┬──────────┬───────────┬──────────────┬───────────┬─────────────┘
      │          │           │              │           │
      ▼          ▼           ▼              ▼           ▼
@@ -168,9 +168,11 @@ Services applicatifs :
 - `PedagogyCostEstimator` — estimation de coût des supports (par support ×
   langue × chapitre, selon densité et thinking).
 - `pedagogy_export` — exports `export_pedagogy_to_apkg` / `_to_markdown` / `_to_pdf`.
-- `GlossaryReconciler` — import payload JSON, load Glossary, render
-  Markdown 4 colonnes (Terme / Acronyme / Signification / Définition,
-  ou Term / Acronym / Meaning / Definition).
+- Glossaire : pas de service applicatif dédié — il est lu **sur disque**
+  (`glossary_master.json`) comme le pipeline ; le parsing (`parse_glossary_master_terms`)
+  et le rendu Markdown 4 colonnes (`render_glossary_markdown_table` : Terme / Acronyme /
+  Signification / Définition, ou Term / Acronym / Meaning / Definition) vivent dans
+  `domain/glossary.py` (réutilisés par pipeline et pédagogie).
 - `PromptsService` — gestion des overrides utilisateur des templates LLM
   (lecture défaut bundlé, lecture / écriture / suppression d'override
   dans `%APPDATA%/Fahmi2/prompts/`, validation Jinja2). Backend du
@@ -188,19 +190,28 @@ Qt PySide6 :
   `QCheckBox::indicator` stylisé (glyphe ✓ SVG inline en data URL).
   Le QSS est bundlé via le `.spec` PyInstaller pour rester accessible
   en mode packagé.
-- `ui/viewmodels/` — logique testable sans Qt (`RunMatrixViewModel`,
-  `StatsStripViewModel` enrichi avec `started_at`, `finished_at`,
-  `elapsed_seconds` pour piloter la carte Durée live ;
-  `PedagogyProgressViewModel` [accumulation d'events supports × langues] et
-  `PedagogyStateViewModel` [fraîcheur : non configuré / génération requise / prêt /
-  à jour / périmé]).
+- `ui/viewmodels/` — logique testable sans Qt :
+  - `cost_matrix` — viewmodel **générique** présentationnel (`CostMatrixSnapshot` :
+    cellules `statut + coût`, totaux ligne/colonne/général) partagé par les deux
+    dashboards (`build_cost_matrix`).
+  - `RunMatrixViewModel` — produit un `CostMatrixSnapshot` (vidéos × phases, coût
+    par cellule via `list_phase_cells`, coût des phases batch en total de colonne).
+  - `StatsStripViewModel` enrichi avec `started_at`, `finished_at`,
+    `elapsed_seconds` pour piloter la carte Durée live.
+  - `PedagogyProgressViewModel` [accumulation d'events supports × langues ;
+    `cost_matrix_snapshot` + `stats_snapshot`] et `PedagogyStateViewModel`
+    [fraîcheur : non configuré / génération requise / prêt / à jour / périmé].
 - `ui/widgets/` :
+  - `StatCard` — carte d'indicateur réutilisable (icône + valeur + sous-info +
+    accent), socle des bandes de stats des deux dashboards.
   - `StatsStripWidget` — 5 cartes (Statut, Vidéos, Phases, Durée,
-    Coût) avec icône + titre + valeur + sous-info, et un `QTimer`
-    interne (1 s) qui rafraîchit la carte Durée tant que le Run est
-    `RUNNING` ou `PAUSED`.
-  - `RunMatrixView` — colorisation par `PhaseStatus`, en-têtes courts
-    (STT, Termes, Glossaire…), alignement centré.
+    Coût) bâties sur `StatCard`, avec un `QTimer` interne (1 s) qui rafraîchit la
+    carte Durée tant que le Run est `RUNNING` ou `PAUSED`.
+  - `CostMatrixView` — matrice de coût **générique** (`QTableView` + délégué) :
+    glyphe de statut proéminent + coût secondaire par cellule, totaux mis en avant.
+    Partagée par les dashboards Génération (vidéos × phases) et Pédagogie
+    (supports × langues). Libellés de statut/accents partagés (`ui/status_labels`).
+  - `PedagogyProgressView` — bandeau de fraîcheur + bande de tuiles + `CostMatrixView`.
   - `ProjectsSidebar` — menu contextuel Modifier / Supprimer
     (`contextMenuEvent` utilise `viewport().mapFromGlobal()` pour rester
     insensible au padding QSS).
@@ -303,29 +314,21 @@ CREATE TABLE phase_executions (
   UNIQUE (run_id, phase_id, video_id),
   FOREIGN KEY (run_id) REFERENCES runs(id) ON DELETE CASCADE
 );
-
-CREATE TABLE glossary_terms (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  run_id TEXT NOT NULL, language TEXT NOT NULL,
-  term TEXT NOT NULL, definition TEXT NOT NULL,
-  acronym TEXT, acronym_expansion TEXT,
-  sources_json TEXT NOT NULL, aliases_json TEXT NOT NULL,
-  cross_lang_json TEXT NOT NULL,
-  UNIQUE (run_id, language, term),
-  FOREIGN KEY (run_id) REFERENCES runs(id) ON DELETE CASCADE
-);
 ```
 
+> Aucune table de contenu glossaire en base : le glossaire est un artefact
+> disque (`glossary_master.json` + `glossary.{lang}.md`), comme les autres
+> documents générés.
+
 Index : `idx_runs_project_id`, `idx_videos_run_id`,
-`idx_phase_executions_run`, `idx_phase_executions_lookup`,
-`idx_glossary_run_lang`.
+`idx_phase_executions_run`, `idx_phase_executions_lookup`.
 
 **Soft migrations** appliquées automatiquement à l'ouverture
 (idempotentes, sans perte de données) :
 
-- Ajout des colonnes `glossary_terms.acronym` et
-  `glossary_terms.acronym_expansion` (`ALTER TABLE ADD COLUMN`) si
-  absentes sur une DB préexistante.
+- Suppression de la table `glossary_terms` (`DROP TABLE IF EXISTS`) : intention
+  de socle jamais branchée — le glossaire est lu sur disque comme les autres
+  documents générés.
 - Nettoyage rétroactif des doublons batch dans `phase_executions` (lignes
   multiples avec `video_id IS NULL` pour la même `(run_id, phase_id)` —
   SQLite traite `NULL` comme distinct dans une contrainte `UNIQUE`,
@@ -393,14 +396,15 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
 > (support / langue / niveau / chapitre). La désérialisation des artefacts JSON est dans
 > `pedagogy/artifact_reader.py` ; le service `app/pedagogy_export.py` scanne `pedagogy/`.
 > Les supports non-cartes (vrai/faux, questions ouvertes, fiche, points clés, examen
-> blanc) relèvent de l'export Markdown/PDF (SP3/02).
+> blanc) relèvent de l'export Markdown/PDF/HTML (SP3/02). À l'export Anki, les champs
+> Markdown sont convertis en HTML (`genanki_exporter._md_to_html`), sauf le texte cloze.
 
-> **Export Markdown/PDF (SP3/02)** : l'adapter `infra/export/markdown_pdf.py` assemble
+> **Export Markdown/PDF/HTML (SP3/02)** : l'adapter `infra/export/markdown_pdf.py` assemble
 > les Markdown **déjà rendus** (`<support>.md` / `<support>.corrige.md`) en documents
 > agrégés par langue (sujet/corrigé séparés : `supports.{lang}.md`,
-> `supports.{lang}.corrige.md`, variantes `.pdf`), et rend le PDF via `markdown` → HTML →
-> `fpdf2.write_html` (police Unicode système Windows Arial ; les polices cœur de fpdf2
-> sont latin-1). Le service `app/pedagogy_export.py` coordonne (réutilisation des `.md`
+> `supports.{lang}.corrige.md`, variantes `.pdf` / `.html`), rend le PDF via `markdown` →
+> HTML → `fpdf2.write_html` (police Unicode système Windows Arial ; les polices cœur de
+> fpdf2 sont latin-1), et le HTML en document autonome (UTF-8 + feuille de style intégrée). Le service `app/pedagogy_export.py` coordonne (réutilisation des `.md`
 > rendus, **pas** de re-rendu ni d'`artifact_reader` — réservé à l'Anki).
 
 ## 5. Conventions de code

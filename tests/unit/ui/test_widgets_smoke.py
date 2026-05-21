@@ -13,7 +13,7 @@ from pytestqt.qtbot import QtBot
 
 from fahmi2.core.errors.severity import Severity
 from fahmi2.core.logging.event import LogEvent
-from fahmi2.domain.enums import RunStatus
+from fahmi2.domain.enums import Language, RunStatus
 from fahmi2.ui.viewmodels.stats_strip import StatsSnapshot
 from fahmi2.ui.widgets.logs_dock import LogsDock
 from fahmi2.ui.widgets.project_header_bar import ProjectHeaderBar
@@ -36,6 +36,7 @@ def test_stats_strip_renders_snapshot(qtbot: QtBot) -> None:
         started_at=started,
         finished_at=None,
         elapsed_seconds=12.5,
+        languages=(Language.FR,),
     )
     widget.apply_snapshot(snapshot)
 
@@ -163,6 +164,7 @@ def _make_snapshot(
         started_at=started_at,
         finished_at=finished_at,
         elapsed_seconds=elapsed_seconds,
+        languages=(),
     )
 
 

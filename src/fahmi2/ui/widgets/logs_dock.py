@@ -49,6 +49,9 @@ class LogsDock(QDockWidget):
             | Qt.DockWidgetArea.RightDockWidgetArea
         )
         self._min_severity = Severity.INFO
+        # Tous les events reçus sont conservés : changer le niveau minimum
+        # re-filtre l'affichage (les events sous le seuil sont masqués, pas perdus).
+        self._events: list[LogEvent] = []
 
         container = QWidget(self)
         container.setObjectName("logsDockContainer")
@@ -76,35 +79,57 @@ class LogsDock(QDockWidget):
         self.setWidget(container)
 
     def append_event(self, event: LogEvent) -> None:
-        """Ajoute un événement de log s'il dépasse le seuil de sévérité.
+        """Mémorise un événement de log et l'affiche s'il dépasse le seuil.
 
-        Les sauts de ligne (``\\n``) dans le message sont convertis en
-        ``<br>`` pour préserver la lisibilité quand un événement a un
-        détail multi-ligne (typiquement une erreur de phase avec code,
-        user_message et technical_details).
+        L'event est toujours conservé (pour pouvoir réapparaître si l'on
+        abaisse le niveau minimum), mais n'est rendu que si sa sévérité
+        atteint le seuil courant.
 
         Args:
-            event: Événement à afficher.
+            event: Événement à mémoriser/afficher.
         """
-        if event.severity < self._min_severity:
-            return
+        self._events.append(event)
+        if event.severity >= self._min_severity:
+            self._text.append(self._format_event(event))
+
+    @staticmethod
+    def _format_event(event: LogEvent) -> str:
+        """Met en forme un événement en ligne HTML colorée par sévérité.
+
+        Les sauts de ligne (``\\n``) du message sont convertis en ``<br>`` pour
+        préserver la lisibilité d'un détail multi-ligne (code + user_message +
+        technical_details d'une erreur de phase).
+
+        Args:
+            event: Événement à formater.
+
+        Returns:
+            La ligne HTML.
+        """
         color, label = _SEVERITY_STYLE.get(
             event.severity, _SEVERITY_STYLE[Severity.INFO]
         )
         time_str = event.timestamp.strftime("%H:%M:%S")
         message_html = escape(event.message).replace("\n", "<br>")
-        html = (
+        return (
             f'<span style="color:#8b95a1;">{escape(time_str)}</span> '
             f'<span style="color:{color}; font-weight:600;">{escape(label):<7}</span> '
             f'<span style="color:#0a4f93;">{escape(event.code)}</span> '
             f'<span style="color:#1f2328;">— {message_html}</span>'
         )
-        self._text.append(html)
 
     def _on_level_changed(self, index: int) -> None:
-        """Slot interne : met à jour le filtre de sévérité minimale.
+        """Slot interne : change le seuil et re-filtre l'affichage existant.
 
         Args:
             index: Index du combo.
         """
         self._min_severity = _SEVERITY_CHOICES[index]
+        self._rerender()
+
+    def _rerender(self) -> None:
+        """Réaffiche tous les events mémorisés au-dessus du seuil courant."""
+        self._text.clear()
+        for event in self._events:
+            if event.severity >= self._min_severity:
+                self._text.append(self._format_event(event))

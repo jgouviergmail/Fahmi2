@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import genanki
+import markdown
 
 from fahmi2.domain.enums import SupportType
 from fahmi2.domain.supports import ClozeItem, Flashcard, QcmItem, SupportItem
@@ -33,6 +34,9 @@ _ENCODING_UTF8 = "utf-8"
 #: Anki interdit les espaces dans les tags (séparateur de tags) : on les remplace.
 _TAG_WHITESPACE_RE = re.compile(r"\s+")
 _TAG_WHITESPACE_REPLACEMENT = "_"
+#: Balises ouvrante/fermante de paragraphe Markdown (retrait du wrapper unique).
+_P_OPEN = "<p>"
+_P_CLOSE = "</p>"
 
 _SUPPORT_LABELS: dict[SupportType, str] = {
     SupportType.FLASHCARDS_CONCEPTS: "Flashcards Concepts",
@@ -116,6 +120,30 @@ def _to_anki_cloze(text: str, answers: tuple[str, ...]) -> str:
     return result
 
 
+def _md_to_html(text: str) -> str:
+    """Convertit un champ Markdown en HTML pour Anki (rendu propre listes/gras).
+
+    Anki affiche du HTML : sans conversion, un balisage Markdown (``**gras**``,
+    listes ``- …``) apparaîtrait littéralement. Le ``<p>`` englobant unique est
+    retiré (champs courts, ex. recto d'une carte) pour éviter une marge superflue ;
+    un contenu multi-paragraphes conserve ses ``<p>``.
+
+    Args:
+        text: Contenu Markdown (ou texte simple, retourné tel quel après échappement).
+
+    Returns:
+        Le HTML correspondant.
+    """
+    html: str = markdown.markdown(text.strip())
+    if (
+        html.startswith(_P_OPEN)
+        and html.endswith(_P_CLOSE)
+        and html.count(_P_OPEN) == 1
+    ):
+        html = html[len(_P_OPEN) : -len(_P_CLOSE)]
+    return html
+
+
 def _sanitize_tag(value: str) -> str:
     """Rend une valeur compatible avec un tag Anki (sans espace).
 
@@ -155,7 +183,7 @@ def _render_choices(item: QcmItem) -> str:
         Les propositions formatées.
     """
     return _CHOICE_SEPARATOR.join(
-        f"{_CHOICE_LETTERS[index]}. {choice}"
+        f"{_CHOICE_LETTERS[index]}. {_md_to_html(choice)}"
         for index, choice in enumerate(item.choices)
     )
 
@@ -237,7 +265,7 @@ class GenankiExporter:
         if isinstance(item, Flashcard):
             return genanki.Note(
                 model=_BASIC_MODEL,
-                fields=[item.front, item.back],
+                fields=[_md_to_html(item.front), _md_to_html(item.back)],
                 guid=self._note_guid(artifact, item.front),
                 tags=self._tags(artifact, difficulty, item.source_ref),
             )
@@ -249,14 +277,15 @@ class GenankiExporter:
                 tags=self._tags(artifact, difficulty, item.source_ref),
             )
         if isinstance(item, QcmItem):
-            answer = f"{_CHOICE_LETTERS[item.correct_index]}. {item.choices[item.correct_index]}"
+            correct = _md_to_html(item.choices[item.correct_index])
+            answer = f"{_CHOICE_LETTERS[item.correct_index]}. {correct}"
             return genanki.Note(
                 model=_QCM_MODEL,
                 fields=[
-                    item.question,
+                    _md_to_html(item.question),
                     _render_choices(item),
                     answer,
-                    item.justification,
+                    _md_to_html(item.justification),
                 ],
                 guid=self._note_guid(artifact, item.question),
                 tags=self._tags(artifact, difficulty, item.source_ref),

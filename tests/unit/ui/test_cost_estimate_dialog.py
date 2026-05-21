@@ -31,3 +31,16 @@ def test_body_warns_when_high_exceeds_ceiling() -> None:
     )
     assert "plafond" in body.lower()
     assert "dépasse" in body.lower()
+
+
+def test_body_ceiling_with_margin_has_no_warning() -> None:
+    body = build_estimate_body(
+        header_lines=[],
+        breakdown=[("STT", 0.18)],
+        total_usd=1.00,
+        low_usd=0.67,
+        high_usd=1.33,
+        cost_ceiling_usd=2.00,
+    )
+    assert "marge" in body.lower()
+    assert "peut dépasser" not in body.lower()

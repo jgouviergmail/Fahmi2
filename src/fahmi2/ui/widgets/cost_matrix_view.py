@@ -32,6 +32,15 @@ _COST_DECIMALS = 4
 _TOTAL_HEADER = "Total"
 _CELL_ROLE = int(Qt.ItemDataRole.UserRole) + 1
 
+#: Hauteur d'une ligne de la matrice (px) — accueille glyphe + coût sur 2 niveaux.
+_ROW_HEIGHT_PX = 40
+#: Taille de police du glyphe de statut (proéminent).
+_GLYPH_POINT_SIZE = 11
+#: Taille de police du coût secondaire (discret).
+_COST_POINT_SIZE = 8
+#: Marge verticale (px) au-dessus du glyphe et sous le coût.
+_CELL_VPADDING_PX = 2
+
 _STATUS_SYMBOLS: dict[PhaseStatus, str] = {
     PhaseStatus.PENDING: "·",
     PhaseStatus.RUNNING: "▶",
@@ -184,9 +193,13 @@ class _CostMatrixModel(QAbstractTableModel):
                 return int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
             return int(Qt.AlignmentFlag.AlignCenter)
         if role == Qt.ItemDataRole.FontRole:
-            font = QFont()
-            font.setBold(True)
-            return font
+            # Seuls les totaux (ligne/colonne) sont mis en avant en gras ; les
+            # libellés de lignes restent en graisse normale.
+            if total_row or self._is_total_col(col):
+                font = QFont()
+                font.setBold(True)
+                return font
+            return None
         if role == Qt.ItemDataRole.BackgroundRole:
             return QBrush(_LABEL_BG)
         if role == Qt.ItemDataRole.ForegroundRole:
@@ -241,21 +254,23 @@ class _CostCellDelegate(QStyledItemDelegate):
         glyph = _STATUS_SYMBOLS.get(cell.status, "?")
         glyph_font = QFont()
         glyph_font.setBold(True)
-        glyph_font.setPointSize(11)
+        glyph_font.setPointSize(_GLYPH_POINT_SIZE)
         painter.setFont(glyph_font)
         painter.setPen(fg)
-        top = QRect(rect.x(), rect.y() + 2, rect.width(), rect.height() // 2)
+        top = QRect(
+            rect.x(), rect.y() + _CELL_VPADDING_PX, rect.width(), rect.height() // 2
+        )
         painter.drawText(top, int(Qt.AlignmentFlag.AlignCenter), glyph)
 
         cost_font = QFont()
-        cost_font.setPointSize(8)
+        cost_font.setPointSize(_COST_POINT_SIZE)
         painter.setFont(cost_font)
         painter.setPen(_COST_FG)
         bottom = QRect(
             rect.x(),
             rect.y() + rect.height() // 2,
             rect.width(),
-            rect.height() // 2 - 2,
+            rect.height() // 2 - _CELL_VPADDING_PX,
         )
         painter.drawText(
             bottom, int(Qt.AlignmentFlag.AlignCenter), _fmt_cost(cell.cost_usd)
@@ -282,12 +297,14 @@ class CostMatrixView(QTableView):
         self.setModel(self._model)
         self.setItemDelegate(_CostCellDelegate(self))
         self.setEditTriggers(QTableView.EditTrigger.NoEditTriggers)
-        self.setSelectionBehavior(QTableView.SelectionBehavior.SelectRows)
+        # Matrice en lecture seule : pas de sélection (le délégué peint le fond des
+        # cellules de statut, un surlignage de sélection serait incohérent).
+        self.setSelectionMode(QTableView.SelectionMode.NoSelection)
         self.setShowGrid(False)
         v_header = self.verticalHeader()
         if v_header is not None:
             v_header.setVisible(False)
-            v_header.setDefaultSectionSize(40)
+            v_header.setDefaultSectionSize(_ROW_HEIGHT_PX)
         header = self.horizontalHeader()
         if header is not None:
             header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)

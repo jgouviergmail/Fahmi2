@@ -14,11 +14,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from fahmi2.domain.enums import Language
+from fahmi2.domain.enums import Language, SupportType
 from fahmi2.domain.pedagogy import PEDAGOGY_WORKSPACE_SUBDIR
 from fahmi2.domain.project import Project
 from fahmi2.infra.anki.genanki_exporter import AnkiExportResult, GenankiExporter
-from fahmi2.infra.export.markdown_pdf import assemble_markdown, render_markdown_to_pdf
+from fahmi2.infra.export.markdown_pdf import (
+    assemble_markdown,
+    render_markdown_to_html,
+    render_markdown_to_pdf,
+)
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.pedagogy.artifact_reader import ParsedArtifact, read_artifact
 from fahmi2.pedagogy.artifact_writer import (
@@ -26,7 +30,22 @@ from fahmi2.pedagogy.artifact_writer import (
     artifact_markdown_path,
 )
 from fahmi2.pedagogy.labels import language_label
-from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
+
+#: Ordre **pédagogique** des supports dans les documents exportés (MD/PDF/HTML) :
+#: d'abord les supports d'apprentissage du plus général au plus précis (fiche →
+#: points clés → flashcards), puis les exercices du plus précis au plus général
+#: (cloze → vrai/faux → QCM → questions ouvertes → examen blanc). Distinct de
+#: l'ordre canonique du registre (génération / matrice).
+_EXPORT_SUPPORT_ORDER: tuple[SupportType, ...] = (
+    SupportType.REVISION_SHEET,
+    SupportType.KEY_POINTS,
+    SupportType.FLASHCARDS_CONCEPTS,
+    SupportType.CLOZE,
+    SupportType.TRUE_FALSE,
+    SupportType.QCM,
+    SupportType.OPEN_QUESTIONS,
+    SupportType.MOCK_EXAM,
+)
 
 #: Glob des artefacts JSON : ``<support>/<lang>/<support>.json`` (profondeur 3).
 #: Exclut ``pedagogy/manifest.json`` (profondeur 1).
@@ -37,6 +56,7 @@ _SUBJECT_STEM = "supports.{lang}"
 _CORRECTION_STEM = "supports.{lang}.corrige"
 _MD_EXT = ".md"
 _PDF_EXT = ".pdf"
+_HTML_EXT = ".html"
 _SUBJECT_TITLE = "Supports de révision — {lang}"
 _CORRECTION_TITLE = "Supports de révision (corrigé) — {lang}"
 
@@ -133,11 +153,32 @@ def export_pedagogy_to_pdf(
     return DocumentExportResult(output_paths=tuple(paths))
 
 
+def export_pedagogy_to_html(
+    project: Project, *, output_dir: Path
+) -> DocumentExportResult:
+    """Agrège les supports rendus en documents HTML autonomes (sujet / corrigé).
+
+    Args:
+        project: Projet.
+        output_dir: Dossier de destination.
+
+    Returns:
+        ``DocumentExportResult`` (chemins des ``.html`` écrits).
+    """
+    paths: list[Path] = []
+    for stem, markdown_text in _build_documents(project):
+        path = output_dir / f"{stem}{_HTML_EXT}"
+        render_markdown_to_html(markdown_text, path)
+        paths.append(path)
+    return DocumentExportResult(output_paths=tuple(paths))
+
+
 def _build_documents(project: Project) -> list[tuple[str, str]]:
     """Construit les documents agrégés (sujet/corrigé) par langue.
 
     Lit les Markdown rendus (`<support>.md` / `<support>.corrige.md`) dans l'ordre
-    canonique des supports.
+    **pédagogique d'export** (``_EXPORT_SUPPORT_ORDER`` : apprentissage du général au
+    précis, puis exercices du précis au général).
 
     Args:
         project: Projet.
@@ -150,7 +191,7 @@ def _build_documents(project: Project) -> list[tuple[str, str]]:
     for language in Language:
         subjects: list[str] = []
         corrections: list[str] = []
-        for support in SupportGeneratorRegistry.canonical_order():
+        for support in _EXPORT_SUPPORT_ORDER:
             subject_path = artifact_markdown_path(pedagogy_dir, support, language)
             if subject_path.exists():
                 subjects.append(subject_path.read_text(encoding=_ENCODING_UTF8))

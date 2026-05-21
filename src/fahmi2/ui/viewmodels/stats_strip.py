@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from fahmi2.domain.enums import PhaseStatus, RunStatus
+from fahmi2.domain.enums import Language, PhaseStatus, RunStatus
 from fahmi2.domain.run import Run
 from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.pipeline.phase_registry import PhaseRegistry
@@ -29,6 +29,7 @@ class StatsSnapshot:
         finished_at: Date de fin (``None`` si le Run n'est pas terminé).
         elapsed_seconds: Durée écoulée en secondes (figée à ``finished_at -
             started_at`` si le Run est terminé, sinon ``now - started_at``).
+        languages: Langues de sortie de la génération.
     """
 
     run_status: RunStatus
@@ -41,6 +42,7 @@ class StatsSnapshot:
     started_at: datetime
     finished_at: datetime | None
     elapsed_seconds: float
+    languages: tuple[Language, ...]
 
 
 class StatsStripViewModel:
@@ -105,4 +107,5 @@ class StatsStripViewModel:
             started_at=run.started_at,
             finished_at=run.finished_at,
             elapsed_seconds=elapsed,
+            languages=run.settings_snapshot.output_languages,
         )

@@ -125,3 +125,4 @@ class ExportFormat(StrEnum):
     APKG = "apkg"
     MARKDOWN = "markdown"
     PDF = "pdf"
+    HTML = "html"

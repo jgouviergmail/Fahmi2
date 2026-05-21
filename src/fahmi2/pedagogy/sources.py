@@ -67,6 +67,39 @@ def load_chapters(
     return parse_chapters(doc.read_text(encoding=_ENCODING_UTF8))
 
 
+def resolve_content_language(
+    generation_output_dir: Path,
+    target: Language,
+    source_language: Language | None,
+) -> Language | None:
+    """Choisit la langue du document de **contenu** pour une langue cible.
+
+    Préfère le doc de la langue cible (meilleure fidélité, pas de re-traduction par
+    le LLM) ; sinon la langue source de la génération si son doc existe ; sinon la
+    première langue produite disponible. Le support est de toute façon rédigé dans
+    la **langue cible** par le générateur LLM — la génération n'a donc pas besoin
+    d'avoir produit la langue cible.
+
+    Args:
+        generation_output_dir: Dossier des livrables de génération.
+        target: Langue cible du support.
+        source_language: Langue source de la génération (``None`` si inconnue).
+
+    Returns:
+        La langue de contenu, ou ``None`` si aucun doc consolidé n'existe.
+    """
+    if consolidated_doc_path(generation_output_dir, target).exists():
+        return target
+    if source_language is not None and consolidated_doc_path(
+        generation_output_dir, source_language
+    ).exists():
+        return source_language
+    for language in Language:
+        if consolidated_doc_path(generation_output_dir, language).exists():
+            return language
+    return None
+
+
 def load_glossary_master_terms(generation_dir: Path) -> tuple[Term, ...]:
     """Charge le glossaire master (langue source) depuis le disque.
 

@@ -7,7 +7,9 @@ Densité attendue : {{ density_label }}.
 Directives supplémentaires : {{ pedagogy_directives }}
 {%- endif %}
 
-Rédige en {{ output_language_label }}. Chaque ``text`` est une phrase fidèle au contenu où les notions clés sont remplacées par le marqueur ``___`` (un marqueur par trou). ``answers`` liste les réponses **dans l'ordre des trous**. Aucune invention.
+Rédige **intégralement en {{ output_language_label }}** (phrases ET réponses) : si le document source est dans une autre langue, **traduis-le** — la langue de sortie prime, ne recopie pas les phrases sources telles quelles. Chaque ``text`` est une phrase fidèle au **sens** du contenu où **les notions porteuses de sens** (et non des mots outils) sont remplacées par le marqueur ``___`` (**1 à 2 trous** par phrase). La réponse ne doit pas être devinable par la seule grammaire de la phrase. ``answers`` liste les réponses **dans l'ordre des trous**. Aucune invention.
+
+Mise en forme : garde une phrase simple, **sans** balisage Markdown (le texte est transformé en carte à trous).
 {% if glossary_terms %}
 Glossaire de référence (réutilise la terminologie exacte) :
 {{ glossary_terms }}

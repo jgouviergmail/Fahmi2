@@ -18,24 +18,15 @@ from PySide6.QtWidgets import (
 )
 
 from fahmi2.domain.enums import RunStatus
+from fahmi2.ui._format import format_duration, format_languages
+from fahmi2.ui.status_labels import cost_accent, run_status_accent, run_status_label
 from fahmi2.ui.viewmodels.stats_strip import StatsSnapshot
 from fahmi2.ui.widgets.stat_card import StatCard
 
 _LIVE_REFRESH_INTERVAL_MS = 1000
-_COST_WARNING_RATIO = 0.8
-_COST_DANGER_RATIO = 1.0
 # Tolérance pour considérer deux ``started_at`` identiques (réception de
 # deux snapshots successifs du même Run sans décalage suspect).
 _SAME_RUN_TIMESTAMP_TOLERANCE_S = 0.1
-
-_RUN_STATUS_LABEL: dict[RunStatus, str] = {
-    RunStatus.CREATED: "Créé",
-    RunStatus.RUNNING: "En cours",
-    RunStatus.PAUSED: "En pause",
-    RunStatus.COMPLETED: "Terminé",
-    RunStatus.FAILED: "Échec",
-    RunStatus.CANCELLED: "Annulé",
-}
 
 _RUN_STATUS_ICON: dict[RunStatus, str] = {
     RunStatus.CREATED: "⏳",
@@ -47,23 +38,6 @@ _RUN_STATUS_ICON: dict[RunStatus, str] = {
 }
 
 _LIVE_STATUSES: frozenset[RunStatus] = frozenset({RunStatus.RUNNING})
-
-
-def _format_duration(seconds: float) -> str:
-    """Formate une durée en ``HH:MM:SS`` (ou ``MM:SS`` si < 1 h).
-
-    Args:
-        seconds: Durée en secondes (peut être 0 ou négative — clampée à 0).
-
-    Returns:
-        Chaîne lisible adaptée à l'affichage compact dans une carte.
-    """
-    total = int(max(0.0, seconds))
-    hours, remainder = divmod(total, 3600)
-    minutes, secs = divmod(remainder, 60)
-    if hours:
-        return f"{hours:d}:{minutes:02d}:{secs:02d}"
-    return f"{minutes:02d}:{secs:02d}"
 
 
 class StatsStripWidget(QWidget):
@@ -84,6 +58,7 @@ class StatsStripWidget(QWidget):
         self._card_status = StatCard(icon="●", title="Statut", parent=self)
         self._card_videos = StatCard(icon="🎬", title="Vidéos", parent=self)
         self._card_phases = StatCard(icon="▤", title="Phases", parent=self)
+        self._card_languages = StatCard(icon="🌐", title="Langues", parent=self)
         self._card_duration = StatCard(icon="⏱", title="Durée", parent=self)
         self._card_cost = StatCard(icon="$", title="Coût", parent=self)
 
@@ -91,6 +66,7 @@ class StatsStripWidget(QWidget):
             self._card_status,
             self._card_videos,
             self._card_phases,
+            self._card_languages,
             self._card_duration,
             self._card_cost,
         ):
@@ -161,8 +137,8 @@ class StatsStripWidget(QWidget):
         snapshot = self._last_snapshot
         elapsed = self._compute_displayed_elapsed(snapshot, datetime.now(tz=UTC))
         self._card_duration.set_value(
-            _format_duration(elapsed),
-            _RUN_STATUS_LABEL.get(snapshot.run_status, snapshot.run_status.value),
+            format_duration(elapsed),
+            run_status_label(snapshot.run_status),
         )
 
     def _compute_displayed_elapsed(
@@ -200,17 +176,15 @@ class StatsStripWidget(QWidget):
         return max(0.0, snapshot.elapsed_seconds - self._paused_offset_seconds)
 
     def _render(self, snapshot: StatsSnapshot) -> None:
-        """Met à jour les 5 cartes à partir d'un snapshot complet.
+        """Met à jour les 6 cartes à partir d'un snapshot complet.
 
         Args:
             snapshot: Snapshot à rendre.
         """
-        status_label = _RUN_STATUS_LABEL.get(
-            snapshot.run_status, snapshot.run_status.value
-        )
+        status_label = run_status_label(snapshot.run_status)
         status_icon = _RUN_STATUS_ICON.get(snapshot.run_status, "●")
         self._card_status.set_value(f"{status_icon} {status_label}")
-        self._card_status.set_accent(_accent_for_status(snapshot.run_status))
+        self._card_status.set_accent(run_status_accent(snapshot.run_status))
 
         self._card_videos.set_value(
             f"{snapshot.videos_completed} / {snapshot.videos_total}",
@@ -224,6 +198,9 @@ class StatsStripWidget(QWidget):
         )
         self._card_phases.set_accent("neutral")
 
+        self._card_languages.set_value(format_languages(snapshot.languages))
+        self._card_languages.set_accent("neutral")
+
         duration_seconds = self._compute_displayed_elapsed(
             snapshot, datetime.now(tz=UTC)
         )
@@ -234,7 +211,7 @@ class StatsStripWidget(QWidget):
         else:
             duration_sub = status_label
         self._card_duration.set_value(
-            _format_duration(duration_seconds), duration_sub
+            format_duration(duration_seconds), duration_sub
         )
         self._card_duration.set_accent("neutral")
 
@@ -244,46 +221,6 @@ class StatsStripWidget(QWidget):
         else:
             cost_sub = "sans plafond"
         self._card_cost.set_value(cost_value, cost_sub)
-        self._card_cost.set_accent(_accent_for_cost(snapshot))
-
-
-def _accent_for_status(status: RunStatus) -> str:
-    """Mappe un ``RunStatus`` vers une clé d'accent visuel.
-
-    Args:
-        status: Statut du Run.
-
-    Returns:
-        Clé d'accent (``neutral`` / ``running`` / ``success`` / ``warning`` /
-        ``danger``).
-    """
-    if status is RunStatus.RUNNING:
-        return "running"
-    if status is RunStatus.PAUSED:
-        return "warning"
-    if status is RunStatus.COMPLETED:
-        return "success"
-    if status in (RunStatus.FAILED, RunStatus.CANCELLED):
-        return "danger"
-    return "neutral"
-
-
-def _accent_for_cost(snapshot: StatsSnapshot) -> str:
-    """Renvoie un accent visuel pour la carte « Coût » selon le plafond.
-
-    Args:
-        snapshot: Snapshot courant.
-
-    Returns:
-        ``"warning"`` si on est à >80 % du plafond, ``"danger"`` si on l'a
-        dépassé, ``"neutral"`` sinon.
-    """
-    ceiling = snapshot.cost_ceiling_usd
-    if ceiling is None or ceiling <= 0:
-        return "neutral"
-    ratio = snapshot.cost_usd_so_far / ceiling
-    if ratio >= _COST_DANGER_RATIO:
-        return "danger"
-    if ratio >= _COST_WARNING_RATIO:
-        return "warning"
-    return "neutral"
+        self._card_cost.set_accent(
+            cost_accent(snapshot.cost_usd_so_far, snapshot.cost_ceiling_usd)
+        )

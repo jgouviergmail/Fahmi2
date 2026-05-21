@@ -8,13 +8,14 @@ renvoient ``None`` (ils relèvent de l'export Markdown/PDF, SP3/02).
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from fahmi2.domain.enums import Language, SupportType
 from fahmi2.domain.supports import ClozeItem, Flashcard, QcmItem, SupportItem
+from fahmi2.pedagogy.artifact_writer import artifact_json_path
 
 _ENCODING_UTF8 = "utf-8"
 
@@ -97,3 +98,55 @@ def read_artifact(json_path: Path) -> ParsedArtifact | None:
         # entité hors contrainte) : on ignore l'artefact plutôt que de propager.
         return None
     return ParsedArtifact(support_type=support_type, language=language, items=items)
+
+
+def read_artifact_cost(json_path: Path) -> float | None:
+    """Lit le coût de génération d'un artefact (tous types de supports).
+
+    Contrairement à ``read_artifact`` (limité aux types exportables Anki), lit
+    seulement le coût — utilisable pour **tout** support afin de reconstruire
+    l'état/coût des supports déjà générés (dashboard à la sélection d'un projet).
+
+    Args:
+        json_path: Chemin du fichier ``<support>.json``.
+
+    Returns:
+        Le coût USD, ou ``None`` si le fichier est absent ou illisible.
+    """
+    if not json_path.exists():
+        return None
+    try:
+        payload = json.loads(json_path.read_text(encoding=_ENCODING_UTF8))
+        return float(payload["cost_usd"])
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, TypeError):
+        return None
+
+
+def read_generated_costs(
+    pedagogy_dir: Path,
+    supports: Iterable[SupportType],
+    languages: Iterable[Language],
+) -> dict[tuple[SupportType, Language], float]:
+    """Lit le coût des supports déjà générés présents sur disque.
+
+    Pour chaque ``(support, langue)`` dont l'artefact JSON existe, lit son coût.
+    Sert à reconstruire l'état du dashboard à la sélection d'un projet (supports
+    déjà générés affichés « terminés » avec leur coût), à parité avec la Génération.
+
+    Args:
+        pedagogy_dir: Dossier ``<emplacement>/pedagogy``.
+        supports: Supports à considérer (sélection courante).
+        languages: Langues à considérer (sélection courante).
+
+    Returns:
+        Le coût USD par ``(support, langue)`` généré (les absents sont omis).
+    """
+    costs: dict[tuple[SupportType, Language], float] = {}
+    for language in languages:
+        for support in supports:
+            cost = read_artifact_cost(
+                artifact_json_path(pedagogy_dir, support, language)
+            )
+            if cost is not None:
+                costs[(support, language)] = cost
+    return costs

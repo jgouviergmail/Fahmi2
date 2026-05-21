@@ -54,9 +54,14 @@ _CAT_SUPPORTS = "Supports"
 _CAT_DIFFICULTY = "Difficulté"
 _CAT_LANGUAGES = "Langues"
 _CAT_MODEL = "Modèle & coût"
+_CAT_EXPORT = "Export"
 
 _SEPARATE_CORRECTION_LABEL = "corrigé séparé"
-_EXPORT_FORMATS_LABEL = "Formats d'export :"
+_EXPORT_FORMATS_LABEL = "Formats d'export proposés :"
+_EXPORT_HINT = (
+    "Formats proposés lors de l'export des supports générés (le bouton « Exporter » "
+    "laisse choisir parmi les formats cochés)."
+)
 _LANGUAGES_HINT = (
     "Les supports sont rédigés dans la langue choisie, même si le document source "
     "est dans une autre langue."
@@ -99,6 +104,7 @@ class PedagogySettingsView(QDialog):
                 (_CAT_DIFFICULTY, self._build_difficulty_page()),
                 (_CAT_LANGUAGES, self._build_languages_page()),
                 (_CAT_MODEL, self._build_model_page()),
+                (_CAT_EXPORT, self._build_export_page()),
             ],
             self,
         )
@@ -326,6 +332,20 @@ class PedagogySettingsView(QDialog):
         form.addRow("Température :", self._temperature_input)
         form.addRow("Plafond budget :", self._cost_ceiling_input)
         outer.addLayout(form)
+        outer.addStretch(1)
+        return page
+
+    def _build_export_page(self) -> QWidget:
+        """Construit la page « Export » (formats d'export proposés).
+
+        Returns:
+            Le widget de page.
+        """
+        page = QWidget(self)
+        outer = QVBoxLayout(page)
+        hint = QLabel(_EXPORT_HINT, page)
+        hint.setWordWrap(True)
+        outer.addWidget(hint)
         outer.addWidget(QLabel(_EXPORT_FORMATS_LABEL, page))
         for cb in self._export_checks.values():
             outer.addWidget(cb)

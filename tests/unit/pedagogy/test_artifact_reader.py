@@ -8,7 +8,11 @@ from typing import Any
 from fahmi2.domain.enums import Language, SupportType
 from fahmi2.domain.supports import ClozeItem, Flashcard, QcmItem, SupportArtifact
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
-from fahmi2.pedagogy.artifact_reader import read_artifact
+from fahmi2.pedagogy.artifact_reader import (
+    read_artifact,
+    read_artifact_cost,
+    read_generated_costs,
+)
 from fahmi2.pedagogy.artifact_writer import artifact_json_path, serialize_artifact
 
 
@@ -82,6 +86,42 @@ def test_read_unexportable_returns_none(tmp_path: Path) -> None:
 
 def test_read_missing_file_returns_none(tmp_path: Path) -> None:
     assert read_artifact(tmp_path / "absent.json") is None
+
+
+def test_read_artifact_cost(tmp_path: Path) -> None:
+    # Coût lisible même pour un support non exportable Anki (points clés).
+    artifact = SupportArtifact(
+        support_type=SupportType.KEY_POINTS,
+        language=Language.FR,
+        items=(),
+        rendered_markdown="x",
+        cost_usd=0.34,
+    )
+    assert read_artifact_cost(_write(tmp_path, artifact)) == 0.34
+
+
+def test_read_artifact_cost_missing_returns_none(tmp_path: Path) -> None:
+    assert read_artifact_cost(tmp_path / "absent.json") is None
+
+
+def test_read_generated_costs_only_present(tmp_path: Path) -> None:
+    _write(
+        tmp_path,
+        SupportArtifact(
+            support_type=SupportType.QCM,
+            language=Language.FR,
+            items=(),
+            rendered_markdown="x",
+            cost_usd=0.10,
+        ),
+    )
+    costs = read_generated_costs(
+        tmp_path,
+        (SupportType.QCM, SupportType.KEY_POINTS),
+        (Language.FR, Language.EN),
+    )
+    # Seul QCM/FR est sur disque.
+    assert costs == {(SupportType.QCM, Language.FR): 0.10}
 
 
 def _write_raw(tmp_path: Path, support: SupportType, payload: dict[str, Any]) -> Path:

@@ -7,6 +7,102 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+### Ajouté — Dashboards : homogénéité génération / pédagogie
+
+- **Statut d'exécution pédagogie persisté** (`pedagogy/run_state.json`) : la
+  pédagogie expose désormais un `RunStatus` homogène avec la génération (créé / en
+  cours / terminé / échec / annulé / pause), persisté sur disque (l'orchestrateur
+  l'écrit `RUNNING` au démarrage puis le statut final), donc lisible hors session.
+- **Dashboard pédagogie** : la tuile **Statut** affiche « En cours » pendant la
+  génération ; nouvelle **tuile Durée** (rafraîchie en direct).
+- **Dashboard génération** : nouvelle **tuile Langues** (langues de sortie).
+
+### Modifié — Pédagogie : régénération alignée sur la génération
+
+- **Relancer régénère** : « Générer » sur un ensemble de supports **complet** (tous
+  présents et à jour) les **régénère** (écrase), comme relancer la Génération après
+  un run terminé — au lieu de tout skipper (qui donnait une impression de blocage).
+  Un ensemble **incomplet** (interruption, plafond atteint) reste **repris** (les
+  supports frais sont conservés, seuls les manquants sont générés). Le bandeau
+  « Supports à jour » indique désormais que relancer les régénère.
+
+### Modifié — Pédagogie : exports & langue (retours d'usage)
+
+- **Ordre pédagogique des exports** (Markdown / PDF / HTML) : les documents agrégés
+  présentent d'abord les supports d'**apprentissage** du plus général au plus précis
+  (fiche → points clés → flashcards), puis les **exercices** du plus précis au plus
+  général (cloze → vrai/faux → QCM → questions ouvertes → examen blanc).
+- **Langue des supports « extractifs »** : les prompts *cloze* et *points clés*
+  insistent désormais pour rédiger **dans la langue cible** (traduire le contenu
+  source au lieu de le recopier) — corrige des cloze / points clés restés dans la
+  langue du document quand la langue cible différait.
+
+### Corrigé — Export PDF : couleur des titres
+
+- Les **titres** du PDF sont désormais en **noir gras** (au lieu du rouge `#960000`
+  par défaut de fpdf2) et les **puces** en gris foncé — rendu plus sobre et lisible.
+
+### Ajouté — Export HTML & section dédiée
+
+- **Export HTML** : nouveau format d'export des supports — un document HTML
+  **autonome** (UTF-8, feuille de style intégrée) ouvrable dans un navigateur,
+  agrégé par langue (sujet / corrigé séparés).
+- **Section « Export » dédiée** dans les réglages pédagogie : les formats d'export
+  (Anki / Markdown / PDF / HTML) ont leur propre catégorie, déplacés hors de
+  « Modèle & coût ».
+
+### Corrigé — Panneau de logs : filtre de niveau
+
+- Le sélecteur **« Niveau minimum »** re-filtre désormais l'**affichage existant**
+  (et plus seulement les nouveaux events) : monter le seuil masque les lignes sous
+  le niveau, le rebaisser les fait réapparaître (tous les events sont conservés).
+
+### Modifié — Pédagogie : qualité & mise en forme des supports
+
+- **Mise en forme enrichie** : les supports exploitent davantage le Markdown
+  (fiches et examens aérés — sous-titres, listes, paragraphes séparés ; flashcards
+  et justifications mieux structurées). L'export **Anki** convertit désormais le
+  Markdown des champs en **HTML** (listes/gras rendus proprement) ; les exports
+  Markdown et PDF sont inchangés. Le texte des cartes à trous (cloze) reste brut
+  (mécanique de trous préservée).
+- **Prompts affinés (pertinence)** : directives ciblées par type de support
+  (distracteurs homogènes et non devinables en QCM ; affirmations non triviales en
+  vrai/faux ; trous sur notions porteuses en cloze ; questions d'analyse en
+  questions ouvertes ; points clés hiérarchisés ; examen à difficulté progressive),
+  pour des contenus plus pertinents. Les overrides `%APPDATA%/Fahmi2/prompts/`
+  restent prioritaires.
+
+### Corrigé — Pédagogie : langue & dashboard (retours d'usage)
+
+- **Langue cible non bloquante** : on peut générer des supports dans une langue
+  (ex. EN) même si la Génération n'a produit qu'une autre langue (ex. FR) — le LLM
+  rédige dans la langue cible à partir du contenu disponible. Le bandeau d'état ne
+  bloque plus dès qu'**au moins un** document consolidé existe (toute langue). La
+  fraîcheur suit le mtime du **document de contenu réellement utilisé** (plus de
+  faux « périmé » pour un support généré depuis une autre langue). Logique de
+  résolution de langue de contenu centralisée (`pedagogy/sources.resolve_content_language`,
+  partagée par l'orchestrateur et le bandeau d'état).
+- **Dashboard pédagogie reconstruit à la sélection** : revenir sur un projet déjà
+  généré réaffiche l'**état de la dernière exécution** (supports terminés + coût,
+  lus depuis les artefacts disque) au lieu d'une grille vide — à parité avec le
+  dashboard Génération.
+
+### Corrigé — Revue de code (cohérence dashboards)
+
+- **Tuile « Coût » pédagogie** : affiche désormais le **plafond** et l'**accent
+  visuel** (warning ≥ 80 %, danger ≥ 100 %), à parité avec le dashboard Génération.
+- **Prévisualisation pédagogie** : à la sélection d'un projet configuré, la matrice
+  supports × langues s'affiche **en attente** (au lieu d'une grille vide), cohérent
+  avec l'aperçu des vidéos détectées côté Génération.
+- **DRY / cohérence** : libellés et accents des statuts de Run centralisés
+  (`ui/status_labels`, partagés par les deux bandes de tuiles) ; ordre **canonique**
+  des supports dans le dialogue d'estimation ; gras réservé aux **totaux** de la
+  matrice ; matrice passée en lecture seule (plus de surlignage de sélection partiel) ;
+  constantes de dimensions de `CostMatrixView` centralisées.
+- **Documentation** : `docs/02` et `CLAUDE.md` réalignés (suppression de
+  `glossary_terms` / `GlossaryReconciler`, ajout des composants partagés
+  `CostMatrixView` / `StatCard` / `cost_matrix`).
+
 ### Modifié — Estimation de coût (Lot 3d)
 
 - **Estimation pré-run granulaire + fourchette** : le dialogue « Estimer le coût »

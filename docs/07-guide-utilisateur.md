@@ -194,13 +194,15 @@ Les supports sont écrits sous `<emplacement>/pedagogy/{support}/{langue}/`
 avec corrigé séparé). Vous pouvez les éditer directement.
 
 Le bouton **📦 Exporter** propose les formats que vous avez cochés dans les
-réglages (« ⚙ Réglages → Modèle & coût → Formats d'export ») :
+réglages (« ⚙ Réglages → Export → Formats d'export proposés ») :
 
 - **Anki (`.apkg`)** : paquet importable dans Anki — sous-decks par support,
   cartes Basic / Cloze / QCM, étiquettes (support / langue / niveau / chapitre).
-  Les ré-imports ne créent pas de doublons (identifiants stables).
+  Les ré-imports ne créent pas de doublons (identifiants stables). La mise en
+  forme Markdown des cartes (listes, gras) est rendue en HTML dans Anki.
 - **Markdown** : documents agrégés par langue (sujet et corrigé séparés).
 - **PDF** : mêmes documents, prêts à imprimer.
+- **HTML** : document autonome (ouvrable dans un navigateur, mise en forme incluse).
 
 ## 9. Dépannage
 

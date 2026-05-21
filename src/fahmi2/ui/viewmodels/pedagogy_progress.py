@@ -3,18 +3,22 @@
 La fonctionnalité pédagogie n'a **pas** d'état SQLite : la progression est
 accumulée en mémoire à partir des ``PedagogyEvent``. Le contrôleur appelle
 ``reset`` au lancement (cellules en attente), puis ``apply_event`` à chaque
-événement ; la vue affiche le ``snapshot``. Testable sans Qt.
+événement ; la vue consomme ``cost_matrix_snapshot`` (grille supports × langues)
+et ``stats_snapshot`` (tuiles). Testable sans Qt.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime
 
 from fahmi2.domain.enums import Language, PhaseStatus, RunStatus, SupportType
 from fahmi2.pedagogy.events import (
     PedagogyEvent,
     SupportFinished,
     SupportGenerationFinished,
+    SupportGenerationStarted,
     SupportStarted,
 )
 from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
@@ -51,21 +55,6 @@ class PedagogyProgressCell:
 
 
 @dataclass(frozen=True)
-class PedagogyProgressSnapshot:
-    """Snapshot de progression d'une génération de supports.
-
-    Attributes:
-        cells: Cellules ordonnées (langue × support canonique).
-        overall_status: Statut global (``None`` tant que non terminé).
-        total_cost_usd: Coût total cumulé.
-    """
-
-    cells: tuple[PedagogyProgressCell, ...]
-    overall_status: RunStatus | None
-    total_cost_usd: float
-
-
-@dataclass(frozen=True)
 class PedagogyStatsSnapshot:
     """Indicateurs agrégés pour la bande de tuiles pédagogie.
 
@@ -75,6 +64,9 @@ class PedagogyStatsSnapshot:
         tasks_total: Nombre total de tâches.
         languages: Langues sélectionnées.
         total_cost_usd: Coût total cumulé.
+        cost_ceiling_usd: Plafond de coût éventuel (``None`` = sans plafond).
+        started_at: Démarrage de la dernière exécution (``None`` si jamais lancée).
+        finished_at: Fin de la dernière exécution (``None`` si en cours / jamais).
     """
 
     overall_status: RunStatus | None
@@ -82,24 +74,34 @@ class PedagogyStatsSnapshot:
     tasks_total: int
     languages: tuple[Language, ...]
     total_cost_usd: float
+    cost_ceiling_usd: float | None
+    started_at: datetime | None
+    finished_at: datetime | None
 
 
 class PedagogyProgressViewModel:
-    """Accumule les ``PedagogyEvent`` en un ``PedagogyProgressSnapshot``."""
+    """Accumule les ``PedagogyEvent`` en cellules de progression supports × langues.
+
+    Les cellules sont exposées via ``cost_matrix_snapshot`` (grille) et
+    ``stats_snapshot`` (indicateurs agrégés).
+    """
 
     def __init__(self) -> None:
         self._cells: dict[tuple[SupportType, Language], PedagogyProgressCell] = {}
         self._order: list[tuple[SupportType, Language]] = []
         self._overall_status: RunStatus | None = None
-        self._total_cost_usd: float = 0.0
         self._supports: tuple[SupportType, ...] = ()
         self._languages: tuple[Language, ...] = ()
+        self._cost_ceiling_usd: float | None = None
+        self._started_at: datetime | None = None
+        self._finished_at: datetime | None = None
 
     def reset(
         self,
         *,
         supports: tuple[SupportType, ...],
         languages: tuple[Language, ...],
+        cost_ceiling_usd: float | None = None,
     ) -> None:
         """(Ré)initialise la grille en cellules « en attente ».
 
@@ -109,11 +111,14 @@ class PedagogyProgressViewModel:
         Args:
             supports: Supports sélectionnés.
             languages: Langues sélectionnées.
+            cost_ceiling_usd: Plafond de coût éventuel (affiché par la tuile Coût).
         """
         self._cells = {}
         self._order = []
         self._overall_status = None
-        self._total_cost_usd = 0.0
+        self._cost_ceiling_usd = cost_ceiling_usd
+        self._started_at = None
+        self._finished_at = None
         selected = set(supports)
         self._supports = tuple(
             s for s in SupportGeneratorRegistry.canonical_order() if s in selected
@@ -132,13 +137,59 @@ class PedagogyProgressViewModel:
                 )
                 self._order.append(key)
 
+    def load_persisted(
+        self,
+        *,
+        supports: tuple[SupportType, ...],
+        languages: tuple[Language, ...],
+        generated_costs: Mapping[tuple[SupportType, Language], float],
+        cost_ceiling_usd: float | None = None,
+        overall_status: RunStatus | None = None,
+        started_at: datetime | None = None,
+        finished_at: datetime | None = None,
+    ) -> None:
+        """Charge l'état des supports déjà générés (reconstruction à la sélection).
+
+        Réinitialise la grille puis marque ``SUCCEEDED`` (+ coût) les ``(support,
+        langue)`` dont un artefact existe sur disque ; les autres restent en
+        attente. Restaure aussi le statut/horodatages de la dernière exécution
+        (depuis ``run_state.json``) pour afficher un statut homogène avec la
+        génération, sans worker actif.
+
+        Args:
+            supports: Supports sélectionnés.
+            languages: Langues sélectionnées.
+            generated_costs: Coût par ``(support, langue)`` déjà généré.
+            cost_ceiling_usd: Plafond de coût éventuel.
+            overall_status: Statut de la dernière exécution (``None`` si jamais).
+            started_at: Démarrage de la dernière exécution.
+            finished_at: Fin de la dernière exécution.
+        """
+        self.reset(
+            supports=supports,
+            languages=languages,
+            cost_ceiling_usd=cost_ceiling_usd,
+        )
+        self._overall_status = overall_status
+        self._started_at = started_at
+        self._finished_at = finished_at
+        for (support, language), cost in generated_costs.items():
+            if (support, language) in self._cells:
+                self._set_cell(
+                    support, language, status=PhaseStatus.SUCCEEDED, cost_usd=cost
+                )
+
     def apply_event(self, event: PedagogyEvent) -> None:
         """Met à jour l'état à partir d'un événement pédagogie.
 
         Args:
             event: Événement reçu.
         """
-        if isinstance(event, SupportStarted):
+        if isinstance(event, SupportGenerationStarted):
+            self._overall_status = RunStatus.RUNNING
+            self._started_at = event.timestamp
+            self._finished_at = None
+        elif isinstance(event, SupportStarted):
             self._set_status(event.support_type, event.language, PhaseStatus.RUNNING)
         elif isinstance(event, SupportFinished):
             self._set_cell(
@@ -149,19 +200,7 @@ class PedagogyProgressViewModel:
             )
         elif isinstance(event, SupportGenerationFinished):
             self._overall_status = event.status
-            self._total_cost_usd = event.total_cost_usd
-
-    def snapshot(self) -> PedagogyProgressSnapshot:
-        """Construit le snapshot courant.
-
-        Returns:
-            ``PedagogyProgressSnapshot``.
-        """
-        return PedagogyProgressSnapshot(
-            cells=tuple(self._cells[key] for key in self._order),
-            overall_status=self._overall_status,
-            total_cost_usd=self._total_cost_usd,
-        )
+            self._finished_at = event.timestamp
 
     def cost_matrix_snapshot(self) -> CostMatrixSnapshot:
         """Construit la matrice supports × langues (statut + coût par cellule).
@@ -229,6 +268,9 @@ class PedagogyProgressViewModel:
             tasks_total=len(self._cells),
             languages=self._languages,
             total_cost_usd=total,
+            cost_ceiling_usd=self._cost_ceiling_usd,
+            started_at=self._started_at,
+            finished_at=self._finished_at,
         )
 
     def _set_status(

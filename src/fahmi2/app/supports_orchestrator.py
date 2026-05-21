@@ -12,7 +12,6 @@ pause/annulation aux frontières sûres (entre supports).
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from pathlib import Path
 
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.exceptions import ConfigError, Fahmi2Error, PausedError
@@ -50,10 +49,11 @@ from fahmi2.pedagogy.manifest import (
     read_manifest,
     write_manifest,
 )
+from fahmi2.pedagogy.run_state import PedagogyRunState, write_run_state
 from fahmi2.pedagogy.sources import (
-    consolidated_doc_path,
     load_chapters,
     load_glossary_master_terms,
+    resolve_content_language,
     source_mtime_ns,
 )
 from fahmi2.pedagogy.support_generator import SupportContext
@@ -128,15 +128,42 @@ class SupportsOrchestrator:
         ctx = self._build_context(project, pedagogy, pause_token, event_bus)
         settings_hash = compute_settings_hash(pedagogy)
         manifest = read_manifest(ctx.pedagogy_dir)
-        event_bus.publish(SupportGenerationStarted(timestamp=_now()))
+        started_at = _now()
+        write_run_state(
+            ctx.artifacts,
+            ctx.pedagogy_dir,
+            PedagogyRunState(
+                status=RunStatus.RUNNING,
+                started_at=started_at,
+                finished_at=None,
+                total_cost_usd=0.0,
+            ),
+        )
+        event_bus.publish(SupportGenerationStarted(timestamp=started_at))
 
         any_failure = False
         total_cost = 0.0
         glossary = self._load_glossary(project)
         try:
+            source_language = (
+                project.generation.source_language
+                if project.generation is not None
+                else None
+            )
+            # Alignement sur la génération : un ensemble déjà complet (tous les
+            # supports présents et frais) est **régénéré** (relance volontaire qui
+            # écrase) ; un ensemble incomplet est **repris** (on garde les supports
+            # frais et on génère le reste, ex. après un plafond atteint).
+            regenerate = self._is_complete(
+                ctx,
+                pedagogy=pedagogy,
+                manifest=manifest,
+                settings_hash=settings_hash,
+                source_language=source_language,
+            )
             for language in pedagogy.languages:
-                content_lang = self._resolve_content_language(
-                    ctx.generation_output_dir, language, project
+                content_lang = resolve_content_language(
+                    ctx.generation_output_dir, language, source_language
                 )
                 source_mtime = (
                     source_mtime_ns(ctx.generation_output_dir, content_lang)
@@ -156,14 +183,13 @@ class SupportsOrchestrator:
                     pause_token.wait_if_paused()
                     pause_token.raise_if_cancelled()
                     if _ceiling_reached(pedagogy, total_cost):
-                        event_bus.publish(
-                            SupportGenerationFinished(
-                                timestamp=_now(),
-                                status=RunStatus.PAUSED,
-                                total_cost_usd=total_cost,
-                            )
+                        return self._finalize_run(
+                            ctx,
+                            event_bus,
+                            status=RunStatus.PAUSED,
+                            started_at=started_at,
+                            total_cost=total_cost,
                         )
-                        return RunStatus.PAUSED
                     cost, failed = self._run_one(
                         ctx,
                         manifest=manifest,
@@ -173,26 +199,66 @@ class SupportsOrchestrator:
                         glossary=glossary,
                         settings_hash=settings_hash,
                         source_mtime_ns=source_mtime,
+                        regenerate=regenerate,
                     )
                     total_cost += cost
                     any_failure = any_failure or failed
         except PausedError:
-            event_bus.publish(
-                SupportGenerationFinished(
-                    timestamp=_now(),
-                    status=RunStatus.CANCELLED,
-                    total_cost_usd=total_cost,
-                )
+            return self._finalize_run(
+                ctx,
+                event_bus,
+                status=RunStatus.CANCELLED,
+                started_at=started_at,
+                total_cost=total_cost,
             )
-            return RunStatus.CANCELLED
 
         final = RunStatus.FAILED if any_failure else RunStatus.COMPLETED
+        return self._finalize_run(
+            ctx,
+            event_bus,
+            status=final,
+            started_at=started_at,
+            total_cost=total_cost,
+        )
+
+    def _finalize_run(
+        self,
+        ctx: SupportContext,
+        event_bus: EventBus[PedagogyEvent],
+        *,
+        status: RunStatus,
+        started_at: datetime,
+        total_cost: float,
+    ) -> RunStatus:
+        """Persiste l'état final de l'exécution et émet l'événement de fin.
+
+        Args:
+            ctx: Contexte d'exécution (store + dossier pédagogie).
+            event_bus: Bus d'événements pédagogie.
+            status: Statut final (``COMPLETED`` / ``FAILED`` / ``CANCELLED`` /
+                ``PAUSED``).
+            started_at: Horodatage de démarrage de l'exécution.
+            total_cost: Coût LLM cumulé.
+
+        Returns:
+            Le ``status`` (pour ``return self._finalize_run(...)``).
+        """
+        write_run_state(
+            ctx.artifacts,
+            ctx.pedagogy_dir,
+            PedagogyRunState(
+                status=status,
+                started_at=started_at,
+                finished_at=_now(),
+                total_cost_usd=total_cost,
+            ),
+        )
         event_bus.publish(
             SupportGenerationFinished(
-                timestamp=_now(), status=final, total_cost_usd=total_cost
+                timestamp=_now(), status=status, total_cost_usd=total_cost
             )
         )
-        return final
+        return status
 
     def _run_one(
         self,
@@ -205,6 +271,7 @@ class SupportsOrchestrator:
         glossary: tuple[Term, ...],
         settings_hash: str,
         source_mtime_ns: int | None,
+        regenerate: bool,
     ) -> tuple[float, bool]:
         """Génère (ou skippe) un support pour une langue.
 
@@ -217,6 +284,8 @@ class SupportsOrchestrator:
             glossary: Glossaire de la langue.
             settings_hash: Hash courant des réglages.
             source_mtime_ns: mtime courant du doc source.
+            regenerate: Si ``True`` (ensemble complet → relance volontaire), régénère
+                même un support frais ; si ``False`` (reprise), skippe les frais.
 
         Returns:
             ``(cost_usd, failed)`` : coût LLM et drapeau d'échec.
@@ -233,7 +302,7 @@ class SupportsOrchestrator:
             settings_hash=settings_hash,
             source_mtime_ns=source_mtime_ns,
         )
-        if is_fresh and json_path.exists():
+        if not regenerate and is_fresh and json_path.exists():
             ctx.event_bus.publish(
                 SupportFinished(
                     timestamp=_now(),
@@ -281,6 +350,60 @@ class SupportsOrchestrator:
                 )
             )
             return 0.0, True
+
+    def _is_complete(
+        self,
+        ctx: SupportContext,
+        *,
+        pedagogy: PedagogySettings,
+        manifest: PedagogyManifest,
+        settings_hash: str,
+        source_language: Language | None,
+    ) -> bool:
+        """Indique si tous les supports sélectionnés × langues sont présents et frais.
+
+        Sert à choisir, comme la génération, entre **régénération** (ensemble complet
+        → relance volontaire qui écrase) et **reprise** (ensemble incomplet → garder
+        les supports frais, générer le reste, ex. après un plafond atteint).
+
+        Args:
+            ctx: Contexte d'exécution.
+            pedagogy: Réglages pédagogie.
+            manifest: Manifeste de fraîcheur.
+            settings_hash: Hash courant des réglages.
+            source_language: Langue source de la génération (repli de contenu).
+
+        Returns:
+            ``True`` si chaque ``(support sélectionné, langue)`` a un artefact présent
+            et frais ; ``False`` dès qu'un support manque ou est périmé.
+        """
+        for language in pedagogy.languages:
+            content_lang = resolve_content_language(
+                ctx.generation_output_dir, language, source_language
+            )
+            source_mtime = (
+                source_mtime_ns(ctx.generation_output_dir, content_lang)
+                if content_lang is not None
+                else None
+            )
+            for support_type in self._registry.canonical_order():
+                if support_type not in pedagogy.selected_supports:
+                    continue
+                if not self._registry.has(support_type):
+                    continue
+                json_path = artifact_json_path(
+                    ctx.pedagogy_dir, support_type, language
+                )
+                if not json_path.exists():
+                    return False
+                if not manifest.is_fresh(
+                    support_type,
+                    language,
+                    settings_hash=settings_hash,
+                    source_mtime_ns=source_mtime,
+                ):
+                    return False
+        return True
 
     def _write_artifact(self, ctx: SupportContext, artifact: SupportArtifact) -> None:
         """Écrit l'artefact (JSON + Markdown) sous ``pedagogy/``.
@@ -354,34 +477,6 @@ class SupportsOrchestrator:
         """
         generation_dir = project.workspace_folder / GENERATION_WORKSPACE_SUBDIR
         return load_glossary_master_terms(generation_dir)
-
-    def _resolve_content_language(
-        self, output_dir: Path, target: Language, project: Project
-    ) -> Language | None:
-        """Choisit la langue du document de contenu pour une langue cible.
-
-        Préfère le doc de la langue cible (meilleure fidélité, pas de
-        re-traduction par le LLM) ; sinon la langue source de la génération ;
-        sinon la première langue produite disponible. Le support est de toute
-        façon rédigé dans la **langue cible** par le générateur LLM.
-
-        Args:
-            output_dir: Dossier des livrables de génération.
-            target: Langue cible du support.
-            project: Projet (pour la langue source de génération).
-
-        Returns:
-            La langue de contenu, ou ``None`` si aucun doc consolidé n'existe.
-        """
-        if consolidated_doc_path(output_dir, target).exists():
-            return target
-        source = project.generation.source_language if project.generation else None
-        if source is not None and consolidated_doc_path(output_dir, source).exists():
-            return source
-        for language in Language:
-            if consolidated_doc_path(output_dir, language).exists():
-                return language
-        return None
 
 
 def _ceiling_reached(pedagogy: PedagogySettings, total_cost: float) -> bool:

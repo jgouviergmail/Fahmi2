@@ -328,6 +328,12 @@ def test_on_export_requested_dispatches_markdown(
     assert called == ["md"]
 
 
+def test_export_actions_cover_all_formats(qtbot: QtBot, tmp_path: Path) -> None:
+    """Tout ``ExportFormat`` doit avoir une action (sinon KeyError à l'export)."""
+    controller, _, _ = _make_controller(qtbot, tmp_path)
+    assert set(controller._export_actions()) == set(ExportFormat)  # noqa: SLF001
+
+
 def test_on_export_requested_only_offers_configured_formats(
     qtbot: QtBot,
     tmp_path: Path,
@@ -454,6 +460,29 @@ def test_available_languages_offers_all(
     )
     langs = controller._available_languages(project)  # noqa: SLF001
     assert set(langs) == set(Language)
+
+
+def test_on_project_selected_shows_preview(
+    qtbot: QtBot,
+    tmp_path: Path,
+    make_generation_settings: Any,
+    make_pedagogy_settings: Any,
+) -> None:
+    controller, project_service, _ = _make_controller(qtbot, tmp_path)
+    project = project_service.create_project(
+        name="P",
+        workspace_folder=tmp_path / "ws",
+        generation=make_generation_settings(),
+        pedagogy=make_pedagogy_settings(
+            selected_supports=frozenset(
+                {SupportType.QCM, SupportType.KEY_POINTS}
+            ),
+        ),
+    )
+    controller.on_project_selected(project.id)
+    # Prévisualisation : une ligne par support sélectionné (pas une grille vide),
+    # comme le dashboard Génération affiche les vidéos détectées avant le 1er run.
+    assert controller._progress_view.row_count() == 2  # noqa: SLF001
 
 
 def _seed_completed_run(state: SqliteState, project_id: Any, settings: Any) -> None:

@@ -33,6 +33,7 @@ from fahmi2.app.pedagogy_cost_estimator import (
 from fahmi2.app.pedagogy_export import (
     DocumentExportResult,
     export_pedagogy_to_apkg,
+    export_pedagogy_to_html,
     export_pedagogy_to_markdown,
     export_pedagogy_to_pdf,
 )
@@ -56,6 +57,7 @@ from fahmi2.infra.llm.deepseek_adapter import DeepSeekAdapter
 from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.infra.storage.sqlite_state import SqliteState
+from fahmi2.pedagogy.artifact_reader import read_generated_costs
 from fahmi2.pedagogy.events import (
     PedagogyEvent,
     SupportFinished,
@@ -64,6 +66,7 @@ from fahmi2.pedagogy.events import (
     SupportRetryAttempt,
     SupportStarted,
 )
+from fahmi2.pedagogy.run_state import read_run_state
 from fahmi2.pedagogy.sources import load_chapters
 from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
 from fahmi2.pipeline.pause_token import PauseToken
@@ -82,6 +85,7 @@ _APKG_FILTER = "Paquets Anki (*.apkg)"
 #: Libellé du format (messages) pour les exports documentaires.
 _LABEL_MARKDOWN = "Markdown"
 _LABEL_PDF = "PDF"
+_LABEL_HTML = "HTML"
 #: Plafond de coût atteint : statut renvoyé par l'orchestrateur.
 _MSG_CEILING_REACHED = (
     "Plafond de coût atteint — génération interrompue (supports restants non "
@@ -206,9 +210,43 @@ class PedagogyController(QObject):
         self._sync_header_for_selected_project()
         self._header_bar.set_open_output_enabled(self._pedagogy_dir(project).exists())
         self._refresh_state()
-        empty = PedagogyProgressViewModel()
+        self._show_progress_for_selected_project(project)
+
+    def _show_progress_for_selected_project(self, project: Project) -> None:
+        """Affiche l'état des supports du projet sélectionné.
+
+        Aligne le comportement sur le dashboard Génération : si un worker est actif
+        sur ce projet, affiche sa progression live ; sinon, si la pédagogie est
+        configurée, reconstruit l'**état de la dernière exécution** depuis le disque
+        (supports déjà générés en « terminé » + coût, les autres en attente) ; sinon
+        une grille vide.
+
+        Args:
+            project: Projet sélectionné.
+        """
+        if self._worker_on_current_project():
+            vm = self._progress_vm
+        else:
+            vm = PedagogyProgressViewModel()
+            if project.pedagogy is not None:
+                pedagogy_dir = self._pedagogy_dir(project)
+                costs = read_generated_costs(
+                    pedagogy_dir,
+                    project.pedagogy.selected_supports,
+                    project.pedagogy.languages,
+                )
+                run_state = read_run_state(pedagogy_dir)
+                vm.load_persisted(
+                    supports=tuple(project.pedagogy.selected_supports),
+                    languages=project.pedagogy.languages,
+                    generated_costs=costs,
+                    cost_ceiling_usd=project.pedagogy.cost_ceiling_usd,
+                    overall_status=run_state.status if run_state else None,
+                    started_at=run_state.started_at if run_state else None,
+                    finished_at=run_state.finished_at if run_state else None,
+                )
         self._progress_view.apply_snapshot(
-            empty.cost_matrix_snapshot(), empty.stats_snapshot()
+            vm.cost_matrix_snapshot(), vm.stats_snapshot()
         )
 
     @property
@@ -344,6 +382,7 @@ class PedagogyController(QObject):
         self._progress_vm.reset(
             supports=tuple(project.pedagogy.selected_supports),
             languages=project.pedagogy.languages,
+            cost_ceiling_usd=project.pedagogy.cost_ceiling_usd,
         )
         self._progress_view.apply_snapshot(
             self._progress_vm.cost_matrix_snapshot(),
@@ -492,7 +531,7 @@ class PedagogyController(QObject):
                 self._window,
                 "Aucun format d'export",
                 "Aucun format d'export n'est sélectionné dans les réglages "
-                "(⚙ Réglages → Modèle & coût).",
+                "(⚙ Réglages → Export).",
             )
             return
         by_label = {EXPORT_LABELS[fmt]: fmt for fmt in formats}
@@ -518,6 +557,7 @@ class PedagogyController(QObject):
             ExportFormat.APKG: self.export_apkg,
             ExportFormat.MARKDOWN: self.export_markdown,
             ExportFormat.PDF: self.export_pdf,
+            ExportFormat.HTML: self.export_html,
         }
 
     def export_markdown(self) -> None:
@@ -527,6 +567,10 @@ class PedagogyController(QObject):
     def export_pdf(self) -> None:
         """Exporte les supports rendus en documents PDF (sujet / corrigé)."""
         self._export_documents(export_pedagogy_to_pdf, label=_LABEL_PDF)
+
+    def export_html(self) -> None:
+        """Exporte les supports rendus en documents HTML (sujet / corrigé)."""
+        self._export_documents(export_pedagogy_to_html, label=_LABEL_HTML)
 
     def _export_documents(
         self,
@@ -847,10 +891,9 @@ def _show_pedagogy_cost_dialog(
         f"<b>Chapitres (toutes langues) :</b> {estimation.chapters_total}",
     ]
     breakdown = [
-        (support_label(support), cost)
-        for support, cost in sorted(
-            estimation.per_support_usd.items(), key=lambda kv: kv[0].value
-        )
+        (support_label(support), estimation.per_support_usd[support])
+        for support in SupportGeneratorRegistry.canonical_order()
+        if support in estimation.per_support_usd
     ]
     show_cost_estimate(
         parent,

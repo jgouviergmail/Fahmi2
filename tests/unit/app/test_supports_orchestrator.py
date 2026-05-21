@@ -1,4 +1,4 @@
-"""Tests du SupportsOrchestrator (tranche flashcards glossaire)."""
+"""Tests du SupportsOrchestrator (génération des supports pédagogiques)."""
 
 from __future__ import annotations
 
@@ -125,16 +125,18 @@ def test_generates_flashcards_artifacts(
     assert isinstance(events[-1], SupportGenerationFinished)
 
 
-def test_coarse_resume_skips_fresh(
+def test_complete_set_is_regenerated(
     tmp_path: Path, make_generation_settings: Any, make_pedagogy_settings: Any
 ) -> None:
+    # Ensemble complet (tout présent + frais) : relancer régénère (comme un nouveau
+    # run en génération), au lieu de skipper.
     registry = SupportGeneratorRegistry([_StubGen(SupportType.FLASHCARDS_CONCEPTS)])
     orchestrator, state, project_service = _build(tmp_path, registry)
     project = project_service.create_project(
         name="P",
         workspace_folder=tmp_path / "ws",
         generation=make_generation_settings(),
-        pedagogy=make_pedagogy_settings(),
+        pedagogy=make_pedagogy_settings(languages=(Language.FR,)),
     )
     _seed_completed_run_with_glossary(state, project, make_generation_settings())
 
@@ -144,7 +146,53 @@ def test_coarse_resume_skips_fresh(
     orchestrator.generate(project, pause_token=PauseToken(), event_bus=bus)
 
     finished = [e for e in events if isinstance(e, SupportFinished)]
-    assert finished and finished[0].status is PhaseStatus.SKIPPED
+    assert finished and finished[0].status is PhaseStatus.SUCCEEDED
+
+
+def test_incomplete_set_resumes_skipping_fresh(
+    tmp_path: Path, make_generation_settings: Any, make_pedagogy_settings: Any
+) -> None:
+    # Ensemble incomplet (un support manque, ex. plafond atteint) : reprise — le
+    # support frais déjà présent est skippé, le manquant est généré.
+    registry = SupportGeneratorRegistry(
+        [
+            _CostlyGen(SupportType.FLASHCARDS_CONCEPTS, cost_usd=10.0),
+            _StubGen(SupportType.QCM),
+        ]
+    )
+    orchestrator, state, project_service = _build(tmp_path, registry)
+    project = project_service.create_project(
+        name="P",
+        workspace_folder=tmp_path / "ws",
+        generation=make_generation_settings(),
+        pedagogy=make_pedagogy_settings(
+            selected_supports=frozenset(
+                {SupportType.FLASHCARDS_CONCEPTS, SupportType.QCM}
+            ),
+            separate_correction=frozenset(),
+            languages=(Language.FR,),
+            cost_ceiling_usd=1.0,
+        ),
+    )
+    _seed_completed_run_with_glossary(state, project, make_generation_settings())
+
+    # 1re génération : flashcards (coûteux) passe, plafond atteint avant le QCM.
+    status1 = orchestrator.generate(
+        project, pause_token=PauseToken(), event_bus=EventBus()
+    )
+    assert status1 is RunStatus.PAUSED
+
+    # 2e génération : ensemble incomplet -> reprise (flashcards frais skippé, QCM généré).
+    bus: EventBus[PedagogyEvent] = EventBus()
+    events = _collect(bus)
+    orchestrator.generate(project, pause_token=PauseToken(), event_bus=bus)
+    by_support = {
+        e.support_type: e.status
+        for e in events
+        if isinstance(e, SupportFinished)
+    }
+    assert by_support[SupportType.FLASHCARDS_CONCEPTS] is PhaseStatus.SKIPPED
+    assert by_support[SupportType.QCM] is PhaseStatus.SUCCEEDED
 
 
 def test_missing_pedagogy_raises(
@@ -354,10 +402,47 @@ class _CostlyGen(SupportGenerator):
         )
 
 
+class _CapturingGen(SupportGenerator):
+    """Générateur de test (sans LLM) capturant la langue cible + chapitres reçus."""
+
+    def __init__(self, support_type: SupportType) -> None:
+        self._support_type = support_type
+        self.seen_language: Language | None = None
+        self.seen_chapters: tuple[Chapter, ...] = ()
+
+    @property
+    def support_type(self) -> SupportType:
+        return self._support_type
+
+    @property
+    def uses_llm(self) -> bool:
+        return False
+
+    def generate(
+        self,
+        ctx: SupportContext,
+        *,
+        language: Language,
+        chapters: tuple[Chapter, ...],
+        glossary: tuple[Term, ...],
+    ) -> SupportArtifact:
+        del ctx, glossary
+        self.seen_language = language
+        self.seen_chapters = chapters
+        return SupportArtifact(
+            support_type=self._support_type,
+            language=language,
+            items=(),
+            rendered_markdown="# Stub\n",
+            cost_usd=0.0,
+        )
+
+
 def test_target_language_without_doc_uses_fallback_content(
     tmp_path: Path, make_generation_settings: Any, make_pedagogy_settings: Any
 ) -> None:
-    registry = SupportGeneratorRegistry([_StubGen(SupportType.FLASHCARDS_CONCEPTS)])
+    gen = _CapturingGen(SupportType.FLASHCARDS_CONCEPTS)
+    registry = SupportGeneratorRegistry([gen])
     orchestrator, _, project_service = _build(tmp_path, registry)
     ws = tmp_path / "ws"
     project = project_service.create_project(
@@ -381,6 +466,10 @@ def test_target_language_without_doc_uses_fallback_content(
         project, pause_token=PauseToken(), event_bus=EventBus()
     )
     assert status is RunStatus.COMPLETED
+    # Le générateur reçoit la langue cible EN, mais le contenu (chapitres) provient
+    # du doc FR de repli (seul présent) : découplage contenu/cible vérifié.
+    assert gen.seen_language is Language.EN
+    assert gen.seen_chapters
     # Artefact écrit sous la langue cible EN.
     assert artifact_json_path(
         ws / "pedagogy", SupportType.FLASHCARDS_CONCEPTS, Language.EN

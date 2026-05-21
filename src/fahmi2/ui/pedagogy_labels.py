@@ -24,6 +24,7 @@ EXPORT_LABELS: dict[ExportFormat, str] = {
     ExportFormat.APKG: "Anki (.apkg)",
     ExportFormat.MARKDOWN: "Markdown",
     ExportFormat.PDF: "PDF",
+    ExportFormat.HTML: "HTML",
 }
 
 #: Libellés FR des statuts d'un support dans la table de progression.

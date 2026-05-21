@@ -7,6 +7,23 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+### Ajouté — Parallélisation des traitements (génération + pédagogie)
+
+- **Supports pédagogiques en parallèle** : l'orchestrateur traite les unités
+  *(langue × support)* concurremment via un pool de threads borné. Nouveau réglage
+  **« Tâches en parallèle »** (`llm_workers`, défaut 16, plage 1–64).
+- **Pipeline de génération parallélisé** : les phases **par vidéo** (STT cloud,
+  extraction de termes, reformulation, structuration) sont traitées concurremment ;
+  les phases finales parallélisent la traduction *(langue × document)*, la passe de
+  cohérence *(par langue)* et les résumés de consolidation. Réglages
+  **« Transcriptions en parallèle »** (`stt_cloud_workers`, défaut 3, plage 1–8) et
+  **« Appels LLM en parallèle »** (`llm_workers`, défaut 16, plage 1–64). Le STT
+  **local** reste séquentiel (1 GPU). Le déterminisme des documents et les points de
+  reprise (checkpoint) sont préservés ; le plafond de coût est *best-effort* en
+  parallèle (léger dépassement possible par les requêtes déjà en vol).
+- **Timeout client DeepSeek** porté à 600 s (absorbe les requêtes lentes sous
+  keep-alive serveur).
+
 ### Ajouté — Sidebar : statut par projet & bouton « Réinitialiser »
 
 - **Icônes de statut dans la sidebar** : chaque projet est préfixé par le statut du
@@ -42,10 +59,13 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   présentent d'abord les supports d'**apprentissage** du plus général au plus précis
   (fiche → points clés → flashcards), puis les **exercices** du plus précis au plus
   général (cloze → vrai/faux → QCM → questions ouvertes → examen blanc).
-- **Langue des supports « extractifs »** : les prompts *cloze* et *points clés*
-  insistent désormais pour rédiger **dans la langue cible** (traduire le contenu
-  source au lieu de le recopier) — corrige des cloze / points clés restés dans la
-  langue du document quand la langue cible différait.
+- **Langue de sortie renforcée (tous les supports)** : les **8 prompts** de
+  supports insistent désormais pour rédiger **intégralement dans la langue cible**
+  (traduire le contenu source au lieu de le recopier, ne pas recopier les
+  formulations sources) — généralise à tous les types (QCM, vrai/faux, cloze,
+  questions ouvertes, examen blanc, flashcards, fiche, points clés) ce qui était
+  partiel ; corrige des supports restés dans la langue du document quand la langue
+  cible différait.
 
 ### Corrigé — Export PDF : couleur des titres
 

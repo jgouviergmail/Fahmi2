@@ -55,6 +55,10 @@ Modules transverses, sans dépendance externe (ni Qt, ni HTTP, ni SQL) :
   `ErrorInfo` sérialisable, registre de messages localisés FR.
 - `core/retry` — `RetryPolicy` (exponentiel + jitter borné), `with_retry`
   runner avec classifier injectable.
+- `core/concurrency` — `map_bounded` (pool de threads borné, *fail-fast*, ordre
+  des résultats préservé, honore le `PauseToken`) ; primitif partagé par le moteur
+  de génération et l'orchestrateur pédagogie pour paralléliser les appels
+  I/O-bound (LLM, STT cloud).
 - `core/config` — `AppPaths` (résolution Windows APPDATA / LOCALAPPDATA),
   `AppConfig`, résolveur `ffmpeg` bundlé runtime (PyInstaller `_MEIPASS`).
 - `core/migrations` — `MigrationRunner` générique forward-only,
@@ -93,10 +97,16 @@ Moteur d'exécution pur :
 - `PauseToken` thread-safe (request_pause/resume/cancel).
 - `EventBus` in-memory + types d'événements (`RunStarted`, `PhaseStarted`,
   `PhaseProgress`, `PhaseFinished`, `RetryAttempt`, `RunFinished`).
-- `PhaseHandler` ABC + `PhaseContext` (DI complet).
+- `PhaseHandler` ABC + `PhaseContext` (DI complet) ; `max_parallel_workers(ctx)`
+  déclare le pool de la phase (défaut 1 = séquentiel ; surchargé par les phases
+  per-video indépendantes).
 - `PhaseRegistry` (ordre canonique des 8 phases).
 - `PipelineEngine` — boucle d'exécution avec checkpoint SQLite, retry
-  policy, événements, pause/cancel.
+  policy, événements, pause/cancel. Les phases **per-video** sont parallélisées
+  via `core/concurrency/map_bounded` (pool borné par `ParallelismConfig` : STT
+  cloud = `stt_cloud_workers`, phases LLM 1/3/4 = `llm_workers` ; STT local = 1,
+  GPU unique). Les phases batch 5/6/7 parallélisent leurs boucles internes
+  (résumés vidéo, langue × document, langues) ; barrières aux phases batch 2 et 5.
 - 8 handlers dans `pipeline/handlers/` (un fichier par phase).
 - `pipeline/handlers/_base.py` — helpers communs (invoke LLM, parse JSON,
   build PhaseExecution succeeded, sélection top-K glossaire).
@@ -155,8 +165,10 @@ Services applicatifs :
 - `RunOrchestrator` — lifecycle Run (création + scan vidéos, exécution via
   PipelineEngine, persistance, pause/cancel/resume).
 - `SupportsOrchestrator` — orchestrateur dédié des supports pédagogiques
-  (inputs par langue, boucle supports × langues, écriture JSON + Markdown,
-  reprise *coarse* via manifeste, events, plafond de coût).
+  (inputs par langue, **parallélise les unités supports × langues** via
+  `core/concurrency/map_bounded` borné par `PedagogySettings.llm_workers`,
+  écriture JSON + Markdown, reprise *coarse* via manifeste sous verrou, events,
+  plafond de coût *best-effort* en parallèle).
 - `VideoScanner` — détection des extensions vidéo supportées dans un dossier.
 - `CostEstimator` — heuristique pré-run STT + LLM par phase et langue.
   Accepte un `phases_config` optionnel et applique un multiplicateur

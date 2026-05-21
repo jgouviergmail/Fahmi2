@@ -21,6 +21,11 @@ _PROVIDER_NAME = "deepseek"
 _REASONING_FIELD = "reasoning_content"
 _CACHED_TOKENS_FIELD = "prompt_cache_hit_tokens"
 
+# DeepSeek garde la connexion ouverte (keep-alive) et ne la ferme qu'après ~10
+# minutes sans démarrage d'inférence : timeout client large pour absorber les
+# requêtes lentes sous charge (notamment reasoning_effort élevé).
+_REQUEST_TIMEOUT_SECONDS = 600.0
+
 
 def _map_exception_to_llm_error(exc: BaseException) -> LLMError:
     if isinstance(exc, AuthenticationError):
@@ -70,6 +75,7 @@ class DeepSeekAdapter:
         api_key: str,
         client: OpenAI | None = None,
         base_url: str = _PROVIDER_BASE_URL,
+        timeout: float = _REQUEST_TIMEOUT_SECONDS,
     ) -> None:
         """Construit l'adaptateur.
 
@@ -77,8 +83,11 @@ class DeepSeekAdapter:
             api_key: Clé API DeepSeek.
             client: Client OpenAI injectable (utile pour les tests).
             base_url: URL de base de l'API.
+            timeout: Timeout des requêtes en secondes (absorbe le keep-alive).
         """
-        self._client = client or OpenAI(api_key=api_key, base_url=base_url)
+        self._client = client or OpenAI(
+            api_key=api_key, base_url=base_url, timeout=timeout
+        )
 
     def chat(
         self,

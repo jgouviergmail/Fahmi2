@@ -6,8 +6,13 @@ from unittest.mock import MagicMock
 import pytest
 from openai import AuthenticationError, RateLimitError
 
+import fahmi2.infra.llm.deepseek_adapter as deepseek_mod
 from fahmi2.core.errors.exceptions import LLMError
-from fahmi2.infra.llm.deepseek_adapter import DeepSeekAdapter, _parse_chat_response
+from fahmi2.infra.llm.deepseek_adapter import (
+    _REQUEST_TIMEOUT_SECONDS,
+    DeepSeekAdapter,
+    _parse_chat_response,
+)
 from fahmi2.infra.llm.interface import Message
 
 
@@ -223,3 +228,15 @@ def test_estimate_cost_delegates_to_pricing() -> None:
         thinking=False,
     )
     assert cost == pytest.approx(0.14)
+
+
+def test_client_is_created_with_explicit_timeout(monkeypatch: Any) -> None:
+    captured: dict[str, Any] = {}
+
+    def _fake_openai(**kwargs: Any) -> object:
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setattr(deepseek_mod, "OpenAI", _fake_openai)
+    DeepSeekAdapter(api_key="k")
+    assert captured["timeout"] == _REQUEST_TIMEOUT_SECONDS

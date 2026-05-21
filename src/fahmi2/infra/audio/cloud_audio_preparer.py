@@ -7,6 +7,7 @@ Opus + offset temporel) que l'adapter cloud transcrit puis recolle.
 
 from __future__ import annotations
 
+import math
 import re
 import subprocess
 from dataclasses import dataclass
@@ -98,8 +99,113 @@ class CloudAudioPreparer:
     def _split(
         self, wav_path: Path, work_dir: Path, full_size: int
     ) -> list[AudioChunk]:
-        """Découpage (implémenté en Task 4)."""
-        raise NotImplementedError("découpage implémenté en Task 4")
+        """Découpe le WAV en segments Opus ≤ limite, alignés sur les silences.
+
+        Args:
+            wav_path: WAV source.
+            work_dir: Dossier de travail.
+            full_size: Taille de l'Opus complet (pour estimer le nombre de
+                segments).
+
+        Returns:
+            Liste ordonnée d'``AudioChunk`` (offsets croissants).
+        """
+        duration = self._probe_duration(wav_path)
+        midpoints = self._detect_silence_midpoints(wav_path)
+        n_segments = max(
+            2, math.ceil(full_size / (self._max_chunk_bytes * _SIZE_SAFETY_RATIO))
+        )
+        bounds = self._plan_boundaries(duration, n_segments, midpoints)
+        chunks: list[AudioChunk] = []
+        for index, (start, end) in enumerate(bounds):
+            seg = work_dir / f"seg_{index}{_OPUS_CONTAINER_SUFFIX}"
+            self._encode_opus(wav_path, seg, start=start, end=end)
+            chunks.append(AudioChunk(path=seg, offset_seconds=start))
+        return chunks
+
+    @staticmethod
+    def _plan_boundaries(
+        duration: float, n_segments: int, silence_midpoints: list[float]
+    ) -> list[tuple[float, float]]:
+        """Calcule les bornes ``[start, end]`` de ``n_segments``, alignées aux silences.
+
+        Pour chaque frontière visée ``k·duration/n``, choisit le silence le plus
+        proche dans une fenêtre ``±(duration/n/2)`` ; à défaut, coupe à la cible.
+
+        Args:
+            duration: Durée totale (s).
+            n_segments: Nombre de segments souhaité (>= 1).
+            silence_midpoints: Milieux des silences détectés (s).
+
+        Returns:
+            Liste ordonnée de ``(start, end)`` couvrant ``[0, duration]``.
+        """
+        if n_segments <= 1:
+            return [(0.0, duration)]
+        step = duration / n_segments
+        window = step / 2
+        cuts: list[float] = []
+        for k in range(1, n_segments):
+            target = step * k
+            candidates = [m for m in silence_midpoints if abs(m - target) <= window]
+            cuts.append(
+                min(candidates, key=lambda m: abs(m - target))
+                if candidates
+                else target
+            )
+        bounds: list[tuple[float, float]] = []
+        prev = 0.0
+        for cut in sorted(cuts):
+            bounds.append((prev, cut))
+            prev = cut
+        bounds.append((prev, duration))
+        return bounds
+
+    def _detect_silence_midpoints(self, wav_path: Path) -> list[float]:
+        """Détecte les silences (``silencedetect``) et retourne leurs milieux.
+
+        Args:
+            wav_path: WAV source.
+
+        Returns:
+            Liste des instants médians de chaque silence (s). Vide si aucun.
+        """
+        cmd = [
+            self._ffmpeg, "-i", str(wav_path), "-af",
+            f"silencedetect=noise={self._silence_noise_db}dB:"
+            f"d={self._silence_min_seconds}",
+            "-f", "null", "-",
+        ]
+        result = subprocess.run(cmd, capture_output=True, check=False)  # noqa: S603
+        stderr = result.stderr.decode("utf-8", errors="replace")
+        starts = [float(m) for m in _RE_SILENCE_START.findall(stderr)]
+        ends = [float(m) for m in _RE_SILENCE_END.findall(stderr)]
+        return [(s + e) / 2 for s, e in zip(starts, ends, strict=False)]
+
+    def _probe_duration(self, media_path: Path) -> float:
+        """Durée d'un média via ffprobe (``0.0`` si indéterminable).
+
+        Args:
+            media_path: Fichier à sonder.
+
+        Returns:
+            Durée en secondes.
+        """
+        try:
+            result = subprocess.run(  # noqa: S603
+                [
+                    self._ffprobe, "-loglevel", _LOGLEVEL_ERROR,
+                    "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1", str(media_path),
+                ],
+                check=True, capture_output=True,
+            )
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            return 0.0
+        try:
+            return float(result.stdout.decode("utf-8").strip())
+        except ValueError:
+            return 0.0
 
     def _encode_opus(
         self, src_wav: Path, out: Path, *, start: float | None, end: float | None

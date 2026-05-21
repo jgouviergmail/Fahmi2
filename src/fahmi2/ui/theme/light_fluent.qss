@@ -253,6 +253,38 @@ QListWidget::item:selected {
     padding: 6px;
 }
 
+/* ===== Cost matrix (générique, partagée par les dashboards) ===== */
+#costMatrix {
+    background-color: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    gridline-color: #eef0f4;
+    selection-background-color: #e3f0fb;
+    selection-color: #0a4f93;
+}
+#costMatrix QHeaderView::section {
+    background-color: #f8fafc;
+    color: #57606a;
+    padding: 8px 10px;
+    border: none;
+    border-right: 1px solid #eef0f4;
+    border-bottom: 1px solid #e5e7eb;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+#costMatrix QHeaderView::section:first {
+    border-top-left-radius: 8px;
+}
+#costMatrix QHeaderView::section:last {
+    border-top-right-radius: 8px;
+    border-right: none;
+}
+#costMatrix::item {
+    padding: 6px;
+}
+
 /* ===== Logs dock ===== */
 QDockWidget {
     background-color: #ffffff;

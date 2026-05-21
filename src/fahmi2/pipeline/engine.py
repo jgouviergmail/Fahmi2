@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from fahmi2.core.concurrency import map_bounded
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.exceptions import (
     BudgetExceededError,
@@ -98,9 +99,13 @@ class PipelineEngine:
             ctx: Contexte.
         """
         if handler.is_per_video:
-            for video in ctx.run.videos:
-                self._raise_if_paused_or_cancelled(ctx)
-                self._execute_one(handler, ctx, video=video)
+            workers = handler.max_parallel_workers(ctx)
+            map_bounded(
+                lambda video: self._execute_one(handler, ctx, video=video),
+                ctx.run.videos,
+                max_workers=workers,
+                pause_token=ctx.pause_token,
+            )
         else:
             self._execute_one(handler, ctx, video=None)
 

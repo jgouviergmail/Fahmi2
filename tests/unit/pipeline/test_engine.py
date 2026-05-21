@@ -52,6 +52,7 @@ class _CountingHandler(PhaseHandler):
         permanent_failure: bool = False,
         raise_on_call: Fahmi2Error | None = None,
         cost_per_call: float = 0.0,
+        parallel_workers: int = 1,
     ) -> None:
         self._phase_id = phase_id
         self._per_video = is_per_video
@@ -60,6 +61,7 @@ class _CountingHandler(PhaseHandler):
         self._permanent_failure = permanent_failure
         self._raise_on_call = raise_on_call
         self._cost_per_call = cost_per_call
+        self._parallel_workers = parallel_workers
         self._attempts: dict[str, int] = {}
 
     @property
@@ -69,6 +71,10 @@ class _CountingHandler(PhaseHandler):
     @property
     def is_per_video(self) -> bool:
         return self._per_video
+
+    def max_parallel_workers(self, ctx: PhaseContext) -> int:
+        del ctx
+        return self._parallel_workers
 
     def execute(
         self, ctx: PhaseContext, *, video: VideoExecution | None
@@ -310,3 +316,20 @@ def test_engine_persists_phase_status_failed(
     video_id = ctx.run.videos[0].video_id
     status = ctx.state.get_phase_status(ctx.run.id, PhaseId.STT, video_id=video_id)
     assert status is PhaseStatus.FAILED
+
+
+def test_engine_parallel_per_video_processes_all_videos(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    ctx = _make_ctx(tmp_path, make_generation_settings, n_videos=6)
+    handler = _CountingHandler(PhaseId.STT, is_per_video=True, parallel_workers=4)
+    engine = _make_engine(handler)
+    final = engine.execute(ctx)
+    assert final is RunStatus.COMPLETED
+    assert len(handler.calls) == 6
+    assert set(handler.calls) == {v.video_id for v in ctx.run.videos}
+    for video in ctx.run.videos:
+        assert (
+            ctx.state.get_phase_status(ctx.run.id, PhaseId.STT, video_id=video.video_id)
+            is PhaseStatus.SUCCEEDED
+        )

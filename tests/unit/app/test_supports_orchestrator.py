@@ -172,6 +172,7 @@ def test_incomplete_set_resumes_skipping_fresh(
             separate_correction=frozenset(),
             languages=(Language.FR,),
             cost_ceiling_usd=1.0,
+            llm_workers=1,  # plafond déterministe (séquentiel strict)
         ),
     )
     _seed_completed_run_with_glossary(state, project, make_generation_settings())
@@ -496,6 +497,7 @@ def test_cost_ceiling_stops_generation(
             ),
             separate_correction=frozenset(),
             cost_ceiling_usd=1.0,
+            llm_workers=1,  # plafond déterministe (séquentiel strict)
         ),
     )
     _seed_completed_run_with_glossary(state, project, make_generation_settings())
@@ -516,3 +518,44 @@ def test_cost_ceiling_stops_generation(
     assert succeeded[0].support_type is SupportType.FLASHCARDS_CONCEPTS
     assert isinstance(events[-1], SupportGenerationFinished)
     assert events[-1].status is RunStatus.PAUSED
+
+
+def test_parallel_generation_two_languages(
+    tmp_path: Path, make_generation_settings: Any, make_pedagogy_settings: Any
+) -> None:
+    registry = SupportGeneratorRegistry([_StubGen(SupportType.FLASHCARDS_CONCEPTS)])
+    orchestrator, state, project_service = _build(tmp_path, registry)
+    ws = tmp_path / "ws"
+    project = project_service.create_project(
+        name="P",
+        workspace_folder=ws,
+        generation=make_generation_settings(
+            output_languages=(Language.FR, Language.EN)
+        ),
+        pedagogy=make_pedagogy_settings(
+            languages=(Language.FR, Language.EN), llm_workers=4
+        ),
+    )
+    _seed_completed_run_with_glossary(
+        state,
+        project,
+        make_generation_settings(output_languages=(Language.FR, Language.EN)),
+    )
+    for lang in (Language.FR, Language.EN):
+        FsArtifactStore().write_text_atomic(
+            ws
+            / GENERATION_WORKSPACE_SUBDIR
+            / GENERATION_OUTPUT_SUBDIR
+            / consolidated_doc_filename(lang),
+            "# Titre\n\n## 1. Chapitre\n\nContenu.\n",
+        )
+
+    bus: EventBus[PedagogyEvent] = EventBus()
+    status = orchestrator.generate(project, pause_token=PauseToken(), event_bus=bus)
+
+    assert status is RunStatus.COMPLETED
+    pedagogy_dir = ws / "pedagogy"
+    for lang in (Language.FR, Language.EN):
+        assert artifact_json_path(
+            pedagogy_dir, SupportType.FLASHCARDS_CONCEPTS, lang
+        ).exists()

@@ -11,8 +11,10 @@ pause/annulation aux frontières sûres (entre supports).
 
 from __future__ import annotations
 
+import threading
 from datetime import UTC, datetime
 
+from fahmi2.core.concurrency import map_bounded
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.exceptions import ConfigError, Fahmi2Error, PausedError
 from fahmi2.core.errors.severity import Severity
@@ -141,84 +143,113 @@ class SupportsOrchestrator:
         )
         event_bus.publish(SupportGenerationStarted(timestamp=started_at))
 
-        any_failure = False
-        total_cost = 0.0
         glossary = self._load_glossary(project)
-        try:
-            source_language = (
-                project.generation.source_language
-                if project.generation is not None
+        source_language = (
+            project.generation.source_language
+            if project.generation is not None
+            else None
+        )
+        # Alignement sur la génération : un ensemble déjà complet (tous les
+        # supports présents et frais) est **régénéré** (relance volontaire qui
+        # écrase) ; un ensemble incomplet est **repris** (on garde les supports
+        # frais et on génère le reste, ex. après un plafond atteint).
+        regenerate = self._is_complete(
+            ctx,
+            pedagogy=pedagogy,
+            manifest=manifest,
+            settings_hash=settings_hash,
+            source_language=source_language,
+        )
+
+        # Pré-chargement des entrants par langue (lecture disque hors threads) :
+        # (mtime source, chapitres) résolus une fois, réutilisés par chaque tâche.
+        per_language: dict[Language, tuple[int | None, tuple[Chapter, ...]]] = {}
+        for language in pedagogy.languages:
+            content_lang = resolve_content_language(
+                ctx.generation_output_dir, language, source_language
+            )
+            source_mtime = (
+                source_mtime_ns(ctx.generation_output_dir, content_lang)
+                if content_lang is not None
                 else None
             )
-            # Alignement sur la génération : un ensemble déjà complet (tous les
-            # supports présents et frais) est **régénéré** (relance volontaire qui
-            # écrase) ; un ensemble incomplet est **repris** (on garde les supports
-            # frais et on génère le reste, ex. après un plafond atteint).
-            regenerate = self._is_complete(
-                ctx,
-                pedagogy=pedagogy,
-                manifest=manifest,
-                settings_hash=settings_hash,
-                source_language=source_language,
+            chapters = (
+                load_chapters(ctx.generation_output_dir, content_lang)
+                if content_lang is not None
+                else ()
             )
-            for language in pedagogy.languages:
-                content_lang = resolve_content_language(
-                    ctx.generation_output_dir, language, source_language
-                )
-                source_mtime = (
-                    source_mtime_ns(ctx.generation_output_dir, content_lang)
-                    if content_lang is not None
-                    else None
-                )
-                chapters = (
-                    load_chapters(ctx.generation_output_dir, content_lang)
-                    if content_lang is not None
-                    else ()
-                )
-                for support_type in self._registry.canonical_order():
-                    if support_type not in pedagogy.selected_supports:
-                        continue
-                    if not self._registry.has(support_type):
-                        continue
-                    pause_token.wait_if_paused()
-                    pause_token.raise_if_cancelled()
-                    if _ceiling_reached(pedagogy, total_cost):
-                        return self._finalize_run(
-                            ctx,
-                            event_bus,
-                            status=RunStatus.PAUSED,
-                            started_at=started_at,
-                            total_cost=total_cost,
-                        )
-                    cost, failed = self._run_one(
-                        ctx,
-                        manifest=manifest,
-                        support_type=support_type,
-                        language=language,
-                        chapters=chapters,
-                        glossary=glossary,
-                        settings_hash=settings_hash,
-                        source_mtime_ns=source_mtime,
-                        regenerate=regenerate,
-                    )
-                    total_cost += cost
-                    any_failure = any_failure or failed
+            per_language[language] = (source_mtime, chapters)
+
+        # Unités indépendantes (langue × support), dérivées du registre :
+        # ajouter/retirer un support est pris en compte sans toucher ce code.
+        tasks: list[tuple[Language, SupportType]] = [
+            (language, support_type)
+            for language in pedagogy.languages
+            for support_type in self._registry.canonical_order()
+            if support_type in pedagogy.selected_supports
+            and self._registry.has(support_type)
+        ]
+
+        manifest_lock = threading.Lock()
+        cost_lock = threading.Lock()
+        cost_state = {"total": 0.0}
+
+        def _run_task(task: tuple[Language, SupportType]) -> tuple[float, bool, bool]:
+            """Exécute une unité (langue, support). Retourne (coût, échec, plafond)."""
+            language, support_type = task
+            # Plafond best-effort : court-circuit si déjà atteint (léger
+            # dépassement toléré par les tâches en vol — cf. design §10.2).
+            if pedagogy.cost_ceiling_usd is not None:
+                with cost_lock:
+                    if _ceiling_reached(pedagogy, cost_state["total"]):
+                        return 0.0, False, True
+            source_mtime, chapters = per_language[language]
+            cost, failed = self._run_one(
+                ctx,
+                manifest=manifest,
+                manifest_lock=manifest_lock,
+                support_type=support_type,
+                language=language,
+                chapters=chapters,
+                glossary=glossary,
+                settings_hash=settings_hash,
+                source_mtime_ns=source_mtime,
+                regenerate=regenerate,
+            )
+            with cost_lock:
+                cost_state["total"] += cost
+            return cost, failed, False
+
+        try:
+            outcomes = map_bounded(
+                _run_task,
+                tasks,
+                max_workers=pedagogy.llm_workers,
+                pause_token=pause_token,
+            )
         except PausedError:
             return self._finalize_run(
                 ctx,
                 event_bus,
                 status=RunStatus.CANCELLED,
                 started_at=started_at,
-                total_cost=total_cost,
+                total_cost=cost_state["total"],
             )
 
-        final = RunStatus.FAILED if any_failure else RunStatus.COMPLETED
+        any_failure = any(failed for _, failed, _ in outcomes)
+        ceiling_reached = any(skipped for _, _, skipped in outcomes)
+        if ceiling_reached:
+            final = RunStatus.PAUSED
+        elif any_failure:
+            final = RunStatus.FAILED
+        else:
+            final = RunStatus.COMPLETED
         return self._finalize_run(
             ctx,
             event_bus,
             status=final,
             started_at=started_at,
-            total_cost=total_cost,
+            total_cost=cost_state["total"],
         )
 
     def _finalize_run(
@@ -265,6 +296,7 @@ class SupportsOrchestrator:
         ctx: SupportContext,
         *,
         manifest: PedagogyManifest,
+        manifest_lock: threading.Lock,
         support_type: SupportType,
         language: Language,
         chapters: tuple[Chapter, ...],
@@ -278,6 +310,7 @@ class SupportsOrchestrator:
         Args:
             ctx: Contexte d'exécution.
             manifest: Manifeste de fraîcheur (mis à jour + persisté si succès).
+            manifest_lock: Verrou sérialisant les accès concurrents au manifeste.
             support_type: Type de support.
             language: Langue.
             chapters: Chapitres du doc consolidé.
@@ -296,12 +329,13 @@ class SupportsOrchestrator:
             )
         )
         json_path = artifact_json_path(ctx.pedagogy_dir, support_type, language)
-        is_fresh = manifest.is_fresh(
-            support_type,
-            language,
-            settings_hash=settings_hash,
-            source_mtime_ns=source_mtime_ns,
-        )
+        with manifest_lock:
+            is_fresh = manifest.is_fresh(
+                support_type,
+                language,
+                settings_hash=settings_hash,
+                source_mtime_ns=source_mtime_ns,
+            )
         if not regenerate and is_fresh and json_path.exists():
             ctx.event_bus.publish(
                 SupportFinished(
@@ -320,13 +354,14 @@ class SupportsOrchestrator:
                 ctx, language=language, chapters=chapters, glossary=glossary
             )
             self._write_artifact(ctx, artifact)
-            manifest.record(
-                support_type,
-                language,
-                settings_hash=settings_hash,
-                source_mtime_ns=source_mtime_ns,
-            )
-            write_manifest(ctx.artifacts, ctx.pedagogy_dir, manifest)
+            with manifest_lock:
+                manifest.record(
+                    support_type,
+                    language,
+                    settings_hash=settings_hash,
+                    source_mtime_ns=source_mtime_ns,
+                )
+                write_manifest(ctx.artifacts, ctx.pedagogy_dir, manifest)
             ctx.event_bus.publish(
                 SupportFinished(
                     timestamp=_now(),

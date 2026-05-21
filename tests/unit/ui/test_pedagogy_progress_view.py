@@ -2,41 +2,32 @@
 
 from __future__ import annotations
 
-from fahmi2.domain.enums import Language, PhaseStatus, RunStatus, SupportType
-from fahmi2.ui.viewmodels.pedagogy_progress import (
-    PedagogyProgressCell,
-    PedagogyProgressSnapshot,
-)
+from pytestqt.qtbot import QtBot
+
+from fahmi2.domain.enums import Language, SupportType
+from fahmi2.ui.viewmodels.pedagogy_progress import PedagogyProgressViewModel
 from fahmi2.ui.viewmodels.pedagogy_state import PedagogyState, PedagogyStateInfo
 from fahmi2.ui.widgets.pedagogy_progress_view import PedagogyProgressView
 
 
-def test_apply_snapshot_fills_rows(qtbot):  # type: ignore[no-untyped-def]
+def _vm() -> PedagogyProgressViewModel:
+    vm = PedagogyProgressViewModel()
+    vm.reset(
+        supports=(SupportType.QCM, SupportType.KEY_POINTS),
+        languages=(Language.FR,),
+    )
+    return vm
+
+
+def test_apply_snapshot_fills_matrix(qtbot: QtBot) -> None:
     view = PedagogyProgressView()
     qtbot.addWidget(view)
-    snapshot = PedagogyProgressSnapshot(
-        cells=(
-            PedagogyProgressCell(
-                support_type=SupportType.QCM,
-                language=Language.FR,
-                status=PhaseStatus.SUCCEEDED,
-                cost_usd=0.12,
-            ),
-            PedagogyProgressCell(
-                support_type=SupportType.KEY_POINTS,
-                language=Language.FR,
-                status=None,
-                cost_usd=0.0,
-            ),
-        ),
-        overall_status=RunStatus.COMPLETED,
-        total_cost_usd=0.12,
-    )
-    view.apply_snapshot(snapshot)
-    assert view.row_count() == 2
+    vm = _vm()
+    view.apply_snapshot(vm.cost_matrix_snapshot(), vm.stats_snapshot())
+    assert view.row_count() == 2  # 2 supports
 
 
-def test_set_state_updates_banner(qtbot):  # type: ignore[no-untyped-def]
+def test_set_state_updates_banner(qtbot: QtBot) -> None:
     view = PedagogyProgressView()
     qtbot.addWidget(view)
     view.set_state(
@@ -45,3 +36,13 @@ def test_set_state_updates_banner(qtbot):  # type: ignore[no-untyped-def]
         )
     )
     assert "Prêt" in view.banner_text()
+
+
+def test_clear_resets(qtbot: QtBot) -> None:
+    view = PedagogyProgressView()
+    qtbot.addWidget(view)
+    vm = _vm()
+    view.apply_snapshot(vm.cost_matrix_snapshot(), vm.stats_snapshot())
+    view.clear()
+    assert view.row_count() == 0
+    assert view.banner_text() == ""

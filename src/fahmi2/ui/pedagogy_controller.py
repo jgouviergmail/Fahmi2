@@ -206,7 +206,10 @@ class PedagogyController(QObject):
         self._sync_header_for_selected_project()
         self._header_bar.set_open_output_enabled(self._pedagogy_dir(project).exists())
         self._refresh_state()
-        self._progress_view.apply_snapshot(PedagogyProgressViewModel().snapshot())
+        empty = PedagogyProgressViewModel()
+        self._progress_view.apply_snapshot(
+            empty.cost_matrix_snapshot(), empty.stats_snapshot()
+        )
 
     @property
     def current_project_id(self) -> ProjectId | None:
@@ -342,7 +345,10 @@ class PedagogyController(QObject):
             supports=tuple(project.pedagogy.selected_supports),
             languages=project.pedagogy.languages,
         )
-        self._progress_view.apply_snapshot(self._progress_vm.snapshot())
+        self._progress_view.apply_snapshot(
+            self._progress_vm.cost_matrix_snapshot(),
+            self._progress_vm.stats_snapshot(),
+        )
 
         event_bus = PedagogyQtEventBus(self)
         event_bus.event_emitted.connect(self._on_event)
@@ -597,7 +603,10 @@ class PedagogyController(QObject):
         if not self._worker_on_current_project():
             return
         self._progress_vm.apply_event(pedagogy_event)
-        self._progress_view.apply_snapshot(self._progress_vm.snapshot())
+        self._progress_view.apply_snapshot(
+            self._progress_vm.cost_matrix_snapshot(),
+            self._progress_vm.stats_snapshot(),
+        )
 
     def _on_worker_finished(self, final_status: object) -> None:
         """Slot : génération terminée normalement.

@@ -7,6 +7,17 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+### Ajouté — Briques UI partagées dashboards (Lot 3a)
+
+- **`CostMatrixView`** (+ viewmodel `CostMatrixSnapshot`) : matrice de coût
+  générique (lignes × colonnes) où chaque cellule porte **statut + coût**, avec
+  **totaux** (ligne / colonne / général). Socle commun aux dashboards Génération et
+  Pédagogie (cohérence + DRY). Coût par cellule rendu en secondaire (petit, gris),
+  totaux mis en avant.
+- **`StatCard`** : carte d'indicateur réutilisable extraite de `stats_strip`
+  (icône + valeur + sous-info + accent), socle des bandes de tuiles des deux
+  dashboards. Aucun changement de rendu de la bande Génération existante.
+
 ### Supprimé — Pédagogie (Lot 1c)
 
 - **Support `flashcards_glossary` retiré** : c'était le glossaire reformaté en

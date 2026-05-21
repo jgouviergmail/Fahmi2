@@ -56,3 +56,14 @@ def test_build_returns_none_when_no_support(qtbot: QtBot) -> None:
     dialog.select_language(Language.FR, selected=True)
     # Aucun support coché -> invalide -> None.
     assert dialog.build_settings() is None
+
+
+def test_llm_workers_round_trips_through_view(
+    qtbot: QtBot, make_pedagogy_settings: Any
+) -> None:
+    initial = make_pedagogy_settings(llm_workers=24)
+    view = PedagogySettingsView(available_languages=(Language.FR,), initial=initial)
+    qtbot.addWidget(view)
+    built = view.build_settings()
+    assert built is not None
+    assert built.llm_workers == 24

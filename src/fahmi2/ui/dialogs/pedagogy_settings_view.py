@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QLabel,
     QMessageBox,
+    QSpinBox,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -32,7 +33,12 @@ from fahmi2.domain.enums import (
     SupportType,
     TargetAudience,
 )
-from fahmi2.domain.pedagogy import EVALUATIVE_SUPPORTS, PedagogySettings
+from fahmi2.domain.pedagogy import (
+    DEFAULT_PEDAGOGY_LLM_WORKERS,
+    EVALUATIVE_SUPPORTS,
+    MAX_PEDAGOGY_LLM_WORKERS,
+    PedagogySettings,
+)
 from fahmi2.domain.phase import PhaseConfig
 from fahmi2.pedagogy.labels import audience_label, bloom_label, density_label
 from fahmi2.ui.pedagogy_labels import EXPORT_LABELS, SUPPORT_LABELS
@@ -191,6 +197,7 @@ class PedagogySettingsView(QDialog):
                 ),
                 cost_ceiling_usd=ceiling,
                 export_formats=export_formats,
+                llm_workers=self._workers_input.value(),
             )
         except ValueError:
             return None
@@ -263,6 +270,9 @@ class PedagogySettingsView(QDialog):
         self._cost_ceiling_input.setValue(0.0)
         self._cost_ceiling_input.setSuffix(" $")
         self._cost_ceiling_input.setSpecialValueText("Pas de plafond")
+        self._workers_input = QSpinBox(self)
+        self._workers_input.setRange(1, MAX_PEDAGOGY_LLM_WORKERS)
+        self._workers_input.setValue(DEFAULT_PEDAGOGY_LLM_WORKERS)
         self._export_checks: dict[ExportFormat, QCheckBox] = {}
         for fmt in ExportFormat:
             self._export_checks[fmt] = QCheckBox(EXPORT_LABELS[fmt], self)
@@ -331,6 +341,7 @@ class PedagogySettingsView(QDialog):
         form.addRow("Niveau d'effort :", self._reasoning_combo)
         form.addRow("Température :", self._temperature_input)
         form.addRow("Plafond budget :", self._cost_ceiling_input)
+        form.addRow("Tâches en parallèle :", self._workers_input)
         outer.addLayout(form)
         outer.addStretch(1)
         return page
@@ -375,6 +386,7 @@ class PedagogySettingsView(QDialog):
         _select_combo(self._reasoning_combo, pedagogy.llm_config.reasoning_effort)
         self._temperature_input.setValue(pedagogy.llm_config.temperature)
         self._cost_ceiling_input.setValue(pedagogy.cost_ceiling_usd or 0.0)
+        self._workers_input.setValue(pedagogy.llm_workers)
         for fmt, cb in self._export_checks.items():
             cb.setChecked(fmt in pedagogy.export_formats)
 

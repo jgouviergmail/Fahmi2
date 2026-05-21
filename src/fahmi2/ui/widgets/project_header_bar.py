@@ -65,7 +65,7 @@ class ProjectHeaderBar(QWidget):
         layout.setContentsMargins(16, 10, 16, 10)
         layout.setSpacing(8)
 
-        self._settings_button = self._make_button("⚙  Réglages", role="default")
+        self._settings_button = self._make_button("⚙️  Réglages", role="default")
         self._settings_button.setToolTip(settings_tooltip)
         self._estimate_cost_button = self._make_button(
             "💵  Estimer le coût", role="default"
@@ -74,10 +74,12 @@ class ProjectHeaderBar(QWidget):
         # Hiérarchie : un seul bouton « plein » (Lancer) attire l'œil ; les actions
         # négatives (Annuler / Réinitialiser) sont en rouge discret ; tout le reste
         # en contour neutre. Reprendre, Pause… restent neutres (un seul accent).
-        self._start_button = self._make_button("▶  Lancer", role="primary")
-        self._pause_button = self._make_button("⏸  Pause", role="default")
-        self._resume_button = self._make_button("▶  Reprendre", role="default")
-        self._cancel_button = self._make_button("✕  Annuler", role="danger")
+        # Icônes : emojis colorés homogènes (le sélecteur U+FE0F force le rendu
+        # couleur des glyphes média ▶️/⏸️ sous Segoe UI Emoji).
+        self._start_button = self._make_button("🚀  Lancer", role="primary")
+        self._pause_button = self._make_button("⏸️  Pause", role="default")
+        self._resume_button = self._make_button("▶️  Reprendre", role="default")
+        self._cancel_button = self._make_button("❌  Annuler", role="danger")
         self._open_output_button = self._make_button(
             "📂  Dossier de sortie", role="default"
         )
@@ -85,7 +87,7 @@ class ProjectHeaderBar(QWidget):
         self._export_button = self._make_button("📦  Exporter", role="default")
         self._export_button.setToolTip(export_tooltip)
         self._export_button.setVisible(show_export)
-        self._reset_button = self._make_button("↺  Réinitialiser", role="danger")
+        self._reset_button = self._make_button("🗑️  Réinitialiser", role="danger")
         self._reset_button.setToolTip(reset_tooltip)
 
         self._settings_button.clicked.connect(self.settings_requested)

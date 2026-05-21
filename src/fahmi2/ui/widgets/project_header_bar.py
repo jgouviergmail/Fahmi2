@@ -71,9 +71,12 @@ class ProjectHeaderBar(QWidget):
             "💵  Estimer le coût", role="default"
         )
         self._estimate_cost_button.setToolTip(estimate_tooltip)
+        # Hiérarchie : un seul bouton « plein » (Lancer) attire l'œil ; les actions
+        # négatives (Annuler / Réinitialiser) sont en rouge discret ; tout le reste
+        # en contour neutre. Reprendre, Pause… restent neutres (un seul accent).
         self._start_button = self._make_button("▶  Lancer", role="primary")
         self._pause_button = self._make_button("⏸  Pause", role="default")
-        self._resume_button = self._make_button("▶  Reprendre", role="primary")
+        self._resume_button = self._make_button("▶  Reprendre", role="default")
         self._cancel_button = self._make_button("✕  Annuler", role="danger")
         self._open_output_button = self._make_button(
             "📂  Dossier de sortie", role="default"
@@ -95,6 +98,7 @@ class ProjectHeaderBar(QWidget):
         self._export_button.clicked.connect(self.export_requested)
         self._reset_button.clicked.connect(self.reset_requested)
 
+        # Groupe gauche : préparation + contrôles d'exécution.
         for btn in (
             self._settings_button,
             self._estimate_cost_button,
@@ -102,12 +106,17 @@ class ProjectHeaderBar(QWidget):
             self._pause_button,
             self._resume_button,
             self._cancel_button,
+        ):
+            layout.addWidget(btn)
+        layout.addStretch(1)
+        # Groupe droite : actions sur les résultats + réinitialisation (destructive),
+        # isolées des contrôles principaux.
+        for btn in (
             self._open_output_button,
             self._export_button,
             self._reset_button,
         ):
             layout.addWidget(btn)
-        layout.addStretch(1)
         self.set_idle()
 
     def _make_button(self, text: str, *, role: str) -> QPushButton:

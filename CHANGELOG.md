@@ -7,6 +7,22 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+### Supprimé — Pédagogie (Lot 1c)
+
+- **Support `flashcards_glossary` retiré** : c'était le glossaire reformaté en
+  cartes (valeur de transformation quasi nulle). La pédagogie compte désormais
+  **8 types de supports** (tous LLM). Le glossaire reste un document de référence
+  et alimente l'injection terminologique des prompts. Les réglages persistés
+  référant l'ancien support sont tolérés (type inconnu ignoré à la lecture).
+
+### Modifié — Pédagogie (Lot 1c)
+
+- **Langues des supports découplées de la génération (#4)** : l'onglet propose
+  **toutes** les langues supportées ; les supports sont rédigés par le LLM dans la
+  langue choisie même si le document source est dans une autre langue.
+  L'orchestrateur résout une langue de contenu (doc consolidé existant : la cible,
+  sinon la langue source, sinon la première produite) distincte de la langue cible.
+
 ### Corrigé — Glossaire homogène (Lot 1b)
 
 - **Flashcards de glossaire vides / injection terminologique vide** : la pédagogie

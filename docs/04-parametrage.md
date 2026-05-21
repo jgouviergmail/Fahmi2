@@ -222,9 +222,9 @@ Onglet **Supports pédagogiques → ⚙ Réglages** (vue master-detail) :
 
 | Catégorie | Réglages |
 |-----------|----------|
-| **Supports** | Sélection parmi les 9 types ; case « corrigé séparé » sur les supports évaluatifs (QCM, vrai/faux, cloze, questions ouvertes, examen blanc). |
+| **Supports** | Sélection parmi les 8 types ; case « corrigé séparé » sur les supports évaluatifs (QCM, vrai/faux, cloze, questions ouvertes, examen blanc). |
 | **Difficulté** | Public cible (découverte / lycée / licence / master-expert), objectif Bloom (auto / restituer / comprendre & appliquer / analyser & au-delà), densité (légère / standard / dense), directives libres. |
-| **Langues** | Langues parmi celles **produites** par la génération (un `consolidated.{lang}.md` doit exister). |
+| **Langues** | Toutes les langues supportées : les supports sont rédigés dans la langue choisie même si le document source est dans une autre langue (l'orchestrateur résout une langue de contenu à partir d'un `consolidated.{lang}.md` existant). |
 | **Modèle & coût** | Modèle LLM, mode raisonnement + niveau d'effort, température, **plafond budget** (interrompt proprement à la frontière sûre), formats d'export (Anki/Markdown/PDF — exports au SP3). |
 
 Le bouton **Estimer le coût** donne un ordre de grandeur (par support × langue ×

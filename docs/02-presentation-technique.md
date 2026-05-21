@@ -69,7 +69,7 @@ Entités pures immuables + machines d'état :
 
 - Énumérations : `Language`, `StylePreset`, `PhaseId` (8 phases),
   `RunStatus`, `PhaseStatus`, `SttProvider`, `LLMModel`, `ReasoningEffort`, et
-  pédagogie : `SupportType` (×9), `TargetAudience`, `BloomObjective`,
+  pédagogie : `SupportType` (×8), `TargetAudience`, `BloomObjective`,
   `SupportDensity`, `ExportFormat`.
 - IDs typés : `ProjectId`, `RunId`, `VideoId` (via base `_UlidIdBase`).
 - Entités : `Term`, `Glossary`, `PhaseConfig`, `PhaseExecution`,
@@ -118,9 +118,9 @@ orchestrateur dédié léger — sans STT/ffmpeg ni état SQLite) :
 - `pedagogy/artifact_writer.py` / `artifact_reader.py` — (dé)sérialisation des
   artefacts (JSON + Markdown) et chemins.
 - `pedagogy/generators/` — `_base.py` (invocation LLM avec retry + helpers de parsing
-  JSON typé ; base per-chapitre générique + mixin évaluatif), `flashcards_glossary`
-  (sans LLM) + 8 générateurs LLM (concepts, QCM + dé-biaisage, vrai/faux, cloze,
-  questions ouvertes, fiche, points clés, examen blanc).
+  JSON typé ; base per-chapitre générique + mixin évaluatif) + 8 générateurs LLM
+  (flashcards concepts, QCM + dé-biaisage, vrai/faux, cloze, questions ouvertes,
+  fiche, points clés, examen blanc).
 - `pedagogy/labels.py` — libellés FR (public, Bloom, densité, langue, glossaire).
 
 ### 2.5 Couche `infra`
@@ -236,7 +236,7 @@ Qt PySide6 :
 - `ui/qt_event_bus.py` — adapters EventBus → Signal Qt (`QtEventBus` génération,
   `PedagogyQtEventBus` pédagogie ; bridging worker → UI thread).
 - `ui/app_main.py` — point d'entrée + DI complet (apply_theme, onglets de
-  fonctionnalité via `FeatureRegistry`, PromptsService, registre des 9 générateurs
+  fonctionnalité via `FeatureRegistry`, PromptsService, registre des 8 générateurs
   de supports).
 
 ## 3. Flux principal d'un Run
@@ -369,11 +369,13 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
 
 > Les supports pédagogiques sont produits par le `SupportsOrchestrator`
 > (`app/supports_orchestrator.py`) — orchestrateur dédié léger, **pas** le
-> `PipelineEngine` — à partir du document consolidé (parsé en chapitres) et du
-> glossaire (lu en DB sur le **dernier run COMPLETED**). Génération **idempotente**
-> (écrase) + **reprise coarse** : un support frais (hash réglages + mtime source
-> inchangés, artefact présent) est *skippé*. Première tranche livrée : **flashcards
-> glossaire** (sans LLM).
+> `PipelineEngine` — à partir du document consolidé (parsé en chapitres ; une
+> **langue de contenu** est résolue parmi les `consolidated.{lang}.md` existants) et
+> du glossaire (lu **sur disque** : `glossary_master.json`, comme le pipeline).
+> Génération **idempotente** (écrase) + **reprise coarse** : un support frais (hash
+> réglages + mtime source inchangés, artefact présent) est *skippé*. Les **8
+> supports** sont produits **par LLM** dans la **langue cible** choisie (même si le
+> document source est dans une autre langue).
 
 > **Générateurs LLM (SP2/03)** : flashcards concepts, QCM (avec **dé-biaisage
 > déterministe** de la position de la bonne réponse), vrai/faux, cloze, questions

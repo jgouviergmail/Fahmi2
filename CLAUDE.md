@@ -10,7 +10,7 @@ LLM DeepSeek. Application desktop Windows mono-utilisateur, PySide6, packagée e
 `.zip` portable (installation double-clic, ffmpeg bundlé).
 
 L'app est organisée en **onglets de fonctionnalité** (Génération ; Supports
-pédagogiques — 9 types de supports de révision avec exports Anki/Markdown/PDF) :
+pédagogiques — 8 types de supports de révision avec exports Anki/Markdown/PDF) :
 un `Project` ne porte que son nom + son emplacement, les réglages métier vivant
 par fonctionnalité (`GenerationSettings`, `PedagogySettings`).
 
@@ -78,7 +78,7 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   `PedagogySettings`, `Run`, `VideoExecution`, `PhaseExecution`, `Term`,
   `Glossary`, entités de support dans `supports.py` : `Flashcard`, `QcmItem`,
   `TrueFalseItem`, `ClozeItem`, `OpenQuestion`, `RevisionSheet`, `KeyPoints`,
-  `MockExam`, `SupportArtifact`), enums (génération + pédagogie : `SupportType`×9,
+  `MockExam`, `SupportArtifact`), enums (génération + pédagogie : `SupportType`×8,
   `TargetAudience`, `BloomObjective`, `SupportDensity`, `ExportFormat`,
   `ReasoningEffort`), IDs ULID typés, et **machines d'état** (`state_machine.py`)
   qui valident les transitions Run et Phase.
@@ -91,7 +91,8 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   `SupportGeneratorRegistry` + `build_default_support_registry`, `chapters`
   (parseur), `sources`, `events`, `manifest` (fraîcheur), `artifact_writer`/
   `artifact_reader`, `generators/` (`_base` per-chapitre + mixin évaluatif + 9
-  générateurs : flashcards glossaire **sans LLM** + 8 LLM), `labels`.
+  générateurs LLM : flashcards concepts, QCM, vrai/faux, cloze, questions
+  ouvertes, fiche, points clés, examen blanc), `labels`.
 - `infra/` — adapters (ports/adapters) : `stt/` (FasterWhisper local + OpenAI
   cloud + fakes), `llm/` (DeepSeek + `_pricing` + `invocation` + fakes),
   `audio/ffmpeg_extractor`, `anki/genanki_exporter` (`.apkg`),
@@ -165,13 +166,17 @@ checkpoint/reprise. Les phases batch sont persistées avec `video_id IS NULL`.
   `PromptsEditorDialog` exposent ça dans l'UI. Modifier un `.j2` de `defaults/`
   change la base pour tous, mais un override `%APPDATA%` le masque. Le catalogue
   couvre les 8 phases **et** les 8 templates `pedagogy_*` (tous éditables pareil).
-- **Supports pédagogiques** : générés par un **orchestrateur dédié léger**
-  (`SupportsOrchestrator`, **pas** le `PipelineEngine`) qui boucle supports ×
-  langues à partir du document consolidé (parsé en chapitres) et du glossaire (lu
-  en DB sur le **dernier run COMPLETED**). Pas de checkpoint SQLite : la **reprise
-  est *coarse*** via le `pedagogy/manifest.json` (hash des réglages + mtime source
-  par langue) — un support frais et déjà écrit est *skippé*, une source régénérée
-  **périme** les supports (bandeau d'état UI). Le `SupportsOrchestrator` applique
+- **Supports pédagogiques** : 8 types, tous LLM, générés par un **orchestrateur
+  dédié léger** (`SupportsOrchestrator`, **pas** le `PipelineEngine`) qui boucle
+  supports × langues. Les entrants sont lus **sur disque** comme le pipeline :
+  document consolidé (parsé en chapitres ; une **langue de contenu** est résolue
+  parmi les `consolidated.{lang}.md` existants — la langue cible peut donc différer)
+  et glossaire (`glossary_master.json` ; pas de table SQLite). Les supports sont
+  rédigés par le LLM dans la **langue cible** choisie, indépendamment de la langue
+  du document source. Pas de checkpoint SQLite : la **reprise est *coarse*** via le
+  `pedagogy/manifest.json` (hash des réglages + mtime source par langue) — un support
+  frais et déjà écrit est *skippé*, une source régénérée **périme** les supports
+  (bandeau d'état UI). Le `SupportsOrchestrator` applique
   un **plafond de coût** (`PedagogyCostEstimator`). Les générateurs LLM partagent
   le retry du pipeline (`core/retry/classification.default_classify`) via
   `pedagogy/generators/_base.py` (parsing JSON typé). Les supports **évaluatifs**

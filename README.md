@@ -127,7 +127,7 @@ estimation de coût alignée sur l'usage réel (thinking pris en compte).
 Cf. [CHANGELOG.md](CHANGELOG.md).
 
 Interface réorganisée en **onglets de fonctionnalité** (Génération + Supports
-pédagogiques : 9 types de supports de révision générés à partir du document
+pédagogiques : 8 types de supports de révision générés à partir du document
 consolidé et du glossaire) ; identité projet réduite à nom + emplacement, réglages
 par fonctionnalité.
 

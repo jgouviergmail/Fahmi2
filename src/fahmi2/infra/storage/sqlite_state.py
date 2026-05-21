@@ -47,7 +47,7 @@ from fahmi2.domain.enums import (
 )
 from fahmi2.domain.generation import GenerationSettings, ParallelismConfig
 from fahmi2.domain.ids import ProjectId, RunId, VideoId
-from fahmi2.domain.pedagogy import PedagogySettings
+from fahmi2.domain.pedagogy import DEFAULT_PEDAGOGY_LLM_WORKERS, PedagogySettings
 from fahmi2.domain.phase import PhaseConfig, PhaseExecution
 from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
@@ -221,6 +221,7 @@ def _serialize_pedagogy_settings(ped: PedagogySettings) -> dict[str, Any]:
         },
         "cost_ceiling_usd": ped.cost_ceiling_usd,
         "export_formats": sorted(f.value for f in ped.export_formats),
+        "llm_workers": ped.llm_workers,
     }
 
 
@@ -275,6 +276,7 @@ def _deserialize_pedagogy_settings(payload: dict[str, Any]) -> PedagogySettings:
         ),
         cost_ceiling_usd=payload["cost_ceiling_usd"],
         export_formats=frozenset(ExportFormat(f) for f in payload["export_formats"]),
+        llm_workers=int(payload.get("llm_workers", DEFAULT_PEDAGOGY_LLM_WORKERS)),
     )
 
 

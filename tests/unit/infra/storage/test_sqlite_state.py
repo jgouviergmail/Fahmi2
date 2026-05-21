@@ -13,10 +13,16 @@ from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import PhaseId, PhaseStatus, RunStatus
 from fahmi2.domain.ids import ProjectId, RunId, VideoId
+from fahmi2.domain.pedagogy import DEFAULT_PEDAGOGY_LLM_WORKERS
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
-from fahmi2.infra.storage.sqlite_state import SCHEMA_VERSION, SqliteState
+from fahmi2.infra.storage.sqlite_state import (
+    SCHEMA_VERSION,
+    SqliteState,
+    _deserialize_pedagogy_settings,
+    _serialize_pedagogy_settings,
+)
 
 
 def _ts(s: str = "2026-05-19T12:00:00") -> datetime:
@@ -485,3 +491,19 @@ def test_legacy_v1_blob_has_no_pedagogy(tmp_path: Path) -> None:
         project = state.get_project(pid)
         assert project is not None
         assert project.pedagogy is None
+
+
+def test_pedagogy_llm_workers_round_trip(make_pedagogy_settings: Any) -> None:
+    ped = make_pedagogy_settings(llm_workers=8)
+    payload = _serialize_pedagogy_settings(ped)
+    assert payload["llm_workers"] == 8
+    assert _deserialize_pedagogy_settings(payload).llm_workers == 8
+
+
+def test_pedagogy_llm_workers_missing_uses_default(
+    make_pedagogy_settings: Any,
+) -> None:
+    payload = _serialize_pedagogy_settings(make_pedagogy_settings())
+    del payload["llm_workers"]  # simule un blob écrit avant l'ajout du champ
+    restored = _deserialize_pedagogy_settings(payload)
+    assert restored.llm_workers == DEFAULT_PEDAGOGY_LLM_WORKERS

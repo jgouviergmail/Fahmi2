@@ -7,6 +7,16 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+### Modifié — Estimation de coût (Lot 3d)
+
+- **Estimation pré-run granulaire + fourchette** : le dialogue « Estimer le coût »
+  décompose le budget **par phase** (génération) / **par support** (pédagogie) et
+  affiche le total sous forme de **fourchette ±33 %** (« estimation indicative » :
+  `≈ $X` + `fourchette $low – $high`), avec un **avertissement** si le haut de
+  fourchette peut dépasser le plafond. Les deux dialogues partagent le même rendu
+  (`ui/cost_estimate_dialog`). `CostEstimation.per_phase_usd` et
+  `low_usd`/`high_usd` ajoutés (constante partagée `ESTIMATE_UNCERTAINTY_RATIO`).
+
 ### Modifié — Dashboard génération (Lot 3c)
 
 - **Matrice Génération migrée vers le composant partagé `CostMatrixView`** :

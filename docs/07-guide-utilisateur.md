@@ -74,9 +74,11 @@ Validez : l'aperçu des vidéos détectées s'affiche dans le cockpit.
    **Supports pédagogiques** (flashcards, QCM, fiches… à générer une fois la
    Génération terminée — voir §8).
 2. (Optionnel mais recommandé) Cliquez sur **💵 Estimer le coût** pour
-   voir le budget prévu avant de lancer. Le dialogue affiche les
-   vidéos détectées, la durée totale, le coût STT, le coût LLM (en
-   tenant compte du mode raisonnement si activé) et le total estimé.
+   voir le budget prévu avant de lancer. Le dialogue affiche les vidéos
+   détectées, la durée totale, une **décomposition par phase** (en tenant
+   compte du mode raisonnement si activé) et un **total sous forme de
+   fourchette indicative** (≈ X, fourchette ±33 %), avec un avertissement
+   si le haut de fourchette peut dépasser le plafond.
 3. Cliquez sur **▶ Lancer** en haut.
 
 La grille au centre commence à se remplir :

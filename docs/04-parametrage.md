@@ -103,7 +103,10 @@ L'arrêt est toujours **propre** : jamais d'interruption au milieu d'un
 appel LLM en cours. La pause se produit à la prochaine frontière sûre.
 
 **Estimation pré-run accessible à tout moment** depuis la barre
-d'en-tête (bouton **💵 Estimer le coût**). Le calcul intègre :
+d'en-tête (bouton **💵 Estimer le coût**). Le dialogue présente une
+**décomposition par phase** et un **total sous forme de fourchette ±33 %**
+(« estimation indicative »), avec un avertissement si le haut de fourchette
+peut dépasser le plafond. Le calcul intègre :
 
 - La durée audio totale des vidéos détectées (probe `ffprobe`).
 - Le provider STT (`faster_whisper_local` = gratuit, `openai_cloud` =

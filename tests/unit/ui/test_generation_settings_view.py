@@ -43,3 +43,34 @@ def test_edit_mode_prefills_and_returns(
     assert result is not None
     assert result.input_folder == Path("D:/Cours")
     assert Language.EN in result.output_languages
+
+
+def test_create_mode_deletes_audio_by_default(qtbot: QtBot) -> None:
+    view = GenerationSettingsView(_HW, initial=None)
+    qtbot.addWidget(view)
+    view._input_folder_input.setText("D:/Cours")  # noqa: SLF001 — satisfait la validation
+    assert view._keep_audio_checkbox.isChecked() is False  # noqa: SLF001
+    view._on_accept()  # noqa: SLF001
+    result = view.get_generation_settings()
+    assert result is not None
+    assert result.delete_audio_after_stt is True  # case décochée → suppression
+
+
+def test_keep_audio_checkbox_preserves_audio(qtbot: QtBot) -> None:
+    view = GenerationSettingsView(_HW, initial=None)
+    qtbot.addWidget(view)
+    view._input_folder_input.setText("D:/Cours")  # noqa: SLF001
+    view._keep_audio_checkbox.setChecked(True)  # noqa: SLF001
+    view._on_accept()  # noqa: SLF001
+    result = view.get_generation_settings()
+    assert result is not None
+    assert result.delete_audio_after_stt is False  # case cochée → conservation
+
+
+def test_edit_mode_reflects_keep_audio(
+    qtbot: QtBot, make_generation_settings: Any
+) -> None:
+    gen = make_generation_settings(delete_audio_after_stt=False)
+    view = GenerationSettingsView(_HW, initial=gen)
+    qtbot.addWidget(view)
+    assert view._keep_audio_checkbox.isChecked() is True  # noqa: SLF001

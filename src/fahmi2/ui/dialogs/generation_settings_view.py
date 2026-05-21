@@ -52,6 +52,12 @@ _DIRECTIVES_PLACEHOLDER = (
     "rigoureux, exemples concrets, éviter le jargon inutile »."
 )
 
+_KEEP_AUDIO_LABEL = "Conserver les fichiers audio extraits"
+_KEEP_AUDIO_TOOLTIP = (
+    "Si coché, les fichiers .wav extraits des vidéos ne sont pas supprimés "
+    "après la transcription (utile pour réécouter / déboguer)."
+)
+
 
 class GenerationSettingsView(QDialog):
     """Dialogue d'édition des réglages de génération (master-detail)."""
@@ -148,6 +154,9 @@ class GenerationSettingsView(QDialog):
             self._stt_combo.addItem(provider.value, provider)
         self._stt_combo.currentIndexChanged.connect(self._on_stt_changed)
 
+        self._keep_audio_checkbox = QCheckBox(_KEEP_AUDIO_LABEL, self)
+        self._keep_audio_checkbox.setToolTip(_KEEP_AUDIO_TOOLTIP)
+
         self._llm_combo = QComboBox(self)
         for model in LLMModel:
             self._llm_combo.addItem(model.value, model)
@@ -211,6 +220,7 @@ class GenerationSettingsView(QDialog):
         outer = QVBoxLayout(page)
         form = QFormLayout()
         form.addRow("Provider STT :", self._stt_combo)
+        form.addRow(self._keep_audio_checkbox)
         outer.addLayout(form)
         outer.addStretch(1)
         return page
@@ -290,6 +300,7 @@ class GenerationSettingsView(QDialog):
         stt_idx = self._stt_combo.findData(generation.stt_provider)
         if stt_idx >= 0:
             self._stt_combo.setCurrentIndex(stt_idx)
+        self._keep_audio_checkbox.setChecked(not generation.delete_audio_after_stt)
         llm_idx = self._llm_combo.findData(generation.llm_model)
         if llm_idx >= 0:
             self._llm_combo.setCurrentIndex(llm_idx)
@@ -328,6 +339,6 @@ class GenerationSettingsView(QDialog):
             phases_config=self._phase_configs_widget.get_phase_configs(),
             cost_ceiling_usd=cost_ceiling,
             parallelism=ParallelismConfig(),
-            delete_audio_after_stt=True,
+            delete_audio_after_stt=not self._keep_audio_checkbox.isChecked(),
         )
         self.accept()

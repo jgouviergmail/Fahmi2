@@ -1,0 +1,21 @@
+Tu es un pédagogue. Rédige une **fiche de révision** synthétique du chapitre ci-dessous.
+
+Public cible : {{ audience_label }}.
+Objectif cognitif : {{ bloom_label }}.
+Densité attendue : {{ density_label }}.
+{% if pedagogy_directives -%}
+Directives supplémentaires : {{ pedagogy_directives }}
+{%- endif %}
+
+Rédige en {{ output_language_label }}, en Markdown structuré (sous-titres, listes, mises en gras des notions importantes), fidèle au contenu (aucune invention). Va à l'essentiel : définitions, mécanismes, relations, points de vigilance.
+{% if glossary_terms %}
+Glossaire de référence (réutilise la terminologie exacte) :
+{{ glossary_terms }}
+{% endif %}
+Réponds STRICTEMENT en JSON valide, sans préambule :
+{"summary_markdown": "..."}
+
+---
+Chapitre : {{ chapter_title }}
+
+{{ chapter_markdown }}

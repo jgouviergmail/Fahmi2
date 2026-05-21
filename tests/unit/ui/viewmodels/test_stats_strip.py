@@ -23,12 +23,16 @@ from fahmi2.ui.viewmodels.stats_strip import StatsStripViewModel
 
 
 def _setup(
-    tmp_path: Path, make_settings: Any, *, n_videos: int = 2
+    tmp_path: Path, make_generation_settings: Any, *, n_videos: int = 2
 ) -> tuple[SqliteState, Run, PhaseRegistry]:
     state = SqliteState(tmp_path / "t.db")
-    settings = make_settings()
+    settings = make_generation_settings()
     project = Project(
-        id=ProjectId.new(), settings=settings, created_at=datetime.now(tz=UTC)
+        id=ProjectId.new(),
+        name="Test",
+        workspace_folder=tmp_path / "ws",
+        created_at=datetime.now(tz=UTC),
+        generation=settings,
     )
     state.upsert_project(project)
     videos = tuple(
@@ -54,8 +58,8 @@ def _setup(
     return state, run, registry
 
 
-def test_snapshot_zero_when_run_starts(tmp_path: Path, make_settings: Any) -> None:
-    state, run, registry = _setup(tmp_path, make_settings)
+def test_snapshot_zero_when_run_starts(tmp_path: Path, make_generation_settings: Any) -> None:
+    state, run, registry = _setup(tmp_path, make_generation_settings)
     vm = StatsStripViewModel(state=state, registry=registry)
     snap = vm.snapshot(run)
     assert snap.videos_total == 2
@@ -64,9 +68,9 @@ def test_snapshot_zero_when_run_starts(tmp_path: Path, make_settings: Any) -> No
 
 
 def test_snapshot_counts_completed_videos(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    state, run, registry = _setup(tmp_path, make_settings)
+    state, run, registry = _setup(tmp_path, make_generation_settings)
     # Marquer toutes les phases per-video succeeded pour video[0]
     per_video_phase_ids = [
         h.phase_id for h in registry.ordered_handlers() if h.is_per_video
@@ -82,8 +86,8 @@ def test_snapshot_counts_completed_videos(
     assert snap.videos_completed == 1
 
 
-def test_snapshot_accumulates_cost(tmp_path: Path, make_settings: Any) -> None:
-    state, run, registry = _setup(tmp_path, make_settings)
+def test_snapshot_accumulates_cost(tmp_path: Path, make_generation_settings: Any) -> None:
+    state, run, registry = _setup(tmp_path, make_generation_settings)
     state.upsert_phase_execution(
         run.id,
         PhaseExecution(
@@ -108,9 +112,9 @@ def test_snapshot_accumulates_cost(tmp_path: Path, make_settings: Any) -> None:
 
 
 def test_snapshot_reports_run_status(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    state, run, registry = _setup(tmp_path, make_settings)
+    state, run, registry = _setup(tmp_path, make_generation_settings)
     vm = StatsStripViewModel(state=state, registry=registry)
     snap = vm.snapshot(run)
     assert snap.run_status is RunStatus.RUNNING

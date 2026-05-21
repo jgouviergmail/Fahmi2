@@ -26,42 +26,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from fahmi2.domain.enums import LLMModel, PhaseId, ReasoningEffort, SttProvider
+from fahmi2.app._cost_common import (
+    TOKENS_PER_WORD,
+    WORDS_PER_MINUTE_ORAL,
+    thinking_output_multiplier,
+)
+from fahmi2.domain.enums import LLMModel, PhaseId, SttProvider
 from fahmi2.domain.phase import PhaseConfig
 from fahmi2.infra.llm._pricing import get_pricing
 
 _USD_PER_MINUTE_OPENAI_WHISPER = 0.006
 _SECONDS_PER_MINUTE = 60.0
-_WORDS_PER_MINUTE_ORAL = 150.0
-_TOKENS_PER_WORD = 1.3
-
-# Multiplicateurs empiriques appliqués aux tokens de **sortie** quand le mode
-# thinking est activé. Les tokens de raisonnement sont facturés au tarif
-# output standard, ce qui explique le surcoût important du mode thinking.
-_THINKING_OUTPUT_MULTIPLIER_DEFAULT = 2.5
-_THINKING_OUTPUT_MULTIPLIER_HIGH = 3.5
-_THINKING_OUTPUT_MULTIPLIER_MAX = 6.0
-
-
-def _thinking_output_multiplier(config: PhaseConfig | None) -> float:
-    """Retourne le multiplicateur de tokens de sortie pour une phase.
-
-    Args:
-        config: Configuration de la phase, ou ``None`` pour ignorer le
-            thinking (estimation conservatrice « sans thinking »).
-
-    Returns:
-        Multiplicateur à appliquer aux ``completion_tokens`` estimés
-        (``1.0`` si thinking désactivé, sinon un facteur entre 2.5 et 6
-        selon le ``reasoning_effort``).
-    """
-    if config is None or not config.thinking_enabled:
-        return 1.0
-    if config.reasoning_effort is ReasoningEffort.MAX:
-        return _THINKING_OUTPUT_MULTIPLIER_MAX
-    if config.reasoning_effort is ReasoningEffort.HIGH:
-        return _THINKING_OUTPUT_MULTIPLIER_HIGH
-    return _THINKING_OUTPUT_MULTIPLIER_DEFAULT
 
 
 @dataclass(frozen=True)
@@ -76,8 +51,11 @@ class _PhaseLoadFactor:
         batch_input_multiplier: Multiplicateur appliqué sur le total vidéo
             pour la phase batch.
         batch_output_factor: Sortie batch fixe en multiples du volume vidéo.
-        sub_loop_per_video: Si non-None, multiplicateur d'un sous-appel par
-            vidéo (utilisé par phase 5).
+        sub_loop_per_video: Si non-None, multiplicateur d'entrée d'un sous-appel
+            par vidéo (utilisé par phase 5).
+        sub_loop_output_factor: Multiplicateur de sortie du sous-appel par vidéo
+            (relatif au volume vidéo), appliqué quand ``sub_loop_per_video`` est
+            défini.
     """
 
     input_per_video: float
@@ -86,6 +64,7 @@ class _PhaseLoadFactor:
     batch_input_multiplier: float = 0.0
     batch_output_factor: float = 0.0
     sub_loop_per_video: float | None = None
+    sub_loop_output_factor: float = 0.0
 
 
 _LOAD_FACTORS: dict[PhaseId, _PhaseLoadFactor] = {
@@ -118,6 +97,7 @@ _LOAD_FACTORS: dict[PhaseId, _PhaseLoadFactor] = {
         batch_input_multiplier=0.3,
         batch_output_factor=0.5,
         sub_loop_per_video=0.2,
+        sub_loop_output_factor=0.1,
     ),
     PhaseId.TRANSLATION: _PhaseLoadFactor(
         input_per_video=1.0,
@@ -242,13 +222,13 @@ class CostEstimator:
         base_tokens_per_video = (
             (total_audio_seconds / _SECONDS_PER_MINUTE)
             / max(n_videos, 1)
-            * _WORDS_PER_MINUTE_ORAL
-            * _TOKENS_PER_WORD
+            * WORDS_PER_MINUTE_ORAL
+            * TOKENS_PER_WORD
         )
 
         total = 0.0
         for phase_id, factor in _LOAD_FACTORS.items():
-            thinking_mult = _thinking_output_multiplier(phases_config.get(phase_id))
+            thinking_mult = thinking_output_multiplier(phases_config.get(phase_id))
             if factor.is_per_video:
                 multiplier = (
                     translation_languages_count
@@ -297,7 +277,11 @@ class CostEstimator:
                         * base_tokens_per_video
                         * n_videos
                     )
-                    sub_output = 0.1 * base_tokens_per_video * n_videos
+                    sub_output = (
+                        factor.sub_loop_output_factor
+                        * base_tokens_per_video
+                        * n_videos
+                    )
                     total += pricing.cost_for(
                         prompt_tokens=int(sub_input),
                         completion_tokens=int(sub_output * thinking_mult),

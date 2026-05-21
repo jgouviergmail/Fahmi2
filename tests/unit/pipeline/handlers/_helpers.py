@@ -50,7 +50,7 @@ def write_transcription_fixture(
 
 def build_phase_context(
     tmp_path: Path,
-    make_settings: Any,
+    make_generation_settings: Any,
     *,
     llm_response: LLMResponse | None = None,
     videos: tuple[Any, ...] = (),
@@ -60,24 +60,22 @@ def build_phase_context(
 
     Args:
         tmp_path: Dossier temporaire de test.
-        make_settings: Factory de ``ProjectSettings``.
+        make_generation_settings: Factory de ``GenerationSettings``.
         llm_response: Réponse fixe à retourner pour tous les appels LLM.
         videos: Tuple de ``VideoExecution`` à attacher au Run.
-        settings_overrides: Overrides additionnels pour ``ProjectSettings``.
+        settings_overrides: Overrides additionnels pour ``GenerationSettings``.
 
     Returns:
         Tuple ``(ctx, run)`` avec le projet/run déjà persistés.
     """
-    overrides = {
-        "workspace_folder": tmp_path / "workspace",
-        **(settings_overrides or {}),
-    }
-    settings = make_settings(**overrides)
+    settings = make_generation_settings(**(settings_overrides or {}))
     state = SqliteState(tmp_path / "state.db")
     project = Project(
         id=ProjectId.new(),
-        settings=settings,
+        name="Test",
+        workspace_folder=tmp_path / "workspace",
         created_at=datetime.now(tz=UTC),
+        generation=settings,
     )
     state.upsert_project(project)
     run = Run(

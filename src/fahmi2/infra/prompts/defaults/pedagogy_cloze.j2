@@ -1,0 +1,21 @@
+Tu es un concepteur d'évaluations. À partir du chapitre ci-dessous, rédige des **textes à trous** (cloze).
+
+Public cible : {{ audience_label }}.
+Objectif cognitif : {{ bloom_label }}.
+Densité attendue : {{ density_label }}.
+{% if pedagogy_directives -%}
+Directives supplémentaires : {{ pedagogy_directives }}
+{%- endif %}
+
+Rédige en {{ output_language_label }}. Chaque ``text`` est une phrase fidèle au contenu où les notions clés sont remplacées par le marqueur ``___`` (un marqueur par trou). ``answers`` liste les réponses **dans l'ordre des trous**. Aucune invention.
+{% if glossary_terms %}
+Glossaire de référence (réutilise la terminologie exacte) :
+{{ glossary_terms }}
+{% endif %}
+Réponds STRICTEMENT en JSON valide, sans préambule :
+{"items": [{"text": "... ___ ...", "answers": ["..."]}, ...]}
+
+---
+Chapitre : {{ chapter_title }}
+
+{{ chapter_markdown }}

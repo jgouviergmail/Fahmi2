@@ -36,12 +36,12 @@ def test_handler_metadata() -> None:
 
 
 def test_execute_writes_reformulated_markdown(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
     ctx, _ = build_phase_context(
         tmp_path,
-        make_settings,
+        make_generation_settings,
         llm_response=_llm("Texte reformulé."),
         videos=(video,),
     )
@@ -54,12 +54,12 @@ def test_execute_writes_reformulated_markdown(
 
 
 def test_execute_includes_top_k_glossary_terms_in_prompt(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
     ctx, _ = build_phase_context(
         tmp_path,
-        make_settings,
+        make_generation_settings,
         llm_response=_llm("ok"),
         videos=(video,),
     )
@@ -87,10 +87,10 @@ def test_execute_includes_top_k_glossary_terms_in_prompt(
 
 
 def test_execute_raises_when_transcription_missing(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
-    ctx, _ = build_phase_context(tmp_path, make_settings, videos=(video,))
+    ctx, _ = build_phase_context(tmp_path, make_generation_settings, videos=(video,))
     handler = Phase3ReformulationHandler()
     with pytest.raises(StorageError) as exc_info:
         handler.execute(ctx, video=video)
@@ -98,21 +98,21 @@ def test_execute_raises_when_transcription_missing(
 
 
 def test_execute_raises_when_video_is_none(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    ctx, _ = build_phase_context(tmp_path, make_settings)
+    ctx, _ = build_phase_context(tmp_path, make_generation_settings)
     handler = Phase3ReformulationHandler()
     with pytest.raises(ValueError, match="VideoExecution"):
         handler.execute(ctx, video=None)
 
 
 def test_execute_works_when_glossary_master_absent(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
     ctx, _ = build_phase_context(
         tmp_path,
-        make_settings,
+        make_generation_settings,
         llm_response=_llm("ok"),
         videos=(video,),
     )

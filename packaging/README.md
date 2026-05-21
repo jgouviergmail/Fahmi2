@@ -99,12 +99,35 @@ dist/Fahmi2/
 ├── ffprobe.exe                      ← Bundlé (depuis vendor/)
 ├── *.dll, *.pyd                     ← Runtime Python + PySide6
 ├── _internal/
-│   └── fahmi2/
-│       ├── core/errors/messages.fr.json
-│       ├── infra/prompts/defaults/*.j2
-│       └── infra/storage/_schema.sql
+│   ├── fahmi2/
+│   │   ├── core/errors/messages.fr.json
+│   │   ├── infra/prompts/defaults/*.j2   ← 8 phases + 8 pedagogy_*
+│   │   └── infra/storage/_schema.sql
+│   └── genanki/                          ← données collectées (apkg_schema.sql, apkg_col.anki2)
 └── …
 ```
+
+### Dépendances supports pédagogiques (genanki / markdown / fpdf2)
+
+Les exports des supports de révision (Anki / Markdown / PDF) ajoutent trois
+dépendances à collecter par PyInstaller. À vérifier dans `packaging/fahmi2.spec`
+(gitignored — modification non versionnée) au prochain build :
+
+- **`genanki`** (export `.apkg`) embarque des **fichiers de données**
+  (`apkg_schema.sql`, `apkg_col.anki2`) qui ne sont pas détectés par l'analyse
+  d'imports : les collecter explicitement via `--collect-data genanki` (CLI) ou
+  `collect_data_files('genanki')` dans le `.spec`. Sans cela, l'export plante au
+  runtime (fichier de données introuvable).
+- **`markdown`** et **`fpdf2`** (export Markdown / PDF), avec leurs dépendances
+  transitives **`Pillow`**, **`fontTools`**, **`defusedxml`** : modules purs
+  normalement collectés automatiquement ; les ajouter en `hiddenimports` si
+  l'analyse PyInstaller en manque.
+- **Police PDF** : le rendu PDF s'appuie sur la police **Arial du système
+  Windows** (`%SystemRoot%\Fonts\arial*.ttf`) — **aucune police à bundler**, mais
+  l'EXE en dépend à l'exécution (toujours présent sur une cible Windows). Les
+  polices cœur de `fpdf2` étant latin-1, elles plantent sur la typographie
+  française (tiret cadratin, points de suspension) : c'est pourquoi Arial Unicode
+  est imposé.
 
 ### Résolution runtime du ffmpeg bundlé
 

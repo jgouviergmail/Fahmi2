@@ -61,14 +61,13 @@ def short_mp4_with_audio(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 def _make_context(
     tmp_path: Path,
-    make_settings: Any,
+    make_generation_settings: Any,
     stt: FakeSTTProvider,
     video_source: Path,
     *,
     delete_audio_after_stt: bool = True,
 ) -> tuple[PhaseContext, VideoExecution]:
-    settings = make_settings(
-        workspace_folder=tmp_path / "workspace",
+    settings = make_generation_settings(
         delete_audio_after_stt=delete_audio_after_stt,
     )
     project_id = ProjectId.new()
@@ -116,12 +115,12 @@ def test_handler_metadata() -> None:
 
 
 def test_execute_writes_transcription_json(
-    tmp_path: Path, make_settings: Any, short_mp4_with_audio: Path
+    tmp_path: Path, make_generation_settings: Any, short_mp4_with_audio: Path
 ) -> None:
     stt = FakeSTTProvider(scenarios={
         short_mp4_with_audio.stem + ".wav": _scripted_transcription(),
     })
-    ctx, video = _make_context(tmp_path, make_settings, stt, short_mp4_with_audio)
+    ctx, video = _make_context(tmp_path, make_generation_settings, stt, short_mp4_with_audio)
     # On force le video_id à mapper sur le nom de fichier WAV pour le scénario
     # — en réalité on utilise le fake générique qui sert toutes les requêtes.
     handler = Phase0SttHandler()
@@ -136,11 +135,11 @@ def test_execute_writes_transcription_json(
 
 
 def test_execute_deletes_audio_when_enabled(
-    tmp_path: Path, make_settings: Any, short_mp4_with_audio: Path
+    tmp_path: Path, make_generation_settings: Any, short_mp4_with_audio: Path
 ) -> None:
     stt = FakeSTTProvider()
     ctx, video = _make_context(
-        tmp_path, make_settings, stt, short_mp4_with_audio, delete_audio_after_stt=True
+        tmp_path, make_generation_settings, stt, short_mp4_with_audio, delete_audio_after_stt=True
     )
     handler = Phase0SttHandler()
     handler.execute(ctx, video=video)
@@ -149,12 +148,12 @@ def test_execute_deletes_audio_when_enabled(
 
 
 def test_execute_keeps_audio_when_disabled(
-    tmp_path: Path, make_settings: Any, short_mp4_with_audio: Path
+    tmp_path: Path, make_generation_settings: Any, short_mp4_with_audio: Path
 ) -> None:
     stt = FakeSTTProvider()
     ctx, video = _make_context(
         tmp_path,
-        make_settings,
+        make_generation_settings,
         stt,
         short_mp4_with_audio,
         delete_audio_after_stt=False,
@@ -166,20 +165,20 @@ def test_execute_keeps_audio_when_disabled(
 
 
 def test_execute_raises_when_video_is_none(
-    tmp_path: Path, make_settings: Any, short_mp4_with_audio: Path
+    tmp_path: Path, make_generation_settings: Any, short_mp4_with_audio: Path
 ) -> None:
     stt = FakeSTTProvider()
-    ctx, _ = _make_context(tmp_path, make_settings, stt, short_mp4_with_audio)
+    ctx, _ = _make_context(tmp_path, make_generation_settings, stt, short_mp4_with_audio)
     handler = Phase0SttHandler()
     with pytest.raises(ValueError, match="VideoExecution"):
         handler.execute(ctx, video=None)
 
 
 def test_execute_propagates_ffmpeg_errors(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     # On utilise un FFmpegExtractor avec un binaire inexistant.
-    settings = make_settings(workspace_folder=tmp_path / "workspace")
+    settings = make_generation_settings()
     run = Run(
         id=RunId.new(),
         project_id=ProjectId.new(),
@@ -211,9 +210,9 @@ def test_execute_propagates_ffmpeg_errors(
 
 
 def test_execute_reports_severity_on_failure(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    settings = make_settings(workspace_folder=tmp_path / "workspace")
+    settings = make_generation_settings()
     state = SqliteState(tmp_path / "state.db")
     run = Run(
         id=RunId.new(),
@@ -244,10 +243,10 @@ def test_execute_reports_severity_on_failure(
     assert exc_info.value.severity is Severity.ERROR
 
 
-def test_mocked_full_path(tmp_path: Path, make_settings: Any) -> None:
+def test_mocked_full_path(tmp_path: Path, make_generation_settings: Any) -> None:
     # Test sans dépendre réellement de ffmpeg : on mock le FFmpegExtractor
     # pour vérifier que la chaîne d'écriture fonctionne avec un STT scripté.
-    settings = make_settings(workspace_folder=tmp_path / "workspace")
+    settings = make_generation_settings()
     run = Run(
         id=RunId.new(),
         project_id=ProjectId.new(),

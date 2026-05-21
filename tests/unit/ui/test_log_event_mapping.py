@@ -1,4 +1,4 @@
-"""Tests du mapping ``PipelineEvent`` → ``LogEvent`` (run_controller).
+"""Tests du mapping ``PipelineEvent`` → ``LogEvent`` (generation_controller).
 
 Vérifie en particulier que les phases en échec exposent le détail
 d'erreur (code, user_message, technical_details) dans le message du
@@ -20,7 +20,10 @@ from fahmi2.pipeline.events import (
     RunFinished,
     RunStarted,
 )
-from fahmi2.ui.run_controller import _format_technical_details, _to_log_event
+from fahmi2.ui.generation_controller import (
+    _format_technical_details,
+    _to_log_event,
+)
 
 
 def _now() -> datetime:

@@ -39,12 +39,12 @@ def test_handler_metadata() -> None:
 
 
 def test_execute_writes_structured_markdown(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
     ctx, _ = build_phase_context(
         tmp_path,
-        make_settings,
+        make_generation_settings,
         llm_response=_llm("# Titre\n\n## Intro\n\n…"),
         videos=(video,),
     )
@@ -58,10 +58,10 @@ def test_execute_writes_structured_markdown(
 
 
 def test_execute_raises_when_reformulated_missing(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
-    ctx, _ = build_phase_context(tmp_path, make_settings, videos=(video,))
+    ctx, _ = build_phase_context(tmp_path, make_generation_settings, videos=(video,))
     handler = Phase4StructurationHandler()
     with pytest.raises(StorageError) as exc_info:
         handler.execute(ctx, video=video)
@@ -69,9 +69,9 @@ def test_execute_raises_when_reformulated_missing(
 
 
 def test_execute_raises_when_video_is_none(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    ctx, _ = build_phase_context(tmp_path, make_settings)
+    ctx, _ = build_phase_context(tmp_path, make_generation_settings)
     handler = Phase4StructurationHandler()
     with pytest.raises(ValueError, match="VideoExecution"):
         handler.execute(ctx, video=None)

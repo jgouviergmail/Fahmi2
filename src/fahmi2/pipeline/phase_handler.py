@@ -14,8 +14,8 @@ from pathlib import Path
 
 from fahmi2.core.retrieval.interface import GlossaryRetriever
 from fahmi2.domain.enums import PhaseId
+from fahmi2.domain.generation import GenerationSettings
 from fahmi2.domain.phase import PhaseExecution
-from fahmi2.domain.project import ProjectSettings
 from fahmi2.domain.run import Run
 from fahmi2.domain.video import VideoExecution
 from fahmi2.infra.audio.ffmpeg_extractor import FFmpegExtractor
@@ -25,6 +25,7 @@ from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.infra.stt.interface import STTProvider
 from fahmi2.pipeline.event_bus import EventBus
+from fahmi2.pipeline.events import PipelineEvent
 from fahmi2.pipeline.pause_token import PauseToken
 
 
@@ -34,7 +35,7 @@ class PhaseContext:
 
     Attributes:
         run: Run en cours.
-        settings: Snapshot des paramètres du projet.
+        settings: Snapshot des ``GenerationSettings`` du projet.
         workspace: Dossier de travail du run (artefacts intermédiaires).
         output_dir: Dossier des livrables finaux.
         state: Accès SQLite à l'état du pipeline.
@@ -49,7 +50,7 @@ class PhaseContext:
     """
 
     run: Run
-    settings: ProjectSettings
+    settings: GenerationSettings
     workspace: Path
     output_dir: Path
     state: SqliteState
@@ -60,7 +61,7 @@ class PhaseContext:
     retriever: GlossaryRetriever
     prompts: PromptLoader
     pause_token: PauseToken
-    event_bus: EventBus
+    event_bus: EventBus[PipelineEvent]
 
 
 class PhaseHandler(ABC):

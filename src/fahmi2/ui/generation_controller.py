@@ -1,4 +1,4 @@
-"""``RunController`` — orchestration du lifecycle Run côté UI.
+"""``GenerationController`` — orchestration du lifecycle Run de l'onglet Génération.
 
 Cette classe :
 
@@ -16,15 +16,13 @@ Cette classe :
 from __future__ import annotations
 
 import shutil
-import subprocess
-import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 
-from PySide6.QtCore import QObject, Qt, QThread, QUrl, Signal
-from PySide6.QtGui import QCursor, QDesktopServices
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtCore import QObject, Qt, QThread, Signal
+from PySide6.QtGui import QCursor
+from PySide6.QtWidgets import QApplication, QDialog, QMessageBox, QWidget
 
 from fahmi2.app.cost_estimator import CostEstimation, CostEstimator
 from fahmi2.app.hardware_probe import HardwareInfo
@@ -40,6 +38,10 @@ from fahmi2.core.logging.event import LogEvent
 from fahmi2.core.retrieval.interface import PassthroughRetriever
 from fahmi2.core.retry.policy import RetryPolicy
 from fahmi2.domain.enums import RunStatus, SttProvider
+from fahmi2.domain.generation import (
+    GENERATION_OUTPUT_SUBDIR,
+    GENERATION_WORKSPACE_SUBDIR,
+)
 from fahmi2.domain.ids import ProjectId
 from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
@@ -76,10 +78,15 @@ from fahmi2.pipeline.handlers.phase_7_coherence import Phase7CoherenceHandler
 from fahmi2.pipeline.pause_token import PauseToken
 from fahmi2.pipeline.phase_handler import PhaseContext
 from fahmi2.pipeline.phase_registry import PhaseRegistry
-from fahmi2.ui.main_window import MainWindow
+from fahmi2.ui._file_explorer import open_in_file_explorer
+from fahmi2.ui.dialogs.generation_settings_view import GenerationSettingsView
 from fahmi2.ui.qt_event_bus import QtEventBus
 from fahmi2.ui.viewmodels.run_matrix import RunMatrixViewModel
 from fahmi2.ui.viewmodels.stats_strip import StatsStripViewModel
+from fahmi2.ui.widgets.logs_dock import LogsDock
+from fahmi2.ui.widgets.project_header_bar import ProjectHeaderBar
+from fahmi2.ui.widgets.run_matrix_view import RunMatrixView
+from fahmi2.ui.widgets.stats_strip import StatsStripWidget
 
 
 def build_default_registry() -> PhaseRegistry:
@@ -158,31 +165,43 @@ class _RunWorker(QObject):
             self.failed.emit(f"{type(exc).__name__}: {exc}")
 
 
-class RunController(QObject):
-    """Orchestre le lifecycle d'un Run depuis l'UI Qt."""
+class GenerationController(QObject):
+    """Orchestre le lifecycle d'un Run depuis l'onglet Génération."""
 
     def __init__(
         self,
         *,
-        main_window: MainWindow,
+        header_bar: ProjectHeaderBar,
+        stats_strip: StatsStripWidget,
+        run_matrix: RunMatrixView,
+        logs_dock: LogsDock,
+        window: QWidget,
         project_service: ProjectService,
         secrets_service: SecretsService,
         hardware: HardwareInfo,
         state: SqliteState,
         app_paths: AppPaths,
     ) -> None:
-        """Construit le contrôleur et branche les signaux UI.
+        """Construit le contrôleur et branche les signaux du cockpit Génération.
 
         Args:
-            main_window: Fenêtre principale.
+            header_bar: Barre de titre + actions du cockpit.
+            stats_strip: Bande de statistiques.
+            run_matrix: Matrice vidéos × phases.
+            logs_dock: Dock de logs partagé (alimenté par cet onglet quand actif).
+            window: Fenêtre parente, utilisée comme parent des dialogues modaux.
             project_service: Service projets.
             secrets_service: Service secrets.
             hardware: Info matérielle (pour valider STT local).
             state: Stockage SQLite.
             app_paths: Chemins applicatifs (pour cache modèles).
         """
-        super().__init__(main_window)
-        self._main_window = main_window
+        super().__init__(window)
+        self._header_bar = header_bar
+        self._stats_strip = stats_strip
+        self._run_matrix = run_matrix
+        self._logs_dock = logs_dock
+        self._window = window
         self._project_service = project_service
         self._secrets_service = secrets_service
         self._hardware = hardware
@@ -205,25 +224,20 @@ class RunController(QObject):
         # que le worker confirme la fin du Run.
         self._cleanup_after_cancel_requested: bool = False
 
-        # Branchements UI ---------------------------------------------------
-        self._main_window.projects_sidebar.set_on_project_selected(
-            self._on_project_selected
-        )
-        self._main_window.header_bar.start_requested.connect(self.start_run)
-        self._main_window.header_bar.pause_requested.connect(self.pause_run)
-        self._main_window.header_bar.resume_requested.connect(self.resume_run)
-        self._main_window.header_bar.cancel_requested.connect(self.cancel_run)
-        self._main_window.header_bar.open_output_requested.connect(
-            self.open_output_folder
-        )
-        self._main_window.header_bar.estimate_cost_requested.connect(
-            self.estimate_cost
-        )
+        # Branchements UI (la sélection de projet est dispatchée par MainWindow
+        # vers ``on_project_selected``).
+        self._header_bar.start_requested.connect(self.start_run)
+        self._header_bar.pause_requested.connect(self.pause_run)
+        self._header_bar.resume_requested.connect(self.resume_run)
+        self._header_bar.cancel_requested.connect(self.cancel_run)
+        self._header_bar.open_output_requested.connect(self.open_output_folder)
+        self._header_bar.estimate_cost_requested.connect(self.estimate_cost)
+        self._header_bar.settings_requested.connect(self.open_generation_settings)
 
     # ------------------------------------------------------------------ project
 
-    def _on_project_selected(self, project_id: ProjectId) -> None:
-        """Slot : met à jour l'état UI à la sélection d'un projet.
+    def on_project_selected(self, project_id: ProjectId) -> None:
+        """Met à jour l'état UI à la sélection d'un projet (appelé par l'onglet).
 
         Trois cas se distinguent côté boutons d'action :
 
@@ -237,12 +251,11 @@ class RunController(QObject):
         if project is None:
             return
         self._current_project = project
-        self._main_window.header_bar.set_title(project.settings.name)
         self._sync_header_for_selected_project()
         # Le bouton « Ouvrir le dossier de sortie » est actif si un dossier
         # output a déjà été produit (c'est-à-dire : au moins un run a tourné).
         output_dir = self._current_output_dir()
-        self._main_window.header_bar.set_open_output_enabled(
+        self._header_bar.set_open_output_enabled(
             output_dir is not None and output_dir.exists()
         )
         self._refresh_views_with_last_run()
@@ -267,9 +280,8 @@ class RunController(QObject):
         """
         self._current_project = None
         self._current_run = None
-        self._main_window.header_bar.set_title("—")
-        self._main_window.header_bar.set_idle()
-        self._main_window.header_bar.set_open_output_enabled(False)
+        self._header_bar.set_idle()
+        self._header_bar.set_open_output_enabled(False)
         self._reset_views()
 
     def _sync_header_for_selected_project(self) -> None:
@@ -280,7 +292,7 @@ class RunController(QObject):
         terminé ou neuf (idle).
         """
         if self._current_project is None:
-            self._main_window.header_bar.set_idle()
+            self._header_bar.set_idle()
             return
         if (
             self._active_worker_project_id is not None
@@ -288,11 +300,11 @@ class RunController(QObject):
         ):
             token = self._current_pause_token
             if token is not None and token.is_paused():
-                self._main_window.header_bar.set_paused()
+                self._header_bar.set_paused()
             else:
-                self._main_window.header_bar.set_running()
+                self._header_bar.set_running()
             return
-        self._main_window.header_bar.set_idle()
+        self._header_bar.set_idle()
 
     def _refresh_views_with_last_run(self) -> None:
         """Rafraîchit matrice + stats avec le dernier run du projet courant.
@@ -333,8 +345,11 @@ class RunController(QObject):
         )
         from fahmi2.ui.viewmodels.stats_strip import StatsSnapshot  # noqa: PLC0415
 
+        if project.generation is None:
+            self._reset_views()
+            return
         try:
-            videos = scan_input_folder(project.settings.input_folder)
+            videos = scan_input_folder(project.generation.input_folder)
         except Fahmi2Error:
             self._reset_views()
             return
@@ -360,12 +375,12 @@ class RunController(QObject):
             )
             for v in videos
         )
-        self._main_window.run_matrix.apply_snapshot(
+        self._run_matrix.apply_snapshot(
             MatrixSnapshot(run_id=RunId.new(), phases_in_order=phases, rows=rows)
         )
 
         now = datetime.now(tz=UTC)
-        self._main_window.stats_strip.apply_snapshot(
+        self._stats_strip.apply_snapshot(
             StatsSnapshot(
                 run_status=RunStatus.CREATED,
                 videos_total=len(videos),
@@ -373,7 +388,7 @@ class RunController(QObject):
                 phases_total=0,
                 phases_completed=0,
                 cost_usd_so_far=0.0,
-                cost_ceiling_usd=project.settings.cost_ceiling_usd,
+                cost_ceiling_usd=project.generation.cost_ceiling_usd,
                 started_at=now,
                 finished_at=now,
                 elapsed_seconds=0.0,
@@ -389,7 +404,7 @@ class RunController(QObject):
         empty_matrix = MatrixSnapshot(
             run_id=RunId.new(), phases_in_order=(), rows=()
         )
-        self._main_window.run_matrix.apply_snapshot(empty_matrix)
+        self._run_matrix.apply_snapshot(empty_matrix)
         now = datetime.now(tz=UTC)
         empty_stats = StatsSnapshot(
             run_status=RunStatus.CREATED,
@@ -403,7 +418,7 @@ class RunController(QObject):
             finished_at=now,
             elapsed_seconds=0.0,
         )
-        self._main_window.stats_strip.apply_snapshot(empty_stats)
+        self._stats_strip.apply_snapshot(empty_stats)
 
     # ---------------------------------------------------------------- run start
 
@@ -411,14 +426,14 @@ class RunController(QObject):
         """Crée un nouveau Run et lance son exécution dans un QThread."""
         if self._current_project is None:
             QMessageBox.warning(
-                self._main_window,
+                self._window,
                 "Aucun projet sélectionné",
                 "Sélectionne un projet dans la sidebar avant de lancer.",
             )
             return
         if self._thread is not None:
             QMessageBox.warning(
-                self._main_window,
+                self._window,
                 "Run déjà en cours",
                 "Un run est déjà en cours pour ce projet.",
             )
@@ -433,21 +448,21 @@ class RunController(QObject):
             )
         except Fahmi2Error as exc:
             QMessageBox.critical(
-                self._main_window,
+                self._window,
                 "Création du run impossible",
                 f"{exc.code}\n\n{exc.user_message}",
             )
             return
         except Exception as exc:  # noqa: BLE001 — affichage UX puis stop
             QMessageBox.critical(
-                self._main_window,
+                self._window,
                 "Erreur inattendue",
                 f"{type(exc).__name__} : {exc}",
             )
             return
 
         if is_resumed:
-            self._main_window.logs_dock.append_event(
+            self._logs_dock.append_event(
                 LogEvent(
                     timestamp=datetime.now(tz=UTC),
                     severity=Severity.INFO,
@@ -471,17 +486,21 @@ class RunController(QObject):
             llm_provider = self._build_llm_provider(self._current_project)
         except Fahmi2Error as exc:
             QMessageBox.critical(
-                self._main_window,
+                self._window,
                 "Configuration des providers invalide",
                 f"{exc.code}\n\n{exc.user_message}",
             )
             return
 
+        assert self._current_project is not None
+        gen_workspace = (
+            self._current_project.workspace_folder / GENERATION_WORKSPACE_SUBDIR
+        )
         ctx = PhaseContext(
             run=run,
             settings=run.settings_snapshot,
-            workspace=run.settings_snapshot.workspace_folder,
-            output_dir=run.settings_snapshot.workspace_folder / "output",
+            workspace=gen_workspace,
+            output_dir=gen_workspace / GENERATION_OUTPUT_SUBDIR,
             state=self._state,
             artifacts=FsArtifactStore(),
             stt_provider=stt_provider,
@@ -493,7 +512,7 @@ class RunController(QObject):
             event_bus=event_bus,
         )
 
-        self._main_window.header_bar.set_running()
+        self._header_bar.set_running()
         self._refresh_views(run)
 
         worker = _RunWorker(orchestrator=orchestrator, run=run, ctx=ctx)
@@ -537,7 +556,7 @@ class RunController(QObject):
         if self._current_pause_token is None:
             return
         reply = QMessageBox.question(
-            self._main_window,
+            self._window,
             "Annuler le run ?",
             (
                 "Annuler le run en cours ?\n\n"
@@ -567,13 +586,13 @@ class RunController(QObject):
         output_dir = self._current_output_dir()
         if output_dir is None or not output_dir.exists():
             QMessageBox.information(
-                self._main_window,
+                self._window,
                 "Aucun dossier de sortie",
                 "Le dossier de sortie n'existe pas encore. Lancez d'abord "
                 "un run pour ce projet.",
             )
             return
-        _open_in_file_explorer(output_dir)
+        open_in_file_explorer(output_dir)
 
     def estimate_cost(self) -> None:
         """Slot : pré-estime le coût total du Run et affiche un rapport.
@@ -585,17 +604,24 @@ class RunController(QObject):
         """
         if self._current_project is None:
             QMessageBox.warning(
-                self._main_window,
+                self._window,
                 "Aucun projet sélectionné",
                 "Sélectionne un projet dans la sidebar avant d'estimer.",
             )
             return
-        settings = self._current_project.settings
+        if self._current_project.generation is None:
+            QMessageBox.information(
+                self._window,
+                "Génération non configurée",
+                "Configurez d'abord les réglages de génération de ce projet.",
+            )
+            return
+        settings = self._current_project.generation
         try:
             videos = scan_input_folder(settings.input_folder)
         except Fahmi2Error as exc:
             QMessageBox.warning(
-                self._main_window,
+                self._window,
                 "Dossier d'entrée invalide",
                 f"{exc.code}\n\n{exc.user_message}",
             )
@@ -622,12 +648,39 @@ class RunController(QObject):
             phases_config=settings.phases_config,
         )
         _show_cost_estimation_dialog(
-            self._main_window,
-            project_name=settings.name,
+            self._window,
+            project_name=self._current_project.name,
             n_videos=len(videos),
             estimation=estimation,
             cost_ceiling_usd=settings.cost_ceiling_usd,
         )
+
+    def open_generation_settings(self) -> None:
+        """Ouvre la vue de réglages de génération et persiste le résultat.
+
+        Si aucun projet n'est sélectionné, affiche un avertissement. Sinon ouvre
+        ``GenerationSettingsView`` (pré-rempli si déjà configuré), persiste le
+        ``GenerationSettings`` mis à jour sur le projet et rafraîchit le cockpit.
+        """
+        if self._current_project is None:
+            QMessageBox.warning(
+                self._window,
+                "Aucun projet sélectionné",
+                "Sélectionne un projet dans la sidebar avant de configurer la "
+                "génération.",
+            )
+            return
+        project = self._current_project
+        dialog = GenerationSettingsView(
+            self._hardware, parent=self._window, initial=project.generation
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        generation = dialog.get_generation_settings()
+        if generation is None:
+            return
+        self._project_service.update_project(project.with_generation(generation))
+        self.on_project_selected(project.id)
 
     def _current_output_dir(self) -> Path | None:
         """Retourne le ``output_dir`` du projet sélectionné, ou ``None``.
@@ -639,7 +692,11 @@ class RunController(QObject):
         """
         if self._current_project is None:
             return None
-        return self._current_project.settings.workspace_folder / "output"
+        return (
+            self._current_project.workspace_folder
+            / GENERATION_WORKSPACE_SUBDIR
+            / GENERATION_OUTPUT_SUBDIR
+        )
 
     # ---------------------------------------------------------- end-of-run
 
@@ -659,7 +716,7 @@ class RunController(QObject):
         )
 
         if worker_was_on_current_project:
-            self._main_window.header_bar.set_finished()
+            self._header_bar.set_finished()
             if self._current_run is not None:
                 reloaded = self._project_service.get_run(self._current_run.id)
                 if reloaded is not None:
@@ -673,8 +730,8 @@ class RunController(QObject):
             self._purge_output_dir_after_cancel()
             if worker_was_on_current_project:
                 self._reset_views()
-                self._main_window.header_bar.set_idle()
-                self._main_window.header_bar.set_open_output_enabled(False)
+                self._header_bar.set_idle()
+                self._header_bar.set_open_output_enabled(False)
             self._cleanup_thread()
             return
 
@@ -684,8 +741,8 @@ class RunController(QObject):
             self._current_output_dir() if worker_was_on_current_project else None
         )
         if output_dir is not None and output_dir.exists():
-            self._main_window.header_bar.set_open_output_enabled(True)
-            self._main_window.logs_dock.append_event(
+            self._header_bar.set_open_output_enabled(True)
+            self._logs_dock.append_event(
                 LogEvent(
                     timestamp=datetime.now(tz=UTC),
                     severity=Severity.INFO,
@@ -708,7 +765,7 @@ class RunController(QObject):
         try:
             shutil.rmtree(output_dir)
         except OSError as exc:
-            self._main_window.logs_dock.append_event(
+            self._logs_dock.append_event(
                 LogEvent(
                     timestamp=datetime.now(tz=UTC),
                     severity=Severity.WARNING,
@@ -720,7 +777,7 @@ class RunController(QObject):
                 )
             )
             return
-        self._main_window.logs_dock.append_event(
+        self._logs_dock.append_event(
             LogEvent(
                 timestamp=datetime.now(tz=UTC),
                 severity=Severity.INFO,
@@ -739,7 +796,7 @@ class RunController(QObject):
         critique pour que l'utilisateur soit notifié de manière non
         ambiguë.
         """
-        self._main_window.logs_dock.append_event(
+        self._logs_dock.append_event(
             LogEvent(
                 timestamp=datetime.now(tz=UTC),
                 severity=Severity.FATAL,
@@ -752,11 +809,11 @@ class RunController(QObject):
             )
         )
         QMessageBox.critical(
-            self._main_window,
+            self._window,
             "Le run s'est terminé sur une erreur inattendue",
             error_message,
         )
-        self._main_window.header_bar.set_finished()
+        self._header_bar.set_finished()
         # Si l'utilisateur avait demandé une annulation, on ne purge pas
         # dans cette branche (le pipeline a planté) — on laisse l'artefact
         # tel quel pour diagnostic.
@@ -802,7 +859,13 @@ class RunController(QObject):
         """
         from fahmi2.core.errors.exceptions import ConfigError  # noqa: PLC0415
 
-        if project.settings.stt_provider is SttProvider.OPENAI_CLOUD:
+        if project.generation is None:
+            raise ConfigError(
+                code="CONFIG.GENERATION_NOT_CONFIGURED",
+                user_message="La génération n'est pas configurée pour ce projet.",
+                severity=Severity.ERROR,
+            )
+        if project.generation.stt_provider is SttProvider.OPENAI_CLOUD:
             api_key = self._secrets_service.get_openai_api_key()
             if not api_key:
                 raise ConfigError(
@@ -851,16 +914,23 @@ class RunController(QObject):
         """
         if not self._secrets_service.has_deepseek_key():
             QMessageBox.critical(
-                self._main_window,
+                self._window,
                 "Clé DeepSeek manquante",
                 "Renseigne la clé DeepSeek dans "
                 "« Édition → Paramètres globaux ».",
             )
             return False
-        needs_openai = project.settings.stt_provider is SttProvider.OPENAI_CLOUD
+        if project.generation is None:
+            QMessageBox.critical(
+                self._window,
+                "Génération non configurée",
+                "Configurez d'abord les réglages de génération de ce projet.",
+            )
+            return False
+        needs_openai = project.generation.stt_provider is SttProvider.OPENAI_CLOUD
         if needs_openai and not self._secrets_service.has_openai_key():
             QMessageBox.critical(
-                self._main_window,
+                self._window,
                 "Clé OpenAI manquante",
                 "Le provider STT cloud nécessite une clé OpenAI. "
                 "Renseigne-la dans « Édition → Paramètres globaux ».",
@@ -891,7 +961,7 @@ class RunController(QObject):
         les données d'un Run qui ne le concerne pas.
         """
         pipeline_event = cast("PipelineEvent", event)
-        self._main_window.logs_dock.append_event(_to_log_event(pipeline_event))
+        self._logs_dock.append_event(_to_log_event(pipeline_event))
         if not isinstance(pipeline_event, PhaseFinished | RunFinished):
             return
         if self._current_run is None:
@@ -917,8 +987,8 @@ class RunController(QObject):
         """
         matrix_vm = RunMatrixViewModel(state=self._state, registry=self._registry)
         stats_vm = StatsStripViewModel(state=self._state, registry=self._registry)
-        self._main_window.run_matrix.apply_snapshot(matrix_vm.snapshot(run))
-        self._main_window.stats_strip.apply_snapshot(stats_vm.snapshot(run))
+        self._run_matrix.apply_snapshot(matrix_vm.snapshot(run))
+        self._stats_strip.apply_snapshot(stats_vm.snapshot(run))
 
 
 def _to_log_event(event: PipelineEvent) -> LogEvent:
@@ -1072,26 +1142,6 @@ def _format_technical_details(details: dict[str, object]) -> str:
     return " ".join(parts)
 
 
-def _open_in_file_explorer(path: Path) -> None:
-    """Ouvre ``path`` dans l'explorateur de fichiers natif.
-
-    Sur Windows, utilise ``explorer.exe`` qui est non bloquant. Sur les
-    autres plateformes, fallback sur ``QDesktopServices.openUrl(file://)``.
-
-    Args:
-        path: Chemin du dossier à ouvrir.
-    """
-    if sys.platform == "win32":
-        explorer = shutil.which("explorer.exe") or "explorer.exe"
-        subprocess.Popen(  # noqa: S603
-            [explorer, str(path)], close_fds=True
-        )
-        return
-    QDesktopServices.openUrl(  # type: ignore[unreachable]
-        QUrl.fromLocalFile(str(path))
-    )
-
-
 def _format_duration_label(total_seconds: float) -> str:
     """Met en forme une durée en ``H h M min`` (ou ``M min S s`` si < 1 h).
 
@@ -1110,7 +1160,7 @@ def _format_duration_label(total_seconds: float) -> str:
 
 
 def _show_cost_estimation_dialog(
-    parent: MainWindow,
+    parent: QWidget,
     *,
     project_name: str,
     n_videos: int,
@@ -1163,7 +1213,11 @@ def _show_cost_estimation_dialog(
     msg.exec()
 
 
-__all__ = ["RunController", "build_default_registry", "build_ffmpeg_from_runtime"]
+__all__ = [
+    "GenerationController",
+    "build_default_registry",
+    "build_ffmpeg_from_runtime",
+]
 
 
 # Évite de polluer les imports inutilisés au top

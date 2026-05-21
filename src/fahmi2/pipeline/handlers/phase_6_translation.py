@@ -23,6 +23,7 @@ from typing import Any
 from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import Language, PhaseId
+from fahmi2.domain.generation import consolidated_doc_filename
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.video import VideoExecution
 from fahmi2.pipeline.handlers._base import (
@@ -152,7 +153,7 @@ class Phase6TranslationHandler(PhaseHandler):
             per_video_cost += cost
 
         # Consolidated
-        consolidated_target = ctx.output_dir / f"consolidated.{target.value}.md"
+        consolidated_target = ctx.output_dir / consolidated_doc_filename(target)
         if is_source:
             ctx.artifacts.write_text_atomic(consolidated_target, consolidated_master_md)
             consolidated_cost = 0.0

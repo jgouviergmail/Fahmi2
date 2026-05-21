@@ -57,7 +57,7 @@ def test_handler_metadata() -> None:
 
 
 def test_execute_assembles_consolidated_markdown(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     videos = tuple(
         VideoExecution(video_id=VideoId.new(), source_path=tmp_path / f"v{i}.mp4")
@@ -95,7 +95,7 @@ def test_execute_assembles_consolidated_markdown(
         _r(summary_json_2, 0.001),
         _r(meta_json, 0.005),
     ]
-    ctx, _ = build_phase_context(tmp_path, make_settings, videos=videos)
+    ctx, _ = build_phase_context(tmp_path, make_generation_settings, videos=videos)
     # Remplacer le LLM par notre version séquentielle
     ctx2 = ctx.__class__(  # même type
         run=ctx.run,
@@ -142,20 +142,20 @@ def test_execute_assembles_consolidated_markdown(
 
 
 def test_execute_raises_when_video_provided(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
-    ctx, _ = build_phase_context(tmp_path, make_settings, videos=(video,))
+    ctx, _ = build_phase_context(tmp_path, make_generation_settings, videos=(video,))
     handler = Phase5ConsolidationHandler()
     with pytest.raises(ValueError, match="batch"):
         handler.execute(ctx, video=video)
 
 
 def test_execute_raises_when_structured_missing(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
-    ctx, _ = build_phase_context(tmp_path, make_settings, videos=(video,))
+    ctx, _ = build_phase_context(tmp_path, make_generation_settings, videos=(video,))
     handler = Phase5ConsolidationHandler()
     with pytest.raises(StorageError) as exc_info:
         handler.execute(ctx, video=None)

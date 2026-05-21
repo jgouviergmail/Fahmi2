@@ -59,13 +59,15 @@ paramétrable via l'interface graphique.
    même »* lorsque SmartScreen le demande.
 5. **Édition → Paramètres globaux** : saisir vos clés API (DeepSeek
    obligatoire, OpenAI optionnel).
-6. **Fichier → Nouveau projet** : choisir le dossier contenant vos vidéos,
-   les langues, le style, valider.
-7. (Optionnel) Cliquer sur **💵 Estimer le coût** pour voir le budget
+6. **Fichier → Nouveau projet** : donner un nom + choisir l'emplacement du
+   projet, valider.
+7. Onglet **Génération → ⚙ Réglages** : choisir le dossier des vidéos, les
+   langues, le style, le modèle ; valider.
+8. (Optionnel) Cliquer sur **💵 Estimer le coût** pour voir le budget
    avant le lancement.
-8. Cliquer sur **▶ Lancer**. Récupérer les livrables Markdown à la fin
+9. Cliquer sur **▶ Lancer**. Récupérer les livrables Markdown à la fin
    via le bouton **📂 Dossier de sortie** (ou dans
-   `<dossier_entrée>/.fahmi2/output/`).
+   `<emplacement>/generation/output/`).
 
 Voir [docs/07-guide-utilisateur.md](docs/07-guide-utilisateur.md) pour le
 guide détaillé.
@@ -109,7 +111,7 @@ src/fahmi2/
 ├── pipeline/     PipelineEngine + 8 handlers de phase
 ├── infra/        adapters (STT, LLM, ffmpeg, SQLite WAL, DPAPI, prompts)
 ├── app/          use-cases (ProjectService, RunOrchestrator, CostEstimator…)
-└── ui/           PySide6 (MainWindow, widgets, dialogues, QtEventBus)
+└── ui/           PySide6 (MainWindow à onglets, features/, widgets, dialogues)
 ```
 
 Voir [docs/02-presentation-technique.md](docs/02-presentation-technique.md)
@@ -124,7 +126,15 @@ en tableau avec colonne Signification, édition des prompts depuis l'UI,
 estimation de coût alignée sur l'usage réel (thinking pris en compte).
 Cf. [CHANGELOG.md](CHANGELOG.md).
 
-445+ tests passants, `mypy --strict` et `ruff` propres sur 186+ fichiers.
+Interface réorganisée en **onglets de fonctionnalité** (Génération + Supports
+pédagogiques : 9 types de supports de révision générés à partir du document
+consolidé et du glossaire) ; identité projet réduite à nom + emplacement, réglages
+par fonctionnalité.
+
+Export des supports en **Anki `.apkg`** (flashcards / cloze / QCM, ré-import sans
+doublon), **Markdown** et **PDF** (sujet / corrigé séparés).
+
+650 tests passants, `mypy --strict` et `ruff` propres sur 273 fichiers.
 
 ## Licence
 

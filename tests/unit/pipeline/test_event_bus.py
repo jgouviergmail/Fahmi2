@@ -19,7 +19,7 @@ def _finished(run_id: RunId, status: RunStatus = RunStatus.COMPLETED) -> RunFini
 
 
 def test_publish_distributes_to_subscribers() -> None:
-    bus = EventBus()
+    bus: EventBus[PipelineEvent] = EventBus()
     received: list[PipelineEvent] = []
     bus.subscribe(received.append)
 
@@ -33,7 +33,7 @@ def test_publish_distributes_to_subscribers() -> None:
 
 
 def test_multiple_handlers_each_receive_events() -> None:
-    bus = EventBus()
+    bus: EventBus[PipelineEvent] = EventBus()
     h1: list[PipelineEvent] = []
     h2: list[PipelineEvent] = []
     bus.subscribe(h1.append)
@@ -46,7 +46,7 @@ def test_multiple_handlers_each_receive_events() -> None:
 
 
 def test_unsubscribe_stops_receiving() -> None:
-    bus = EventBus()
+    bus: EventBus[PipelineEvent] = EventBus()
     received: list[PipelineEvent] = []
     unsubscribe = bus.subscribe(received.append)
     rid = RunId.new()
@@ -57,7 +57,7 @@ def test_unsubscribe_stops_receiving() -> None:
 
 
 def test_handler_exception_does_not_break_chain() -> None:
-    bus = EventBus()
+    bus: EventBus[PipelineEvent] = EventBus()
     h2_received: list[PipelineEvent] = []
 
     def _boom(_event: PipelineEvent) -> None:
@@ -70,7 +70,7 @@ def test_handler_exception_does_not_break_chain() -> None:
 
 
 def test_unsubscribe_twice_is_idempotent() -> None:
-    bus = EventBus()
+    bus: EventBus[PipelineEvent] = EventBus()
     unsubscribe = bus.subscribe(lambda _: None)
     unsubscribe()
     unsubscribe()

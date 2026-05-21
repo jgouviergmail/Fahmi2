@@ -20,6 +20,7 @@ from typing import Any
 from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import Language, PhaseId
+from fahmi2.domain.generation import consolidated_doc_filename
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.video import VideoExecution
 from fahmi2.pipeline.handlers._base import (
@@ -104,7 +105,7 @@ class Phase7CoherenceHandler(PhaseHandler):
         Raises:
             StorageError: Si le fichier ``consolidated.{lang}.md`` est manquant.
         """
-        path = ctx.output_dir / f"consolidated.{target.value}.md"
+        path = ctx.output_dir / consolidated_doc_filename(target)
         if not path.exists():
             raise StorageError(
                 code="STORAGE.CONSOLIDATED_LANG_MISSING",

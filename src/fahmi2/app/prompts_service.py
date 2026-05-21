@@ -111,6 +111,56 @@ _TEMPLATE_METADATA: tuple[PromptTemplateMeta, ...] = (
             "stylistique) sur le document consolidé."
         ),
     ),
+    PromptTemplateMeta(
+        name="pedagogy_flashcards_concepts",
+        display_name="Pédagogie — Flashcards concepts",
+        description=(
+            "Cartes recto/verso sur les idées clés d'un chapitre "
+            "(supports de révision)."
+        ),
+    ),
+    PromptTemplateMeta(
+        name="pedagogy_qcm",
+        display_name="Pédagogie — QCM",
+        description=(
+            "Questions à choix multiples avec distracteurs plausibles et "
+            "justification, par chapitre."
+        ),
+    ),
+    PromptTemplateMeta(
+        name="pedagogy_true_false",
+        display_name="Pédagogie — Vrai / Faux",
+        description="Affirmations vrai/faux justifiées, par chapitre.",
+    ),
+    PromptTemplateMeta(
+        name="pedagogy_cloze",
+        display_name="Pédagogie — Textes à trous",
+        description="Phrases lacunaires (cloze) avec réponses, par chapitre.",
+    ),
+    PromptTemplateMeta(
+        name="pedagogy_open_questions",
+        display_name="Pédagogie — Questions ouvertes",
+        description=(
+            "Questions ouvertes avec éléments de réponse attendus, par chapitre."
+        ),
+    ),
+    PromptTemplateMeta(
+        name="pedagogy_revision_sheet",
+        display_name="Pédagogie — Fiche de révision",
+        description="Synthèse Markdown structurée d'un chapitre.",
+    ),
+    PromptTemplateMeta(
+        name="pedagogy_key_points",
+        display_name="Pédagogie — Points clés",
+        description="3 à 5 idées clés à retenir, par chapitre.",
+    ),
+    PromptTemplateMeta(
+        name="pedagogy_mock_exam",
+        display_name="Pédagogie — Examen blanc",
+        description=(
+            "Examen blanc composite (sujet + barème) couvrant tout le document."
+        ),
+    ),
 )
 
 

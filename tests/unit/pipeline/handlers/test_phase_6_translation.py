@@ -53,12 +53,12 @@ def test_handler_metadata() -> None:
 
 
 def test_execute_copies_artifacts_for_source_language(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
     ctx, _ = build_phase_context(
         tmp_path,
-        make_settings,
+        make_generation_settings,
         videos=(video,),
         settings_overrides={
             "source_language": Language.FR,
@@ -79,12 +79,12 @@ def test_execute_copies_artifacts_for_source_language(
 
 
 def test_execute_translates_for_target_language(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
     ctx, _ = build_phase_context(
         tmp_path,
-        make_settings,
+        make_generation_settings,
         llm_response=_llm("Translated content."),
         videos=(video,),
         settings_overrides={
@@ -109,9 +109,9 @@ def test_execute_translates_for_target_language(
 
 
 def test_execute_raises_when_consolidated_master_missing(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    ctx, _ = build_phase_context(tmp_path, make_settings)
+    ctx, _ = build_phase_context(tmp_path, make_generation_settings)
     handler = Phase6TranslationHandler()
     with pytest.raises(StorageError) as exc_info:
         handler.execute(ctx, video=None)
@@ -119,22 +119,22 @@ def test_execute_raises_when_consolidated_master_missing(
 
 
 def test_execute_raises_when_video_provided(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
-    ctx, _ = build_phase_context(tmp_path, make_settings, videos=(video,))
+    ctx, _ = build_phase_context(tmp_path, make_generation_settings, videos=(video,))
     handler = Phase6TranslationHandler()
     with pytest.raises(ValueError, match="batch"):
         handler.execute(ctx, video=video)
 
 
 def test_execute_accumulates_per_video_translation_cost(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
     ctx, _ = build_phase_context(
         tmp_path,
-        make_settings,
+        make_generation_settings,
         llm_response=_llm("Translated."),  # cost_usd=0.01 par appel
         videos=(video,),
         settings_overrides={

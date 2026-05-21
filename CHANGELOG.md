@@ -5,6 +5,131 @@ Toutes les évolutions notables du projet Fahmi2.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Non publié]
+
+### Corrigé — Revue de code (SP1–SP3)
+
+- **Export Anki** : les tags sont désormais assainis (les espaces deviennent `_`).
+  Un terme de glossaire multi-mots (« Intelligence artificielle ») ne fait plus
+  échouer l'export `.apkg` (`genanki` refuse les tags contenant un espace).
+- **Suppression d'un projet** : tous les onglets sont notifiés
+  (`MainWindow.notify_project_deleted`) — l'onglet Supports pédagogiques ne
+  conserve plus une référence au projet supprimé (qui pouvait le **ressusciter**
+  en base lors d'un enregistrement de réglages).
+- **Réglages de génération** : modifier la génération ne **perd plus** les réglages
+  Supports pédagogiques (reconstruction du `Project` via `with_generation`).
+- **Formats d'export** : le menu « 📦 Exporter » ne propose plus que les formats
+  **réellement cochés** dans les réglages (`PedagogySettings.export_formats`).
+- **Robustesse parsing LLM** : un QCM/cloze de schéma invalide (index hors borne,
+  trop de propositions, réponses vides) lève une `LLMError` typée au lieu d'une
+  exception non gérée ; `read_artifact` ignore proprement un artefact d'item
+  corrompu (retourne `None`).
+- **Plafond de coût pédagogie** : le statut `PAUSED` est désormais documenté et le
+  journal indique explicitement « plafond de coût atteint ».
+- **Divers** : menu « ? → À propos » fonctionnel (nom + version) ; libellé
+  « Formats d'export » dans les réglages ; helper d'ouverture de dossier mutualisé
+  (`ui/_file_explorer`) ; suppression de magic numbers (estimateur de coût).
+
+### Ajouté — Export Markdown / PDF (SP3/02)
+
+- **Export Markdown et PDF** des supports depuis l'onglet pédagogique : le bouton
+  « 📦 Exporter » propose désormais 3 formats (Anki / Markdown / PDF).
+- Documents **agrégés par langue**, **sujet / corrigé séparés** (`supports.{lang}.md`,
+  `supports.{lang}.corrige.md`, et variantes `.pdf`).
+- Rendu PDF pur-python (`markdown` → HTML → `fpdf2`) avec police Unicode système ; repli
+  Markdown si aucune police n'est résolue. Nouvelles dépendances **`markdown`**, **`fpdf2`**.
+
+### Ajouté — Export Anki `.apkg` (SP3/01)
+
+- **Export Anki** depuis l'onglet pédagogique (bouton « 📦 Exporter ») : les supports
+  générés sont convertis en paquet `.apkg` (genanki) — flashcards (glossaire + concepts)
+  → note **Basic**, textes à trous → note **Cloze**, QCM → note **custom**.
+- **GUID stables** (ré-import sans doublon), **sous-decks par support**
+  (`<Projet>::<support>`), **tags** (support, langue, niveau, chapitre).
+- Adapter `infra/anki/genanki_exporter.py`, désérialisation `pedagogy/artifact_reader.py`,
+  service `app/pedagogy_export.py`. Nouvelle dépendance **`genanki`**.
+
+### Ajouté — Onglet Supports pédagogiques (SP2/04)
+
+- **Onglet pédagogique réel** (remplace le stub) : barre d'actions (Réglages,
+  Estimer, Générer, Pause/Reprendre/Annuler, Ouvrir le dossier), **bandeau d'état**
+  (non configuré / génération requise / prêt / à jour / périmé) et **table de
+  progression** (support × langue, statut, coût).
+- **Réglages master-detail** (`PedagogySettingsView`) : Supports (+ corrigé séparé),
+  Difficulté (public, Bloom, densité, directives), Langues (produites), Modèle & coût
+  (modèle, thinking, température, plafond, formats d'export).
+- **Estimation de coût** (`PedagogyCostEstimator`) par support × langue × chapitre
+  selon densité et thinking ; **plafond de coût** appliqué par l'orchestrateur
+  (arrêt propre à la frontière sûre).
+- **`PedagogyController`** (worker `QThread`, pause/annulation) + **`PedagogyQtEventBus`**
+  bridgeant les événements vers la table de progression et le panneau de logs.
+- Viewmodels testables sans Qt (`PedagogyProgressViewModel`, `PedagogyStateViewModel`),
+  helpers `pedagogy/sources.py` + heuristiques de coût partagées `app/_cost_common.py`.
+
+### Corrigé
+
+- L'édition d'un projet (renommage) n'efface plus les réglages **Supports
+  pédagogiques** (`Project.pedagogy`).
+
+### Ajouté — Générateurs de supports LLM (SP2/03)
+
+- **8 générateurs LLM** : flashcards concepts, QCM, vrai/faux, cloze, questions
+  ouvertes, fiche de révision, points clés (par chapitre) et examen blanc
+  (document entier). Chacun parse une réponse **JSON typée** vers les entités de
+  `domain/supports.py` et rend du Markdown.
+- **8 prompts `pedagogy_*.j2` éditables** via « Édition → Modifier les prompts »
+  (catalogue `PromptsService`), paramétrés par public cible, objectif Bloom,
+  densité, directives et glossaire.
+- **Corrigés séparés** : les supports évaluatifs marqués « corrigé séparé »
+  produisent un fichier `<support>.corrige.md` distinct du sujet.
+- **Dé-biaisage QCM** déterministe (répartition de la position de la bonne
+  réponse sur l'ensemble des questions).
+- **Retry LLM** mutualisé avec le pipeline : `default_classify` remonté dans
+  `core/retry/classification.py` ; événement `SupportRetryAttempt`.
+- Socle `pedagogy/generators/_base.py` (bases génériques par chapitre + mixin
+  évaluatif), factory `build_default_support_registry()` (9 générateurs).
+
+### Ajouté — Générateur de supports de révision (SP2/02)
+
+- **Socle pédagogie** (`pedagogy/`) : `SupportGenerator` (ABC) + `SupportContext` (DI),
+  `SupportGeneratorRegistry` (ordre canonique des 9 supports), parseur de chapitres du
+  document consolidé, events pédagogie, **manifeste de fraîcheur** (`pedagogy/manifest.json`)
+  et sérialisation d'artefacts.
+- **Orchestrateur dédié léger** `SupportsOrchestrator` (`app/`) : génération par
+  langue × support, écriture JSON + Markdown sous `<emplacement>/pedagogy/`, events,
+  **reprise coarse** (skip des supports frais), pause/annulation.
+- **Première tranche verticale** : générateur **flashcards glossaire** (sans LLM,
+  recto = terme/acronyme, verso = définition), depuis le glossaire du dernier run
+  *COMPLETED*.
+- **Helpers LLM/JSON généralisés** (`infra/llm/invocation.py`) réutilisés par les
+  handlers de phase ; `EventBus` rendu **générique** (`EventBus[E]`) pour porter aussi
+  les événements pédagogie.
+- `ProjectService.get_last_completed_run` + `create_project(pedagogy=…)` ; constantes
+  de chemins centralisées (`GENERATION_OUTPUT_SUBDIR`, `consolidated_doc_filename`).
+
+### Corrigé
+
+- Un run de **génération** n'efface plus les réglages **Supports pédagogiques**
+  (`Project.pedagogy`) à sa fin (régression introduite par SP2/01).
+
+### Modifié — Coquille multi-fonctionnalités (SP1)
+
+- **Interface à onglets** : la zone projet est désormais une `QTabWidget` peuplée
+  par un `FeatureRegistry` — onglet **Génération** (cockpit existant) + onglet
+  **Supports pédagogiques** (*stub*, à implémenter).
+- **`Project` réduit à l'identité** (nom + emplacement, immuable) ; les paramètres
+  métier vivent dans `GenerationSettings` (extrait de l'ancien `ProjectSettings`).
+- **Création de projet minimale** (nom + emplacement) ; réglages de génération
+  édités depuis l'onglet **Génération → ⚙ Réglages** (vue master-detail réutilisable
+  `SettingsView`).
+- **Workspace par fonctionnalité** : les artefacts de génération vivent sous
+  `<emplacement>/generation/` (livrables sous `…/generation/output/`).
+- **Persistance** : blob `projects.settings_json` en **v2**
+  (`{version, workspace_folder, generation, pedagogy}`) avec migration *lenient*
+  v1→v2 à la lecture (aucun déplacement de fichier).
+- **Interne** : `RunController` → `GenerationController` (découplé du `MainWindow`) ;
+  nouveau package `ui/features/`.
+
 ## [0.2.0] — 2026-05-19
 
 Itération majeure UI + qualité de rendu du document consolidé + édition

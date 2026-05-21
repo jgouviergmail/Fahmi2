@@ -24,13 +24,9 @@ from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.exceptions import (
     BudgetExceededError,
     Fahmi2Error,
-    LLMError,
     PausedError,
-    PermanentError,
-    StorageError,
-    STTError,
-    TransientError,
 )
+from fahmi2.core.retry.classification import default_classify
 from fahmi2.core.retry.policy import RetryDecision, RetryPolicy
 from fahmi2.core.retry.runner import with_retry
 from fahmi2.domain.enums import PhaseStatus, RunStatus
@@ -45,42 +41,6 @@ from fahmi2.pipeline.events import (
 )
 from fahmi2.pipeline.phase_handler import PhaseContext, PhaseHandler
 from fahmi2.pipeline.phase_registry import PhaseRegistry
-
-_RETRYABLE_LLM_CODES: frozenset[str] = frozenset(
-    {"LLM.RATE_LIMIT", "LLM.SERVER_ERROR"}
-)
-_RETRYABLE_STT_CODES: frozenset[str] = frozenset(
-    {"STT.RATE_LIMIT", "STT.API_ERROR"}
-)
-
-
-def default_classify(exc: BaseException) -> RetryDecision:  # noqa: PLR0911
-    """Classifie une exception pour décider du comportement de retry.
-
-    Args:
-        exc: Exception levée par un handler.
-
-    Returns:
-        ``RetryDecision`` selon les conventions documentées en spec §8.2.
-    """
-    if isinstance(exc, BudgetExceededError):
-        return RetryDecision.RAISE_BUDGET
-    if isinstance(exc, PausedError):
-        return RetryDecision.NO_RETRY
-    if isinstance(exc, TransientError):
-        return RetryDecision.RETRY
-    if isinstance(exc, PermanentError):
-        return RetryDecision.NO_RETRY
-    if isinstance(exc, LLMError) and exc.code in _RETRYABLE_LLM_CODES:
-        return RetryDecision.RETRY
-    if isinstance(exc, STTError) and exc.code in _RETRYABLE_STT_CODES:
-        return RetryDecision.RETRY
-    if isinstance(exc, StorageError):
-        return RetryDecision.NO_RETRY
-    if isinstance(exc, Fahmi2Error):
-        return RetryDecision.NO_RETRY
-    # Erreur inattendue (réseau, autre) — on retente.
-    return RetryDecision.RETRY
 
 
 class PipelineEngine:

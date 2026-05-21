@@ -33,11 +33,11 @@ def test_handler_metadata() -> None:
 
 
 def test_execute_rewrites_consolidated_for_each_language(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     ctx, _ = build_phase_context(
         tmp_path,
-        make_settings,
+        make_generation_settings,
         llm_response=_llm("# Polished document"),
         settings_overrides={
             "source_language": Language.FR,
@@ -65,11 +65,11 @@ def test_execute_rewrites_consolidated_for_each_language(
 
 
 def test_execute_raises_when_consolidated_lang_missing(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     ctx, _ = build_phase_context(
         tmp_path,
-        make_settings,
+        make_generation_settings,
         settings_overrides={
             "source_language": Language.FR,
             "output_languages": (Language.FR,),
@@ -82,10 +82,10 @@ def test_execute_raises_when_consolidated_lang_missing(
 
 
 def test_execute_raises_when_video_provided(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
-    ctx, _ = build_phase_context(tmp_path, make_settings, videos=(video,))
+    ctx, _ = build_phase_context(tmp_path, make_generation_settings, videos=(video,))
     handler = Phase7CoherenceHandler()
     with pytest.raises(ValueError, match="batch"):
         handler.execute(ctx, video=video)

@@ -34,14 +34,21 @@ toujours écrits dans le fichier `events.jsonl`).
 
 ## 2. Paramètres d'un projet
 
-Accès : menu **Fichier → Nouveau projet** (ou édition d'un projet existant).
+L'**identité** du projet (nom + emplacement) se définit via **Fichier → Nouveau
+projet** (renommage via *Éditer* dans la sidebar ; l'emplacement est immuable
+après création). Tous les autres paramètres ci-dessous sont les **réglages de
+génération**, édités depuis l'onglet **Génération → ⚙ Réglages** (vue
+master-detail) ; ils incluent le **dossier des vidéos**.
 
 ### 2.1 Identification
 
 | Paramètre | Description |
 |-----------|-------------|
 | **Nom** | Libre, sert d'étiquette dans la sidebar. Ex: « Cours macroéconomie L3 ». |
-| **Dossier d'entrée** | Dossier contenant les vidéos source. Doit exister et être accessible en lecture. |
+| **Emplacement** | Dossier de travail du projet (artefacts + livrables). Immuable après création. |
+
+> Le **dossier des vidéos** (source) est un réglage de génération : il se choisit
+> dans l'onglet **Génération → ⚙ Réglages → Entrée & langues**.
 
 ### 2.2 Langues
 
@@ -120,7 +127,7 @@ L'écart résiduel est de l'ordre de ±20 % selon le contenu des vidéos.
 
 | Paramètre | Description | Défaut |
 |-----------|-------------|--------|
-| **Workspace folder** | Dossier de travail (artefacts intermédiaires) | `<input_folder>/.fahmi2/` |
+| **Emplacement (workspace)** | Dossier de travail choisi à la création. Les artefacts de génération vont sous `<emplacement>/generation/` (livrables sous `<emplacement>/generation/output/`). | choisi à la création |
 | **Delete audio after STT** | Supprime les WAV extraits après transcription | `True` (économise du disque) |
 | **stt_cloud_workers** | Threads parallèles pour STT cloud | 3 |
 | **llm_workers** | Threads parallèles pour LLM | 4 |
@@ -185,6 +192,17 @@ fichiers :
 | `phase_5_consolidation` | `output_language_label`, `style_label`, `style_directives`, `summaries_json` |
 | `phase_6_translation` | `source_language_label`, `target_language_label`, `style_label`, `style_directives`, `glossary_terms`, `source_markdown` |
 | `phase_7_coherence` | `output_language_label`, `style_label`, `style_directives`, `glossary_terms`, `consolidated_markdown` |
+| `pedagogy_flashcards_concepts` | `output_language_label`, `audience_label`, `bloom_label`, `density_label`, `pedagogy_directives`, `glossary_terms`, `chapter_title`, `chapter_markdown` |
+| `pedagogy_qcm` | *(idem flashcards concepts)* |
+| `pedagogy_true_false` | *(idem flashcards concepts)* |
+| `pedagogy_cloze` | *(idem flashcards concepts)* |
+| `pedagogy_open_questions` | *(idem flashcards concepts)* |
+| `pedagogy_revision_sheet` | *(idem flashcards concepts)* |
+| `pedagogy_key_points` | *(idem flashcards concepts)* |
+| `pedagogy_mock_exam` | `output_language_label`, `audience_label`, `bloom_label`, `density_label`, `pedagogy_directives`, `glossary_terms`, `consolidated_markdown` |
+
+> Les 8 templates `pedagogy_*` (supports de révision) s'éditent dans le **même
+> éditeur** (Édition → Modifier les prompts) que les phases de génération.
 
 ### 3.4 Validation et restauration
 
@@ -197,6 +215,26 @@ fichiers :
   `%APPDATA%\Fahmi2\prompts\`. Important : « défaut » = le template
   bundlé avec la version installée de l'application ; il n'y a pas de
   notion de « version d'usine » historique.
+
+## 3bis. Réglages des supports pédagogiques
+
+Onglet **Supports pédagogiques → ⚙ Réglages** (vue master-detail) :
+
+| Catégorie | Réglages |
+|-----------|----------|
+| **Supports** | Sélection parmi les 9 types ; case « corrigé séparé » sur les supports évaluatifs (QCM, vrai/faux, cloze, questions ouvertes, examen blanc). |
+| **Difficulté** | Public cible (découverte / lycée / licence / master-expert), objectif Bloom (auto / restituer / comprendre & appliquer / analyser & au-delà), densité (légère / standard / dense), directives libres. |
+| **Langues** | Langues parmi celles **produites** par la génération (un `consolidated.{lang}.md` doit exister). |
+| **Modèle & coût** | Modèle LLM, mode raisonnement + niveau d'effort, température, **plafond budget** (interrompt proprement à la frontière sûre), formats d'export (Anki/Markdown/PDF — exports au SP3). |
+
+Le bouton **Estimer le coût** donne un ordre de grandeur (par support × langue ×
+chapitre, selon densité et thinking) ; **Générer** lance la génération (progression
+par support × langue, reprise *coarse* des supports déjà à jour) ; **Ouvrir le
+dossier** ouvre `<emplacement>/pedagogy/` ; **Exporter** propose 3 formats :
+- **Anki `.apkg`** (flashcards → Basic, textes à trous → Cloze, QCM → note custom ;
+  GUID stables, sous-decks par support, tags support/langue/niveau/chapitre) ;
+- **Markdown** et **PDF** : documents agrégés par langue, **sujet / corrigé séparés**
+  (`supports.{lang}.md`, `supports.{lang}.corrige.md`, variantes `.pdf`).
 
 ## 4. Variables d'environnement (debug)
 

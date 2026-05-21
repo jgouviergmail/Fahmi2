@@ -50,25 +50,29 @@ Vos clés sont **chiffrées sur votre disque** par le système Windows
 
 ## 4. Créer un projet
 
-Menu **Fichier → Nouveau projet**. Remplissez :
+**Fichier → Nouveau projet** : donnez un **nom** et choisissez un **emplacement**
+(dossier de travail du projet), puis cliquez sur **OK**. Le projet apparaît dans
+la liste à gauche.
 
-| Champ | Conseil |
-|-------|---------|
-| **Nom** | Libre. Ex: « Cours d'économie L3 ». |
-| **Dossier d'entrée** | Cliquez sur *« Parcourir… »* et sélectionnez le dossier qui contient vos vidéos. |
-| **Langue source** | La langue parlée dans vos vidéos (FR ou EN). |
-| **Langues de sortie** | Cochez les langues désirées pour le document final. La langue source est automatiquement incluse. |
-| **Style** | `décontracté`, `standard`, `professionnel`, ou `académique`. Pour un cours universitaire, choisissez `académique`. |
-| **Directives stylistiques** | Optionnel. Ex: *« ton chaleureux, exemples concrets quand possible »*. |
-| **Provider STT** | `openai_cloud` si vous n'avez pas de GPU NVIDIA. Sinon, `faster_whisper_local` (gratuit). |
-| **Modèle LLM** | `deepseek-v4-flash` pour démarrer (rapide et économique). |
-| **Plafond budget** | Optionnel. Mettez par ex. 5 $ pour un premier essai. |
+Sélectionnez-le, puis dans l'onglet **Génération** cliquez sur **⚙ Réglages** pour
+configurer la génération (vue à 5 catégories) :
 
-Cliquez sur **OK**. Le projet apparaît dans la liste à gauche.
+| Catégorie | Champs |
+|-----------|--------|
+| **Entrée & langues** | Dossier des vidéos · Langue source · Langues de sortie |
+| **Style** | Style (`décontracté`/`standard`/`professionnel`/`académique`) · Directives libres |
+| **Transcription** | Provider STT (`openai_cloud` sans GPU, sinon `faster_whisper_local`) |
+| **Modèle & coût** | Modèle LLM (`deepseek-v4-flash` pour démarrer) · Plafond budget |
+| **Phases** | Thinking, effort, température, retries par phase LLM (avancé) |
+
+Validez : l'aperçu des vidéos détectées s'affiche dans le cockpit.
 
 ## 5. Lancer le traitement
 
 1. Sélectionnez votre projet dans la liste à gauche.
+   L'application présente deux onglets : **Génération** (le cockpit ci-dessous) et
+   **Supports pédagogiques** (flashcards, QCM, fiches… à générer une fois la
+   Génération terminée — voir §8).
 2. (Optionnel mais recommandé) Cliquez sur **💵 Estimer le coût** pour
    voir le budget prévu avant de lancer. Le dialogue affiche les
    vidéos détectées, la durée totale, le coût STT, le coût LLM (en
@@ -84,7 +88,7 @@ La grille au centre commence à se remplir :
   - `·` gris : en attente
   - `▶` bleu : en cours
   - `✓` vert : terminé
-  - `✗` rouge : échec (rare, voir [Dépannage](#7-dépannage))
+  - `✗` rouge : échec (rare, voir [Dépannage](#9-dépannage))
   - `↷` indigo : sauté (déjà fait au précédent run)
 
 En haut, **5 cartes** affichent :
@@ -114,7 +118,7 @@ Quand le projet est terminé (statut **Terminé**), cliquez sur le bouton
 s'ouvre directement sur le bon dossier. Vous y trouverez :
 
 ```
-.fahmi2/output/
+<emplacement>/generation/output/
 ├── consolidated.fr.md     ← Le document consolidé en français (navigable)
 ├── consolidated.en.md     ← Le document consolidé en anglais (si demandé)
 ├── glossary.fr.md         ← Le glossaire en français (tableau)
@@ -146,7 +150,57 @@ GitLab, etc.
 Pour convertir en **DOCX, PDF ou HTML**, l'outil libre
 [Pandoc](https://pandoc.org) fait ça très bien.
 
-## 7. Dépannage
+## 8. Générer des supports de révision
+
+Une fois la Génération terminée, l'onglet **Supports pédagogiques** transforme le
+document consolidé et le glossaire en matériel de révision : flashcards, QCM,
+vrai/faux, textes à trous, questions ouvertes, fiches de révision, points clés et
+examen blanc.
+
+> **Prérequis** : avoir lancé au moins une fois la **Génération** sur le projet
+> (un document consolidé et un glossaire doivent exister). Les supports sont
+> produits **à partir** de ce contenu.
+
+### Configurer
+
+Sélectionnez le projet, ouvrez l'onglet **Supports pédagogiques**, puis cliquez
+sur **⚙ Réglages** (même vue à catégories que la Génération) :
+
+| Catégorie | Champs |
+|-----------|--------|
+| **Supports** | Types à générer (flashcards, QCM, fiches…) · corrigé séparé pour les supports évaluatifs |
+| **Difficulté** | Public cible (requis) · objectif Bloom (`Auto` / `Restituer` / `Comprendre & Appliquer` / `Analyser & au-delà`) · directives pédagogiques libres · densité (`léger` / `standard` / `dense`) |
+| **Langues** | Langues des supports (par défaut : celles effectivement produites par la Génération) |
+| **Modèle & coût** | Modèle LLM · mode raisonnement · plafond de coût |
+
+### Estimer et générer
+
+1. (Recommandé) **💵 Estimer le coût** : affiche le budget prévu (par support ×
+   langue × chapitre, selon la densité et le mode raisonnement).
+2. **▶ Lancer** : la table de progression se remplit (une ligne par support ×
+   langue). Le **bandeau d'état** en haut indique la fraîcheur : *non configuré*
+   → *génération requise* → *prêt* → *à jour* → *périmé*.
+
+Si vous relancez la Génération plus tard, les supports existants sont marqués
+**périmés** : régénérez-les pour les réaligner sur le nouveau contenu. Les
+supports déjà à jour sont **sautés** (pas de re-génération inutile).
+
+### Récupérer et exporter
+
+Les supports sont écrits sous `<emplacement>/pedagogy/{support}/{langue}/`
+(`.json` structuré + `.md` lisible, plus `.corrige.md` pour les sujets évaluatifs
+avec corrigé séparé). Vous pouvez les éditer directement.
+
+Le bouton **📦 Exporter** propose les formats que vous avez cochés dans les
+réglages (« ⚙ Réglages → Modèle & coût → Formats d'export ») :
+
+- **Anki (`.apkg`)** : paquet importable dans Anki — sous-decks par support,
+  cartes Basic / Cloze / QCM, étiquettes (support / langue / niveau / chapitre).
+  Les ré-imports ne créent pas de doublons (identifiants stables).
+- **Markdown** : documents agrégés par langue (sujet et corrigé séparés).
+- **PDF** : mêmes documents, prêts à imprimer.
+
+## 9. Dépannage
 
 ### *« Windows a protégé votre PC »*
 
@@ -155,8 +209,8 @@ même »*. Cela ne reviendra pas.
 
 ### *« GPU NVIDIA introuvable »*
 
-Vous avez sélectionné le mode local sans avoir de GPU NVIDIA. Allez dans
-les paramètres du projet et basculez sur `openai_cloud`.
+Vous avez sélectionné le mode local sans avoir de GPU NVIDIA. Ouvrez l'onglet
+**Génération → ⚙ Réglages → Transcription** et basculez sur `openai_cloud`.
 
 ### *« Clé DeepSeek invalide »*
 
@@ -186,7 +240,7 @@ fenêtre de détail.
 Relancez `Fahmi2.exe`. L'état est sauvegardé : votre projet est intact,
 cliquez **▶ Reprendre** pour continuer.
 
-## 8. Mise à jour de l'application
+## 10. Mise à jour de l'application
 
 Quand une nouvelle version est disponible :
 
@@ -199,7 +253,7 @@ Vos projets et vos clés sont **automatiquement conservés**. Si une
 adaptation interne est nécessaire (mise à jour de la base), elle est
 appliquée automatiquement avec une sauvegarde préalable de sécurité.
 
-## 9. Désinstaller
+## 11. Désinstaller
 
 1. Supprimez le dossier où vous aviez décompressé Fahmi2.
 2. Si vous voulez aussi effacer **tous vos projets et clés** :
@@ -209,7 +263,7 @@ appliquée automatiquement avec une sauvegarde préalable de sécurité.
 
 Rien d'autre ne reste sur votre système.
 
-## 10. Astuces
+## 12. Astuces
 
 ### Tester avant un gros traitement
 
@@ -234,15 +288,17 @@ Mettez toujours un plafond de coût, même large. Si quelque chose ne va pas
 
 Si vous voulez ajuster finement le ton ou le format au-delà des
 *Directives stylistiques*, ouvrez **Édition → Modifier les prompts…**
-Sélectionnez une phase à gauche, éditez le texte du prompt à droite,
+Sélectionnez un prompt à gauche, éditez le texte à droite,
 cliquez **💾 Enregistrer**. Pour revenir à la version d'origine
 livrée avec l'application, cliquez sur **↩ Réinitialiser au défaut**.
 Pas besoin de redémarrer : le nouveau prompt est utilisé au prochain
-lancement de la phase.
+lancement. Le catalogue couvre les **phases de génération** **et** les
+prompts des **supports pédagogiques** (`pedagogy_*`) : vous personnalisez
+de la même façon la consigne de génération des flashcards, QCM, fiches, etc.
 
 ### Conserver les artefacts intermédiaires
 
-Le dossier `.fahmi2/workspace/` contient les fichiers de travail. Si vous
+Le dossier `<emplacement>/generation/` contient les fichiers de travail. Si vous
 voulez juste les livrables finaux, vous pouvez supprimer ce dossier après
 récupération. Mais conservez-le si vous pensez ré-éditer ou rejouer
 certaines phases.
@@ -250,7 +306,8 @@ certaines phases.
 ### Style du rendu
 
 Si le rendu ne vous plaît pas (trop sec, trop verbeux, etc.), modifiez le
-champ **Directives stylistiques** dans les paramètres du projet et relancez.
+champ **Directives stylistiques** dans l'onglet **Génération → ⚙ Réglages → Style**
+et relancez.
 Pas besoin de tout refaire — la reprise saute les phases déjà bien faites.
 
 ### Glossaire homogène
@@ -262,7 +319,7 @@ IFRS…) sont accompagnés de leur **signification d'origine** en plus de
 la définition — celle-ci reste dans la langue où l'acronyme a été forgé
 (*Return On Investment* pour ROI, même dans un glossaire FR).
 
-## 11. Confidentialité
+## 13. Confidentialité
 
 - **Aucune télémétrie** n'est envoyée par l'application.
 - **Vos contenus ne sortent jamais de votre poste** sauf vers les APIs que
@@ -271,7 +328,7 @@ la définition — celle-ci reste dans la langue où l'acronyme a été forgé
 - **Vos clés API sont chiffrées** sur disque par Windows DPAPI : seul
   votre compte Windows peut les lire.
 
-## 12. Besoin d'aide ?
+## 14. Besoin d'aide ?
 
 - Pour les questions fonctionnelles : voir
   [01-presentation-fonctionnelle.md](01-presentation-fonctionnelle.md).

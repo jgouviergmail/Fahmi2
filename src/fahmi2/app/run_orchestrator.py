@@ -23,6 +23,8 @@ from datetime import UTC, datetime
 
 from fahmi2.app.project_service import ProjectService
 from fahmi2.app.video_scanner import scan_input_folder
+from fahmi2.core.errors.exceptions import ConfigError
+from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import RunStatus
 from fahmi2.domain.ids import ProjectId, RunId
 from fahmi2.domain.project import Project
@@ -73,16 +75,26 @@ class RunOrchestrator:
             Le ``Run`` créé (à l'état ``CREATED``).
 
         Raises:
+            ConfigError: Si la génération n'est pas configurée, ou si aucun
+                fichier vidéo supporté n'est trouvé.
             StorageError: Si le dossier d'entrée est inaccessible.
-            ConfigError: Si aucun fichier vidéo supporté n'est trouvé.
         """
-        videos = scan_input_folder(project.settings.input_folder)
+        if project.generation is None:
+            raise ConfigError(
+                code="CONFIG.GENERATION_NOT_CONFIGURED",
+                user_message=(
+                    "La génération n'est pas configurée pour ce projet. "
+                    "Renseignez d'abord ses réglages."
+                ),
+                severity=Severity.ERROR,
+            )
+        videos = scan_input_folder(project.generation.input_folder)
         run = Run(
             id=RunId.new(),
             project_id=project.id,
             started_at=datetime.now(tz=UTC),
             status=RunStatus.CREATED,
-            settings_snapshot=project.settings,
+            settings_snapshot=project.generation,
             videos=tuple(videos),
         )
         self._state.upsert_run(run)
@@ -152,10 +164,13 @@ class RunOrchestrator:
             self._project_service.update_project(
                 Project(
                     id=project.id,
-                    settings=project.settings,
+                    name=project.name,
+                    workspace_folder=project.workspace_folder,
                     created_at=project.created_at,
                     last_run_at=finished_run.finished_at,
                     runs=(*project.runs, finished_run.id),
+                    generation=project.generation,
+                    pedagogy=project.pedagogy,
                 )
             )
         return final_status

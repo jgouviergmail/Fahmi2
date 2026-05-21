@@ -12,11 +12,15 @@ from fahmi2.domain.run import Run
 from fahmi2.infra.storage.sqlite_state import SqliteState
 
 
-def _setup_run(tmp_path: Path, make_settings: Any) -> tuple[SqliteState, RunId]:
-    settings = make_settings()
+def _setup_run(tmp_path: Path, make_generation_settings: Any) -> tuple[SqliteState, RunId]:
+    settings = make_generation_settings()
     state = SqliteState(tmp_path / "t.db")
     project = Project(
-        id=ProjectId.new(), settings=settings, created_at=datetime.now(tz=UTC)
+        id=ProjectId.new(),
+        name="Test",
+        workspace_folder=tmp_path / "ws",
+        created_at=datetime.now(tz=UTC),
+        generation=settings,
     )
     state.upsert_project(project)
     run = Run(
@@ -31,9 +35,9 @@ def _setup_run(tmp_path: Path, make_settings: Any) -> tuple[SqliteState, RunId]:
 
 
 def test_import_master_payload_persists_terms(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    state, run_id = _setup_run(tmp_path, make_settings)
+    state, run_id = _setup_run(tmp_path, make_generation_settings)
     reconciler = GlossaryReconciler(state)
     payload = {
         "terms": [
@@ -60,9 +64,9 @@ def test_import_master_payload_persists_terms(
 
 
 def test_import_empty_payload_is_noop(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    state, run_id = _setup_run(tmp_path, make_settings)
+    state, run_id = _setup_run(tmp_path, make_generation_settings)
     reconciler = GlossaryReconciler(state)
     assert reconciler.import_master_payload(
         run_id=run_id, language=Language.FR, payload={"terms": []}
@@ -70,9 +74,9 @@ def test_import_empty_payload_is_noop(
 
 
 def test_load_glossary_returns_empty_when_no_data(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    state, run_id = _setup_run(tmp_path, make_settings)
+    state, run_id = _setup_run(tmp_path, make_generation_settings)
     reconciler = GlossaryReconciler(state)
     glossary = reconciler.load_glossary(run_id, Language.FR)
     assert len(glossary) == 0
@@ -80,9 +84,9 @@ def test_load_glossary_returns_empty_when_no_data(
 
 
 def test_render_markdown_includes_all_terms_sorted(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    state, run_id = _setup_run(tmp_path, make_settings)
+    state, run_id = _setup_run(tmp_path, make_generation_settings)
     reconciler = GlossaryReconciler(state)
     reconciler.import_master_payload(
         run_id=run_id,
@@ -104,8 +108,8 @@ def test_render_markdown_includes_all_terms_sorted(
     assert pos_alpha < pos_meta < pos_zorglub
 
 
-def test_render_markdown_in_english(tmp_path: Path, make_settings: Any) -> None:
-    state, run_id = _setup_run(tmp_path, make_settings)
+def test_render_markdown_in_english(tmp_path: Path, make_generation_settings: Any) -> None:
+    state, run_id = _setup_run(tmp_path, make_generation_settings)
     reconciler = GlossaryReconciler(state)
     reconciler.import_master_payload(
         run_id=run_id,
@@ -133,9 +137,9 @@ def test_render_markdown_in_english(tmp_path: Path, make_settings: Any) -> None:
 
 
 def test_render_markdown_table_format_in_french(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    state, run_id = _setup_run(tmp_path, make_settings)
+    state, run_id = _setup_run(tmp_path, make_generation_settings)
     reconciler = GlossaryReconciler(state)
     reconciler.import_master_payload(
         run_id=run_id,
@@ -167,12 +171,12 @@ def test_render_markdown_table_format_in_french(
 
 
 def test_acronym_expansion_is_language_invariant(
-    tmp_path: Path, make_settings: Any
+    tmp_path: Path, make_generation_settings: Any
 ) -> None:
     """L'expansion d'acronyme reste dans sa langue d'origine quelle que soit
     la langue du glossaire (un glossaire FR peut donc contenir
     'Return On Investment' pour ROI)."""
-    state, run_id = _setup_run(tmp_path, make_settings)
+    state, run_id = _setup_run(tmp_path, make_generation_settings)
     reconciler = GlossaryReconciler(state)
     reconciler.import_master_payload(
         run_id=run_id,

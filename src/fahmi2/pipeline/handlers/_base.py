@@ -15,11 +15,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from fahmi2.core.errors.exceptions import LLMError
-from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import Language, PhaseId, PhaseStatus, StylePreset
 from fahmi2.domain.phase import PhaseExecution
-from fahmi2.infra.llm.interface import LLMResponse, Message
+from fahmi2.infra.llm.interface import LLMResponse
+from fahmi2.infra.llm.invocation import invoke_llm_chat, parse_llm_json
 from fahmi2.pipeline.phase_handler import PhaseContext
 
 _STYLE_LABELS_FR: dict[StylePreset, str] = {
@@ -79,26 +78,18 @@ def invoke_llm(
     Returns:
         ``LLMResponse``.
     """
-    config = ctx.settings.phases_config[phase_id]
-    messages: list[Message] = []
-    if system_prompt:
-        messages.append(Message(role="system", content=system_prompt))
-    messages.append(Message(role="user", content=user_prompt))
-    reasoning_effort_str = (
-        str(config.reasoning_effort) if config.reasoning_effort else None
-    )
-    return ctx.llm_provider.chat(
-        messages=messages,
+    return invoke_llm_chat(
+        ctx.llm_provider,
         model=str(ctx.settings.llm_model),
-        thinking=config.thinking_enabled,
-        reasoning_effort=reasoning_effort_str,
-        temperature=config.temperature,
+        config=ctx.settings.phases_config[phase_id],
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
         max_tokens=max_tokens,
     )
 
 
 def parse_json_response(content: str, *, phase_id: PhaseId) -> Any:  # noqa: ANN401
-    """Parse une réponse LLM JSON, en isolant les éventuels délimiteurs.
+    """Parse une réponse LLM JSON (délègue à ``parse_llm_json``).
 
     Args:
         content: Contenu textuel de la réponse LLM.
@@ -110,24 +101,7 @@ def parse_json_response(content: str, *, phase_id: PhaseId) -> Any:  # noqa: ANN
     Raises:
         LLMError: ``LLM.INVALID_JSON`` si le contenu n'est pas du JSON valide.
     """
-    cleaned = content.strip()
-    if cleaned.startswith("```"):
-        # Supprime les délimiteurs ```json ... ``` éventuels
-        cleaned = cleaned.strip("`")
-        if cleaned.lower().startswith("json"):
-            cleaned = cleaned[4:]
-        cleaned = cleaned.strip()
-    try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError as exc:
-        raise LLMError(
-            code="LLM.INVALID_JSON",
-            user_message=(
-                f"La réponse du LLM pour {phase_id.value} n'est pas du JSON valide."
-            ),
-            severity=Severity.ERROR,
-            technical_details={"phase_id": str(phase_id), "raw_content": content[:500]},
-        ) from exc
+    return parse_llm_json(content, context_label=phase_id.value)
 
 
 def build_succeeded_phase(

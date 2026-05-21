@@ -137,13 +137,14 @@ class PhaseConfigsWidget(QGroupBox):
             self._rows[phase_id] = (thinking_cb, effort_combo, temp_sb, retries_sb)
 
         outer.addLayout(grid)
+        outer.addStretch(1)
 
     def get_phase_configs(self) -> dict[PhaseId, PhaseConfig]:
         """Retourne le mapping ``PhaseId → PhaseConfig`` des valeurs saisies.
 
         Returns:
             Dictionnaire complet sur les 7 phases LLM, prêt à être passé à
-            ``ProjectSettings.phases_config``.
+            ``GenerationSettings.phases_config``.
         """
         result: dict[PhaseId, PhaseConfig] = {}
         for phase_id, (cb, effort_combo, temp_sb, retries_sb) in self._rows.items():

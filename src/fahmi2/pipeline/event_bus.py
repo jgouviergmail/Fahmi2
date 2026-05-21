@@ -1,28 +1,27 @@
-"""Bus d'événements générique pour le pipeline.
+"""Bus d'événements générique (in-memory, thread-safe).
 
-Implémentation in-memory thread-safe. L'adapter Qt (qui transforme les
-publications en ``Signal`` côté UI) vivra dans ``ui/qt_event_bus.py`` (Plan 08)
-et héritera de la même interface.
+Paramétré par le type d'événement (``EventBus[PipelineEvent]`` pour la
+génération, ``EventBus[PedagogyEvent]`` pour la pédagogie). L'adapter Qt
+(``ui/qt_event_bus.py``) en hérite pour bridger worker → UI thread.
 """
 
 from __future__ import annotations
 
 import threading
 from collections.abc import Callable
+from typing import Generic, TypeVar
 
-from fahmi2.pipeline.events import PipelineEvent
-
-EventHandler = Callable[[PipelineEvent], None]
+E = TypeVar("E")
 
 
-class EventBus:
-    """Bus d'événements in-memory thread-safe."""
+class EventBus(Generic[E]):
+    """Bus d'événements in-memory thread-safe, paramétré par le type d'event."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._handlers: list[EventHandler] = []
+        self._handlers: list[Callable[[E], None]] = []
 
-    def subscribe(self, handler: EventHandler) -> Callable[[], None]:
+    def subscribe(self, handler: Callable[[E], None]) -> Callable[[], None]:
         """Abonne un handler aux événements futurs.
 
         Args:
@@ -41,7 +40,7 @@ class EventBus:
 
         return _unsubscribe
 
-    def publish(self, event: PipelineEvent) -> None:
+    def publish(self, event: E) -> None:
         """Distribue ``event`` à tous les handlers abonnés.
 
         Args:
@@ -49,8 +48,7 @@ class EventBus:
 
         Note:
             Les exceptions levées par un handler ne sont pas propagées : on
-            log silencieusement et on continue (un handler défaillant ne doit
-            pas casser la chaîne).
+            isole chaque handler pour ne pas casser la chaîne.
         """
         with self._lock:
             handlers = tuple(self._handlers)
@@ -58,7 +56,4 @@ class EventBus:
             try:
                 h(event)
             except Exception:  # noqa: BLE001, S110 — isolation des handlers
-                # On ne masque pas l'erreur silencieusement en production : un
-                # sink de logs dédié (Plan futur) écoutera ces erreurs via un
-                # autre canal. Pour l'instant on isole.
                 pass

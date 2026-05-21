@@ -15,7 +15,7 @@ from openai import APIError, APIStatusError, AuthenticationError, OpenAI, RateLi
 from fahmi2.core.errors.exceptions import LLMError, STTError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import Language
-from fahmi2.infra.audio.cloud_audio_preparer import CloudAudioPreparer
+from fahmi2.infra.audio.cloud_audio_preparer import AudioPreparer
 from fahmi2.infra.stt.interface import (
     ProgressCallback,
     Transcription,
@@ -77,7 +77,7 @@ class OpenAIWhisperAdapter:
         *,
         api_key: str,
         client: OpenAI | None = None,
-        preparer: CloudAudioPreparer | None = None,
+        preparer: AudioPreparer | None = None,
         timeout: float = _REQUEST_TIMEOUT_SECONDS,
     ) -> None:
         """Construit l'adaptateur.

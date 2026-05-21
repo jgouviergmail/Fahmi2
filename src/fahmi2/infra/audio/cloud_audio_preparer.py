@@ -12,6 +12,7 @@ import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Protocol
 
 from fahmi2.core.errors.exceptions import FFmpegError
 from fahmi2.core.errors.severity import Severity
@@ -44,6 +45,26 @@ class AudioChunk:
 
     path: Path
     offset_seconds: float
+
+
+class AudioPreparer(Protocol):
+    """Contrat de préparation d'audio pour le STT cloud.
+
+    Permet d'injecter un double de test dans l'adapter cloud sans dépendre de
+    l'implémentation concrète ``CloudAudioPreparer``.
+    """
+
+    def prepare(self, wav_path: Path, work_dir: Path) -> list[AudioChunk]:
+        """Produit des segments audio ≤ limite (avec offsets temporels).
+
+        Args:
+            wav_path: WAV source.
+            work_dir: Dossier de travail.
+
+        Returns:
+            Liste ordonnée d'``AudioChunk`` (au moins un).
+        """
+        ...
 
 
 class CloudAudioPreparer:

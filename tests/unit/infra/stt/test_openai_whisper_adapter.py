@@ -8,6 +8,7 @@ from openai import AuthenticationError, RateLimitError
 
 from fahmi2.core.errors.exceptions import STTError
 from fahmi2.domain.enums import Language
+from fahmi2.infra.audio.cloud_audio_preparer import AudioChunk
 from fahmi2.infra.stt.openai_whisper_adapter import (
     OpenAIWhisperAdapter,
     _parse_verbose_response,
@@ -135,3 +136,45 @@ def test_transcribe_maps_rate_limit(tmp_path: Path) -> None:
     with pytest.raises(STTError) as exc_info:
         adapter.transcribe(audio)
     assert exc_info.value.code == "STT.RATE_LIMIT"
+
+
+def test_transcribe_merges_chunks_with_offsets(tmp_path: Path) -> None:
+    audio = tmp_path / "audio.wav"
+    audio.write_bytes(b"x")
+
+    class _FakePreparer:
+        def prepare(self, wav_path: Path, work_dir: Path) -> list[AudioChunk]:
+            return [
+                AudioChunk(path=tmp_path / "a.ogg", offset_seconds=0.0),
+                AudioChunk(path=tmp_path / "b.ogg", offset_seconds=60.0),
+            ]
+
+    (tmp_path / "a.ogg").write_bytes(b"a")
+    (tmp_path / "b.ogg").write_bytes(b"b")
+
+    def _resp(text: str, start: float, end: float) -> object:
+        m = MagicMock()
+        m.model_dump.return_value = {
+            "language": "french",
+            "duration": end,
+            "segments": [{"start": start, "end": end, "text": text}],
+        }
+        return m
+
+    mock_client = MagicMock()
+    mock_client.audio.transcriptions.create.side_effect = [
+        _resp("un", 0.0, 5.0),
+        _resp("deux", 1.0, 4.0),
+    ]
+    adapter = OpenAIWhisperAdapter(
+        api_key="dummy", client=mock_client, preparer=_FakePreparer()
+    )
+    result = adapter.transcribe(audio)
+    assert result.detected_language is Language.FR
+    assert [
+        (s.start_seconds, s.end_seconds, s.text) for s in result.segments
+    ] == [
+        (0.0, 5.0, "un"),
+        (61.0, 64.0, "deux"),
+    ]
+    assert mock_client.audio.transcriptions.create.call_count == 2

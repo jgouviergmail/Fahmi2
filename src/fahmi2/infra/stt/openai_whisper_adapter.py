@@ -5,6 +5,8 @@ Modèle utilisé : ``whisper-1``. Tarification : 0.006 USD par minute audio.
 
 from __future__ import annotations
 
+import tempfile
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +15,7 @@ from openai import APIError, APIStatusError, AuthenticationError, OpenAI, RateLi
 from fahmi2.core.errors.exceptions import LLMError, STTError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import Language
+from fahmi2.infra.audio.cloud_audio_preparer import CloudAudioPreparer
 from fahmi2.infra.stt.interface import (
     ProgressCallback,
     Transcription,
@@ -23,6 +26,8 @@ _PROVIDER_NAME = "openai-whisper"
 _MODEL_NAME = "whisper-1"
 _USD_PER_MINUTE = 0.006
 _SECONDS_PER_MINUTE = 60.0
+# OpenAI garde la connexion ouverte sous charge : timeout client large.
+_REQUEST_TIMEOUT_SECONDS = 600.0
 
 # OpenAI Whisper (``verbose_json``) renvoie le **nom anglais complet** de la
 # langue détectée (ex. ``"french"``), pas le code ISO. On mappe noms ET codes
@@ -67,14 +72,26 @@ def _map_status_code_to_stt_error(
 class OpenAIWhisperAdapter:
     """Implémentation ``STTProvider`` appelant l'endpoint OpenAI Whisper."""
 
-    def __init__(self, *, api_key: str, client: OpenAI | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        client: OpenAI | None = None,
+        preparer: CloudAudioPreparer | None = None,
+        timeout: float = _REQUEST_TIMEOUT_SECONDS,
+    ) -> None:
         """Construit l'adaptateur.
 
         Args:
             api_key: Clé API OpenAI.
             client: Client OpenAI injectable (utile pour les tests).
+            preparer: Préparateur d'audio cloud (compression + découpage). En
+                production il est **obligatoire** (injecté par le contrôleur) ;
+                ``None`` = transcription directe d'un seul fichier (tests).
+            timeout: Timeout des requêtes en secondes.
         """
-        self._client = client or OpenAI(api_key=api_key)
+        self._client = client or OpenAI(api_key=api_key, timeout=timeout)
+        self._preparer = preparer
 
     @property
     def name(self) -> str:
@@ -96,13 +113,57 @@ class OpenAIWhisperAdapter:
             on_progress: Callback de progression.
 
         Returns:
-            ``Transcription`` reconstruite depuis la réponse JSON verbose.
+            ``Transcription`` recollée à partir des segments préparés.
 
         Raises:
             STTError: En cas d'erreur API/authentification/rate-limit.
+            FFmpegError: Si la préparation audio (compression/découpage) échoue.
         """
         if on_progress is not None:
             on_progress(0.0)
+        if self._preparer is None:
+            result = self._transcribe_one(
+                audio_path, offset_seconds=0.0, language_hint=language_hint
+            )
+            if on_progress is not None:
+                on_progress(1.0)
+            return _merge_transcriptions([result], fallback=language_hint)
+
+        with tempfile.TemporaryDirectory(prefix="fahmi2-stt-") as tmp:
+            chunks = self._preparer.prepare(audio_path, Path(tmp))
+            parts: list[Transcription] = []
+            for index, chunk in enumerate(chunks):
+                parts.append(
+                    self._transcribe_one(
+                        chunk.path,
+                        offset_seconds=chunk.offset_seconds,
+                        language_hint=language_hint,
+                    )
+                )
+                if on_progress is not None:
+                    on_progress((index + 1) / len(chunks))
+        return _merge_transcriptions(parts, fallback=language_hint)
+
+    def _transcribe_one(
+        self,
+        audio_path: Path,
+        *,
+        offset_seconds: float,
+        language_hint: Language | None,
+    ) -> Transcription:
+        """Transcrit un seul fichier et décale ses segments de ``offset_seconds``.
+
+        Args:
+            audio_path: Fichier audio (un segment).
+            offset_seconds: Décalage temporel à appliquer aux timestamps.
+            language_hint: Indice de langue.
+
+        Returns:
+            ``Transcription`` du segment (timestamps décalés).
+
+        Raises:
+            STTError: En cas d'erreur API.
+        """
         try:
             with audio_path.open("rb") as fp:
                 kwargs: dict[str, Any] = {
@@ -120,9 +181,22 @@ class OpenAIWhisperAdapter:
             RateLimitError,
         ) as exc:
             raise _map_status_code_to_stt_error(exc) from exc
-        if on_progress is not None:
-            on_progress(1.0)
-        return _parse_verbose_response(response.model_dump(), fallback=language_hint)
+        base = _parse_verbose_response(response.model_dump(), fallback=language_hint)
+        if offset_seconds == 0.0:
+            return base
+        shifted = tuple(
+            TranscriptionSegment(
+                start_seconds=s.start_seconds + offset_seconds,
+                end_seconds=s.end_seconds + offset_seconds,
+                text=s.text,
+            )
+            for s in base.segments
+        )
+        return Transcription(
+            segments=shifted,
+            detected_language=base.detected_language,
+            duration_seconds=base.duration_seconds + offset_seconds,
+        )
 
     def estimate_cost(self, duration_seconds: float) -> float:
         """Estime le coût en USD pour une durée audio donnée.
@@ -180,6 +254,30 @@ def _parse_verbose_response(
     duration = float(payload.get("duration", 0.0))
     return Transcription(
         segments=segments,
+        detected_language=detected,
+        duration_seconds=duration,
+    )
+
+
+def _merge_transcriptions(
+    parts: Sequence[Transcription], *, fallback: Language | None
+) -> Transcription:
+    """Concatène plusieurs ``Transcription`` (segments déjà décalés).
+
+    Args:
+        parts: Transcriptions ordonnées par offset croissant.
+        fallback: Langue de repli si ``parts`` est vide.
+
+    Returns:
+        Une ``Transcription`` unique (langue du 1er segment, durée = max des fins).
+    """
+    segments: list[TranscriptionSegment] = []
+    for part in parts:
+        segments.extend(part.segments)
+    detected = parts[0].detected_language if parts else (fallback or Language.EN)
+    duration = max((s.end_seconds for s in segments), default=0.0)
+    return Transcription(
+        segments=tuple(segments),
         detected_language=detected,
         duration_seconds=duration,
     )

@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from fahmi2.core.errors.exceptions import Fahmi2Error
-from fahmi2.domain.enums import PhaseId, PhaseStatus
+from fahmi2.domain.enums import PhaseId, PhaseStatus, SttProvider
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.video import VideoExecution
 from fahmi2.infra.stt.interface import Transcription
@@ -42,6 +42,12 @@ class Phase0SttHandler(PhaseHandler):
     def is_per_video(self) -> bool:
         """Phase par vidéo."""
         return True
+
+    def max_parallel_workers(self, ctx: PhaseContext) -> int:
+        """STT cloud : pool ``stt_cloud_workers`` ; STT local : 1 (GPU unique)."""
+        if ctx.settings.stt_provider is SttProvider.OPENAI_CLOUD:
+            return ctx.settings.parallelism.stt_cloud_workers
+        return 1
 
     def execute(
         self,

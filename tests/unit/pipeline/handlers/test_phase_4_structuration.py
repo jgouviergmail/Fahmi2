@@ -7,6 +7,7 @@ import pytest
 
 from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.domain.enums import PhaseStatus
+from fahmi2.domain.generation import ParallelismConfig
 from fahmi2.domain.ids import VideoId
 from fahmi2.domain.video import VideoExecution
 from fahmi2.infra.llm.interface import LLMResponse
@@ -75,3 +76,15 @@ def test_execute_raises_when_video_is_none(
     handler = Phase4StructurationHandler()
     with pytest.raises(ValueError, match="VideoExecution"):
         handler.execute(ctx, video=None)
+
+
+def test_phase_workers_is_llm_pool(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    handler = Phase4StructurationHandler()
+    ctx, _ = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        settings_overrides={"parallelism": ParallelismConfig(llm_workers=7)},
+    )
+    assert handler.max_parallel_workers(ctx) == 7

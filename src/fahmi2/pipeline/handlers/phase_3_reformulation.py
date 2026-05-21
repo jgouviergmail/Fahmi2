@@ -53,6 +53,10 @@ class Phase3ReformulationHandler(PhaseHandler):
         """Phase par vidéo."""
         return True
 
+    def max_parallel_workers(self, ctx: PhaseContext) -> int:
+        """Parallélise les vidéos via le pool LLM configuré."""
+        return ctx.settings.parallelism.llm_workers
+
     def execute(
         self,
         ctx: PhaseContext,

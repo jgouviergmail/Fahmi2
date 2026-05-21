@@ -12,7 +12,8 @@ import pytest
 from fahmi2.core.errors.exceptions import FFmpegError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.core.retrieval.interface import PassthroughRetriever
-from fahmi2.domain.enums import Language, PhaseStatus, RunStatus
+from fahmi2.domain.enums import Language, PhaseStatus, RunStatus, SttProvider
+from fahmi2.domain.generation import ParallelismConfig
 from fahmi2.domain.ids import ProjectId, RunId, VideoId
 from fahmi2.domain.run import Run
 from fahmi2.domain.video import VideoExecution
@@ -27,6 +28,7 @@ from fahmi2.pipeline.event_bus import EventBus
 from fahmi2.pipeline.handlers.phase_0_stt import Phase0SttHandler
 from fahmi2.pipeline.pause_token import PauseToken
 from fahmi2.pipeline.phase_handler import PhaseContext
+from tests.unit.pipeline.handlers._helpers import build_phase_context
 
 
 @pytest.fixture(scope="session")
@@ -283,3 +285,33 @@ def test_mocked_full_path(tmp_path: Path, make_generation_settings: Any) -> None
     assert result.status is PhaseStatus.SUCCEEDED
     assert result.artifact_path is not None
     assert result.cost_usd == 0.0
+
+
+def test_phase0_workers_cloud_uses_pool(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    handler = Phase0SttHandler()
+    ctx, _ = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        settings_overrides={
+            "stt_provider": SttProvider.OPENAI_CLOUD,
+            "parallelism": ParallelismConfig(stt_cloud_workers=5),
+        },
+    )
+    assert handler.max_parallel_workers(ctx) == 5
+
+
+def test_phase0_workers_local_is_one(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    handler = Phase0SttHandler()
+    ctx, _ = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        settings_overrides={
+            "stt_provider": SttProvider.FASTER_WHISPER_LOCAL,
+            "parallelism": ParallelismConfig(stt_cloud_workers=5),
+        },
+    )
+    assert handler.max_parallel_workers(ctx) == 1

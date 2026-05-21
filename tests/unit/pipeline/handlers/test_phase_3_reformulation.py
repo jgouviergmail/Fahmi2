@@ -8,6 +8,7 @@ import pytest
 
 from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.domain.enums import PhaseStatus
+from fahmi2.domain.generation import ParallelismConfig
 from fahmi2.domain.ids import VideoId
 from fahmi2.domain.video import VideoExecution
 from fahmi2.infra.llm.interface import LLMResponse
@@ -120,3 +121,15 @@ def test_execute_works_when_glossary_master_absent(
     handler = Phase3ReformulationHandler()
     result = handler.execute(ctx, video=video)
     assert result.status is PhaseStatus.SUCCEEDED
+
+
+def test_phase_workers_is_llm_pool(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    handler = Phase3ReformulationHandler()
+    ctx, _ = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        settings_overrides={"parallelism": ParallelismConfig(llm_workers=7)},
+    )
+    assert handler.max_parallel_workers(ctx) == 7

@@ -32,7 +32,7 @@ def test_settings_hash_ignores_export_formats(make_pedagogy_settings: Any) -> No
 
 def test_is_fresh_logic() -> None:
     manifest = PedagogyManifest()
-    st, lang = SupportType.FLASHCARDS_GLOSSARY, Language.FR
+    st, lang = SupportType.FLASHCARDS_CONCEPTS, Language.FR
     assert not manifest.is_fresh(st, lang, settings_hash="h", source_mtime_ns=10)
     manifest.record(st, lang, settings_hash="h", source_mtime_ns=10)
     assert manifest.is_fresh(st, lang, settings_hash="h", source_mtime_ns=10)
@@ -44,7 +44,7 @@ def test_round_trip(tmp_path: Path) -> None:
     artifacts = FsArtifactStore()
     manifest = PedagogyManifest()
     manifest.record(
-        SupportType.FLASHCARDS_GLOSSARY,
+        SupportType.FLASHCARDS_CONCEPTS,
         Language.FR,
         settings_hash="h",
         source_mtime_ns=10,
@@ -52,7 +52,7 @@ def test_round_trip(tmp_path: Path) -> None:
     write_manifest(artifacts, tmp_path, manifest)
     loaded = read_manifest(tmp_path)
     assert loaded.is_fresh(
-        SupportType.FLASHCARDS_GLOSSARY,
+        SupportType.FLASHCARDS_CONCEPTS,
         Language.FR,
         settings_hash="h",
         source_mtime_ns=10,
@@ -62,7 +62,7 @@ def test_round_trip(tmp_path: Path) -> None:
 def test_read_missing_returns_empty(tmp_path: Path) -> None:
     loaded = read_manifest(tmp_path)
     assert not loaded.is_fresh(
-        SupportType.FLASHCARDS_GLOSSARY,
+        SupportType.FLASHCARDS_CONCEPTS,
         Language.FR,
         settings_hash="h",
         source_mtime_ns=1,

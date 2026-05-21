@@ -41,7 +41,7 @@ def test_export_collects_artifacts(
     _write_artifact(
         pedagogy_dir,
         SupportArtifact(
-            support_type=SupportType.FLASHCARDS_GLOSSARY,
+            support_type=SupportType.FLASHCARDS_CONCEPTS,
             language=Language.FR,
             items=(Flashcard(front="PIB", back="def", source_ref="PIB"),),
             rendered_markdown="x",

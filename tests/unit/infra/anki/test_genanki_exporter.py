@@ -29,7 +29,7 @@ def test_export_multiword_glossary_term_does_not_raise(tmp_path: Path) -> None:
     """Un terme de glossaire multi-mots (tag avec espace) ne fait plus échouer."""
     artifacts = [
         ParsedArtifact(
-            support_type=SupportType.FLASHCARDS_GLOSSARY,
+            support_type=SupportType.FLASHCARDS_CONCEPTS,
             language=Language.FR,
             items=(
                 Flashcard(
@@ -58,7 +58,7 @@ def test_to_anki_cloze_more_blanks_than_answers() -> None:
 def _artifacts() -> list[ParsedArtifact]:
     return [
         ParsedArtifact(
-            support_type=SupportType.FLASHCARDS_GLOSSARY,
+            support_type=SupportType.FLASHCARDS_CONCEPTS,
             language=Language.FR,
             items=(Flashcard(front="PIB", back="def", source_ref="PIB"),),
         ),
@@ -107,7 +107,7 @@ def test_export_empty_writes_valid_package(tmp_path: Path) -> None:
 
 def test_guid_is_stable() -> None:
     artifact = ParsedArtifact(
-        support_type=SupportType.FLASHCARDS_GLOSSARY,
+        support_type=SupportType.FLASHCARDS_CONCEPTS,
         language=Language.FR,
         items=(Flashcard(front="PIB", back="def", source_ref="PIB"),),
     )

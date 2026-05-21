@@ -23,5 +23,5 @@ def test_ordered_generators_count_and_order() -> None:
 
 def test_uses_llm_flags() -> None:
     registry = build_default_support_registry()
-    assert registry.get(SupportType.FLASHCARDS_GLOSSARY).uses_llm is False
+    assert registry.get(SupportType.FLASHCARDS_CONCEPTS).uses_llm is True
     assert registry.get(SupportType.QCM).uses_llm is True

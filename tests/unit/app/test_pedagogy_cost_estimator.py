@@ -16,14 +16,14 @@ def _chapters(n: int) -> tuple[Chapter, ...]:
     )
 
 
-def test_glossary_only_is_free(make_pedagogy_settings: Any) -> None:
+def test_llm_support_reports_chapter_count(make_pedagogy_settings: Any) -> None:
     ped = make_pedagogy_settings(
-        selected_supports=frozenset({SupportType.FLASHCARDS_GLOSSARY})
+        selected_supports=frozenset({SupportType.FLASHCARDS_CONCEPTS})
     )
     est = PedagogyCostEstimator().estimate(
         pedagogy=ped, chapters_by_language={Language.FR: _chapters(3)}
     )
-    assert est.total_usd == 0.0
+    assert est.total_usd > 0.0
     assert est.chapters_total == 3
 
 

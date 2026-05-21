@@ -33,6 +33,7 @@ from fahmi2.domain.generation import (
     GENERATION_WORKSPACE_SUBDIR,
     consolidated_doc_filename,
 )
+from fahmi2.domain.glossary import Term
 from fahmi2.domain.ids import RunId
 from fahmi2.domain.run import Run
 from fahmi2.domain.supports import Flashcard, SupportArtifact
@@ -46,12 +47,13 @@ from fahmi2.pedagogy.artifact_writer import (
     artifact_markdown_path,
     serialize_artifact,
 )
+from fahmi2.pedagogy.chapters import Chapter
 from fahmi2.pedagogy.events import (
     SupportFinished,
     SupportGenerationFinished,
     SupportStarted,
 )
-from fahmi2.pedagogy.generators.flashcards_glossary import FlashcardsGlossaryGenerator
+from fahmi2.pedagogy.support_generator import SupportContext, SupportGenerator
 from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
 from fahmi2.pipeline.pause_token import PauseToken
 from fahmi2.ui import pedagogy_controller as pc_module
@@ -70,6 +72,38 @@ from fahmi2.ui.widgets.project_header_bar import ProjectHeaderBar
 
 def _app_paths(tmp_path: Path) -> AppPaths:
     return AppPaths(appdata=tmp_path / "appdata", localappdata=tmp_path / "local")
+
+
+class _StubGen(SupportGenerator):
+    """Générateur déterministe sans LLM (artefact trivial) pour les tests."""
+
+    def __init__(self, support_type: SupportType) -> None:
+        self._support_type = support_type
+
+    @property
+    def support_type(self) -> SupportType:
+        return self._support_type
+
+    @property
+    def uses_llm(self) -> bool:
+        return False
+
+    def generate(
+        self,
+        ctx: SupportContext,
+        *,
+        language: Language,
+        chapters: tuple[Chapter, ...],
+        glossary: tuple[Term, ...],
+    ) -> SupportArtifact:
+        del ctx, chapters, glossary
+        return SupportArtifact(
+            support_type=self._support_type,
+            language=language,
+            items=(),
+            rendered_markdown="# Stub\n",
+            cost_usd=0.0,
+        )
 
 
 def _make_controller(
@@ -97,7 +131,7 @@ def _make_controller(
         secrets_service=secrets_service,
         state=state,
         app_paths=_app_paths(tmp_path),
-        registry=SupportGeneratorRegistry([FlashcardsGlossaryGenerator()]),
+        registry=SupportGeneratorRegistry([_StubGen(SupportType.FLASHCARDS_CONCEPTS)]),
     )
     return controller, project_service, state
 
@@ -215,11 +249,11 @@ def test_export_apkg_writes_file(
     controller.on_project_selected(project.id)
     FsArtifactStore().write_json_atomic(
         artifact_json_path(
-            ws / "pedagogy", SupportType.FLASHCARDS_GLOSSARY, Language.FR
+            ws / "pedagogy", SupportType.FLASHCARDS_CONCEPTS, Language.FR
         ),
         serialize_artifact(
             SupportArtifact(
-                support_type=SupportType.FLASHCARDS_GLOSSARY,
+                support_type=SupportType.FLASHCARDS_CONCEPTS,
                 language=Language.FR,
                 items=(Flashcard(front="PIB", back="def", source_ref="PIB"),),
                 rendered_markdown="x",
@@ -253,7 +287,7 @@ def test_export_markdown_writes_files(
     controller.on_project_selected(project.id)
     FsArtifactStore().write_text_atomic(
         artifact_markdown_path(
-            ws / "pedagogy", SupportType.FLASHCARDS_GLOSSARY, Language.FR
+            ws / "pedagogy", SupportType.FLASHCARDS_CONCEPTS, Language.FR
         ),
         "# Flashcards — Glossaire (fr)\n\n### PIB\n\ndéf\n",
     )
@@ -388,7 +422,7 @@ def test_worker_runs_orchestrator(
     orchestrator = SupportsOrchestrator(
         state=state,
         project_service=project_service,
-        registry=SupportGeneratorRegistry([FlashcardsGlossaryGenerator()]),
+        registry=SupportGeneratorRegistry([_StubGen(SupportType.FLASHCARDS_CONCEPTS)]),
         artifacts=FsArtifactStore(),
         llm_provider=FakeLLMProvider(),
         prompts=PromptLoader(),

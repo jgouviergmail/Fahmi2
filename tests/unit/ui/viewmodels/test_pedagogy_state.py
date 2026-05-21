@@ -102,7 +102,7 @@ def test_up_to_date_when_fresh(
     service = ProjectService(state)
     ws = tmp_path / "ws"
     pedagogy = make_pedagogy_settings(
-        selected_supports=frozenset({SupportType.FLASHCARDS_GLOSSARY}),
+        selected_supports=frozenset({SupportType.FLASHCARDS_CONCEPTS}),
         languages=(Language.FR,),
     )
     project = service.create_project(
@@ -115,12 +115,12 @@ def test_up_to_date_when_fresh(
     pedagogy_dir = ws / PEDAGOGY_WORKSPACE_SUBDIR
     artifacts = FsArtifactStore()
     artifacts.write_json_atomic(
-        artifact_json_path(pedagogy_dir, SupportType.FLASHCARDS_GLOSSARY, Language.FR),
+        artifact_json_path(pedagogy_dir, SupportType.FLASHCARDS_CONCEPTS, Language.FR),
         {"items": []},
     )
     manifest = PedagogyManifest()
     manifest.record(
-        SupportType.FLASHCARDS_GLOSSARY,
+        SupportType.FLASHCARDS_CONCEPTS,
         Language.FR,
         settings_hash=compute_settings_hash(pedagogy),
         source_mtime_ns=source_mtime_ns(gen_out, Language.FR),
@@ -137,7 +137,7 @@ def test_stale_when_settings_changed(
     service = ProjectService(state)
     ws = tmp_path / "ws"
     pedagogy = make_pedagogy_settings(
-        selected_supports=frozenset({SupportType.FLASHCARDS_GLOSSARY}),
+        selected_supports=frozenset({SupportType.FLASHCARDS_CONCEPTS}),
         languages=(Language.FR,),
     )
     project = service.create_project(
@@ -149,12 +149,12 @@ def test_stale_when_settings_changed(
     pedagogy_dir = ws / PEDAGOGY_WORKSPACE_SUBDIR
     artifacts = FsArtifactStore()
     artifacts.write_json_atomic(
-        artifact_json_path(pedagogy_dir, SupportType.FLASHCARDS_GLOSSARY, Language.FR),
+        artifact_json_path(pedagogy_dir, SupportType.FLASHCARDS_CONCEPTS, Language.FR),
         {"items": []},
     )
     manifest = PedagogyManifest()
     manifest.record(
-        SupportType.FLASHCARDS_GLOSSARY,
+        SupportType.FLASHCARDS_CONCEPTS,
         Language.FR,
         settings_hash="ancien-hash-different",
         source_mtime_ns=123,

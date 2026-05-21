@@ -66,7 +66,6 @@ def _cloze(raw: dict[str, Any]) -> ClozeItem:
 
 #: Désérialiseurs d'items par type de support exportable Anki.
 _ITEM_DESERIALIZERS: dict[SupportType, Callable[[dict[str, Any]], SupportItem]] = {
-    SupportType.FLASHCARDS_GLOSSARY: _flashcard,
     SupportType.FLASHCARDS_CONCEPTS: _flashcard,
     SupportType.QCM: _qcm,
     SupportType.CLOZE: _cloze,

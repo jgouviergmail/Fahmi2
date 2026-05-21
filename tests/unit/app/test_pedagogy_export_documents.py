@@ -38,7 +38,7 @@ def _seed_markdown(pedagogy_dir: Path) -> None:
     artifacts = FsArtifactStore()
     artifacts.write_text_atomic(
         artifact_markdown_path(
-            pedagogy_dir, SupportType.FLASHCARDS_GLOSSARY, Language.FR
+            pedagogy_dir, SupportType.FLASHCARDS_CONCEPTS, Language.FR
         ),
         "# Flashcards — Glossaire (fr)\n\n### PIB\n\nProduit intérieur brut\n",
     )

@@ -15,7 +15,7 @@ from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
 class _FakeGen(SupportGenerator):
     @property
     def support_type(self) -> SupportType:
-        return SupportType.FLASHCARDS_GLOSSARY
+        return SupportType.FLASHCARDS_CONCEPTS
 
     @property
     def uses_llm(self) -> bool:
@@ -40,8 +40,8 @@ class _FakeGen(SupportGenerator):
 
 def test_register_and_get() -> None:
     registry = SupportGeneratorRegistry([_FakeGen()])
-    assert registry.has(SupportType.FLASHCARDS_GLOSSARY)
-    assert registry.get(SupportType.FLASHCARDS_GLOSSARY).uses_llm is False
+    assert registry.has(SupportType.FLASHCARDS_CONCEPTS)
+    assert registry.get(SupportType.FLASHCARDS_CONCEPTS).uses_llm is False
 
 
 def test_duplicate_registration_raises() -> None:
@@ -55,15 +55,15 @@ def test_get_unknown_raises_key_error() -> None:
         registry.get(SupportType.QCM)
 
 
-def test_canonical_order_has_nine_supports() -> None:
-    assert len(SupportGeneratorRegistry.canonical_order()) == 9
+def test_canonical_order_has_eight_supports() -> None:
+    assert len(SupportGeneratorRegistry.canonical_order()) == 8
     assert (
         SupportGeneratorRegistry.canonical_order()[0]
-        is SupportType.FLASHCARDS_GLOSSARY
+        is SupportType.FLASHCARDS_CONCEPTS
     )
 
 
 def test_ordered_generators_follows_canonical_order() -> None:
     registry = SupportGeneratorRegistry([_FakeGen()])
     ordered = registry.ordered_generators()
-    assert [g.support_type for g in ordered] == [SupportType.FLASHCARDS_GLOSSARY]
+    assert [g.support_type for g in ordered] == [SupportType.FLASHCARDS_CONCEPTS]

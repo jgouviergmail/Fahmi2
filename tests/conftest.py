@@ -92,7 +92,7 @@ def make_pedagogy_settings() -> Any:
 
     def _factory(**overrides: Any) -> PedagogySettings:
         base: dict[str, Any] = {
-            "selected_supports": frozenset({SupportType.FLASHCARDS_GLOSSARY}),
+            "selected_supports": frozenset({SupportType.FLASHCARDS_CONCEPTS}),
             "separate_correction": frozenset(),
             "target_audience": TargetAudience.LICENCE,
             "bloom_objective": BloomObjective.AUTO,

@@ -35,8 +35,10 @@ EVALUATIVE_SUPPORTS: frozenset[SupportType] = frozenset(
     }
 )
 
-#: Supports produits sans appel LLM (depuis le glossaire).
-NO_LLM_SUPPORTS: frozenset[SupportType] = frozenset({SupportType.FLASHCARDS_GLOSSARY})
+#: Supports produits sans appel LLM. Vide depuis le retrait de
+#: ``flashcards_glossary`` ; conservé pour rester générique (le cost estimator
+#: filtre dessus).
+NO_LLM_SUPPORTS: frozenset[SupportType] = frozenset()
 
 
 @dataclass(frozen=True)

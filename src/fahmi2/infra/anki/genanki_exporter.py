@@ -35,7 +35,6 @@ _TAG_WHITESPACE_RE = re.compile(r"\s+")
 _TAG_WHITESPACE_REPLACEMENT = "_"
 
 _SUPPORT_LABELS: dict[SupportType, str] = {
-    SupportType.FLASHCARDS_GLOSSARY: "Flashcards Glossaire",
     SupportType.FLASHCARDS_CONCEPTS: "Flashcards Concepts",
     SupportType.QCM: "QCM",
     SupportType.CLOZE: "Textes à trous",

@@ -205,6 +205,22 @@ def _serialize_pedagogy_settings(ped: PedagogySettings) -> dict[str, Any]:
     }
 
 
+def _known_support_types(values: list[str]) -> frozenset[SupportType]:
+    """Convertit des valeurs de support en ``SupportType``, ignorant les inconnus.
+
+    Tolère les réglages persistés référant un support retiré (ex. l'ancien
+    ``flashcards_glossary``) : la valeur inconnue est ignorée plutôt que de lever.
+
+    Args:
+        values: Valeurs brutes (chaînes) issues du blob persisté.
+
+    Returns:
+        Les ``SupportType`` reconnus.
+    """
+    known = {s.value for s in SupportType}
+    return frozenset(SupportType(v) for v in values if v in known)
+
+
 def _deserialize_pedagogy_settings(payload: dict[str, Any]) -> PedagogySettings:
     """Désérialise un ``PedagogySettings`` depuis un dict.
 
@@ -220,12 +236,8 @@ def _deserialize_pedagogy_settings(payload: dict[str, Any]) -> PedagogySettings:
     """
     cfg = payload["llm_config"]
     return PedagogySettings(
-        selected_supports=frozenset(
-            SupportType(s) for s in payload["selected_supports"]
-        ),
-        separate_correction=frozenset(
-            SupportType(s) for s in payload["separate_correction"]
-        ),
+        selected_supports=_known_support_types(payload["selected_supports"]),
+        separate_correction=_known_support_types(payload["separate_correction"]),
         target_audience=TargetAudience(payload["target_audience"]),
         bloom_objective=BloomObjective(payload["bloom_objective"]),
         pedagogy_directives=payload["pedagogy_directives"],

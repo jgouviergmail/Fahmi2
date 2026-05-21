@@ -64,7 +64,7 @@ def parse_llm_json(content: str, *, context_label: str) -> Any:  # noqa: ANN401
     Args:
         content: Contenu textuel de la réponse LLM.
         context_label: Libellé de contexte pour les messages d'erreur
-            (ex: ``"reformulation"``, ``"flashcards_glossary"``).
+            (ex: ``"reformulation"``, ``"flashcards_concepts"``).
 
     Returns:
         L'objet Python décodé.

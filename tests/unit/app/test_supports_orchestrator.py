@@ -40,7 +40,6 @@ from fahmi2.pedagogy.events import (
     SupportFinished,
     SupportGenerationFinished,
 )
-from fahmi2.pedagogy.generators.flashcards_glossary import FlashcardsGlossaryGenerator
 from fahmi2.pedagogy.generators.qcm import QcmGenerator
 from fahmi2.pedagogy.support_generator import SupportContext, SupportGenerator
 from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
@@ -97,7 +96,7 @@ def _collect(bus: EventBus[PedagogyEvent]) -> list[PedagogyEvent]:
 def test_generates_flashcards_artifacts(
     tmp_path: Path, make_generation_settings: Any, make_pedagogy_settings: Any
 ) -> None:
-    registry = SupportGeneratorRegistry([FlashcardsGlossaryGenerator()])
+    registry = SupportGeneratorRegistry([_StubGen(SupportType.FLASHCARDS_CONCEPTS)])
     orchestrator, state, project_service = _build(tmp_path, registry)
     ws = tmp_path / "ws"
     project = project_service.create_project(
@@ -115,10 +114,10 @@ def test_generates_flashcards_artifacts(
     assert status is RunStatus.COMPLETED
     pedagogy_dir = ws / "pedagogy"
     json_path = artifact_json_path(
-        pedagogy_dir, SupportType.FLASHCARDS_GLOSSARY, Language.FR
+        pedagogy_dir, SupportType.FLASHCARDS_CONCEPTS, Language.FR
     )
     md_path = artifact_markdown_path(
-        pedagogy_dir, SupportType.FLASHCARDS_GLOSSARY, Language.FR
+        pedagogy_dir, SupportType.FLASHCARDS_CONCEPTS, Language.FR
     )
     assert json_path.exists()
     assert md_path.exists()
@@ -131,7 +130,7 @@ def test_generates_flashcards_artifacts(
 def test_coarse_resume_skips_fresh(
     tmp_path: Path, make_generation_settings: Any, make_pedagogy_settings: Any
 ) -> None:
-    registry = SupportGeneratorRegistry([FlashcardsGlossaryGenerator()])
+    registry = SupportGeneratorRegistry([_StubGen(SupportType.FLASHCARDS_CONCEPTS)])
     orchestrator, state, project_service = _build(tmp_path, registry)
     project = project_service.create_project(
         name="P",
@@ -153,7 +152,7 @@ def test_coarse_resume_skips_fresh(
 def test_missing_pedagogy_raises(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    registry = SupportGeneratorRegistry([FlashcardsGlossaryGenerator()])
+    registry = SupportGeneratorRegistry([_StubGen(SupportType.FLASHCARDS_CONCEPTS)])
     orchestrator, _, project_service = _build(tmp_path, registry)
     project = project_service.create_project(
         name="P",
@@ -167,7 +166,7 @@ def test_missing_pedagogy_raises(
 class _FailingGen(SupportGenerator):
     @property
     def support_type(self) -> SupportType:
-        return SupportType.FLASHCARDS_GLOSSARY
+        return SupportType.FLASHCARDS_CONCEPTS
 
     @property
     def uses_llm(self) -> bool:
@@ -183,6 +182,38 @@ class _FailingGen(SupportGenerator):
     ) -> SupportArtifact:
         del ctx, language, chapters, glossary
         raise LLMError(code="LLM.BOOM", user_message="boom", severity=Severity.ERROR)
+
+
+class _StubGen(SupportGenerator):
+    """Générateur déterministe sans LLM (artefact trivial) pour les tests."""
+
+    def __init__(self, support_type: SupportType) -> None:
+        self._support_type = support_type
+
+    @property
+    def support_type(self) -> SupportType:
+        return self._support_type
+
+    @property
+    def uses_llm(self) -> bool:
+        return False
+
+    def generate(
+        self,
+        ctx: SupportContext,
+        *,
+        language: Language,
+        chapters: tuple[Chapter, ...],
+        glossary: tuple[Term, ...],
+    ) -> SupportArtifact:
+        del ctx, chapters, glossary
+        return SupportArtifact(
+            support_type=self._support_type,
+            language=language,
+            items=(),
+            rendered_markdown="# Stub\n",
+            cost_usd=0.0,
+        )
 
 
 def test_generator_failure_yields_failed_status(
@@ -212,7 +243,7 @@ def test_generator_failure_yields_failed_status(
 def test_cancellation_returns_cancelled(
     tmp_path: Path, make_generation_settings: Any, make_pedagogy_settings: Any
 ) -> None:
-    registry = SupportGeneratorRegistry([FlashcardsGlossaryGenerator()])
+    registry = SupportGeneratorRegistry([_StubGen(SupportType.FLASHCARDS_CONCEPTS)])
     orchestrator, state, project_service = _build(tmp_path, registry)
     project = project_service.create_project(
         name="P",
@@ -330,8 +361,8 @@ def test_cost_ceiling_stops_generation(
 ) -> None:
     registry = SupportGeneratorRegistry(
         [
-            _CostlyGen(SupportType.FLASHCARDS_GLOSSARY, cost_usd=10.0),
             _CostlyGen(SupportType.FLASHCARDS_CONCEPTS, cost_usd=10.0),
+            _CostlyGen(SupportType.QCM, cost_usd=10.0),
         ]
     )
     orchestrator, state, project_service = _build(tmp_path, registry)
@@ -341,7 +372,7 @@ def test_cost_ceiling_stops_generation(
         generation=make_generation_settings(),
         pedagogy=make_pedagogy_settings(
             selected_supports=frozenset(
-                {SupportType.FLASHCARDS_GLOSSARY, SupportType.FLASHCARDS_CONCEPTS}
+                {SupportType.FLASHCARDS_CONCEPTS, SupportType.QCM}
             ),
             separate_correction=frozenset(),
             cost_ceiling_usd=1.0,
@@ -359,9 +390,9 @@ def test_cost_ceiling_stops_generation(
         for e in events
         if isinstance(e, SupportFinished) and e.status is PhaseStatus.SUCCEEDED
     ]
-    # Le 1er support (glossaire, ordre canonique) est généré ; le plafond stoppe
-    # avant le 2e (concepts).
+    # Le 1er support (flashcards concepts, ordre canonique) est généré ; le plafond
+    # stoppe avant le 2e (QCM).
     assert len(succeeded) == 1
-    assert succeeded[0].support_type is SupportType.FLASHCARDS_GLOSSARY
+    assert succeeded[0].support_type is SupportType.FLASHCARDS_CONCEPTS
     assert isinstance(events[-1], SupportGenerationFinished)
     assert events[-1].status is RunStatus.PAUSED

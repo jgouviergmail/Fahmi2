@@ -15,25 +15,25 @@ from fahmi2.pedagogy.artifact_writer import (
 
 def test_paths_layout() -> None:
     base = Path("/ws/pedagogy")
-    st, lang = SupportType.FLASHCARDS_GLOSSARY, Language.FR
+    st, lang = SupportType.FLASHCARDS_CONCEPTS, Language.FR
     assert artifact_json_path(base, st, lang) == (
-        base / "flashcards_glossary" / "fr" / "flashcards_glossary.json"
+        base / "flashcards_concepts" / "fr" / "flashcards_concepts.json"
     )
     assert artifact_markdown_path(base, st, lang) == (
-        base / "flashcards_glossary" / "fr" / "flashcards_glossary.md"
+        base / "flashcards_concepts" / "fr" / "flashcards_concepts.md"
     )
 
 
 def test_serialize_artifact() -> None:
     artifact = SupportArtifact(
-        support_type=SupportType.FLASHCARDS_GLOSSARY,
+        support_type=SupportType.FLASHCARDS_CONCEPTS,
         language=Language.FR,
         items=(Flashcard(front="PIB", back="def", source_ref="PIB", tags=("a", "b")),),
         rendered_markdown="# x",
         cost_usd=0.0,
     )
     payload = serialize_artifact(artifact)
-    assert payload["support_type"] == "flashcards_glossary"
+    assert payload["support_type"] == "flashcards_concepts"
     assert payload["language"] == "fr"
     assert payload["cost_usd"] == 0.0
     assert payload["items"] == [

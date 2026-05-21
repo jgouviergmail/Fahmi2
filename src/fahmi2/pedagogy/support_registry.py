@@ -1,8 +1,7 @@
 """Registre des générateurs de supports indexés par ``SupportType``.
 
 Calqué sur ``pipeline/phase_registry.py`` : enregistre/retrouve un générateur par
-type, et expose l'ordre canonique des supports (flashcards glossaire d'abord :
-tranche verticale sans LLM, puis les supports LLM).
+type, et expose l'ordre canonique des supports.
 """
 
 from __future__ import annotations
@@ -13,7 +12,6 @@ from fahmi2.domain.enums import SupportType
 from fahmi2.pedagogy.support_generator import SupportGenerator
 
 _SUPPORT_ORDER: tuple[SupportType, ...] = (
-    SupportType.FLASHCARDS_GLOSSARY,
     SupportType.FLASHCARDS_CONCEPTS,
     SupportType.QCM,
     SupportType.TRUE_FALSE,

@@ -10,7 +10,6 @@ from __future__ import annotations
 from fahmi2.domain.enums import ExportFormat, PhaseStatus, SupportType
 
 SUPPORT_LABELS: dict[SupportType, str] = {
-    SupportType.FLASHCARDS_GLOSSARY: "Flashcards — Glossaire",
     SupportType.FLASHCARDS_CONCEPTS: "Flashcards — Concepts",
     SupportType.QCM: "QCM",
     SupportType.TRUE_FALSE: "Vrai / Faux",

@@ -20,14 +20,14 @@ def _write(tmp_path: Path, artifact: SupportArtifact) -> Path:
 
 def test_read_flashcards(tmp_path: Path) -> None:
     artifact = SupportArtifact(
-        support_type=SupportType.FLASHCARDS_GLOSSARY,
+        support_type=SupportType.FLASHCARDS_CONCEPTS,
         language=Language.FR,
         items=(Flashcard(front="PIB", back="def", source_ref="PIB", tags=("t",)),),
         rendered_markdown="x",
     )
     parsed = read_artifact(_write(tmp_path, artifact))
     assert parsed is not None
-    assert parsed.support_type is SupportType.FLASHCARDS_GLOSSARY
+    assert parsed.support_type is SupportType.FLASHCARDS_CONCEPTS
     assert parsed.language is Language.FR
     card = parsed.items[0]
     assert isinstance(card, Flashcard)
@@ -116,9 +116,9 @@ def test_read_item_with_missing_key_returns_none(tmp_path: Path) -> None:
     """Une clé d'item manquante n'est plus propagée (KeyError attrapé)."""
     path = _write_raw(
         tmp_path,
-        SupportType.FLASHCARDS_GLOSSARY,
+        SupportType.FLASHCARDS_CONCEPTS,
         {
-            "support_type": SupportType.FLASHCARDS_GLOSSARY.value,
+            "support_type": SupportType.FLASHCARDS_CONCEPTS.value,
             "language": Language.FR.value,
             "items": [{"front": "PIB"}],  # 'back'/'source_ref' manquants
         },

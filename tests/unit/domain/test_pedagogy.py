@@ -24,7 +24,7 @@ from fahmi2.domain.phase import PhaseConfig
 
 def _make(**overrides: object) -> PedagogySettings:
     base: dict[str, object] = {
-        "selected_supports": frozenset({SupportType.FLASHCARDS_GLOSSARY}),
+        "selected_supports": frozenset({SupportType.FLASHCARDS_CONCEPTS}),
         "separate_correction": frozenset(),
         "target_audience": TargetAudience.LICENCE,
         "bloom_objective": BloomObjective.AUTO,
@@ -43,7 +43,7 @@ def _make(**overrides: object) -> PedagogySettings:
 def test_constants() -> None:
     assert PEDAGOGY_WORKSPACE_SUBDIR == "pedagogy"
     assert SupportType.QCM in EVALUATIVE_SUPPORTS
-    assert SupportType.FLASHCARDS_GLOSSARY in NO_LLM_SUPPORTS
+    assert NO_LLM_SUPPORTS == frozenset()
 
 
 def test_valid_construct() -> None:
@@ -63,7 +63,7 @@ def test_languages_must_be_non_empty() -> None:
 def test_separate_correction_subset_of_evaluative_selected() -> None:
     with pytest.raises(ValueError, match="separate_correction"):
         _make(
-            selected_supports=frozenset({SupportType.FLASHCARDS_GLOSSARY}),
+            selected_supports=frozenset({SupportType.FLASHCARDS_CONCEPTS}),
             separate_correction=frozenset({SupportType.QCM}),
         )
 

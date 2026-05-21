@@ -95,7 +95,7 @@ def test_flashcard_defaults() -> None:
 def test_support_artifact_holds_items() -> None:
     card = Flashcard(front="X", back="def", source_ref="X", tags=("t",))
     artifact = SupportArtifact(
-        support_type=SupportType.FLASHCARDS_GLOSSARY,
+        support_type=SupportType.FLASHCARDS_CONCEPTS,
         language=Language.FR,
         items=(card,),
         rendered_markdown="# Flashcards",
@@ -110,7 +110,7 @@ def test_support_artifact_holds_items() -> None:
 def test_support_artifact_rejects_negative_cost() -> None:
     with pytest.raises(ValueError, match="cost_usd"):
         SupportArtifact(
-            support_type=SupportType.FLASHCARDS_GLOSSARY,
+            support_type=SupportType.FLASHCARDS_CONCEPTS,
             language=Language.FR,
             items=(),
             rendered_markdown="",

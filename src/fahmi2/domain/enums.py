@@ -83,7 +83,6 @@ class ReasoningEffort(StrEnum):
 class SupportType(StrEnum):
     """Types de supports de révision générables."""
 
-    FLASHCARDS_GLOSSARY = "flashcards_glossary"
     FLASHCARDS_CONCEPTS = "flashcards_concepts"
     QCM = "qcm"
     TRUE_FALSE = "true_false"

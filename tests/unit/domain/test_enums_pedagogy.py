@@ -11,9 +11,9 @@ from fahmi2.domain.enums import (
 )
 
 
-def test_support_type_has_nine_members() -> None:
-    assert len(SupportType) == 9
-    assert SupportType.FLASHCARDS_GLOSSARY in SupportType
+def test_support_type_has_eight_members() -> None:
+    assert len(SupportType) == 8
+    assert SupportType.FLASHCARDS_CONCEPTS in SupportType
 
 
 def test_other_pedagogy_enums() -> None:

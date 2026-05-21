@@ -80,5 +80,13 @@ if (-not (Test-Path $ffmpegExe) -or -not (Test-Path $ffprobeExe)) {
     Write-Error "Echec de la copie des binaires ffmpeg"
 }
 
+# L'encodeur libopus est requis pour le STT cloud (compression < 25 Mo).
+Write-Host "==> Verification de l'encodeur libopus (requis pour le STT cloud)" -ForegroundColor Cyan
+$encoders = & $ffmpegExe -hide_banner -encoders 2>$null
+if ($encoders -notmatch 'libopus') {
+    Write-Error "Le ffmpeg telecharge ne contient pas libopus (encodeur Opus requis pour le STT cloud > 25 Mo)."
+}
+Write-Host "==> libopus present" -ForegroundColor Green
+
 Remove-Item -Recurse -Force $tempDir
 Write-Host "==> ffmpeg pret dans vendor/ffmpeg/bin/" -ForegroundColor Green

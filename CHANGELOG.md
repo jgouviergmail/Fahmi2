@@ -7,6 +7,15 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+### Modifié — Dashboard génération (Lot 3c)
+
+- **Matrice Génération migrée vers le composant partagé `CostMatrixView`** :
+  affiche désormais le **coût par cellule** (phase × vidéo, discret) et les
+  **totaux** (par vidéo, par phase, général). Les phases batch portent leur coût
+  dans le total de colonne (coût au niveau du run). Nouvelle requête
+  `SqliteState.list_phase_cells` (statut + coût par phase × vidéo). L'ancien widget
+  `RunMatrixView` et le QSS `#runMatrix` sont supprimés.
+
 ### Modifié — Dashboard pédagogie (Lot 3b)
 
 - **Dashboard Supports pédagogiques aligné sur la Génération** : la table plate

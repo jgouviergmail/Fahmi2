@@ -7,6 +7,20 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+### Ajouté — Finitions UI (Lot 1a)
+
+- **Conserver l'audio** : nouvelle case « Conserver les fichiers audio extraits »
+  dans Réglages → Transcription (décochée par défaut = suppression après STT,
+  comportement inchangé ; cocher conserve les `.wav`). Câblée sur le champ existant
+  `GenerationSettings.delete_audio_after_stt`.
+
+### Corrigé — Finitions UI (Lot 1a)
+
+- **Visibilité des onglets** : la barre d'onglets de fonctionnalité (Génération /
+  Supports pédagogiques) est désormais stylée (QSS) — l'onglet inactif est
+  distinct (fond gris clair), l'onglet sélectionné est blanc avec un soulignement
+  accent. Auparavant les onglets inactifs se fondaient dans le fond.
+
 ### Corrigé — Revue de code (SP1–SP3)
 
 - **Export Anki** : les tags sont désormais assainis (les espaces deviennent `_`).

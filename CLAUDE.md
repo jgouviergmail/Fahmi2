@@ -135,6 +135,16 @@ Le `PipelineEngine._execute_one` persiste chaque `PhaseExecution` en SQLite. Une
 phase déjà `SUCCEEDED` est **skippée** (passée en `SKIPPED`). C'est le socle du
 checkpoint/reprise. Les phases batch sont persistées avec `video_id IS NULL`.
 
+**Parallélisme** : le moteur exécute les phases per-video via
+`core/concurrency/map_bounded` borné par `PhaseHandler.max_parallel_workers(ctx)`
+(défaut 1 ; phase 0 = `parallelism.stt_cloud_workers` si STT cloud sinon 1 — 1 GPU
+local ; phases 1/3/4 = `parallelism.llm_workers`). Les phases batch parallélisent
+leurs boucles internes : 6 sur `(langue × document)`, 7 sur les langues, 5 sur les
+résumés vidéo (ordre des résultats préservé → assemblage déterministe). Les
+barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase »).
+`ParallelismConfig` est câblée et réglable dans l'UI (défaut `llm_workers=16`,
+`stt_cloud_workers=3`). Détails : `docs/superpowers/specs/2026-05-21-parallelisation-traitements-design.md`.
+
 ## Mécanismes transverses (à connaître avant de modifier)
 
 - **Coquille multi-fonctionnalités** : la zone projet est une `QTabWidget` peuplée

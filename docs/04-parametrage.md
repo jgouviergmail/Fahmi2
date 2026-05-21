@@ -132,8 +132,8 @@ L'écart résiduel est de l'ordre de ±20 % selon le contenu des vidéos.
 |-----------|-------------|--------|
 | **Emplacement (workspace)** | Dossier de travail choisi à la création. Les artefacts de génération vont sous `<emplacement>/generation/` (livrables sous `<emplacement>/generation/output/`). | choisi à la création |
 | **Delete audio after STT** | Supprime les WAV extraits après transcription | `True` (économise du disque) |
-| **stt_cloud_workers** | Threads parallèles pour STT cloud | 3 |
-| **llm_workers** | Threads parallèles pour LLM | 4 |
+| **Transcriptions en parallèle** (`stt_cloud_workers`) | Transcriptions STT cloud simultanées (effectif ; sans effet en STT local : 1 GPU). Réglable 1–8 (page Transcription). | 3 |
+| **Appels LLM en parallèle** (`llm_workers`) | Appels LLM simultanés du pipeline (phases per-video + traduction/cohérence/résumés). Effectif ; la limite DeepSeek étant par concurrence, une valeur élevée reste sûre. Réglable 1–64 (page Modèle & coût). | 16 |
 
 ## 3. Surcouche des prompts (avancé)
 

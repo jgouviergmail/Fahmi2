@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from fahmi2.app._cost_common import (
     TOKENS_PER_WORD,
     WORDS_PER_MINUTE_ORAL,
+    cost_range,
     thinking_output_multiplier,
 )
 from fahmi2.domain.enums import LLMModel, PhaseId, SttProvider
@@ -121,14 +122,20 @@ class CostEstimation:
     Attributes:
         stt_usd: Coût USD du STT.
         llm_usd: Coût USD cumulé des phases LLM.
-        total_usd: Somme.
+        total_usd: Somme (estimation ponctuelle).
         total_audio_seconds: Durée totale audio estimée (entrée).
+        per_phase_usd: Coût estimé par phase (STT inclus).
+        low_usd: Bas de fourchette d'incertitude (±33 %).
+        high_usd: Haut de fourchette d'incertitude (±33 %).
     """
 
     stt_usd: float
     llm_usd: float
     total_usd: float
     total_audio_seconds: float
+    per_phase_usd: dict[PhaseId, float]
+    low_usd: float
+    high_usd: float
 
 
 class CostEstimator:
@@ -165,7 +172,7 @@ class CostEstimator:
         total_audio_seconds = sum(videos_durations_seconds)
         n_videos = len(videos_durations_seconds)
         stt_cost = self._stt_cost(total_audio_seconds, stt_provider)
-        llm_cost = self._llm_cost(
+        llm_per_phase = self._llm_cost_per_phase(
             total_audio_seconds=total_audio_seconds,
             n_videos=n_videos,
             llm_model=llm_model,
@@ -173,11 +180,17 @@ class CostEstimator:
             translation_languages_count=translation_languages_count,
             phases_config=phases_config or {},
         )
+        llm_cost = sum(llm_per_phase.values())
+        total = stt_cost + llm_cost
+        low, high = cost_range(total)
         return CostEstimation(
             stt_usd=stt_cost,
             llm_usd=llm_cost,
-            total_usd=stt_cost + llm_cost,
+            total_usd=total,
             total_audio_seconds=total_audio_seconds,
+            per_phase_usd={PhaseId.STT: stt_cost, **llm_per_phase},
+            low_usd=low,
+            high_usd=high,
         )
 
     @staticmethod
@@ -195,7 +208,7 @@ class CostEstimator:
             return (total_audio_seconds / _SECONDS_PER_MINUTE) * _USD_PER_MINUTE_OPENAI_WHISPER
         return 0.0
 
-    def _llm_cost(
+    def _llm_cost_per_phase(
         self,
         *,
         total_audio_seconds: float,
@@ -204,8 +217,8 @@ class CostEstimator:
         target_languages_count: int,
         translation_languages_count: int,
         phases_config: dict[PhaseId, PhaseConfig],
-    ) -> float:
-        """Calcule le coût LLM cumulé sur toutes les phases.
+    ) -> dict[PhaseId, float]:
+        """Calcule le coût LLM estimé **par phase**.
 
         Args:
             total_audio_seconds: Durée audio totale.
@@ -216,7 +229,7 @@ class CostEstimator:
             phases_config: Configuration des phases (mapping vide si non fourni).
 
         Returns:
-            Coût USD cumulé.
+            Coût USD estimé par ``PhaseId`` (phases LLM uniquement).
         """
         pricing = get_pricing(str(llm_model))
         base_tokens_per_video = (
@@ -226,7 +239,7 @@ class CostEstimator:
             * TOKENS_PER_WORD
         )
 
-        total = 0.0
+        per_phase: dict[PhaseId, float] = {}
         for phase_id, factor in _LOAD_FACTORS.items():
             thinking_mult = thinking_output_multiplier(phases_config.get(phase_id))
             if factor.is_per_video:
@@ -241,7 +254,7 @@ class CostEstimator:
                 phase_output = (
                     factor.output_per_video * base_tokens_per_video * n_videos
                 )
-                total += pricing.cost_for(
+                per_phase[phase_id] = per_phase.get(phase_id, 0.0) + pricing.cost_for(
                     prompt_tokens=int(phase_input * multiplier),
                     completion_tokens=int(
                         phase_output * multiplier * thinking_mult
@@ -264,7 +277,7 @@ class CostEstimator:
                     if phase_id is PhaseId.COHERENCE
                     else 1
                 )
-                total += pricing.cost_for(
+                per_phase[phase_id] = per_phase.get(phase_id, 0.0) + pricing.cost_for(
                     prompt_tokens=int(batch_input * multiplier),
                     completion_tokens=int(
                         batch_output * multiplier * thinking_mult
@@ -282,9 +295,11 @@ class CostEstimator:
                         * base_tokens_per_video
                         * n_videos
                     )
-                    total += pricing.cost_for(
+                    per_phase[phase_id] = per_phase.get(
+                        phase_id, 0.0
+                    ) + pricing.cost_for(
                         prompt_tokens=int(sub_input),
                         completion_tokens=int(sub_output * thinking_mult),
                         cached_prompt_tokens=0,
                     )
-        return total
+        return per_phase

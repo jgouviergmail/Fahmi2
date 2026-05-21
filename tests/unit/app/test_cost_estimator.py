@@ -100,9 +100,37 @@ def test_translation_increases_cost_with_target_languages() -> None:
 
 def test_estimation_is_dataclass() -> None:
     est = CostEstimation(
-        stt_usd=1.0, llm_usd=2.0, total_usd=3.0, total_audio_seconds=600.0
+        stt_usd=1.0,
+        llm_usd=2.0,
+        total_usd=3.0,
+        total_audio_seconds=600.0,
+        per_phase_usd={PhaseId.STT: 1.0},
+        low_usd=2.0,
+        high_usd=4.0,
     )
     assert est.total_usd == 3.0
+
+
+def test_per_phase_breakdown_sums_to_total() -> None:
+    est = CostEstimator().estimate(
+        videos_durations_seconds=[600.0, 600.0],
+        stt_provider=SttProvider.OPENAI_CLOUD,
+        llm_model=LLMModel.DEEPSEEK_V4_FLASH,
+        active_target_languages_count=1,
+        translation_languages_count=0,
+    )
+    assert PhaseId.STT in est.per_phase_usd
+    assert sum(est.per_phase_usd.values()) == pytest.approx(est.total_usd)
+    assert est.per_phase_usd[PhaseId.STT] == pytest.approx(est.stt_usd)
+
+
+def test_estimation_has_range() -> None:
+    est = CostEstimator().estimate(
+        videos_durations_seconds=[600.0],
+        stt_provider=SttProvider.OPENAI_CLOUD,
+        llm_model=LLMModel.DEEPSEEK_V4_FLASH,
+    )
+    assert est.low_usd < est.total_usd < est.high_usd
 
 
 def test_empty_videos_returns_zero() -> None:

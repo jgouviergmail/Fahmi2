@@ -37,7 +37,7 @@ from fahmi2.core.errors.severity import Severity
 from fahmi2.core.logging.event import LogEvent
 from fahmi2.core.retrieval.interface import PassthroughRetriever
 from fahmi2.core.retry.policy import RetryPolicy
-from fahmi2.domain.enums import RunStatus, SttProvider
+from fahmi2.domain.enums import PhaseId, RunStatus, SttProvider
 from fahmi2.domain.generation import (
     GENERATION_OUTPUT_SUBDIR,
     GENERATION_WORKSPACE_SUBDIR,
@@ -1126,6 +1126,18 @@ def _format_duration_label(total_seconds: float) -> str:
     return f"{minutes} min {secs:02d} s"
 
 
+_PHASE_ESTIMATE_LABELS: dict[PhaseId, str] = {
+    PhaseId.STT: "0 · STT",
+    PhaseId.TERM_EXTRACTION: "1 · Extraction termes",
+    PhaseId.GLOSSARY_RECONCILIATION: "2 · Réconciliation glossaire",
+    PhaseId.REFORMULATION: "3 · Reformulation",
+    PhaseId.STRUCTURATION: "4 · Structuration",
+    PhaseId.CONSOLIDATION: "5 · Consolidation",
+    PhaseId.TRANSLATION: "6 · Traduction",
+    PhaseId.COHERENCE: "7 · Cohérence",
+}
+
+
 def _show_cost_estimation_dialog(
     parent: QWidget,
     *,
@@ -1134,7 +1146,7 @@ def _show_cost_estimation_dialog(
     estimation: CostEstimation,
     cost_ceiling_usd: float | None,
 ) -> None:
-    """Affiche un ``QMessageBox`` détaillant l'estimation de coût.
+    """Affiche le dialogue d'estimation (décomposition par phase + fourchette).
 
     Args:
         parent: Fenêtre parente.
@@ -1143,41 +1155,28 @@ def _show_cost_estimation_dialog(
         estimation: Résultat du ``CostEstimator``.
         cost_ceiling_usd: Plafond budget du projet, le cas échéant.
     """
+    from fahmi2.ui.cost_estimate_dialog import show_cost_estimate  # noqa: PLC0415
+
     duration_label = _format_duration_label(estimation.total_audio_seconds)
-    lines = [
+    header = [
         f"<b>Projet :</b> {project_name}",
         f"<b>Vidéos détectées :</b> {n_videos}",
         f"<b>Durée totale audio :</b> {duration_label}",
-        "",
-        f"<b>Coût STT :</b> ${estimation.stt_usd:.4f}",
-        f"<b>Coût LLM :</b> ${estimation.llm_usd:.4f}",
-        f"<b>Total estimé :</b> ${estimation.total_usd:.4f}",
     ]
-    if cost_ceiling_usd is not None:
-        margin = cost_ceiling_usd - estimation.total_usd
-        if margin >= 0:
-            lines.append(
-                f"<b>Plafond :</b> ${cost_ceiling_usd:.2f} "
-                f"<span style='color:#1a7f37;'>(marge ${margin:.2f})</span>"
-            )
-        else:
-            lines.append(
-                f"<b>Plafond :</b> ${cost_ceiling_usd:.2f} "
-                f"<span style='color:#cf222e;'>(dépassement ${-margin:.2f})</span>"
-            )
-    body = (
-        "<br>".join(lines)
-        + "<br><br><i>Estimation indicative basée sur des heuristiques "
-        "DeepSeek (≈ 150 mots/min, ≈ 1.3 tokens/mot, multiplicateurs "
-        "empiriques par phase, et coût additionnel du mode thinking par "
-        "phase selon le niveau de raisonnement choisi).</i>"
+    breakdown = [
+        (_PHASE_ESTIMATE_LABELS.get(phase_id, phase_id.value), cost)
+        for phase_id, cost in estimation.per_phase_usd.items()
+    ]
+    show_cost_estimate(
+        parent,
+        title="Estimation du coût",
+        header_lines=header,
+        breakdown=breakdown,
+        total_usd=estimation.total_usd,
+        low_usd=estimation.low_usd,
+        high_usd=estimation.high_usd,
+        cost_ceiling_usd=cost_ceiling_usd,
     )
-    msg = QMessageBox(parent)
-    msg.setWindowTitle("Estimation du coût")
-    msg.setIcon(QMessageBox.Icon.Information)
-    msg.setTextFormat(Qt.TextFormat.RichText)
-    msg.setText(body)
-    msg.exec()
 
 
 __all__ = [

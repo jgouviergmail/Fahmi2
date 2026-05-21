@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import assert_never, cast
 
-from PySide6.QtCore import QObject, Qt, QThread, Signal
+from PySide6.QtCore import QObject, QThread, Signal
 from PySide6.QtWidgets import (
     QDialog,
     QFileDialog,
@@ -840,38 +840,28 @@ def _show_pedagogy_cost_dialog(
         estimation: Résultat du ``PedagogyCostEstimator``.
         cost_ceiling_usd: Plafond budget éventuel.
     """
-    lines = [
+    from fahmi2.ui.cost_estimate_dialog import show_cost_estimate  # noqa: PLC0415
+
+    header = [
         f"<b>Projet :</b> {project_name}",
         f"<b>Chapitres (toutes langues) :</b> {estimation.chapters_total}",
-        "",
     ]
-    lines.extend(
-        f"<b>{support_label(support)} :</b> ${cost:.4f}"
+    breakdown = [
+        (support_label(support), cost)
         for support, cost in sorted(
             estimation.per_support_usd.items(), key=lambda kv: kv[0].value
         )
+    ]
+    show_cost_estimate(
+        parent,
+        title="Estimation du coût des supports",
+        header_lines=header,
+        breakdown=breakdown,
+        total_usd=estimation.total_usd,
+        low_usd=estimation.low_usd,
+        high_usd=estimation.high_usd,
+        cost_ceiling_usd=cost_ceiling_usd,
     )
-    lines.append("")
-    lines.append(f"<b>Total estimé :</b> ${estimation.total_usd:.4f}")
-    if cost_ceiling_usd is not None:
-        margin = cost_ceiling_usd - estimation.total_usd
-        color = "#1a7f37" if margin >= 0 else "#cf222e"
-        label = f"marge ${margin:.2f}" if margin >= 0 else f"dépassement ${-margin:.2f}"
-        lines.append(
-            f"<b>Plafond :</b> ${cost_ceiling_usd:.2f} "
-            f"<span style='color:{color};'>({label})</span>"
-        )
-    body = (
-        "<br>".join(lines)
-        + "<br><br><i>Estimation indicative (heuristique par densité et "
-        "multiplicateur thinking).</i>"
-    )
-    msg = QMessageBox(parent)
-    msg.setWindowTitle("Estimation du coût des supports")
-    msg.setIcon(QMessageBox.Icon.Information)
-    msg.setTextFormat(Qt.TextFormat.RichText)
-    msg.setText(body)
-    msg.exec()
 
 
 __all__ = ["PedagogyController"]

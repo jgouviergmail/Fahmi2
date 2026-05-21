@@ -20,7 +20,13 @@ from fahmi2.domain.enums import (
 from fahmi2.domain.phase import PhaseConfig
 
 _DEFAULT_STT_CLOUD_WORKERS = 3
-_DEFAULT_LLM_WORKERS = 4
+_DEFAULT_LLM_WORKERS = 16
+
+#: Bornes hautes proposées dans l'UI. La limite DeepSeek est par concurrence
+#: (très au-dessus), donc le LLM peut monter haut ; OpenAI Whisper (STT cloud) a
+#: de vraies limites RPM → borne plus basse.
+MAX_STT_CLOUD_WORKERS = 8
+MAX_LLM_WORKERS = 64
 _LLM_PHASES: frozenset[PhaseId] = frozenset(
     p for p in PhaseId if p is not PhaseId.STT
 )

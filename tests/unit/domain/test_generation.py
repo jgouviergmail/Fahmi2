@@ -9,6 +9,8 @@ import pytest
 from fahmi2.domain.enums import Language, LLMModel, PhaseId, SttProvider, StylePreset
 from fahmi2.domain.generation import (
     GENERATION_WORKSPACE_SUBDIR,
+    MAX_LLM_WORKERS,
+    MAX_STT_CLOUD_WORKERS,
     GenerationSettings,
     ParallelismConfig,
 )
@@ -80,7 +82,12 @@ def test_must_not_configure_stt_phase() -> None:
 def test_parallelism_config_defaults() -> None:
     parallelism = ParallelismConfig()
     assert parallelism.stt_cloud_workers == 3
-    assert parallelism.llm_workers == 4
+    assert parallelism.llm_workers == 16
+
+
+def test_parallelism_ui_bounds_exposed() -> None:
+    assert MAX_STT_CLOUD_WORKERS == 8
+    assert MAX_LLM_WORKERS == 64
 
 
 def test_parallelism_config_validates_positive() -> None:

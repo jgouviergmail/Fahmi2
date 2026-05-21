@@ -11,17 +11,15 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
-    QFrame,
     QHBoxLayout,
-    QLabel,
-    QVBoxLayout,
     QWidget,
 )
 
 from fahmi2.domain.enums import RunStatus
 from fahmi2.ui.viewmodels.stats_strip import StatsSnapshot
+from fahmi2.ui.widgets.stat_card import StatCard
 
 _LIVE_REFRESH_INTERVAL_MS = 1000
 _COST_WARNING_RATIO = 0.8
@@ -68,80 +66,6 @@ def _format_duration(seconds: float) -> str:
     return f"{minutes:02d}:{secs:02d}"
 
 
-class _StatCard(QFrame):
-    """Carte d'indicateur (icône + titre + valeur principale + sous-info)."""
-
-    def __init__(
-        self,
-        *,
-        icon: str,
-        title: str,
-        parent: QWidget | None = None,
-    ) -> None:
-        """Construit la carte.
-
-        Args:
-            icon: Glyphe Unicode décoratif.
-            title: Libellé court de l'indicateur.
-            parent: Parent Qt optionnel.
-        """
-        super().__init__(parent)
-        self.setObjectName("statCard")
-        self.setFrameShape(QFrame.Shape.NoFrame)
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 10, 14, 10)
-        layout.setSpacing(2)
-
-        header = QHBoxLayout()
-        header.setSpacing(6)
-        self._icon_label = QLabel(icon, self)
-        self._icon_label.setObjectName("statCardIcon")
-        self._title_label = QLabel(title, self)
-        self._title_label.setObjectName("statCardTitle")
-        header.addWidget(self._icon_label)
-        header.addWidget(self._title_label)
-        header.addStretch(1)
-        layout.addLayout(header)
-
-        self._value_label = QLabel("—", self)
-        self._value_label.setObjectName("statCardValue")
-        self._value_label.setTextInteractionFlags(
-            Qt.TextInteractionFlag.NoTextInteraction
-        )
-        layout.addWidget(self._value_label)
-
-        self._sub_label = QLabel(" ", self)
-        self._sub_label.setObjectName("statCardSub")
-        layout.addWidget(self._sub_label)
-
-    def set_value(self, value: str, sub: str = "") -> None:
-        """Met à jour la valeur principale et la sous-info.
-
-        Args:
-            value: Texte de la valeur principale.
-            sub: Texte secondaire (peut être vide).
-        """
-        self._value_label.setText(value)
-        # On garde un espace insécable si vide pour éviter un saut de hauteur.
-        self._sub_label.setText(sub or " ")
-
-    def set_accent(self, kind: str) -> None:
-        """Force une variante d'accent visuelle via une propriété Qt.
-
-        Args:
-            kind: ``"neutral"``, ``"running"``, ``"success"``, ``"warning"``,
-                ``"danger"``. La feuille de style globale tient compte de cette
-                propriété pour adapter la couleur de la valeur.
-        """
-        self._value_label.setProperty("accent", kind)
-        # Force une re-évaluation du style dynamique.
-        style = self._value_label.style()
-        if style is not None:
-            style.unpolish(self._value_label)
-            style.polish(self._value_label)
-
-
 class StatsStripWidget(QWidget):
     """Bandeau d'indicateurs (Statut, Vidéos, Phases, Durée, Coût)."""
 
@@ -157,11 +81,11 @@ class StatsStripWidget(QWidget):
         layout.setContentsMargins(12, 8, 12, 8)
         layout.setSpacing(10)
 
-        self._card_status = _StatCard(icon="●", title="Statut", parent=self)
-        self._card_videos = _StatCard(icon="🎬", title="Vidéos", parent=self)
-        self._card_phases = _StatCard(icon="▤", title="Phases", parent=self)
-        self._card_duration = _StatCard(icon="⏱", title="Durée", parent=self)
-        self._card_cost = _StatCard(icon="$", title="Coût", parent=self)
+        self._card_status = StatCard(icon="●", title="Statut", parent=self)
+        self._card_videos = StatCard(icon="🎬", title="Vidéos", parent=self)
+        self._card_phases = StatCard(icon="▤", title="Phases", parent=self)
+        self._card_duration = StatCard(icon="⏱", title="Durée", parent=self)
+        self._card_cost = StatCard(icon="$", title="Coût", parent=self)
 
         for card in (
             self._card_status,

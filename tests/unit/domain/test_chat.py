@@ -14,9 +14,11 @@ from fahmi2.domain.enums import (
     ChatGroundingMode,
     Language,
     LLMModel,
+    ReasoningEffort,
     RetrievalStrategy,
 )
 from fahmi2.domain.ids import ConversationId
+from fahmi2.domain.phase import PhaseConfig
 
 
 def test_grounding_mode_values() -> None:
@@ -94,3 +96,14 @@ def test_chat_settings_with_helpers() -> None:
     other = settings.with_retrieval_strategy(RetrievalStrategy.LEXICAL)
     assert other.retrieval_strategy is RetrievalStrategy.LEXICAL
     assert settings.retrieval_strategy is RetrievalStrategy.AUTO  # original inchangé
+
+
+def test_chat_settings_to_phase_config() -> None:
+    settings = ChatSettings(
+        thinking_enabled=True, reasoning_effort=ReasoningEffort.HIGH, temperature=0.5
+    )
+    config = settings.to_phase_config()
+    assert isinstance(config, PhaseConfig)
+    assert config.thinking_enabled is True
+    assert config.reasoning_effort is ReasoningEffort.HIGH
+    assert config.temperature == 0.5

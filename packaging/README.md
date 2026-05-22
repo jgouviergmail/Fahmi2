@@ -160,7 +160,11 @@ appelle le **binaire** `yt-dlp` (pas une dépendance pip importée) :
   `ffmpeg.exe`). Cf. `packaging/fetch-ytdlp.ps1` (script dédié).
 - **Au runtime** : `resolve_ytdlp_binary_or_none()` cherche, dans l'ordre, la
   variable d'environnement **`FAHMI2_YTDLP`** (override), puis le binaire bundlé,
-  sinon retombe sur le `PATH`.
+  puis le binaire installé **à côté de l'interpréteur** (venv), sinon retombe sur
+  le `PATH`.
+- **En développement** : `pip install yt-dlp` (déjà dans les dépendances `dev`)
+  suffit — `yt-dlp.exe` atterrit dans `.venv/Scripts/` et est résolu
+  automatiquement, sans variable d'environnement.
 - **Fragilité (important)** : yt-dlp **casse régulièrement** quand YouTube change
   ses protections. Le binaire est donc **remplaçable sans rebuild** (override
   `FAHMI2_YTDLP` ou remplacement du `yt-dlp.exe` bundlé). Recommander un rebuild

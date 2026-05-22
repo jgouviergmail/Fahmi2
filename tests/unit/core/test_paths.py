@@ -109,10 +109,24 @@ def test_ytdlp_override_env_takes_precedence(
     assert resolve_ytdlp_binary_or_none() == "C:/tools/yt-dlp.exe"
 
 
-def test_ytdlp_none_in_dev(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_ytdlp_none_in_dev(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.delenv("FAHMI2_YTDLP", raising=False)
     monkeypatch.setattr(sys, "frozen", False, raising=False)
+    # Interpréteur dans un dossier sans yt-dlp.exe → aucun candidat.
+    monkeypatch.setattr(sys, "executable", str(tmp_path / "python.exe"))
     assert resolve_ytdlp_binary_or_none() is None
+
+
+def test_ytdlp_found_next_to_interpreter(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.delenv("FAHMI2_YTDLP", raising=False)
+    monkeypatch.setattr(sys, "frozen", False, raising=False)
+    (tmp_path / "yt-dlp.exe").write_bytes(b"x")
+    monkeypatch.setattr(sys, "executable", str(tmp_path / "python.exe"))
+    assert resolve_ytdlp_binary_or_none() == str(tmp_path / "yt-dlp.exe")
 
 
 def test_ytdlp_bundled_when_present(

@@ -169,19 +169,30 @@ def resolve_ffprobe_binary_or_none() -> str | None:
 def resolve_ytdlp_binary_or_none() -> str | None:
     """Retourne le chemin du binaire ``yt-dlp`` à utiliser, ou ``None``.
 
-    Priorité : variable d'environnement ``FAHMI2_YTDLP`` (override permettant de
-    pointer un yt-dlp à jour sans rebuild — yt-dlp casse régulièrement quand
-    YouTube évolue), puis binaire bundlé (mode packagé, même racine que ffmpeg),
-    sinon ``None`` (le ``PATH`` système est utilisé).
+    Priorité :
+
+    1. variable d'environnement ``FAHMI2_YTDLP`` (override permettant de pointer
+       un yt-dlp à jour sans rebuild — yt-dlp casse régulièrement quand YouTube
+       évolue) ;
+    2. binaire bundlé (mode packagé, même racine que ffmpeg) ;
+    3. binaire installé dans l'environnement Python courant (``pip install
+       yt-dlp`` place ``yt-dlp.exe`` à côté de l'interpréteur — pratique en dev) ;
+    4. sinon ``None`` (le ``PATH`` système est utilisé).
 
     Returns:
         Chemin explicite du binaire, ou ``None`` (fallback ``PATH``).
     """
+    import sys  # noqa: PLC0415 — local pour découplage de l'API publique
+
     override = os.environ.get(_YTDLP_OVERRIDE_ENV)
     if override:
         return override
     bundle_dir = resolve_bundled_ffmpeg_dir()
-    if bundle_dir is None:
-        return None
-    candidate = bundle_dir / _YTDLP_BINARY_NAME
-    return str(candidate) if candidate.exists() else None
+    if bundle_dir is not None:
+        bundled = bundle_dir / _YTDLP_BINARY_NAME
+        if bundled.exists():
+            return str(bundled)
+    venv_candidate = Path(sys.executable).parent / _YTDLP_BINARY_NAME
+    if venv_candidate.exists():
+        return str(venv_candidate)
+    return None

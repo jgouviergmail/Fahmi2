@@ -39,6 +39,9 @@ dev = [
   "ruff>=0.6",
   "mypy>=1.11",
   "pre-commit>=3.8",
+  # yt-dlp : binaire bundlé au build en prod (cf. packaging/), installé via pip
+  # en dev pour que l'ingestion YouTube fonctionne (yt-dlp.exe dans le venv).
+  "yt-dlp>=2024.0",
 ]
 
 [tool.hatch.build.targets.wheel]

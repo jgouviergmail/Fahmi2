@@ -27,6 +27,14 @@ from fpdf.fonts import TextStyle
 
 from fahmi2.core.errors.exceptions import ConfigError
 from fahmi2.core.errors.severity import Severity
+from fahmi2.domain.enums import ExportFormat
+
+#: Extension de fichier par format documentaire (MD/PDF/HTML ; APKG non concerné).
+EXTENSION_BY_FORMAT: dict[ExportFormat, str] = {
+    ExportFormat.MARKDOWN: ".md",
+    ExportFormat.PDF: ".pdf",
+    ExportFormat.HTML: ".html",
+}
 
 #: Couleur des titres PDF — noir (au lieu du rouge ``#960000`` par défaut de fpdf2).
 _PDF_HEADING_COLOR = "#000000"

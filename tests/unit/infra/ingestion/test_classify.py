@@ -16,8 +16,10 @@ from fahmi2.infra.ingestion.classify import classify_file, supported_file_extens
         ("a.wav", SourceKind.AUDIO),
         ("a.mp3", SourceKind.AUDIO),
         ("a.m4a", SourceKind.AUDIO),
-        ("a.txt", None),  # document : pas encore supporté au Lot 1B
-        ("a.pdf", None),
+        ("a.txt", SourceKind.DOCUMENT),
+        ("a.pdf", SourceKind.DOCUMENT),
+        ("a.docx", SourceKind.DOCUMENT),
+        ("cours.MD", SourceKind.DOCUMENT),
         ("a.zip", None),
     ],
 )
@@ -25,8 +27,10 @@ def test_classify_file(name: str, expected: SourceKind | None) -> None:
     assert classify_file(Path(name)) == expected
 
 
-def test_supported_extensions_contains_audio_and_video() -> None:
+def test_supported_extensions_contains_all_families() -> None:
     exts = supported_file_extensions()
     assert ".mp4" in exts
     assert ".mp3" in exts
-    assert ".txt" not in exts  # ajouté au Lot 2 (documents)
+    assert ".txt" in exts
+    assert ".pdf" in exts
+    assert ".zip" not in exts

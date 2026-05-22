@@ -1,9 +1,8 @@
 """Classification d'une source fichier par extension.
 
 Centralise les ensembles d'extensions reconnues (réexposés par
-``supported_file_extensions`` pour le scan du dossier d'entrée). Les types
-``DOCUMENT`` et ``YOUTUBE`` sont ajoutés aux lots ultérieurs (documents :
-extensions texte ; YouTube : pas de fichier, donc hors de cette classification).
+``supported_file_extensions`` pour le scan du dossier d'entrée). ``YOUTUBE``
+n'a pas de fichier (saisi en URL), donc hors de cette classification.
 """
 
 from __future__ import annotations
@@ -20,10 +19,13 @@ VIDEO_EXTENSIONS: frozenset[str] = frozenset(
 AUDIO_EXTENSIONS: frozenset[str] = frozenset(
     {".wav", ".mp3", ".m4a", ".flac", ".ogg", ".opus", ".aac"}
 )
+#: Extensions document reconnues (minuscules, point initial inclus).
+DOCUMENT_EXTENSIONS: frozenset[str] = frozenset({".pdf", ".docx", ".md", ".txt"})
 
 _EXTENSION_TO_KIND: dict[str, SourceKind] = {
     **{ext: SourceKind.VIDEO for ext in VIDEO_EXTENSIONS},
     **{ext: SourceKind.AUDIO for ext in AUDIO_EXTENSIONS},
+    **{ext: SourceKind.DOCUMENT for ext in DOCUMENT_EXTENSIONS},
 }
 
 

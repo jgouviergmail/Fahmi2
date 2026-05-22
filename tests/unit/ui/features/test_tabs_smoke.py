@@ -13,6 +13,7 @@ from fahmi2.core.config.paths import AppPaths
 from fahmi2.infra.secrets.interface import InMemorySecretsStore
 from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.pedagogy.default_registry import build_default_support_registry
+from fahmi2.ui.features.chat_tab import ChatTab
 from fahmi2.ui.features.feature import FeatureId
 from fahmi2.ui.features.generation_tab import GenerationTab
 from fahmi2.ui.features.pedagogy_tab import PedagogyTab
@@ -44,17 +45,30 @@ def _pedagogy_tab(state: SqliteState, window: MainWindow) -> PedagogyTab:
     )
 
 
-def test_main_window_shows_two_feature_tabs(qtbot: QtBot, tmp_path: Path) -> None:
+def _chat_tab(state: SqliteState, window: MainWindow) -> ChatTab:
+    return ChatTab(
+        window=window,
+        project_service=ProjectService(state),
+        secrets_service=SecretsService(InMemorySecretsStore()),
+        app_paths=AppPaths.default(),
+    )
+
+
+def test_main_window_shows_three_feature_tabs(qtbot: QtBot, tmp_path: Path) -> None:
     state = SqliteState(tmp_path / "t.db")
     window = MainWindow()
     qtbot.addWidget(window)
     generation_tab = _generation_tab(state, window)
     pedagogy_tab = _pedagogy_tab(state, window)
-    window.set_feature_tabs(FeatureRegistry([generation_tab, pedagogy_tab]))
+    chat_tab = _chat_tab(state, window)
+    window.set_feature_tabs(
+        FeatureRegistry([generation_tab, pedagogy_tab, chat_tab])
+    )
 
     assert generation_tab.feature_id is FeatureId.GENERATION
     assert pedagogy_tab.feature_id is FeatureId.PEDAGOGY
-    assert window._tabs.count() == 2  # noqa: SLF001 — smoke d'assemblage
+    assert chat_tab.feature_id is FeatureId.CHAT
+    assert window._tabs.count() == 3  # noqa: SLF001 — smoke d'assemblage
 
 
 def test_pedagogy_tab_on_project_selected_is_noop(qtbot: QtBot, tmp_path: Path) -> None:

@@ -28,6 +28,7 @@ from fahmi2.pedagogy.run_state import read_run_state
 from fahmi2.ui.dialogs.global_settings_dialog import GlobalSettingsDialog
 from fahmi2.ui.dialogs.new_project_dialog import NewProjectDialog
 from fahmi2.ui.dialogs.prompts_editor_dialog import PromptsEditorDialog
+from fahmi2.ui.features.chat_tab import ChatTab
 from fahmi2.ui.features.generation_tab import GenerationTab
 from fahmi2.ui.features.pedagogy_tab import PedagogyTab
 from fahmi2.ui.features.registry import FeatureRegistry
@@ -90,7 +91,15 @@ def main() -> int:  # noqa: PLR0915, C901
         app_paths=paths,
         registry=build_default_support_registry(),
     )
-    window.set_feature_tabs(FeatureRegistry([generation_tab, pedagogy_tab]))
+    chat_tab = ChatTab(
+        window=window,
+        project_service=project_service,
+        secrets_service=secrets_service,
+        app_paths=paths,
+    )
+    window.set_feature_tabs(
+        FeatureRegistry([generation_tab, pedagogy_tab, chat_tab])
+    )
 
     def _project_entry(project: Project) -> ProjectListEntry:
         last_run = project_service.get_last_run(project.id)
@@ -202,6 +211,7 @@ def main() -> int:  # noqa: PLR0915, C901
     # Garde une référence pour éviter la collection par le GC PySide.
     window._generation_tab = generation_tab  # type: ignore[attr-defined]  # noqa: SLF001
     window._pedagogy_tab = pedagogy_tab  # type: ignore[attr-defined]  # noqa: SLF001
+    window._chat_tab = chat_tab  # type: ignore[attr-defined]  # noqa: SLF001
     window.show()
     return int(app.exec())
 

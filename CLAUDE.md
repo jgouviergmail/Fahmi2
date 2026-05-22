@@ -4,7 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Projet
 
-Fahmi2 transforme un dossier de vidéos MP4 de cours oraux en documents Markdown
+Fahmi2 transforme un dossier de cours oraux (vidéos **et** fichiers audio ;
+documents texte et liens YouTube en cours d'ajout) en documents Markdown
 consolidés (reformulés, structurés, glossaire) via un pipeline STT + 7 phases
 LLM DeepSeek. Application desktop Windows mono-utilisateur, PySide6, packagée en
 `.zip` portable (installation double-clic, ffmpeg bundlé).
@@ -105,7 +106,10 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   cloud + fakes), `llm/` (DeepSeek + `_pricing` + `invocation` + fakes),
   `audio/ffmpeg_extractor` + `cloud_audio_preparer` (compression Opus +
   découpage aux silences : franchit la limite 25 Mo d'OpenAI Whisper, injecté
-  dans l'adapter STT cloud), `anki/genanki_exporter` (`.apkg`),
+  dans l'adapter STT cloud), `ingestion/` (dispatcher `source → transcription`
+  injecté en phase 0 : `classify` [extensions vidéo/audio] + port `SourceIngestor`
+  + `MediaIngestor` [vidéo+audio via ffmpeg+STT] ; documents/YouTube aux lots
+  suivants), `anki/genanki_exporter` (`.apkg`),
   `export/markdown_pdf` (Markdown + PDF), `storage/sqlite_state` (WAL) +
   `fs_artifacts` (writes atomiques), `secrets/` (DPAPI Windows),
   `prompts/loader` + `defaults/*.j2` (8 phases + 8 `pedagogy_*`).
@@ -113,7 +117,8 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   `RunOrchestrator`, `SupportsOrchestrator`, `CostEstimator`,
   `PedagogyCostEstimator`, `pedagogy_export` (Anki/MD/PDF/HTML) + `generation_export`
   (consolidé + glossaire MD/PDF/HTML) sur le cœur partagé `document_export`, `_cost_common`,
-  `PromptsService`, `SecretsService`, `VideoScanner`,
+  `PromptsService`, `SecretsService`, `input_sources` (`build_input_sources` :
+  scan dossier vidéo+audio → `SourceExecution`),
   `HardwareProbe`. (Le glossaire est lu sur disque — `glossary_master.json` —
   comme le pipeline ; parsing/rendu dans `domain/glossary`, pas de service dédié.)
 - `ui/` — PySide6 : `features/` (abstraction onglet : `FeatureId`, `FeatureTab`,

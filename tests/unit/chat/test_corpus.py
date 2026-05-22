@@ -51,6 +51,15 @@ def test_large_section_splits_into_multiple_chunks() -> None:
     assert len(chunks) >= 2
 
 
+def test_code_fence_kept_intact_in_single_chunk() -> None:
+    doc = "# T\n\n# 1. Code\n\nIntro.\n\n```python\na = 1\n\nb = 2\n```\n"
+    code_chunks = [c for c in chunk_consolidated(doc) if "```" in c.text]
+    assert len(code_chunks) == 1
+    # le bloc de code (avec sa ligne vide interne) n'est pas scindé
+    assert "a = 1" in code_chunks[0].text
+    assert "b = 2" in code_chunks[0].text
+
+
 def test_load_corpus_chunks_consolidated_and_glossary(tmp_path: Path) -> None:
     out_dir = tmp_path / "output"
     out_dir.mkdir()

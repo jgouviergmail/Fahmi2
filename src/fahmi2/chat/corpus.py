@@ -25,6 +25,7 @@ _MIN_CHUNKS_TO_MERGE_TAIL = 2  # il faut >= 2 chunks pour fusionner un reliquat 
 _ORIGIN_CONSOLIDATED = "consolidated"
 _ORIGIN_GLOSSARY = "glossary"
 _GLOSSARY_CHAPTER_TITLE = "Glossaire"
+_CHUNK_ID_SEPARATOR = "::"  # namespace::clé (consolidé : ancre::ordinal ; glossaire)
 _FENCE = "```"
 _RE_SUBHEADING = re.compile(r"^#{2,}\s+(.+?)\s*$")
 
@@ -157,7 +158,7 @@ def _chunk_chapter(chapter: Chapter) -> list[CorpusChunk]:
         for text in _pack_blocks(blocks):
             chunks.append(
                 CorpusChunk(
-                    chunk_id=f"{chapter.anchor}::{ordinal}",
+                    chunk_id=f"{chapter.anchor}{_CHUNK_ID_SEPARATOR}{ordinal}",
                     chapter_title=chapter.title,
                     section_title=section_title,
                     anchor=anchor,
@@ -204,10 +205,10 @@ def _glossary_chunks(terms: tuple[Term, ...]) -> list[CorpusChunk]:
         slug = slugify_anchor(term.term)
         chunks.append(
             CorpusChunk(
-                chunk_id=f"glossary::{slug}",
+                chunk_id=f"{_ORIGIN_GLOSSARY}{_CHUNK_ID_SEPARATOR}{slug}",
                 chapter_title=_GLOSSARY_CHAPTER_TITLE,
                 section_title=term.term,
-                anchor=f"glossary-{slug}",
+                anchor=f"{_ORIGIN_GLOSSARY}-{slug}",
                 text=f"{header}\n\n{term.definition}".strip(),
                 origin=_ORIGIN_GLOSSARY,
             )

@@ -25,19 +25,19 @@ def _deps(tmp_path: Path) -> IngestionDeps:
     )
 
 
-def test_default_dispatcher_handles_video_and_audio() -> None:
+def test_default_dispatcher_handles_video_audio_and_documents() -> None:
     dispatcher = build_default_ingestion_dispatcher()
     assert dispatcher.has_ingestor(SourceKind.VIDEO)
     assert dispatcher.has_ingestor(SourceKind.AUDIO)
-    assert not dispatcher.has_ingestor(SourceKind.DOCUMENT)
-    assert not dispatcher.has_ingestor(SourceKind.YOUTUBE)
+    assert dispatcher.has_ingestor(SourceKind.DOCUMENT)
+    assert not dispatcher.has_ingestor(SourceKind.YOUTUBE)  # ajouté au Lot 3
 
 
 def test_unsupported_kind_raises(tmp_path: Path) -> None:
     dispatcher = build_default_ingestion_dispatcher()
     with pytest.raises(IngestionError) as exc:
         dispatcher.ingest(
-            InputSource(kind=SourceKind.DOCUMENT, location="a.pdf"),
+            InputSource(kind=SourceKind.YOUTUBE, location="https://youtu.be/x"),
             _SOURCE_ID,
             _deps(tmp_path),
             language_hint=Language.FR,

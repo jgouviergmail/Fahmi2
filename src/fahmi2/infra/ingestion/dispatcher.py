@@ -12,8 +12,10 @@ from fahmi2.core.errors.exceptions import IngestionError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import Language, SourceKind
 from fahmi2.domain.source import InputSource
+from fahmi2.infra.ingestion.document_ingestor import DocumentIngestor
 from fahmi2.infra.ingestion.interface import IngestionDeps, SourceIngestor
 from fahmi2.infra.ingestion.media_ingestor import MediaIngestor
+from fahmi2.infra.ingestion.text_extractor import DefaultTextExtractor
 from fahmi2.infra.stt.interface import Transcription
 
 
@@ -87,11 +89,18 @@ class IngestionDispatcher:
 
 
 def build_default_ingestion_dispatcher() -> IngestionDispatcher:
-    """Construit le dispatcher par défaut (Lot 1B : vidéo + audio).
+    """Construit le dispatcher par défaut (vidéo + audio + documents).
 
     Returns:
-        Un ``IngestionDispatcher`` avec ``MediaIngestor`` enregistré pour
-        ``VIDEO`` et ``AUDIO``.
+        Un ``IngestionDispatcher`` avec ``MediaIngestor`` pour ``VIDEO``/``AUDIO``
+        et ``DocumentIngestor`` (extracteur par défaut) pour ``DOCUMENT``.
     """
     media = MediaIngestor()
-    return IngestionDispatcher({SourceKind.VIDEO: media, SourceKind.AUDIO: media})
+    document = DocumentIngestor(DefaultTextExtractor())
+    return IngestionDispatcher(
+        {
+            SourceKind.VIDEO: media,
+            SourceKind.AUDIO: media,
+            SourceKind.DOCUMENT: document,
+        }
+    )

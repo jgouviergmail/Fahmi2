@@ -57,6 +57,30 @@ def test_answer_returns_message_with_citation() -> None:
     assert message.citations[0].anchor == "pib"
 
 
+def test_stream_answer_yields_deltas_then_final_message() -> None:
+    retriever = TfidfPassageRetriever(
+        (_chunk("1", "Le produit intérieur brut mesure la richesse."),)
+    )
+    service = _service("Le PIB mesure la richesse [§1].")
+    chunks = list(
+        service.stream_answer(
+            question="Qu'est-ce que le PIB ?",
+            retriever=retriever,
+            glossary_text="",
+            history=(),
+            settings=ChatSettings(),
+            language=Language.FR,
+        )
+    )
+    streamed = "".join(c.content_delta for c in chunks if c.message is None)
+    assert streamed == "Le PIB mesure la richesse [§1]."
+    final = chunks[-1]
+    assert final.message is not None
+    assert final.message.role == "assistant"
+    assert final.message.citations[0].anchor == "pib"
+    assert final.message.cost_usd == 0.01
+
+
 def test_answer_no_citation_when_empty_corpus() -> None:
     service = _service("Ce point n'est pas couvert par le cours.")
     message = service.answer(

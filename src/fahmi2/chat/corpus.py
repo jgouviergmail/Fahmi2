@@ -11,13 +11,13 @@ import re
 from pathlib import Path
 
 from fahmi2.core.slugify import slugify_anchor
+from fahmi2.core.text_metrics import estimate_tokens
 from fahmi2.domain.chat import CorpusChunk
 from fahmi2.domain.enums import Language
 from fahmi2.domain.glossary import Term
 from fahmi2.pedagogy.chapters import Chapter, parse_chapters
 from fahmi2.pedagogy.sources import load_chapters, load_glossary_master_terms
 
-_CHARS_PER_TOKEN = 4
 _CHUNK_TARGET_TOKENS = 700
 _CHUNK_MIN_TOKENS = 120
 _CHUNK_OVERLAP_BLOCKS = 1
@@ -28,18 +28,6 @@ _GLOSSARY_CHAPTER_TITLE = "Glossaire"
 _CHUNK_ID_SEPARATOR = "::"  # namespace::clé (consolidé : ancre::ordinal ; glossaire)
 _FENCE = "```"
 _RE_SUBHEADING = re.compile(r"^#{2,}\s+(.+?)\s*$")
-
-
-def _estimate_tokens(text: str) -> int:
-    """Estimation grossière du nombre de tokens d'un texte.
-
-    Args:
-        text: Texte à mesurer.
-
-    Returns:
-        Nombre de tokens estimé (au moins 1).
-    """
-    return max(1, len(text) // _CHARS_PER_TOKEN)
 
 
 def _match_subheading(line: str) -> str | None:
@@ -114,20 +102,20 @@ def _pack_blocks(blocks: list[str]) -> list[str]:
     accumulated: list[str] = []
     accumulated_tokens = 0
     for block in blocks:
-        block_tokens = _estimate_tokens(block)
+        block_tokens = estimate_tokens(block)
         if accumulated and accumulated_tokens + block_tokens > _CHUNK_TARGET_TOKENS:
             packed.append("\n\n".join(accumulated))
             accumulated = (
                 accumulated[-_CHUNK_OVERLAP_BLOCKS:] if _CHUNK_OVERLAP_BLOCKS else []
             )
-            accumulated_tokens = sum(_estimate_tokens(b) for b in accumulated)
+            accumulated_tokens = sum(estimate_tokens(b) for b in accumulated)
         accumulated.append(block)
         accumulated_tokens += block_tokens
     if accumulated:
         packed.append("\n\n".join(accumulated))
     if (
         len(packed) >= _MIN_CHUNKS_TO_MERGE_TAIL
-        and _estimate_tokens(packed[-1]) < _CHUNK_MIN_TOKENS
+        and estimate_tokens(packed[-1]) < _CHUNK_MIN_TOKENS
     ):
         tail = packed.pop()
         packed[-1] = f"{packed[-1]}\n\n{tail}"

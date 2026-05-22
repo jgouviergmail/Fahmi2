@@ -20,7 +20,7 @@ from fahmi2.ui.viewmodels.cost_matrix import CostMatrixCell, CostMatrixSnapshot
 _ROW_HEADER = "Source"
 
 _PHASE_SHORT_LABELS: dict[PhaseId, str] = {
-    PhaseId.STT: "STT",
+    PhaseId.STT: "Ingestion",
     PhaseId.TERM_EXTRACTION: "Termes",
     PhaseId.GLOSSARY_RECONCILIATION: "Glossaire",
     PhaseId.REFORMULATION: "Reformul.",

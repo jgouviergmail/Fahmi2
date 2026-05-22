@@ -70,7 +70,7 @@ def test_snapshot_row_per_video_and_phase_columns(
     vm = RunMatrixViewModel(state=state, registry=registry)
     snap = vm.cost_matrix_snapshot(run)
     assert len(snap.row_labels) == 2  # 2 vidéos
-    assert snap.column_labels == ("STT", "Termes", "Glossaire")
+    assert snap.column_labels == ("Ingestion", "Termes", "Glossaire")
     assert snap.row_labels[0] == run.sources[0].source.as_path.name
 
 

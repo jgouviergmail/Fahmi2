@@ -27,10 +27,10 @@ from PySide6.QtWidgets import QApplication, QDialog, QMessageBox, QWidget
 from fahmi2.app.cost_estimator import CostEstimation, CostEstimator
 from fahmi2.app.generation_export import export_generation_documents
 from fahmi2.app.hardware_probe import HardwareInfo
+from fahmi2.app.input_sources import build_input_sources
 from fahmi2.app.project_service import ProjectService
 from fahmi2.app.run_orchestrator import RunOrchestrator
 from fahmi2.app.secrets_service import SecretsService
-from fahmi2.app.input_sources import build_input_sources
 from fahmi2.core.config.paths import AppPaths
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.exceptions import Fahmi2Error

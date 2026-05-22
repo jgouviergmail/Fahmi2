@@ -139,6 +139,7 @@ def _serialize_generation_settings(gen: GenerationSettings) -> dict[str, Any]:
             "llm_workers": gen.parallelism.llm_workers,
         },
         "delete_audio_after_stt": gen.delete_audio_after_stt,
+        "export_formats": sorted(f.value for f in gen.export_formats),
     }
 
 
@@ -188,6 +189,9 @@ def _deserialize_generation_settings(payload: dict[str, Any]) -> GenerationSetti
             llm_workers=payload["parallelism"]["llm_workers"],
         ),
         delete_audio_after_stt=payload["delete_audio_after_stt"],
+        export_formats=frozenset(
+            ExportFormat(f) for f in payload.get("export_formats", [])
+        ),
     )
 
 

@@ -11,7 +11,7 @@ import pytest
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.core.errors.severity import Severity
-from fahmi2.domain.enums import PhaseId, PhaseStatus, RunStatus
+from fahmi2.domain.enums import ExportFormat, PhaseId, PhaseStatus, RunStatus
 from fahmi2.domain.ids import ProjectId, RunId, VideoId
 from fahmi2.domain.pedagogy import DEFAULT_PEDAGOGY_LLM_WORKERS
 from fahmi2.domain.phase import PhaseExecution
@@ -20,7 +20,9 @@ from fahmi2.domain.run import Run
 from fahmi2.infra.storage.sqlite_state import (
     SCHEMA_VERSION,
     SqliteState,
+    _deserialize_generation_settings,
     _deserialize_pedagogy_settings,
+    _serialize_generation_settings,
     _serialize_pedagogy_settings,
 )
 
@@ -95,6 +97,38 @@ def test_upsert_and_get_project(tmp_path: Path, make_generation_settings: Any) -
         assert retrieved.name == project.name
         assert retrieved.workspace_folder == project.workspace_folder
         assert retrieved.generation is not None
+
+
+def test_generation_export_formats_round_trip(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    with SqliteState(tmp_path / "t.db") as state:
+        project = Project(
+            id=ProjectId.new(),
+            name="Export",
+            workspace_folder=Path("./ws"),
+            created_at=_ts(),
+            generation=make_generation_settings(
+                export_formats=frozenset({ExportFormat.PDF, ExportFormat.HTML})
+            ),
+        )
+        state.upsert_project(project)
+        retrieved = state.get_project(project.id)
+        assert retrieved is not None
+        assert retrieved.generation is not None
+        assert retrieved.generation.export_formats == frozenset(
+            {ExportFormat.PDF, ExportFormat.HTML}
+        )
+
+
+def test_generation_deserialize_lenient_without_export_formats(
+    make_generation_settings: Any,
+) -> None:
+    # Un blob v2 antérieur (sans export_formats) retombe sur l'ensemble vide.
+    payload = _serialize_generation_settings(make_generation_settings())
+    del payload["export_formats"]
+    gen = _deserialize_generation_settings(payload)
+    assert gen.export_formats == frozenset()
 
 
 def test_get_unknown_project_returns_none(tmp_path: Path) -> None:

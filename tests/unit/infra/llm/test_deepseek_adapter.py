@@ -69,6 +69,67 @@ def test_parse_chat_response_with_cached_tokens() -> None:
     assert response.cost_usd == pytest.approx(expected_cost)
 
 
+def _stream_chunk(payload: dict[str, Any]) -> Any:
+    chunk = MagicMock()
+    chunk.model_dump.return_value = payload
+    return chunk
+
+
+def test_chat_stream_accumulates_and_final_usage() -> None:
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.return_value = iter(
+        [
+            _stream_chunk({"choices": [{"delta": {"content": "Le "}}], "usage": None}),
+            _stream_chunk({"choices": [{"delta": {"content": "PIB"}}], "usage": None}),
+            _stream_chunk(
+                {
+                    "choices": [],
+                    "usage": {
+                        "prompt_tokens": 100,
+                        "completion_tokens": 20,
+                        "prompt_cache_hit_tokens": 0,
+                    },
+                }
+            ),
+        ]
+    )
+    adapter = DeepSeekAdapter(api_key="dummy", client=mock_client)
+    chunks = list(
+        adapter.chat_stream(
+            messages=[Message(role="user", content="u")],
+            model="deepseek-v4-flash",
+            thinking=False,
+            temperature=0.3,
+        )
+    )
+    assert "".join(c.content_delta for c in chunks if not c.is_final) == "Le PIB"
+    final = chunks[-1]
+    assert final.is_final and final.response is not None
+    assert final.response.completion_tokens == 20
+    assert final.response.cost_usd > 0
+    call = mock_client.chat.completions.create.call_args
+    assert call.kwargs["stream"] is True
+    assert call.kwargs["stream_options"] == {"include_usage": True}
+
+
+def test_chat_stream_fallback_estimates_usage_when_absent() -> None:
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.return_value = iter(
+        [_stream_chunk({"choices": [{"delta": {"content": "abcd"}}], "usage": None})]
+    )
+    adapter = DeepSeekAdapter(api_key="dummy", client=mock_client)
+    final = list(
+        adapter.chat_stream(
+            messages=[Message(role="user", content="question")],
+            model="deepseek-v4-flash",
+            thinking=False,
+            temperature=0.3,
+        )
+    )[-1]
+    assert final.response is not None
+    assert final.response.completion_tokens >= 1  # estimé (pas d'usage fourni)
+
+
 def test_chat_invokes_client_with_messages() -> None:
     mock_client = MagicMock()
     response_mock = MagicMock()

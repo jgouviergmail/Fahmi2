@@ -7,14 +7,16 @@ Le mode raisonnement est activé via le paramètre ``extra_body={"thinking": ...
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from typing import Any
 
 from openai import APIError, APIStatusError, AuthenticationError, OpenAI, RateLimitError
 
 from fahmi2.core.errors.exceptions import LLMError
 from fahmi2.core.errors.severity import Severity
+from fahmi2.core.text_metrics import estimate_tokens
 from fahmi2.infra.llm._pricing import get_pricing
-from fahmi2.infra.llm.interface import LLMResponse, Message
+from fahmi2.infra.llm.interface import LLMResponse, LLMStreamChunk, Message
 
 _PROVIDER_BASE_URL = "https://api.deepseek.com"
 _PROVIDER_NAME = "deepseek"
@@ -116,6 +118,44 @@ class DeepSeekAdapter:
         Raises:
             LLMError: En cas d'échec d'appel.
         """
+        kwargs = self._build_kwargs(
+            messages=messages,
+            model=model,
+            thinking=thinking,
+            reasoning_effort=reasoning_effort,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        try:
+            response = self._client.chat.completions.create(**kwargs)
+        except BaseException as exc:  # noqa: BLE001 — mappé vers une LLMError typée
+            raise _map_exception_to_llm_error(exc) from exc
+
+        return _parse_chat_response(response.model_dump(), model)
+
+    def _build_kwargs(
+        self,
+        *,
+        messages: list[Message],
+        model: str,
+        thinking: bool,
+        reasoning_effort: str | None,
+        temperature: float,
+        max_tokens: int | None,
+    ) -> dict[str, Any]:
+        """Construit les kwargs communs d'appel (``chat`` et ``chat_stream``).
+
+        Args:
+            messages: Conversation.
+            model: Modèle DeepSeek.
+            thinking: Active le mode raisonnement.
+            reasoning_effort: Niveau d'effort (si ``thinking``).
+            temperature: Température.
+            max_tokens: Limite de tokens en sortie (None = défaut modèle).
+
+        Returns:
+            Le dict de kwargs (sans ``stream``).
+        """
         kwargs: dict[str, Any] = {
             "model": model,
             "messages": [{"role": m.role, "content": m.content} for m in messages],
@@ -123,20 +163,87 @@ class DeepSeekAdapter:
         }
         if max_tokens is not None:
             kwargs["max_tokens"] = max_tokens
-
         extra_body: dict[str, Any] = {
             "thinking": {"type": "enabled" if thinking else "disabled"}
         }
         if thinking and reasoning_effort is not None:
             extra_body["reasoning_effort"] = reasoning_effort
         kwargs["extra_body"] = extra_body
+        return kwargs
 
+    def chat_stream(
+        self,
+        *,
+        messages: list[Message],
+        model: str,
+        thinking: bool,
+        reasoning_effort: str | None = None,
+        temperature: float,
+        max_tokens: int | None = None,
+    ) -> Iterator[LLMStreamChunk]:
+        """Émet un appel chat en streaming SSE (deltas + chunk final porteur du coût).
+
+        Args:
+            messages: Conversation.
+            model: Modèle DeepSeek.
+            thinking: Active le mode raisonnement.
+            reasoning_effort: Niveau d'effort (si ``thinking``).
+            temperature: Température.
+            max_tokens: Limite de tokens en sortie.
+
+        Yields:
+            ``LLMStreamChunk`` (deltas, puis un dernier ``is_final`` porteur du coût).
+
+        Raises:
+            LLMError: En cas d'échec d'appel.
+        """
+        kwargs = self._build_kwargs(
+            messages=messages,
+            model=model,
+            thinking=thinking,
+            reasoning_effort=reasoning_effort,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        kwargs["stream"] = True
+        kwargs["stream_options"] = {"include_usage": True}
+        prompt_text = " ".join(m.content for m in messages)
+        content_parts: list[str] = []
+        reasoning_parts: list[str] = []
+        usage: dict[str, Any] | None = None
         try:
-            response = self._client.chat.completions.create(**kwargs)
+            stream = self._client.chat.completions.create(**kwargs)
+            for raw_chunk in stream:
+                chunk = raw_chunk.model_dump()
+                choices = chunk.get("choices") or []
+                if choices:
+                    delta = choices[0].get("delta") or {}
+                    content_delta = str(delta.get("content") or "")
+                    reasoning_raw = delta.get(_REASONING_FIELD)
+                    reasoning_delta = str(reasoning_raw) if reasoning_raw else None
+                    if content_delta or reasoning_delta:
+                        content_parts.append(content_delta)
+                        if reasoning_delta:
+                            reasoning_parts.append(reasoning_delta)
+                        yield LLMStreamChunk(
+                            content_delta=content_delta,
+                            thinking_delta=reasoning_delta,
+                        )
+                if chunk.get("usage"):
+                    usage = chunk["usage"]
         except BaseException as exc:  # noqa: BLE001 — mappé vers une LLMError typée
             raise _map_exception_to_llm_error(exc) from exc
-
-        return _parse_chat_response(response.model_dump(), model)
+        yield LLMStreamChunk(
+            content_delta="",
+            is_final=True,
+            response=_build_stream_response(
+                content="".join(content_parts),
+                thinking_content="".join(reasoning_parts) or None,
+                usage=usage,
+                model=model,
+                prompt_text=prompt_text,
+            ),
+        )
 
     def estimate_cost(
         self,
@@ -197,6 +304,49 @@ def _parse_chat_response(payload: dict[str, Any], model: str) -> LLMResponse:
         cached_prompt_tokens=cached_prompt_tokens,
     )
 
+    return LLMResponse(
+        content=content,
+        thinking_content=thinking_content,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        cached_prompt_tokens=cached_prompt_tokens,
+        cost_usd=cost,
+    )
+
+
+def _build_stream_response(
+    *,
+    content: str,
+    thinking_content: str | None,
+    usage: dict[str, Any] | None,
+    model: str,
+    prompt_text: str,
+) -> LLMResponse:
+    """Construit la ``LLMResponse`` finale d'un flux (usage exact ou estimé).
+
+    Args:
+        content: Contenu accumulé.
+        thinking_content: Raisonnement accumulé (ou ``None``).
+        usage: Bloc ``usage`` du dernier chunk (``None`` → repli par estimation).
+        model: Modèle (pour le coût).
+        prompt_text: Concaténation des messages (repli d'estimation des tokens).
+
+    Returns:
+        ``LLMResponse`` (coût exact si ``usage`` présent, sinon estimé).
+    """
+    if usage:
+        prompt_tokens = int(usage.get("prompt_tokens", 0))
+        completion_tokens = int(usage.get("completion_tokens", 0))
+        cached_prompt_tokens = int(usage.get(_CACHED_TOKENS_FIELD, 0) or 0)
+    else:
+        prompt_tokens = estimate_tokens(prompt_text)
+        completion_tokens = estimate_tokens(content)
+        cached_prompt_tokens = 0
+    cost = get_pricing(model).cost_for(
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        cached_prompt_tokens=cached_prompt_tokens,
+    )
     return LLMResponse(
         content=content,
         thinking_content=thinking_content,

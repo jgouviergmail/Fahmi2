@@ -8,7 +8,10 @@ from fahmi2.core.errors.exceptions import IngestionError
 from fahmi2.domain.enums import Language, SourceKind
 from fahmi2.domain.source import InputSource
 from fahmi2.infra.audio.ffmpeg_extractor import FFmpegExtractor
-from fahmi2.infra.ingestion.dispatcher import build_default_ingestion_dispatcher
+from fahmi2.infra.ingestion.dispatcher import (
+    IngestionDispatcher,
+    build_default_ingestion_dispatcher,
+)
 from fahmi2.infra.ingestion.interface import IngestionDeps
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.infra.stt._fakes import FakeSTTProvider
@@ -25,19 +28,19 @@ def _deps(tmp_path: Path) -> IngestionDeps:
     )
 
 
-def test_default_dispatcher_handles_video_audio_and_documents() -> None:
+def test_default_dispatcher_handles_all_kinds() -> None:
     dispatcher = build_default_ingestion_dispatcher()
     assert dispatcher.has_ingestor(SourceKind.VIDEO)
     assert dispatcher.has_ingestor(SourceKind.AUDIO)
     assert dispatcher.has_ingestor(SourceKind.DOCUMENT)
-    assert not dispatcher.has_ingestor(SourceKind.YOUTUBE)  # ajouté au Lot 3
+    assert dispatcher.has_ingestor(SourceKind.YOUTUBE)
 
 
 def test_unsupported_kind_raises(tmp_path: Path) -> None:
-    dispatcher = build_default_ingestion_dispatcher()
+    dispatcher = IngestionDispatcher({})  # aucun ingesteur enregistré
     with pytest.raises(IngestionError) as exc:
         dispatcher.ingest(
-            InputSource(kind=SourceKind.YOUTUBE, location="https://youtu.be/x"),
+            InputSource(kind=SourceKind.VIDEO, location="x.mp4"),
             _SOURCE_ID,
             _deps(tmp_path),
             language_hint=Language.FR,

@@ -8,6 +8,7 @@ sans connaître les types concrets de source.
 
 from __future__ import annotations
 
+from fahmi2.core.config.paths import resolve_ytdlp_binary_or_none
 from fahmi2.core.errors.exceptions import IngestionError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import Language, SourceKind
@@ -16,6 +17,8 @@ from fahmi2.infra.ingestion.document_ingestor import DocumentIngestor
 from fahmi2.infra.ingestion.interface import IngestionDeps, SourceIngestor
 from fahmi2.infra.ingestion.media_ingestor import MediaIngestor
 from fahmi2.infra.ingestion.text_extractor import DefaultTextExtractor
+from fahmi2.infra.ingestion.youtube_downloader import YtDlpDownloader
+from fahmi2.infra.ingestion.youtube_ingestor import YoutubeIngestor
 from fahmi2.infra.stt.interface import Transcription
 
 
@@ -89,18 +92,23 @@ class IngestionDispatcher:
 
 
 def build_default_ingestion_dispatcher() -> IngestionDispatcher:
-    """Construit le dispatcher par défaut (vidéo + audio + documents).
+    """Construit le dispatcher par défaut (vidéo + audio + documents + YouTube).
 
     Returns:
-        Un ``IngestionDispatcher`` avec ``MediaIngestor`` pour ``VIDEO``/``AUDIO``
-        et ``DocumentIngestor`` (extracteur par défaut) pour ``DOCUMENT``.
+        Un ``IngestionDispatcher`` avec ``MediaIngestor`` (``VIDEO``/``AUDIO``),
+        ``DocumentIngestor`` (``DOCUMENT``) et ``YoutubeIngestor`` (``YOUTUBE``,
+        via le binaire yt-dlp résolu au runtime, déléguant au ``MediaIngestor``).
     """
     media = MediaIngestor()
     document = DocumentIngestor(DefaultTextExtractor())
+    youtube = YoutubeIngestor(
+        YtDlpDownloader(ytdlp_binary=resolve_ytdlp_binary_or_none()), media
+    )
     return IngestionDispatcher(
         {
             SourceKind.VIDEO: media,
             SourceKind.AUDIO: media,
             SourceKind.DOCUMENT: document,
+            SourceKind.YOUTUBE: youtube,
         }
     )

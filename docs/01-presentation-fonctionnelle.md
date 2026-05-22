@@ -47,8 +47,9 @@ des **réglages** (⚙ : supports, difficulté, langues, modèle & coût), un bo
 et un **bandeau d'état** (« génération requise » / « prêt » / « à jour » /
 « périmé »). Les supports sont écrits sous `<emplacement>/pedagogy/`. Un bouton
 **Exporter** propose 4 formats : **Anki `.apkg`** (flashcards, textes à trous, QCM ;
-ré-import sans doublon), **Markdown**, **PDF** et **HTML** (documents agrégés par
-langue, sujet et corrigé séparés).
+ré-import sans doublon), **Markdown**, **PDF** et **HTML** — ces trois derniers
+produisant **un fichier par support et par corrigé** (`<support>.<langue>.<ext>` /
+`<support>.<langue>.corrige.<ext>`), chacun autonome.
 
 - Création d'un projet via un **dialogue minimal** (nom + emplacement) ; les
   réglages de génération se configurent ensuite depuis l'onglet **Génération →
@@ -107,6 +108,10 @@ L'utilisateur configure **via l'interface** (et **uniquement** via l'interface) 
   Run.
 - **Ouvrir le dossier de sortie** en un clic depuis la barre
   d'en-tête à la fin du Run.
+- **Exporter** les livrables de la génération (document **consolidé** et
+  **glossaire**, un fichier par langue) en **Markdown**, **PDF** ou **HTML** vers
+  un dossier choisi. Les formats proposés se cochent dans **⚙ Réglages → Export**
+  (aucun par défaut — opt-in).
 - **Traitement parallèle** : les phases par vidéo (transcription cloud,
   extraction de termes, reformulation, structuration) traitent plusieurs vidéos
   simultanément, et les phases finales parallélisent traduction et cohérence ;

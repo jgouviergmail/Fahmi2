@@ -55,7 +55,7 @@ Vos clés sont **chiffrées sur votre disque** par le système Windows
 la liste à gauche.
 
 Sélectionnez-le, puis dans l'onglet **Génération** cliquez sur **⚙ Réglages** pour
-configurer la génération (vue à 5 catégories) :
+configurer la génération (vue à 6 catégories) :
 
 | Catégorie | Champs |
 |-----------|--------|
@@ -64,6 +64,7 @@ configurer la génération (vue à 5 catégories) :
 | **Transcription** | Provider STT (`openai_cloud` sans GPU, sinon `faster_whisper_local`) · *Transcriptions en parallèle* (cloud) |
 | **Modèle & coût** | Modèle LLM (`deepseek-v4-flash` pour démarrer) · Plafond budget · *Appels LLM en parallèle* |
 | **Phases** | Thinking, effort, température, retries par phase LLM (avancé) |
+| **Export** | Formats d'export proposés : Markdown / PDF / HTML (aucun par défaut) |
 
 Validez : l'aperçu des vidéos détectées s'affiche dans le cockpit.
 
@@ -157,7 +158,14 @@ Tous les fichiers sont en **Markdown**, lisibles dans n'importe quel
 liens cliquables s'affiche directement dans VS Code, Obsidian, GitHub,
 GitLab, etc.
 
-Pour convertir en **DOCX, PDF ou HTML**, l'outil libre
+**Exporter en PDF ou HTML** : le bouton **📦 Exporter** (en haut à droite)
+écrit le document consolidé et le glossaire — un fichier par langue
+(`consolidated.{langue}`, `glossary.{langue}`) — dans le format choisi
+(**Markdown**, **PDF** ou **HTML**), vers un dossier de votre choix. Cochez
+d'abord les formats voulus dans **⚙ Réglages → Export** (aucun n'est coché par
+défaut). Le HTML est un document autonome, ouvrable dans un navigateur.
+
+Pour d'autres conversions (par exemple **DOCX**), l'outil libre
 [Pandoc](https://pandoc.org) fait ça très bien.
 
 ## 8. Générer des supports de révision

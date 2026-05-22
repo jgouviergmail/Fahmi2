@@ -7,6 +7,23 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+### Ajouté — Export documentaire de la Génération
+
+- Nouveau bouton **Exporter** dans l'onglet Génération : écrit le **document
+  consolidé** et le **glossaire** (un fichier par langue) en **Markdown / PDF /
+  HTML** vers un dossier choisi. Formats configurables dans **⚙ Réglages → Export**
+  (`GenerationSettings.export_formats`, **opt-in** : aucun coché par défaut).
+
+### Modifié — Export des supports pédagogiques (granularité)
+
+- Les exports **Markdown / PDF / HTML** produisent désormais **un fichier par
+  support et par corrigé** (`<support>.<langue>.<ext>` /
+  `<support>.<langue>.corrige.<ext>`), au lieu d'un document agrégé par langue.
+  Chaque HTML est un document autonome. L'export **Anki `.apkg`** est inchangé.
+- **Factorisation** : cœur d'écriture partagé `app/document_export.py`
+  (`write_documents`) + helper UI `ui/_export_ui.py` ; `infra/export/markdown_pdf`
+  devient un pur *renderer* (suppression de `assemble_markdown`).
+
 ### Corrigé — STT cloud (OpenAI Whisper) : fichiers volumineux & langue
 
 - **Support des fichiers > 25 Mo** : l'audio est désormais **compressé en Opus**

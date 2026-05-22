@@ -105,7 +105,8 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   `prompts/loader` + `defaults/*.j2` (8 phases + 8 `pedagogy_*`).
 - `app/` — use-cases : `ProjectService` (+ `get_last_completed_run`),
   `RunOrchestrator`, `SupportsOrchestrator`, `CostEstimator`,
-  `PedagogyCostEstimator`, `pedagogy_export` (Anki/MD/PDF/HTML), `_cost_common`,
+  `PedagogyCostEstimator`, `pedagogy_export` (Anki/MD/PDF/HTML) + `generation_export`
+  (consolidé + glossaire MD/PDF/HTML) sur le cœur partagé `document_export`, `_cost_common`,
   `PromptsService`, `SecretsService`, `VideoScanner`,
   `HardwareProbe`. (Le glossaire est lu sur disque — `glossary_master.json` —
   comme le pipeline ; parsing/rendu dans `domain/glossary`, pas de service dédié.)
@@ -207,10 +208,18 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
   le retry du pipeline (`core/retry/classification.default_classify`) via
   `pedagogy/generators/_base.py` (parsing JSON typé). Les supports **évaluatifs**
   « corrigé séparé » produisent un `<support>.corrige.md` distinct du sujet.
-  Exports : `.apkg` (genanki), Markdown et PDF via `app/pedagogy_export.py`. Les
+  Exports : `.apkg` (genanki) via `app/pedagogy_export.py`, **Markdown/PDF/HTML
+  un fichier par support et par corrigé** (`<support>.<lang>(.corrige).<ext>`) via
+  le cœur partagé `app/document_export.py` (`write_documents` : collecteur →
+  écriture par format ; `infra/export/markdown_pdf` reste un pur *renderer*). La
+  **génération** a son propre export documentaire `app/generation_export.py`
+  (consolidé + glossaire, un fichier par langue, MD/PDF/HTML ; réglage
+  `GenerationSettings.export_formats`, opt-in). Côté UI, le helper partagé
+  `ui/_export_ui.py` (`choose_export_format` + `run_document_export`) factorise
+  choix de format → dossier → erreurs → log pour les deux contrôleurs. Les
   prompts autorisent un Markdown léger dans le contenu ; l'export Anki **convertit
   les champs Markdown en HTML** (`genanki_exporter._md_to_html`) — sauf le texte
-  cloze (mécanique `{{cN::}}` préservée). MD/PDF consomment le Markdown rendu tel quel.
+  cloze (mécanique `{{cN::}}` préservée). MD/PDF/HTML consomment le Markdown rendu tel quel.
 - **Erreurs → UI** : une exception levée par un handler **doit** être une
   `Fahmi2Error` (code + user_message + technical_details). Le moteur la convertit
   en `ErrorInfo`, la propage dans `PhaseFinished.error`, et `generation_controller._to_log_event`

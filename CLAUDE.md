@@ -4,8 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Projet
 
-Fahmi2 transforme un dossier de cours oraux (vidéos **et** fichiers audio ;
-documents texte et liens YouTube en cours d'ajout) en documents Markdown
+Fahmi2 transforme un dossier de cours (vidéos, fichiers audio **et** documents
+texte — pdf/docx/md/txt ; liens YouTube en cours d'ajout) en documents Markdown
 consolidés (reformulés, structurés, glossaire) via un pipeline STT + 7 phases
 LLM DeepSeek. Application desktop Windows mono-utilisateur, PySide6, packagée en
 `.zip` portable (installation double-clic, ffmpeg bundlé).
@@ -107,9 +107,11 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   `audio/ffmpeg_extractor` + `cloud_audio_preparer` (compression Opus +
   découpage aux silences : franchit la limite 25 Mo d'OpenAI Whisper, injecté
   dans l'adapter STT cloud), `ingestion/` (dispatcher `source → transcription`
-  injecté en phase 0 : `classify` [extensions vidéo/audio] + port `SourceIngestor`
-  + `MediaIngestor` [vidéo+audio via ffmpeg+STT] ; documents/YouTube aux lots
-  suivants), `anki/genanki_exporter` (`.apkg`),
+  injecté en phase 0 : `classify` [extensions vidéo/audio/document] + port
+  `SourceIngestor` + `MediaIngestor` [vidéo+audio via ffmpeg+STT] +
+  `DocumentIngestor` [pdf/docx/md/txt → transcription à **segment unique**, via
+  `TextExtractor` pypdf/python-docx] ; YouTube au lot suivant),
+  `anki/genanki_exporter` (`.apkg`),
   `export/markdown_pdf` (Markdown + PDF), `storage/sqlite_state` (WAL) +
   `fs_artifacts` (writes atomiques), `secrets/` (DPAPI Windows),
   `prompts/loader` + `defaults/*.j2` (8 phases + 8 `pedagogy_*`).
@@ -169,6 +171,19 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
   `projects.settings_json` est en **v2** (`{version, workspace_folder, generation,
   pedagogy}`) avec migration *lenient* v1→v2 à la lecture. Ajouter une fonctionnalité
   = enregistrer un `FeatureTab`, sans toucher `MainWindow` ni `Project`.
+- **Entrants polymorphes (ingestion)** : la phase 0 délègue à
+  `IngestionDispatcher` (injecté dans `PhaseContext`) qui route selon le
+  `SourceKind` d'un `InputSource` (`SourceExecution.source` ; fichier **ou** URL).
+  `MediaIngestor` (vidéo/audio) extrait l'audio puis STT ; `DocumentIngestor`
+  (pdf/docx/md/txt) extrait le texte en une `Transcription` à **segment unique**
+  (le texte intégral, structure préservée — `_load_transcription_text` joint les
+  segments par une espace, donc *un seul* segment évite tout aplatissement).
+  `build_input_sources` (ex `scan_input_folder`) scanne le dossier via
+  `classify_file`. Un document n'a pas de STT (`duration_seconds=0`). Le drapeau
+  `GenerationSettings.reformulate_documents` (défaut `True`) : si désactivé, la
+  phase 3 fait un **pass-through** (le document est inséré tel quel, coût 0) au
+  lieu de reformuler. Le `CostEstimator` raisonne en `SourceWeight` (durée audio
+  **ou** tokens texte, drapeau `reformulated`).
 - **Checkpoint / reprise après erreur** : un Run garde le même `RunId` du début à
   la fin. `RunOrchestrator.resume_or_create_run(project)` reprend le dernier Run
   s'il est `FAILED`/`PAUSED`/`RUNNING`-orphelin (les phases `SUCCEEDED` seront

@@ -136,6 +136,20 @@ Les exports (Anki / Markdown / PDF / HTML) ajoutent des dépendances. Elles sont
   (U+2010/2011/2012/2015) non rendus par ReportLab+Arial sont normalisés au rendu
   PDF (`markdown_pdf._normalize_for_pdf`).
 
+### Dépendances ingestion documents (pypdf / python-docx)
+
+L'ingestion des **documents texte** (`infra/ingestion/text_extractor.py`) ajoute :
+
+- **`pypdf`** (extraction du texte des **PDF**) est **déjà** tiré par `xhtml2pdf`
+  (cf. ci-dessus) → déjà bundlé, rien de plus à câbler.
+- **`python-docx`** (module `docx`, extraction des **.docx**) **embarque un
+  template** (`docx/templates/default.docx`) chargé à l'instanciation de
+  `Document()` → ajouter `collect_data_files('docx')` (ou `collect_all('docx')`)
+  dans le `.spec`, sinon l'extraction `.docx` échoue en mode packagé.
+- `pypdf` et `docx` sont importés **paresseusement** (dans les fonctions de
+  `DefaultTextExtractor`) : si l'analyse statique de PyInstaller les manque, les
+  ajouter en `hiddenimports`.
+
 ### Résolution runtime du ffmpeg bundlé
 
 Au démarrage de l'application, `core/config/paths.py` détecte

@@ -124,7 +124,7 @@ pour le détail complet.
 
 ## Statut
 
-**Pré-version** (non publiée — `pyproject` = `0.1.0.dev0`) — pipeline complet fonctionnel, UI cockpit dense
+**v1.0.0** — pipeline complet fonctionnel, UI cockpit dense
 thème Clair Fluent, packaging Windows portable opérationnel, document
 consolidé navigable (numérotation hiérarchique + sommaire), glossaire
 en tableau avec colonne Signification, édition des prompts depuis l'UI,
@@ -140,7 +140,7 @@ Export des supports en **Anki `.apkg`** (flashcards / cloze / QCM, ré-import sa
 doublon), **Markdown**, **PDF** et **HTML** (documents autonomes, sujet / corrigé
 séparés).
 
-751 tests passants, `mypy --strict` et `ruff` propres sur 291 fichiers.
+781 tests passants, `mypy --strict` et `ruff` propres sur 299 fichiers.
 
 ## Licence
 

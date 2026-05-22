@@ -5,7 +5,12 @@ Toutes les évolutions notables du projet Fahmi2.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Non publié]
+## [1.0.0] — 2026-05-22
+
+Première version officielle. Pipeline de génération complet (STT + 7 phases LLM),
+supports pédagogiques (8 types), exports Anki / Markdown / PDF / HTML,
+parallélisation des traitements, STT cloud sans limite de durée, packaging Windows
+portable.
 
 ### Ajouté — Export documentaire de la Génération
 

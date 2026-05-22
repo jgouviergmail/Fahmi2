@@ -57,14 +57,16 @@ Note Windows : git réécrit LF→CRLF (warnings attendus, sans conséquence). L
 fichier `packaging/fahmi2.spec` est `.gitignore` (`*.spec`) — modifier le `.spec`
 pour bundler de nouvelles ressources ne sera pas versionné.
 
-Dépendances exports à bundler dans le `.spec` au prochain build : `genanki`
-embarque des fichiers de données (`apkg_schema.sql`, `apkg_col.anki2`) →
-`--collect-data genanki` ; le PDF est rendu par **`xhtml2pdf`** (moteur
-**`reportlab`**, + `html5lib`, `pypdf`, `Pillow`, `svglib`, `arabic-reshaper`,
-`python-bidi`, `pyHanko` — tous Python pur) → `--collect-all xhtml2pdf` +
-`--collect-all reportlab` (données/polices internes) ; `markdown` est un module
-pur. Le PDF utilise la police **Arial système Windows** (rien à bundler). Détails
-dans `packaging/README.md`.
+Dépendances exports dans le `.spec` (déjà câblées, cf. `packaging/fahmi2.spec`,
+gitignored) : le PDF est rendu par **`xhtml2pdf`** (moteur **`reportlab`**, +
+`html5lib`, `pypdf`, `Pillow`, `svglib`, `arabic-reshaper`, `python-bidi`,
+`pyHanko` — tous Python pur) → `collect_all('xhtml2pdf')` + `collect_all(
+'reportlab')` (données/polices internes) + `collect_all('arabic_reshaper')` ;
+`markdown` charge ses extensions par nom → `collect_submodules('markdown')`.
+**`genanki` 0.13.1 inline le schéma en modules Python** (`apkg_col.py`/
+`apkg_schema.py`) — **aucun fichier de données à collecter**, ses modules sont
+bundlés par l'analyse d'imports. Le PDF utilise la police **Arial système Windows**
+(rien à bundler). Détails dans `packaging/README.md`.
 
 ## Architecture en couches
 

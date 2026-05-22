@@ -62,7 +62,9 @@ Get-ChildItem dist/Fahmi2 -Recurse | Measure-Object -Property Length -Sum |
     Select-Object @{n='SizeMB';e={[math]::Round($_.Sum / 1MB, 1)}}
 ```
 
-Cible : ~250-300 Mo (Python embedded + PySide6 + ffmpeg + sklearn).
+Ordre de grandeur (v1.0.0) : **≈ 670 Mo déployé** (`dist/Fahmi2/`), **≈ 270 Mo
+zippé** — Python embarqué + PySide6 + faster-whisper/CTranslate2 + ffmpeg (≈ 200 Mo)
++ sklearn + reportlab/xhtml2pdf.
 
 ## Distribution
 
@@ -110,23 +112,23 @@ dist/Fahmi2/
 
 ### Dépendances exports (genanki / markdown / xhtml2pdf)
 
-Les exports (Anki / Markdown / PDF / HTML) ajoutent des dépendances à collecter
-par PyInstaller. À vérifier dans `packaging/fahmi2.spec` (gitignored — modification
-non versionnée) au prochain build :
+Les exports (Anki / Markdown / PDF / HTML) ajoutent des dépendances. Elles sont
+**déjà câblées** dans `packaging/fahmi2.spec` (gitignored ; build v1.0.0 validé) :
 
-- **`genanki`** (export `.apkg`) embarque des **fichiers de données**
-  (`apkg_schema.sql`, `apkg_col.anki2`) qui ne sont pas détectés par l'analyse
-  d'imports : les collecter explicitement via `--collect-data genanki` (CLI) ou
-  `collect_data_files('genanki')` dans le `.spec`. Sans cela, l'export plante au
-  runtime (fichier de données introuvable).
 - **`xhtml2pdf`** (export **PDF**, rendu du HTML) s'appuie sur **`reportlab`** et
   tire `html5lib`, `pypdf`, `Pillow`, `svglib`, `arabic-reshaper`, `python-bidi`,
   `pyHanko` — **tous Python pur** (aucun binaire natif), donc *bundleables* mais
-  ils **alourdissent** l'archive. Collecter données + sous-modules :
-  `--collect-all xhtml2pdf` et `--collect-all reportlab` (ReportLab embarque des
-  données et polices internes) ; ajouter en `hiddenimports` ce que l'analyse
-  manque. **`markdown`** (rendu Markdown→HTML, partagé HTML/PDF) est un module pur.
-  L'export **HTML** n'ajoute rien (pur Python).
+  ils **alourdissent** l'archive (≈ 270 Mo zippé, ≈ 670 Mo déployé). Le `.spec`
+  applique `collect_all('xhtml2pdf')` + `collect_all('reportlab')` (données et
+  **polices internes** de ReportLab) + `collect_all('arabic_reshaper')` (fichier de
+  config). L'export **HTML** n'ajoute rien (pur Python).
+- **`markdown`** (rendu Markdown→HTML, partagé HTML/PDF) charge ses extensions
+  (`tables`, `toc`…) **par nom** → `collect_submodules('markdown')` dans le `.spec`.
+- **`genanki` 0.13.1** (export `.apkg`) **inline le schéma en modules Python**
+  (`apkg_col.py` / `apkg_schema.py`) : **aucun fichier de données à collecter** —
+  ses modules sont bundlés par l'analyse d'imports. (`collect_data_files('genanki')`
+  renvoie `[]` ; conservé dans le `.spec` par sécurité si une version future
+  ré-externalise ces données.)
 - **Police PDF** : le rendu PDF s'appuie sur la police **Arial du système
   Windows** (`%SystemRoot%\Fonts\arial*.ttf`), enregistrée auprès de ReportLab —
   **aucune police à bundler**, mais l'EXE en dépend à l'exécution (toujours

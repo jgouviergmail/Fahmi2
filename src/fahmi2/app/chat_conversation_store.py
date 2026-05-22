@@ -20,7 +20,7 @@ from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 _CONVERSATIONS_SUBDIR = "conversations"
 _FILE_SUFFIX = ".json"
 _ENCODING_UTF8 = "utf-8"
-_ROLE_ASSISTANT = "assistant"
+_ROLE_ASSISTANT: ChatRole = "assistant"
 
 
 def _iso_or_none(value: datetime | None) -> str | None:

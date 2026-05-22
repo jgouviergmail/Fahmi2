@@ -14,6 +14,8 @@ from fahmi2.domain.phase import PhaseConfig
 WORDS_PER_MINUTE_ORAL = 150.0
 #: Tokens par mot (hypothèse DeepSeek).
 TOKENS_PER_WORD = 1.3
+#: Caractères par token (hypothèse pour estimer les tokens d'un document texte).
+TEXT_CHARS_PER_TOKEN = 4.0
 
 # Multiplicateurs empiriques appliqués aux tokens de sortie quand le mode
 # thinking est activé.

@@ -41,6 +41,40 @@ _SECONDS_PER_MINUTE = 60.0
 
 
 @dataclass(frozen=True)
+class SourceWeight:
+    """Charge estimée d'une source pour le calcul de coût.
+
+    Attributes:
+        audio_seconds: Durée audio (vidéo/audio/YouTube ; 0 pour un document).
+        text_tokens: Tokens texte estimés (document ; 0 sinon).
+        reformulated: ``False`` si la source saute la reformulation (document
+            en pass-through).
+    """
+
+    audio_seconds: float
+    text_tokens: float
+    reformulated: bool = True
+
+
+def _base_tokens(weight: SourceWeight) -> float:
+    """Volume de tokens « de base » d'une source (audio converti + texte).
+
+    Args:
+        weight: Charge de la source.
+
+    Returns:
+        Le volume de tokens estimé (durée audio → mots → tokens, plus les
+        tokens texte d'un document).
+    """
+    audio_tokens = (
+        (weight.audio_seconds / _SECONDS_PER_MINUTE)
+        * WORDS_PER_MINUTE_ORAL
+        * TOKENS_PER_WORD
+    )
+    return audio_tokens + weight.text_tokens
+
+
+@dataclass(frozen=True)
 class _PhaseLoadFactor:
     """Multiplicateurs empiriques d'une phase LLM relatifs au volume vidéo.
 
@@ -144,7 +178,7 @@ class CostEstimator:
     def estimate(
         self,
         *,
-        videos_durations_seconds: list[float],
+        source_weights: list[SourceWeight],
         stt_provider: SttProvider,
         llm_model: LLMModel,
         active_target_languages_count: int = 1,
@@ -154,7 +188,8 @@ class CostEstimator:
         """Estime le coût total.
 
         Args:
-            videos_durations_seconds: Liste des durées vidéo en secondes.
+            source_weights: Charge par source (durée audio **ou** tokens texte,
+                + drapeau ``reformulated``).
             stt_provider: Provider STT choisi.
             llm_model: Modèle LLM choisi.
             active_target_languages_count: Nombre total de langues de sortie.
@@ -169,12 +204,15 @@ class CostEstimator:
         Returns:
             ``CostEstimation`` avec détails STT/LLM/total.
         """
-        total_audio_seconds = sum(videos_durations_seconds)
-        n_videos = len(videos_durations_seconds)
+        total_audio_seconds = sum(w.audio_seconds for w in source_weights)
+        total_base_tokens = sum(_base_tokens(w) for w in source_weights)
+        reformulated_base_tokens = sum(
+            _base_tokens(w) for w in source_weights if w.reformulated
+        )
         stt_cost = self._stt_cost(total_audio_seconds, stt_provider)
         llm_per_phase = self._llm_cost_per_phase(
-            total_audio_seconds=total_audio_seconds,
-            n_videos=n_videos,
+            total_base_tokens=total_base_tokens,
+            reformulated_base_tokens=reformulated_base_tokens,
             llm_model=llm_model,
             target_languages_count=active_target_languages_count,
             translation_languages_count=translation_languages_count,
@@ -211,8 +249,8 @@ class CostEstimator:
     def _llm_cost_per_phase(
         self,
         *,
-        total_audio_seconds: float,
-        n_videos: int,
+        total_base_tokens: float,
+        reformulated_base_tokens: float,
         llm_model: LLMModel,
         target_languages_count: int,
         translation_languages_count: int,
@@ -221,8 +259,10 @@ class CostEstimator:
         """Calcule le coût LLM estimé **par phase**.
 
         Args:
-            total_audio_seconds: Durée audio totale.
-            n_videos: Nombre de vidéos.
+            total_base_tokens: Volume de tokens de base de toutes les sources.
+            reformulated_base_tokens: Volume des seules sources reformulées
+                (les documents en pass-through ne contribuent pas à la phase
+                de reformulation).
             llm_model: Modèle.
             target_languages_count: Nombre de langues de sortie.
             translation_languages_count: Nombre de langues nécessitant traduction.
@@ -232,28 +272,25 @@ class CostEstimator:
             Coût USD estimé par ``PhaseId`` (phases LLM uniquement).
         """
         pricing = get_pricing(str(llm_model))
-        base_tokens_per_video = (
-            (total_audio_seconds / _SECONDS_PER_MINUTE)
-            / max(n_videos, 1)
-            * WORDS_PER_MINUTE_ORAL
-            * TOKENS_PER_WORD
-        )
 
         per_phase: dict[PhaseId, float] = {}
         for phase_id, factor in _LOAD_FACTORS.items():
             thinking_mult = thinking_output_multiplier(phases_config.get(phase_id))
+            # La reformulation ne porte que sur les sources effectivement
+            # reformulées (un document en pass-through y échappe).
+            volume = (
+                reformulated_base_tokens
+                if phase_id is PhaseId.REFORMULATION
+                else total_base_tokens
+            )
             if factor.is_per_video:
                 multiplier = (
                     translation_languages_count
                     if phase_id is PhaseId.TRANSLATION
                     else 1
                 )
-                phase_input = (
-                    factor.input_per_video * base_tokens_per_video * n_videos
-                )
-                phase_output = (
-                    factor.output_per_video * base_tokens_per_video * n_videos
-                )
+                phase_input = factor.input_per_video * volume
+                phase_output = factor.output_per_video * volume
                 per_phase[phase_id] = per_phase.get(phase_id, 0.0) + pricing.cost_for(
                     prompt_tokens=int(phase_input * multiplier),
                     completion_tokens=int(
@@ -262,16 +299,8 @@ class CostEstimator:
                     cached_prompt_tokens=0,
                 )
             else:
-                batch_input = (
-                    factor.batch_input_multiplier
-                    * base_tokens_per_video
-                    * n_videos
-                )
-                batch_output = (
-                    factor.batch_output_factor
-                    * base_tokens_per_video
-                    * n_videos
-                )
+                batch_input = factor.batch_input_multiplier * volume
+                batch_output = factor.batch_output_factor * volume
                 multiplier = (
                     target_languages_count
                     if phase_id is PhaseId.COHERENCE
@@ -285,16 +314,8 @@ class CostEstimator:
                     cached_prompt_tokens=0,
                 )
                 if factor.sub_loop_per_video is not None:
-                    sub_input = (
-                        factor.sub_loop_per_video
-                        * base_tokens_per_video
-                        * n_videos
-                    )
-                    sub_output = (
-                        factor.sub_loop_output_factor
-                        * base_tokens_per_video
-                        * n_videos
-                    )
+                    sub_input = factor.sub_loop_per_video * volume
+                    sub_output = factor.sub_loop_output_factor * volume
                     per_phase[phase_id] = per_phase.get(
                         phase_id, 0.0
                     ) + pricing.cost_for(

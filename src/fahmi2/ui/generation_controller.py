@@ -24,7 +24,8 @@ from PySide6.QtCore import QObject, Qt, QThread, Signal
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox, QWidget
 
-from fahmi2.app.cost_estimator import CostEstimation, CostEstimator
+from fahmi2.app._cost_common import TEXT_CHARS_PER_TOKEN
+from fahmi2.app.cost_estimator import CostEstimation, CostEstimator, SourceWeight
 from fahmi2.app.generation_export import export_generation_documents
 from fahmi2.app.hardware_probe import HardwareInfo
 from fahmi2.app.input_sources import build_input_sources
@@ -38,7 +39,7 @@ from fahmi2.core.errors.severity import Severity
 from fahmi2.core.logging.event import LogEvent
 from fahmi2.core.retrieval.interface import PassthroughRetriever
 from fahmi2.core.retry.policy import RetryPolicy
-from fahmi2.domain.enums import PhaseId, RunStatus, SttProvider
+from fahmi2.domain.enums import PhaseId, RunStatus, SourceKind, SttProvider
 from fahmi2.domain.generation import (
     GENERATION_OUTPUT_SUBDIR,
     GENERATION_WORKSPACE_SUBDIR,
@@ -47,6 +48,7 @@ from fahmi2.domain.generation import (
 from fahmi2.domain.ids import ProjectId
 from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
+from fahmi2.domain.source import SourceExecution
 from fahmi2.infra.audio.cloud_audio_preparer import CloudAudioPreparer
 from fahmi2.infra.audio.ffmpeg_extractor import FFmpegExtractor
 from fahmi2.infra.ingestion.dispatcher import build_default_ingestion_dispatcher
@@ -176,6 +178,36 @@ def build_stt_provider(
             ),
         )
     return FasterWhisperAdapter(model_cache_dir=models_dir)
+
+
+def _source_weight(
+    source: SourceExecution,
+    ffmpeg: FFmpegExtractor,
+    settings: GenerationSettings,
+) -> SourceWeight:
+    """Construit le poids de coût d'une source (durée audio ou tokens texte).
+
+    Args:
+        source: Source à peser.
+        ffmpeg: Extracteur (sonde la durée des médias).
+        settings: Réglages (drapeau ``reformulate_documents``).
+
+    Returns:
+        Le ``SourceWeight`` correspondant. Pour un document, les tokens sont
+        estimés depuis la taille du fichier (heuristique pré-run grossière ; le
+        texte réel n'est extrait qu'en phase 0).
+    """
+    if source.source.kind is SourceKind.DOCUMENT:
+        size_bytes = source.source.as_path.stat().st_size
+        return SourceWeight(
+            audio_seconds=0.0,
+            text_tokens=size_bytes / TEXT_CHARS_PER_TOKEN,
+            reformulated=settings.reformulate_documents,
+        )
+    return SourceWeight(
+        audio_seconds=ffmpeg.probe_duration_seconds(source.source.as_path),
+        text_tokens=0.0,
+    )
 
 
 class _RunWorker(QObject):
@@ -696,9 +728,7 @@ class GenerationController(QObject):
         ffmpeg = build_ffmpeg_from_runtime()
         QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
         try:
-            durations = [
-                ffmpeg.probe_duration_seconds(v.source.as_path) for v in sources
-            ]
+            weights = [_source_weight(s, ffmpeg, settings) for s in sources]
         finally:
             QApplication.restoreOverrideCursor()
 
@@ -706,7 +736,7 @@ class GenerationController(QObject):
             1 for lang in settings.output_languages if lang is not settings.source_language
         )
         estimation = CostEstimator().estimate(
-            videos_durations_seconds=durations,
+            source_weights=weights,
             stt_provider=settings.stt_provider,
             llm_model=settings.llm_model,
             active_target_languages_count=len(settings.output_languages),

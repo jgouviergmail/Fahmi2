@@ -2,9 +2,14 @@
 
 import pytest
 
-from fahmi2.app.cost_estimator import CostEstimation, CostEstimator
+from fahmi2.app.cost_estimator import CostEstimation, CostEstimator, SourceWeight
 from fahmi2.domain.enums import LLMModel, PhaseId, ReasoningEffort, SttProvider
 from fahmi2.domain.phase import PhaseConfig
+
+
+def _audio_weights(*durations: float) -> list[SourceWeight]:
+    """Construit des poids audio (vidéo/audio) depuis des durées en secondes."""
+    return [SourceWeight(audio_seconds=d, text_tokens=0.0) for d in durations]
 
 
 def _all_phases_thinking(effort: ReasoningEffort | None) -> dict[PhaseId, PhaseConfig]:
@@ -27,7 +32,7 @@ def _all_phases_thinking(effort: ReasoningEffort | None) -> dict[PhaseId, PhaseC
 def test_stt_local_is_free() -> None:
     estimator = CostEstimator()
     est = estimator.estimate(
-        videos_durations_seconds=[600.0, 600.0],
+        source_weights=_audio_weights(600.0, 600.0),
         stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
         llm_model=LLMModel.DEEPSEEK_V4_FLASH,
     )
@@ -37,7 +42,7 @@ def test_stt_local_is_free() -> None:
 def test_stt_cloud_charges_per_minute() -> None:
     estimator = CostEstimator()
     est = estimator.estimate(
-        videos_durations_seconds=[60.0],
+        source_weights=_audio_weights(60.0),
         stt_provider=SttProvider.OPENAI_CLOUD,
         llm_model=LLMModel.DEEPSEEK_V4_FLASH,
     )
@@ -47,7 +52,7 @@ def test_stt_cloud_charges_per_minute() -> None:
 def test_total_combines_stt_and_llm() -> None:
     estimator = CostEstimator()
     est = estimator.estimate(
-        videos_durations_seconds=[600.0],
+        source_weights=_audio_weights(600.0),
         stt_provider=SttProvider.OPENAI_CLOUD,
         llm_model=LLMModel.DEEPSEEK_V4_FLASH,
     )
@@ -57,7 +62,7 @@ def test_total_combines_stt_and_llm() -> None:
 def test_total_audio_seconds_is_sum() -> None:
     estimator = CostEstimator()
     est = estimator.estimate(
-        videos_durations_seconds=[60.0, 120.0, 180.0],
+        source_weights=_audio_weights(60.0, 120.0, 180.0),
         stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
         llm_model=LLMModel.DEEPSEEK_V4_FLASH,
     )
@@ -67,12 +72,12 @@ def test_total_audio_seconds_is_sum() -> None:
 def test_pro_costs_more_than_flash() -> None:
     estimator = CostEstimator()
     est_flash = estimator.estimate(
-        videos_durations_seconds=[600.0],
+        source_weights=_audio_weights(600.0),
         stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
         llm_model=LLMModel.DEEPSEEK_V4_FLASH,
     )
     est_pro = estimator.estimate(
-        videos_durations_seconds=[600.0],
+        source_weights=_audio_weights(600.0),
         stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
         llm_model=LLMModel.DEEPSEEK_V4_PRO,
     )
@@ -82,14 +87,14 @@ def test_pro_costs_more_than_flash() -> None:
 def test_translation_increases_cost_with_target_languages() -> None:
     estimator = CostEstimator()
     est_single = estimator.estimate(
-        videos_durations_seconds=[600.0],
+        source_weights=_audio_weights(600.0),
         stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
         llm_model=LLMModel.DEEPSEEK_V4_FLASH,
         active_target_languages_count=1,
         translation_languages_count=0,
     )
     est_multi = estimator.estimate(
-        videos_durations_seconds=[600.0],
+        source_weights=_audio_weights(600.0),
         stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
         llm_model=LLMModel.DEEPSEEK_V4_FLASH,
         active_target_languages_count=2,
@@ -113,7 +118,7 @@ def test_estimation_is_dataclass() -> None:
 
 def test_per_phase_breakdown_sums_to_total() -> None:
     est = CostEstimator().estimate(
-        videos_durations_seconds=[600.0, 600.0],
+        source_weights=_audio_weights(600.0, 600.0),
         stt_provider=SttProvider.OPENAI_CLOUD,
         llm_model=LLMModel.DEEPSEEK_V4_FLASH,
         active_target_languages_count=1,
@@ -126,7 +131,7 @@ def test_per_phase_breakdown_sums_to_total() -> None:
 
 def test_estimation_has_range() -> None:
     est = CostEstimator().estimate(
-        videos_durations_seconds=[600.0],
+        source_weights=_audio_weights(600.0),
         stt_provider=SttProvider.OPENAI_CLOUD,
         llm_model=LLMModel.DEEPSEEK_V4_FLASH,
     )
@@ -136,7 +141,7 @@ def test_estimation_has_range() -> None:
 def test_empty_videos_returns_zero() -> None:
     estimator = CostEstimator()
     est = estimator.estimate(
-        videos_durations_seconds=[],
+        source_weights=_audio_weights(),
         stt_provider=SttProvider.OPENAI_CLOUD,
         llm_model=LLMModel.DEEPSEEK_V4_FLASH,
     )
@@ -151,12 +156,12 @@ def test_thinking_off_matches_no_phases_config() -> None:
     """Un mapping vide ou un thinking off doivent donner le même résultat."""
     estimator = CostEstimator()
     base = estimator.estimate(
-        videos_durations_seconds=[600.0],
+        source_weights=_audio_weights(600.0),
         stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
         llm_model=LLMModel.DEEPSEEK_V4_FLASH,
     )
     with_off_config = estimator.estimate(
-        videos_durations_seconds=[600.0],
+        source_weights=_audio_weights(600.0),
         stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
         llm_model=LLMModel.DEEPSEEK_V4_FLASH,
         phases_config={
@@ -169,12 +174,12 @@ def test_thinking_off_matches_no_phases_config() -> None:
 def test_thinking_enabled_increases_cost() -> None:
     estimator = CostEstimator()
     no_thinking = estimator.estimate(
-        videos_durations_seconds=[600.0],
+        source_weights=_audio_weights(600.0),
         stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
         llm_model=LLMModel.DEEPSEEK_V4_FLASH,
     )
     with_thinking = estimator.estimate(
-        videos_durations_seconds=[600.0],
+        source_weights=_audio_weights(600.0),
         stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
         llm_model=LLMModel.DEEPSEEK_V4_FLASH,
         phases_config=_all_phases_thinking(None),
@@ -185,13 +190,13 @@ def test_thinking_enabled_increases_cost() -> None:
 def test_thinking_high_costs_more_than_default() -> None:
     estimator = CostEstimator()
     default_effort = estimator.estimate(
-        videos_durations_seconds=[600.0],
+        source_weights=_audio_weights(600.0),
         stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
         llm_model=LLMModel.DEEPSEEK_V4_FLASH,
         phases_config=_all_phases_thinking(None),
     )
     high_effort = estimator.estimate(
-        videos_durations_seconds=[600.0],
+        source_weights=_audio_weights(600.0),
         stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
         llm_model=LLMModel.DEEPSEEK_V4_FLASH,
         phases_config=_all_phases_thinking(ReasoningEffort.HIGH),
@@ -202,13 +207,13 @@ def test_thinking_high_costs_more_than_default() -> None:
 def test_thinking_max_costs_more_than_high() -> None:
     estimator = CostEstimator()
     high_effort = estimator.estimate(
-        videos_durations_seconds=[600.0],
+        source_weights=_audio_weights(600.0),
         stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
         llm_model=LLMModel.DEEPSEEK_V4_FLASH,
         phases_config=_all_phases_thinking(ReasoningEffort.HIGH),
     )
     max_effort = estimator.estimate(
-        videos_durations_seconds=[600.0],
+        source_weights=_audio_weights(600.0),
         stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
         llm_model=LLMModel.DEEPSEEK_V4_FLASH,
         phases_config=_all_phases_thinking(ReasoningEffort.MAX),
@@ -221,12 +226,12 @@ def test_thinking_only_on_one_phase_partially_increases_cost() -> None:
     cette phase, pas autant que sur toutes les phases."""
     estimator = CostEstimator()
     no_thinking = estimator.estimate(
-        videos_durations_seconds=[600.0],
+        source_weights=_audio_weights(600.0),
         stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
         llm_model=LLMModel.DEEPSEEK_V4_FLASH,
     )
     one_phase = estimator.estimate(
-        videos_durations_seconds=[600.0],
+        source_weights=_audio_weights(600.0),
         stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
         llm_model=LLMModel.DEEPSEEK_V4_FLASH,
         phases_config={
@@ -237,9 +242,39 @@ def test_thinking_only_on_one_phase_partially_increases_cost() -> None:
         },
     )
     all_phases = estimator.estimate(
-        videos_durations_seconds=[600.0],
+        source_weights=_audio_weights(600.0),
         stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
         llm_model=LLMModel.DEEPSEEK_V4_FLASH,
         phases_config=_all_phases_thinking(ReasoningEffort.HIGH),
     )
     assert no_thinking.llm_usd < one_phase.llm_usd < all_phases.llm_usd
+
+
+def test_document_has_no_stt_cost_but_llm_cost() -> None:
+    est = CostEstimator().estimate(
+        source_weights=[SourceWeight(audio_seconds=0.0, text_tokens=5000.0)],
+        stt_provider=SttProvider.OPENAI_CLOUD,
+        llm_model=LLMModel.DEEPSEEK_V4_FLASH,
+    )
+    assert est.stt_usd == 0.0
+    assert est.llm_usd > 0.0
+
+
+def test_document_passthrough_skips_reformulation_cost() -> None:
+    reformulated = CostEstimator().estimate(
+        source_weights=[
+            SourceWeight(audio_seconds=0.0, text_tokens=5000.0, reformulated=True)
+        ],
+        stt_provider=SttProvider.OPENAI_CLOUD,
+        llm_model=LLMModel.DEEPSEEK_V4_FLASH,
+    )
+    passthrough = CostEstimator().estimate(
+        source_weights=[
+            SourceWeight(audio_seconds=0.0, text_tokens=5000.0, reformulated=False)
+        ],
+        stt_provider=SttProvider.OPENAI_CLOUD,
+        llm_model=LLMModel.DEEPSEEK_V4_FLASH,
+    )
+    assert passthrough.per_phase_usd[PhaseId.REFORMULATION] == 0.0
+    assert reformulated.per_phase_usd[PhaseId.REFORMULATION] > 0.0
+    assert passthrough.llm_usd < reformulated.llm_usd

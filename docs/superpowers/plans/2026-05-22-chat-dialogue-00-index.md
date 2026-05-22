@@ -25,9 +25,9 @@ persistance fichiers sous `<workspace>/chat/`. Zéro nouvelle dépendance.
 
 | Lot | Plan | Contenu | Dépend de | Livrable testable |
 |---|---|---|---|---|
-| 1 | [lot1-socle](2026-05-22-chat-dialogue-lot1-socle.md) | Domaine chat, `ConversationId`, enums, port `PassageRetriever` + TF-IDF, corpus + **chunking** | — | Domaine + retrieval lexical + chunking, **sans UI ni LLM** |
-| 2 | `lot2-moteur` *(à venir)* | `prompt_builder`, `citations`, `ChatService` (non-streaming), prompts `chat_strict`/`chat_augmented`/`query_expansion`, `ChatSettings` + blob v2, store conversations, garde-fou historique | 1 | Réponse ancrée + citations, **sans UI ni streaming** |
-| 3 | `lot3-streaming` *(à venir)* | `chat_stream` (port + `DeepSeekAdapter` + fake + usage/repli), bascule moteur sur le flux, events | 2 | Réponses en flux |
+| 1 ✅ | [lot1-socle](2026-05-22-chat-dialogue-lot1-socle.md) | Domaine chat, `ConversationId`, enums, port `PassageRetriever` + TF-IDF, corpus + **chunking** | — | Domaine + retrieval lexical + chunking, **sans UI ni LLM** |
+| 2 ✅ | [lot2-moteur](2026-05-22-chat-dialogue-lot2-moteur.md) | `prompt_builder`, `citations`, `ChatService` (non-streaming), prompts `chat_strict`/`chat_augmented`/`query_expansion`, `ChatSettings` + blob v2, store conversations, garde-fou historique | 1 | Réponse ancrée + citations, **sans UI ni streaming** |
+| 3 ✅ | [lot3-streaming](2026-05-22-chat-dialogue-lot3-streaming.md) | `chat_stream` (port + `DeepSeekAdapter` + fake + usage/repli), `ChatService.stream_answer` | 2 | Réponses en flux |
 | 4 | `lot4-ui` *(à venir)* | `FeatureId.CHAT`, `ChatTab`, `ChatController`, `ChatViewModel` (machine d'état), `ChatView`, `ChatSettingsView`, DI | 3 | **Chat lexical + streaming de bout en bout** (point de démonstration) |
 | 5 | `lot5-semantique` *(à venir)* | `EmbeddingProvider` + OpenAI + fake, `SemanticPassageRetriever` + index `.npz` + empreinte de validité, résolution `AUTO`, (ré)indexation explicite, purge, repli | 4 | Retrieval sémantique + cycle de vie de l'index |
 | 6 | `lot6-eval-docs` *(à venir)* | Jalon d'évaluation qualité, `docs/`, `README`, `CHANGELOG`, catalogue `PromptsService`, `CLAUDE.md` | 5 | Feature documentée + harnais d'éval |

@@ -318,8 +318,10 @@ vide ; sur le chunk d'usage final, construit `LLMResponse` via `_pricing` →
   (`len(content)/CHARS_PER_TOKEN`) → coût **approché**, marqué comme estimation
   (champ/journal). DeepSeek **renvoie** l'`usage` (cf. §6.0) : ce repli ne sert
   qu'à un éventuel autre provider OpenAI-compatible dépourvu d'`usage`.
-- **Retry** : `with_retry` enveloppe **l'établissement** du flux (avant le 1ᵉʳ
-  chunk) ; une fois le flux entamé, pas de rejeu (cf. §17).
+- **Retry** : **non implémenté en v1** (ni `chat` ni `chat_stream`). Une erreur
+  transitoire (rate limit, réseau) est remontée à l'UI, qui permet de **relancer**
+  la question. L'enveloppe `with_retry` à l'établissement du flux est une
+  amélioration future (cf. §17).
 
 ### 6.3 `FakeLLMProvider.chat_stream`
 Découpe une réponse fixe en quelques deltas + chunk final avec `usage` simulé →
@@ -620,8 +622,9 @@ changements de chunking, de seuils ou de prompts.
 - **Coût en streaming** : DeepSeek V4 renvoie l'`usage` exact (`include_usage`,
   vérifié §6.0) → coût exact. L'estimation (§6.2) n'intervient que pour un futur
   provider OpenAI-compatible sans `usage`.
-- **Retry partiel** : un flux interrompu **après** le 1ᵉʳ token n'est pas rejoué
-  (l'utilisateur relance la question).
+- **Retry** : pas de retry automatique en v1 (chat ni streaming) ; une erreur
+  transitoire est remontée à l'UI qui permet de relancer la question. L'enveloppe
+  `with_retry` (établissement du flux) reste une amélioration future.
 - **Mono-langue par conversation** : le corpus est indexé pour une langue de
   contenu ; changer de langue = nouvelle conversation / ré-index.
 - **Corpus v1 = consolidé + glossaire** : le détail des transcriptions per-source

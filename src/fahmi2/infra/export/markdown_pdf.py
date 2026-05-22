@@ -1,11 +1,12 @@
-"""Adapter d'export Markdown / PDF / HTML des supports pédagogiques.
+"""Renderer d'export Markdown / PDF / HTML (pur, sans I/O d'orchestration).
 
-L'export réutilise le Markdown **déjà rendu** par les générateurs : ce module
-assemble les documents agrégés et rend le PDF via ``markdown`` → HTML →
-``fpdf2.write_html``, ou un document HTML autonome (UTF-8, feuille de style
-intégrée). La police PDF est une police Unicode système Windows (``Arial``) : les
-polices cœur de fpdf2 sont latin-1 et lèvent sur les caractères typographiques
-français (« — », « … »).
+Rend un Markdown **déjà produit** en PDF (via ``markdown`` → HTML →
+``fpdf2.write_html``) ou en document HTML autonome (UTF-8, feuille de style
+intégrée), et expose la table d'extensions par format. L'orchestration (collecte
+des documents, dispatch par format, écriture) vit dans ``app.document_export``.
+La police PDF est une police Unicode système Windows (``Arial``) : les polices
+cœur de fpdf2 sont latin-1 et lèvent sur les caractères typographiques français
+(« — », « … »).
 
 Limite connue : ``fpdf2.write_html`` rend les blocs de code (``<pre>``/``<code>``)
 avec sa police monospace cœur (latin-1). Les rendus de supports pédagogiques n'en
@@ -53,8 +54,6 @@ _PDF_HEADING_SIZES_PT: dict[str, float] = {
 _PDF_HEADING_TOP_MARGIN = 5.0
 _PDF_HEADING_BOTTOM_MARGIN = 0.4
 
-_SECTION_SEPARATOR = "\n\n---\n\n"
-_EMPTY_BODY = "_Aucun support à exporter._"
 _PDF_FONT_FAMILY = "AppSans"
 _PDF_FONT_SIZE = 11
 
@@ -106,21 +105,6 @@ def pdf_fonts_available() -> bool:
         ``True`` si le rendu PDF est possible.
     """
     return (_fonts_dir() / _WINDOWS_FONT_FILES[""]).exists()
-
-
-def assemble_markdown(title: str, bodies: tuple[str, ...]) -> str:
-    """Assemble un document Markdown agrégé (titre + corps).
-
-    Args:
-        title: Titre du document.
-        bodies: Corps Markdown déjà rendus (chacun porte son propre titre).
-
-    Returns:
-        Le Markdown agrégé.
-    """
-    if not bodies:
-        return f"# {title}\n\n{_EMPTY_BODY}\n"
-    return f"# {title}\n\n" + _SECTION_SEPARATOR.join(bodies) + "\n"
 
 
 @dataclass(frozen=True)

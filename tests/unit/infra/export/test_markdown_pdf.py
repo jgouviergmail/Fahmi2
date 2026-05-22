@@ -1,4 +1,4 @@
-"""Tests de l'assemblage Markdown et du rendu PDF."""
+"""Tests du rendu PDF et de la table d'extensions de format."""
 
 from __future__ import annotations
 
@@ -6,24 +6,19 @@ from pathlib import Path
 
 import pytest
 
+from fahmi2.domain.enums import ExportFormat
 from fahmi2.infra.export.markdown_pdf import (
-    assemble_markdown,
+    EXTENSION_BY_FORMAT,
     pdf_fonts_available,
     render_markdown_to_pdf,
 )
 
 
-def test_assemble_markdown_joins_bodies() -> None:
-    out = assemble_markdown("Titre", ("# A\n\ncorps a", "# B\n\ncorps b"))
-    assert out.startswith("# Titre")
-    assert "# A" in out
-    assert "# B" in out
-    assert "---" in out
-
-
-def test_assemble_markdown_empty() -> None:
-    out = assemble_markdown("Titre", ())
-    assert out.startswith("# Titre")
+def test_extension_by_format() -> None:
+    assert EXTENSION_BY_FORMAT[ExportFormat.MARKDOWN] == ".md"
+    assert EXTENSION_BY_FORMAT[ExportFormat.PDF] == ".pdf"
+    assert EXTENSION_BY_FORMAT[ExportFormat.HTML] == ".html"
+    assert ExportFormat.APKG not in EXTENSION_BY_FORMAT
 
 
 @pytest.mark.skipif(not pdf_fonts_available(), reason="Police Unicode indisponible")

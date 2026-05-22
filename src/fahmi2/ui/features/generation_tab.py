@@ -23,6 +23,10 @@ from fahmi2.ui.widgets.project_header_bar import ProjectHeaderBar
 from fahmi2.ui.widgets.stats_strip import StatsStripWidget
 
 _TAB_TITLE = "Génération"
+_EXPORT_TOOLTIP = (
+    "Exporte les livrables de la génération (document consolidé et glossaire) "
+    "dans les formats cochés (Markdown / PDF / HTML)."
+)
 
 
 class GenerationTab(FeatureTab):
@@ -53,7 +57,11 @@ class GenerationTab(FeatureTab):
         self._widget = QWidget(window)
         layout = QVBoxLayout(self._widget)
         layout.setContentsMargins(0, 0, 0, 0)
-        self._header_bar = ProjectHeaderBar(self._widget)
+        self._header_bar = ProjectHeaderBar(
+            self._widget,
+            show_export=True,
+            export_tooltip=_EXPORT_TOOLTIP,
+        )
         self._stats_strip = StatsStripWidget(self._widget)
         self._run_matrix = CostMatrixView(parent=self._widget)
         layout.addWidget(self._header_bar)

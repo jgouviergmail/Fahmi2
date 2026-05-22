@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QFormLayout,
     QHBoxLayout,
+    QLabel,
     QLineEdit,
     QMessageBox,
     QPushButton,
@@ -29,13 +30,21 @@ from PySide6.QtWidgets import (
 )
 
 from fahmi2.app.hardware_probe import HardwareInfo
-from fahmi2.domain.enums import Language, LLMModel, SttProvider, StylePreset
+from fahmi2.domain.enums import (
+    ExportFormat,
+    Language,
+    LLMModel,
+    SttProvider,
+    StylePreset,
+)
 from fahmi2.domain.generation import (
+    GENERATION_EXPORT_FORMATS,
     MAX_LLM_WORKERS,
     MAX_STT_CLOUD_WORKERS,
     GenerationSettings,
     ParallelismConfig,
 )
+from fahmi2.ui.pedagogy_labels import EXPORT_LABELS
 from fahmi2.ui.widgets.phase_configs_widget import PhaseConfigsWidget
 from fahmi2.ui.widgets.settings_view import SettingsView
 
@@ -52,6 +61,13 @@ _CAT_STYLE = "Style"
 _CAT_STT = "Transcription"
 _CAT_MODEL = "Modèle & coût"
 _CAT_PHASES = "Phases"
+_CAT_EXPORT = "Export"
+_EXPORT_HINT = (
+    "Formats proposés lors de l'export des livrables de la génération (le bouton "
+    "« Exporter » liste les formats cochés). Sans sélection, l'export invite à en "
+    "choisir ici."
+)
+_EXPORT_FORMATS_LABEL = "Formats d'export :"
 
 _DIRECTIVES_PLACEHOLDER = (
     "Directives libres pour orienter la reformulation. Ex : « ton chaleureux mais "
@@ -97,6 +113,7 @@ class GenerationSettingsView(QDialog):
                 (_CAT_STT, self._build_stt_page()),
                 (_CAT_MODEL, self._build_model_page()),
                 (_CAT_PHASES, self._build_phases_page()),
+                (_CAT_EXPORT, self._build_export_page()),
             ],
             self,
         )
@@ -190,6 +207,11 @@ class GenerationSettingsView(QDialog):
             "Appels LLM simultanés (limite DeepSeek par concurrence, très haute)."
         )
 
+        self._export_checks: dict[ExportFormat, QCheckBox] = {}
+        for fmt in ExportFormat:
+            if fmt in GENERATION_EXPORT_FORMATS:
+                self._export_checks[fmt] = QCheckBox(EXPORT_LABELS[fmt], self)
+
     # ------------------------------------------------------------------- pages
 
     def _build_input_page(self) -> QWidget:
@@ -274,6 +296,23 @@ class GenerationSettingsView(QDialog):
         layout.addStretch(1)
         return page
 
+    def _build_export_page(self) -> QWidget:
+        """Construit la page « Export » (formats d'export proposés).
+
+        Returns:
+            Le widget de page.
+        """
+        page = QWidget(self)
+        outer = QVBoxLayout(page)
+        hint = QLabel(_EXPORT_HINT, page)
+        hint.setWordWrap(True)
+        outer.addWidget(hint)
+        outer.addWidget(QLabel(_EXPORT_FORMATS_LABEL, page))
+        for cb in self._export_checks.values():
+            outer.addWidget(cb)
+        outer.addStretch(1)
+        return page
+
     # ----------------------------------------------------------------- actions
 
     def _browse_input_folder(self) -> None:
@@ -330,6 +369,8 @@ class GenerationSettingsView(QDialog):
         self._stt_workers_input.setValue(generation.parallelism.stt_cloud_workers)
         self._llm_workers_input.setValue(generation.parallelism.llm_workers)
         self._phase_configs_widget.set_phase_configs(generation.phases_config)
+        for fmt, cb in self._export_checks.items():
+            cb.setChecked(fmt in generation.export_formats)
 
     def _on_accept(self) -> None:
         """Valide la saisie et construit le ``GenerationSettings``."""
@@ -352,6 +393,9 @@ class GenerationSettingsView(QDialog):
             if self._cost_ceiling_input.value() > 0
             else None
         )
+        export_formats = frozenset(
+            fmt for fmt, cb in self._export_checks.items() if cb.isChecked()
+        )
         self._result = GenerationSettings(
             input_folder=Path(input_folder_text),
             source_language=source_lang,
@@ -367,5 +411,6 @@ class GenerationSettingsView(QDialog):
                 llm_workers=self._llm_workers_input.value(),
             ),
             delete_audio_after_stt=not self._keep_audio_checkbox.isChecked(),
+            export_formats=export_formats,
         )
         self.accept()

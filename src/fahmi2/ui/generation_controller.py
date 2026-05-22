@@ -25,6 +25,7 @@ from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox, QWidget
 
 from fahmi2.app.cost_estimator import CostEstimation, CostEstimator
+from fahmi2.app.generation_export import export_generation_documents
 from fahmi2.app.hardware_probe import HardwareInfo
 from fahmi2.app.project_service import ProjectService
 from fahmi2.app.run_orchestrator import RunOrchestrator
@@ -80,9 +81,11 @@ from fahmi2.pipeline.handlers.phase_7_coherence import Phase7CoherenceHandler
 from fahmi2.pipeline.pause_token import PauseToken
 from fahmi2.pipeline.phase_handler import PhaseContext
 from fahmi2.pipeline.phase_registry import PhaseRegistry
+from fahmi2.ui._export_ui import choose_export_format, run_document_export
 from fahmi2.ui._file_explorer import open_in_file_explorer
 from fahmi2.ui._fs import remove_feature_dir
 from fahmi2.ui.dialogs.generation_settings_view import GenerationSettingsView
+from fahmi2.ui.pedagogy_labels import EXPORT_LABELS
 from fahmi2.ui.qt_event_bus import QtEventBus
 from fahmi2.ui.viewmodels.run_matrix import RunMatrixViewModel
 from fahmi2.ui.viewmodels.stats_strip import StatsStripViewModel
@@ -285,6 +288,7 @@ class GenerationController(QObject):
         self._header_bar.estimate_cost_requested.connect(self.estimate_cost)
         self._header_bar.settings_requested.connect(self.open_generation_settings)
         self._header_bar.reset_requested.connect(self.reset_generation)
+        self._header_bar.export_requested.connect(self.export_documents)
 
     # ------------------------------------------------------------------ project
 
@@ -597,6 +601,44 @@ class GenerationController(QObject):
             return
         self._cleanup_after_cancel_requested = True
         self._current_pause_token.request_cancel()
+
+    def export_documents(self) -> None:
+        """Slot : exporte les livrables de génération (consolidé + glossaire).
+
+        Propose les formats configurés (``GenerationSettings.export_formats``),
+        puis écrit, dans le dossier choisi, un fichier par document et par langue
+        au format retenu (Markdown / PDF / HTML).
+        """
+        project = self._current_project
+        if project is None:
+            QMessageBox.warning(
+                self._window,
+                "Aucun projet sélectionné",
+                "Sélectionne un projet dans la sidebar avant d'exporter.",
+            )
+            return
+        if project.generation is None:
+            QMessageBox.information(
+                self._window,
+                "Génération non configurée",
+                "Configurez d'abord la génération (⚙ Réglages).",
+            )
+            return
+        fmt = choose_export_format(
+            window=self._window,
+            configured_formats=project.generation.export_formats,
+            label_by_format=EXPORT_LABELS,
+        )
+        if fmt is None:
+            return
+        run_document_export(
+            window=self._window,
+            logs_dock=self._logs_dock,
+            label=EXPORT_LABELS[fmt],
+            exporter=lambda d: export_generation_documents(
+                project, output_dir=d, fmt=fmt
+            ),
+        )
 
     def open_output_folder(self) -> None:
         """Slot : ouvre le dossier de sortie du projet sélectionné.

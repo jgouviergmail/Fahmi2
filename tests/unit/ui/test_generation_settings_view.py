@@ -9,7 +9,7 @@ import pytest
 from pytestqt.qtbot import QtBot
 
 from fahmi2.app.hardware_probe import HardwareInfo
-from fahmi2.domain.enums import Language
+from fahmi2.domain.enums import ExportFormat, Language
 from fahmi2.domain.generation import ParallelismConfig
 from fahmi2.ui.dialogs.generation_settings_view import GenerationSettingsView
 
@@ -44,6 +44,24 @@ def test_edit_mode_prefills_and_returns(
     assert result is not None
     assert result.input_folder == Path("D:/Cours")
     assert Language.EN in result.output_languages
+
+
+def test_export_page_roundtrip(qtbot: QtBot, make_generation_settings: Any) -> None:
+    gen = make_generation_settings(
+        input_folder=Path("D:/Cours"),
+        export_formats=frozenset({ExportFormat.PDF, ExportFormat.HTML}),
+    )
+    view = GenerationSettingsView(_HW, initial=gen)
+    qtbot.addWidget(view)
+    # Les cases reflètent les réglages…
+    assert view._export_checks[ExportFormat.PDF].isChecked()  # noqa: SLF001
+    assert view._export_checks[ExportFormat.HTML].isChecked()  # noqa: SLF001
+    assert ExportFormat.APKG not in view._export_checks  # noqa: SLF001
+    # …et to_settings les relit.
+    view._on_accept()  # noqa: SLF001
+    out = view.get_generation_settings()
+    assert out is not None
+    assert out.export_formats == frozenset({ExportFormat.PDF, ExportFormat.HTML})
 
 
 def test_create_mode_deletes_audio_by_default(qtbot: QtBot) -> None:

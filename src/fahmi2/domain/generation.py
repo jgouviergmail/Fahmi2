@@ -116,6 +116,9 @@ class GenerationSettings:
         delete_audio_after_stt: Si ``True``, l'audio extrait est supprimé après STT.
         export_formats: Formats d'export documentaire (sous-ensemble de
             {MARKDOWN, PDF, HTML} ; vide par défaut = opt-in).
+        reformulate_documents: Si ``True`` (défaut), les documents texte passent
+            par la reformulation (phase 3) comme une transcription ; sinon ils
+            sont insérés tels quels (pass-through, structure préservée).
     """
 
     input_folder: Path
@@ -130,6 +133,7 @@ class GenerationSettings:
     parallelism: ParallelismConfig
     delete_audio_after_stt: bool
     export_formats: frozenset[ExportFormat] = DEFAULT_GENERATION_EXPORT_FORMATS
+    reformulate_documents: bool = True
 
     def __post_init__(self) -> None:
         if not self.output_languages:

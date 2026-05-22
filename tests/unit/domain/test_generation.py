@@ -122,3 +122,8 @@ def test_parallelism_config_validates_positive() -> None:
         ParallelismConfig(stt_cloud_workers=0)
     with pytest.raises(ValueError, match="llm_workers"):
         ParallelismConfig(llm_workers=-1)
+
+
+def test_reformulate_documents_defaults_true() -> None:
+    assert _make().reformulate_documents is True
+    assert _make(reformulate_documents=False).reformulate_documents is False

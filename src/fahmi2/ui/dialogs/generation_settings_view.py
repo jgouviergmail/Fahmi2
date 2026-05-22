@@ -80,6 +80,13 @@ _KEEP_AUDIO_TOOLTIP = (
     "après la transcription (utile pour réécouter / déboguer)."
 )
 
+_REFORMULATE_DOCS_LABEL = "Reformuler les documents texte"
+_REFORMULATE_DOCS_TOOLTIP = (
+    "Si coché (défaut), les documents (PDF, Word, Markdown, texte) passent par "
+    "la reformulation comme une transcription orale. Décoché : le texte est "
+    "inséré tel quel (utile pour un cours déjà bien rédigé)."
+)
+
 
 class GenerationSettingsView(QDialog):
     """Dialogue d'édition des réglages de génération (master-detail)."""
@@ -180,6 +187,10 @@ class GenerationSettingsView(QDialog):
         self._keep_audio_checkbox = QCheckBox(_KEEP_AUDIO_LABEL, self)
         self._keep_audio_checkbox.setToolTip(_KEEP_AUDIO_TOOLTIP)
 
+        self._reformulate_documents_checkbox = QCheckBox(_REFORMULATE_DOCS_LABEL, self)
+        self._reformulate_documents_checkbox.setToolTip(_REFORMULATE_DOCS_TOOLTIP)
+        self._reformulate_documents_checkbox.setChecked(True)
+
         self._llm_combo = QComboBox(self)
         for model in LLMModel:
             self._llm_combo.addItem(model.value, model)
@@ -248,6 +259,7 @@ class GenerationSettingsView(QDialog):
         form = QFormLayout()
         form.addRow("Style :", self._style_combo)
         form.addRow("Directives stylistiques :", self._style_directives_input)
+        form.addRow(self._reformulate_documents_checkbox)
         outer.addLayout(form)
         outer.addStretch(1)
         return page
@@ -358,6 +370,7 @@ class GenerationSettingsView(QDialog):
         if style_idx >= 0:
             self._style_combo.setCurrentIndex(style_idx)
         self._style_directives_input.setPlainText(generation.style_directives)
+        self._reformulate_documents_checkbox.setChecked(generation.reformulate_documents)
         stt_idx = self._stt_combo.findData(generation.stt_provider)
         if stt_idx >= 0:
             self._stt_combo.setCurrentIndex(stt_idx)
@@ -412,5 +425,6 @@ class GenerationSettingsView(QDialog):
             ),
             delete_audio_after_stt=not self._keep_audio_checkbox.isChecked(),
             export_formats=export_formats,
+            reformulate_documents=self._reformulate_documents_checkbox.isChecked(),
         )
         self.accept()

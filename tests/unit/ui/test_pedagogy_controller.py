@@ -269,7 +269,7 @@ def test_export_apkg_writes_file(
     assert out.exists()
 
 
-def test_export_markdown_writes_files(
+def test_on_export_requested_markdown_writes_per_support_files(
     qtbot: QtBot,
     tmp_path: Path,
     monkeypatch: Any,
@@ -282,7 +282,9 @@ def test_export_markdown_writes_files(
         name="P",
         workspace_folder=ws,
         generation=make_generation_settings(),
-        pedagogy=make_pedagogy_settings(),
+        pedagogy=make_pedagogy_settings(
+            export_formats=frozenset({ExportFormat.MARKDOWN})
+        ),
     )
     controller.on_project_selected(project.id)
     FsArtifactStore().write_text_atomic(
@@ -293,14 +295,21 @@ def test_export_markdown_writes_files(
     )
     out_dir = tmp_path / "export"
     monkeypatch.setattr(
+        QInputDialog,
+        "getItem",
+        lambda *args, **kwargs: (EXPORT_LABELS[ExportFormat.MARKDOWN], True),
+    )
+    monkeypatch.setattr(
         QFileDialog, "getExistingDirectory", lambda *args, **kwargs: str(out_dir)
     )
     monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: None)
-    controller.export_markdown()
-    assert (out_dir / "supports.fr.md").exists()
+    controller._on_export_requested()  # noqa: SLF001
+    # Un fichier par support (plus d'agrégat ``supports.fr.md``).
+    assert (out_dir / "flashcards_concepts.fr.md").exists()
+    assert not (out_dir / "supports.fr.md").exists()
 
 
-def test_on_export_requested_dispatches_markdown(
+def test_on_export_requested_routes_apkg(
     qtbot: QtBot,
     tmp_path: Path,
     monkeypatch: Any,
@@ -313,25 +322,24 @@ def test_on_export_requested_dispatches_markdown(
         workspace_folder=tmp_path / "ws",
         generation=make_generation_settings(),
         pedagogy=make_pedagogy_settings(
-            export_formats=frozenset({ExportFormat.MARKDOWN})
+            export_formats=frozenset({ExportFormat.APKG})
         ),
     )
     controller.on_project_selected(project.id)
     called: list[str] = []
-    monkeypatch.setattr(controller, "export_markdown", lambda: called.append("md"))
+    monkeypatch.setattr(controller, "export_apkg", lambda: called.append("apkg"))
     monkeypatch.setattr(
         QInputDialog,
         "getItem",
-        lambda *args, **kwargs: (EXPORT_LABELS[ExportFormat.MARKDOWN], True),
+        lambda *args, **kwargs: (EXPORT_LABELS[ExportFormat.APKG], True),
     )
     controller._on_export_requested()  # noqa: SLF001
-    assert called == ["md"]
+    assert called == ["apkg"]
 
 
-def test_export_actions_cover_all_formats(qtbot: QtBot, tmp_path: Path) -> None:
-    """Tout ``ExportFormat`` doit avoir une action (sinon KeyError à l'export)."""
-    controller, _, _ = _make_controller(qtbot, tmp_path)
-    assert set(controller._export_actions()) == set(ExportFormat)  # noqa: SLF001
+def test_export_labels_cover_all_formats() -> None:
+    """Tout ``ExportFormat`` doit avoir un libellé (sinon KeyError au choix)."""
+    assert set(EXPORT_LABELS) == set(ExportFormat)
 
 
 def test_on_export_requested_only_offers_configured_formats(

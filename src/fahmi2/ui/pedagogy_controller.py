@@ -12,7 +12,6 @@ Parallèle au ``GenerationController`` (mais sans STT/ffmpeg ni matrice DB) :
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import assert_never, cast
@@ -21,7 +20,6 @@ from PySide6.QtCore import QObject, QThread, Signal
 from PySide6.QtWidgets import (
     QDialog,
     QFileDialog,
-    QInputDialog,
     QMessageBox,
     QWidget,
 )
@@ -31,11 +29,8 @@ from fahmi2.app.pedagogy_cost_estimator import (
     PedagogyCostEstimator,
 )
 from fahmi2.app.pedagogy_export import (
-    DocumentExportResult,
+    export_pedagogy_documents,
     export_pedagogy_to_apkg,
-    export_pedagogy_to_html,
-    export_pedagogy_to_markdown,
-    export_pedagogy_to_pdf,
 )
 from fahmi2.app.project_service import ProjectService
 from fahmi2.app.secrets_service import SecretsService
@@ -70,6 +65,7 @@ from fahmi2.pedagogy.run_state import read_run_state
 from fahmi2.pedagogy.sources import load_chapters
 from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
 from fahmi2.pipeline.pause_token import PauseToken
+from fahmi2.ui._export_ui import choose_export_format, run_document_export
 from fahmi2.ui._file_explorer import open_in_file_explorer
 from fahmi2.ui._fs import remove_feature_dir
 from fahmi2.ui.dialogs.pedagogy_settings_view import PedagogySettingsView
@@ -83,10 +79,6 @@ from fahmi2.ui.widgets.project_header_bar import ProjectHeaderBar
 
 _APKG_SUFFIX = ".apkg"
 _APKG_FILTER = "Paquets Anki (*.apkg)"
-#: Libellé du format (messages) pour les exports documentaires.
-_LABEL_MARKDOWN = "Markdown"
-_LABEL_PDF = "PDF"
-_LABEL_HTML = "HTML"
 #: Plafond de coût atteint : statut renvoyé par l'orchestrateur.
 _MSG_CEILING_REACHED = (
     "Plafond de coût atteint — génération interrompue (supports restants non "
@@ -562,11 +554,10 @@ class PedagogyController(QObject):
         )
 
     def _on_export_requested(self) -> None:
-        """Propose les formats d'export **configurés** et délègue à l'action.
+        """Propose les formats d'export configurés et exécute l'export choisi.
 
-        Les formats proposés sont ceux cochés dans les réglages
-        (``PedagogySettings.export_formats``), dans l'ordre canonique de
-        ``ExportFormat``.
+        APKG est routé vers ``export_apkg`` ; les formats documentaires
+        (Markdown / PDF / HTML) passent par le helper partagé.
         """
         project = self._current_project
         if project is None:
@@ -583,114 +574,23 @@ class PedagogyController(QObject):
                 "Configurez d'abord les supports pédagogiques (⚙ Réglages).",
             )
             return
-        configured = project.pedagogy.export_formats
-        formats = [fmt for fmt in ExportFormat if fmt in configured]
-        if not formats:
-            QMessageBox.information(
-                self._window,
-                "Aucun format d'export",
-                "Aucun format d'export n'est sélectionné dans les réglages "
-                "(⚙ Réglages → Export).",
-            )
-            return
-        by_label = {EXPORT_LABELS[fmt]: fmt for fmt in formats}
-        choice, ok = QInputDialog.getItem(
-            self._window,
-            "Exporter les supports",
-            "Format :",
-            list(by_label),
-            0,
-            editable=False,
+        fmt = choose_export_format(
+            window=self._window,
+            configured_formats=project.pedagogy.export_formats,
+            label_by_format=EXPORT_LABELS,
         )
-        if not ok:
+        if fmt is None:
             return
-        self._export_actions()[by_label[choice]]()
-
-    def _export_actions(self) -> dict[ExportFormat, Callable[[], None]]:
-        """Mappe chaque format d'export à son action.
-
-        Returns:
-            Dictionnaire ``ExportFormat → action``.
-        """
-        return {
-            ExportFormat.APKG: self.export_apkg,
-            ExportFormat.MARKDOWN: self.export_markdown,
-            ExportFormat.PDF: self.export_pdf,
-            ExportFormat.HTML: self.export_html,
-        }
-
-    def export_markdown(self) -> None:
-        """Exporte les supports rendus en documents Markdown (sujet / corrigé)."""
-        self._export_documents(export_pedagogy_to_markdown, label=_LABEL_MARKDOWN)
-
-    def export_pdf(self) -> None:
-        """Exporte les supports rendus en documents PDF (sujet / corrigé)."""
-        self._export_documents(export_pedagogy_to_pdf, label=_LABEL_PDF)
-
-    def export_html(self) -> None:
-        """Exporte les supports rendus en documents HTML (sujet / corrigé)."""
-        self._export_documents(export_pedagogy_to_html, label=_LABEL_HTML)
-
-    def _export_documents(
-        self,
-        exporter: Callable[..., DocumentExportResult],
-        *,
-        label: str,
-    ) -> None:
-        """Exécute un export documentaire (Markdown ou PDF) vers un dossier choisi.
-
-        Args:
-            exporter: Fonction d'export (``export_pedagogy_to_markdown``/``_pdf``).
-            label: Libellé du format (messages).
-        """
-        project = self._current_project
-        if project is None:
-            QMessageBox.warning(
-                self._window,
-                "Aucun projet sélectionné",
-                "Sélectionne un projet dans la sidebar avant d'exporter.",
-            )
+        if fmt is ExportFormat.APKG:
+            self.export_apkg()
             return
-        directory = QFileDialog.getExistingDirectory(
-            self._window, f"Dossier d'export {label}"
-        )
-        if not directory:
-            return
-        try:
-            result = exporter(project, output_dir=Path(directory))
-        except Fahmi2Error as exc:
-            QMessageBox.critical(
-                self._window, "Export impossible", f"{exc.code}\n\n{exc.user_message}"
-            )
-            return
-        except Exception as exc:  # noqa: BLE001 — affichage UX puis stop
-            QMessageBox.critical(
-                self._window, "Erreur inattendue", f"{type(exc).__name__} : {exc}"
-            )
-            return
-        if result.document_count == 0:
-            QMessageBox.information(
-                self._window,
-                "Aucun support à exporter",
-                "Générez d'abord des supports pour ce projet.",
-            )
-            return
-        self._logs_dock.append_event(
-            LogEvent(
-                timestamp=datetime.now(tz=UTC),
-                severity=Severity.INFO,
-                code="PEDAGOGY_EXPORTED",
-                message=(
-                    f"{result.document_count} document(s) {label} exporté(s) vers "
-                    f"{directory}"
-                ),
-            )
-        )
-        QMessageBox.information(
-            self._window,
-            "Export terminé",
-            f"{result.document_count} document(s) {label} exporté(s) dans :\n"
-            f"{directory}",
+        run_document_export(
+            window=self._window,
+            logs_dock=self._logs_dock,
+            label=EXPORT_LABELS[fmt],
+            exporter=lambda d: export_pedagogy_documents(
+                project, output_dir=d, fmt=fmt
+            ),
         )
 
     # ------------------------------------------------------------- end-of-run

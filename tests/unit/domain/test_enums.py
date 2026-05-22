@@ -9,6 +9,7 @@ from fahmi2.domain.enums import (
     PhaseStatus,
     ReasoningEffort,
     RunStatus,
+    SourceKind,
     SttProvider,
     StylePreset,
 )
@@ -67,6 +68,10 @@ def test_llm_model_values() -> None:
 
 def test_reasoning_effort_values() -> None:
     assert {e.value for e in ReasoningEffort} == {"high", "max"}
+
+
+def test_source_kind_values() -> None:
+    assert {k.value for k in SourceKind} == {"video", "audio", "document", "youtube"}
 
 
 def test_enum_from_str() -> None:

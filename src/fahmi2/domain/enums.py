@@ -55,6 +55,15 @@ class PhaseStatus(StrEnum):
     SKIPPED = "skipped"
 
 
+class SourceKind(StrEnum):
+    """Origine d'une source d'entrée de la génération."""
+
+    VIDEO = "video"
+    AUDIO = "audio"
+    DOCUMENT = "document"
+    YOUTUBE = "youtube"
+
+
 class SttProvider(StrEnum):
     """Providers de speech-to-text supportés."""
 

@@ -111,7 +111,7 @@ def test_html_self_contained_per_support(
     content = (out_dir / "qcm.fr.html").read_text(encoding="utf-8")
     assert "<!DOCTYPE html>" in content
     assert 'charset="utf-8"' in content
-    assert "<h1>" in content
+    assert "<h1" in content  # l'extension toc ajoute un id : <h1 id="...">.
 
 
 def test_collect_order_learning_then_exercises(

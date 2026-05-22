@@ -35,7 +35,7 @@ def test_write_html_renders_self_contained(tmp_path: Path) -> None:
     assert result.document_count == 1
     content = (tmp_path / "doc.html").read_text(encoding="utf-8")
     assert "<!DOCTYPE html>" in content
-    assert "<h1>" in content
+    assert "<h1" in content  # l'extension toc ajoute un id : <h1 id="...">.
 
 
 def test_write_rejects_non_document_format(tmp_path: Path) -> None:

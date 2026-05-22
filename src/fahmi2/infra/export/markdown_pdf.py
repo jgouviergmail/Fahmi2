@@ -29,6 +29,7 @@ from fpdf.fonts import TextStyle
 
 from fahmi2.core.errors.exceptions import ConfigError
 from fahmi2.core.errors.severity import Severity
+from fahmi2.core.slugify import slugify_anchor
 from fahmi2.domain.enums import ExportFormat
 
 #: Extension de fichier par format documentaire (MD/PDF/HTML ; APKG non concerné).
@@ -58,9 +59,19 @@ _PDF_HEADING_BOTTOM_MARGIN = 0.4
 _PDF_FONT_FAMILY = "AppSans"
 _PDF_FONT_SIZE = 11
 
-#: Extensions Python-Markdown activées au rendu : ``tables`` rend les tableaux
-#: pipe GFM (sinon ils restent du texte littéral, en HTML comme en PDF).
+#: Extensions Python-Markdown au rendu **PDF** : ``tables`` rend les tableaux pipe
+#: GFM (sinon texte littéral). Le PDF neutralise les ancres, ``toc`` est inutile.
 _MARKDOWN_EXTENSIONS: list[str] = ["tables"]
+
+#: Extensions au rendu **HTML** : ``toc`` ajoute aux titres un ``id`` slugifié via
+#: ``slugify_anchor`` (cf. ``_toc_slugify``), identique aux ancres du sommaire du
+#: consolidé → sommaire **cliquable**.
+_HTML_MARKDOWN_EXTENSIONS: list[str] = ["tables", "toc"]
+
+#: Cellules de tableau (``<td>``/``<th>``) sans attribut : ``fpdf2.write_html``
+#: justifie le texte des cellules par défaut (espaces larges). On injecte
+#: ``align="left"`` (attribut lu par fpdf2) pour un alignement à gauche au PDF.
+_TABLE_CELL_OPEN_RE = re.compile(r"<(t[dh])>")
 
 #: Liens d'ancre **internes** (``<a href="#...">``) : ``fpdf2.write_html`` exige une
 #: destination enregistrée via ``set_link`` (sinon ``FPDFException``). Au rendu PDF
@@ -174,17 +185,40 @@ def _extract_title(markdown_text: str) -> str:
     return _HTML_DEFAULT_TITLE
 
 
+def _toc_slugify(value: str, separator: str) -> str:
+    """Slugify de l'extension ``toc`` : aligne les ids de titres sur les ancres.
+
+    L'extension ``toc`` appelle ``slugify(value, separator)`` ; on délègue à
+    ``slugify_anchor`` (séparateur ignoré, toujours ``-``) pour que les ids de
+    titres correspondent exactement aux ancres du sommaire du consolidé.
+
+    Args:
+        value: Texte du titre.
+        separator: Séparateur proposé par l'extension (ignoré).
+
+    Returns:
+        Le slug d'ancre.
+    """
+    del separator
+    return slugify_anchor(value)
+
+
 def render_markdown_to_html(markdown_text: str, output_path: Path) -> None:
     """Rend un Markdown en document HTML autonome (UTF-8, style intégré).
 
     Contrairement au PDF, aucune police système n'est requise — le fichier est
-    ouvrable dans n'importe quel navigateur.
+    ouvrable dans n'importe quel navigateur. Les titres reçoivent un ``id`` slugifié
+    (extension ``toc``) → le sommaire du consolidé est cliquable.
 
     Args:
         markdown_text: Texte Markdown (commençant idéalement par un titre H1).
         output_path: Chemin du fichier ``.html`` à écrire.
     """
-    body = markdown.markdown(markdown_text, extensions=_MARKDOWN_EXTENSIONS)
+    body = markdown.markdown(
+        markdown_text,
+        extensions=_HTML_MARKDOWN_EXTENSIONS,
+        extension_configs={"toc": {"slugify": _toc_slugify}},
+    )
     document = _HTML_DOCUMENT_TEMPLATE.format(
         title=escape(_extract_title(markdown_text)), body=body
     )
@@ -260,6 +294,7 @@ def render_markdown_to_pdf(markdown_text: str, output_path: Path) -> None:
     pdf.set_font(_PDF_FONT_FAMILY, size=_PDF_FONT_SIZE)
     html = markdown.markdown(markdown_text, extensions=_MARKDOWN_EXTENSIONS)
     html = _INTERNAL_ANCHOR_RE.sub(r"\1", html)
+    html = _TABLE_CELL_OPEN_RE.sub(r'<\1 align="left">', html)
     pdf.write_html(
         html,
         tag_styles=_pdf_tag_styles(),

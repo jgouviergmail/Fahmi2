@@ -31,6 +31,7 @@ from typing import Any
 from fahmi2.core.concurrency import map_bounded
 from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.core.errors.severity import Severity
+from fahmi2.core.slugify import slugify_anchor
 from fahmi2.domain.enums import PhaseId
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.video import VideoExecution
@@ -369,12 +370,12 @@ def _build_toc_lines(chapters: list[_Chapter]) -> list[str]:
     """
     lines: list[str] = []
     for chap in chapters:
-        anchor = _slugify(f"{chap.index}. {chap.title}")
+        anchor = slugify_anchor(f"{chap.index}. {chap.title}")
         lines.append(f"{chap.index}. [{chap.title}](#{anchor})")
         for sub in chap.subheadings:
             if sub.level > _TOC_MAX_DEPTH:
                 continue
-            sub_anchor = _slugify(f"{sub.number} {sub.title}")
+            sub_anchor = slugify_anchor(f"{sub.number} {sub.title}")
             indent = "    " * (sub.level - 1)
             lines.append(
                 f"{indent}- [{sub.number} {sub.title}](#{sub_anchor})"
@@ -449,26 +450,6 @@ def _strip_existing_numbering(title: str) -> str:
         Titre débarrassé de sa numérotation.
     """
     return _RE_EXISTING_NUMBERING.sub("", title.strip()).strip()
-
-
-def _slugify(text: str) -> str:
-    """Convertit un titre Markdown en ancre slug GitHub-compatible.
-
-    Les ancres GitHub-flavored sont en minuscules, les espaces deviennent
-    des tirets, et seuls les caractères alphanumériques + tirets sont
-    conservés (les accents sont préservés en mode GFM moderne).
-
-    Args:
-        text: Titre source.
-
-    Returns:
-        Slug ancre (sans le ``#``).
-    """
-    cleaned = text.lower().strip()
-    cleaned = re.sub(r"[\s/]+", "-", cleaned)
-    cleaned = re.sub(r"[^\w\-]+", "", cleaned, flags=re.UNICODE)
-    cleaned = re.sub(r"-+", "-", cleaned).strip("-")
-    return cleaned
 
 
 def _demote_chapter_h1(structured_markdown: str) -> str:

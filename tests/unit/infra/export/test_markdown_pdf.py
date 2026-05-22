@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from fahmi2.core.slugify import slugify_anchor
 from fahmi2.domain.enums import ExportFormat
 from fahmi2.infra.export.markdown_pdf import (
     EXTENSION_BY_FORMAT,
@@ -52,6 +53,19 @@ def test_render_html_renders_tables(tmp_path: Path) -> None:
     content = out.read_text(encoding="utf-8")
     assert "<table>" in content
     assert "<td>ROI</td>" in content
+
+
+def test_render_html_toc_links_are_clickable(tmp_path: Path) -> None:
+    # L'ancre du sommaire (générée comme phase 5) et l'id du titre (extension toc)
+    # doivent coïncider → le sommaire est cliquable.
+    title = "Analyse financière : un levier"
+    anchor = slugify_anchor(f"1. {title}")
+    md = f"# Cours\n\n## Sommaire\n\n1. [{title}](#{anchor})\n\n# 1. {title}\n\nTexte.\n"
+    out = tmp_path / "conso.html"
+    render_markdown_to_html(md, out)
+    content = out.read_text(encoding="utf-8")
+    assert f'href="#{anchor}"' in content
+    assert f'id="{anchor}"' in content
 
 
 @pytest.mark.skipif(not pdf_fonts_available(), reason="Police Unicode indisponible")

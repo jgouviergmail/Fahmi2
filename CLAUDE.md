@@ -74,7 +74,9 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   (JSONL + redaction secrets), `config/paths` (`AppPaths` Windows + résolution
   ffmpeg bundlé runtime), `migrations`, `retrieval` (TF-IDF glossaire),
   `concurrency` (`map_bounded` : pool borné, fail-fast, ordre préservé, honore le
-  `PauseToken` ; partagé pour paralléliser les appels LLM/STT I/O-bound), `ids`.
+  `PauseToken` ; partagé pour paralléliser les appels LLM/STT I/O-bound), `ids`,
+  `slugify` (`slugify_anchor` : ancre GFM **source unique** — sommaire du consolidé
+  en génération, parseur de chapitres pédagogiques, ids de titres de l'export HTML).
 - `domain/` — entités pures immuables (`Project` [identité minimale : nom +
   emplacement + réglages par fonctionnalité], `GenerationSettings`,
   `PedagogySettings`, `Run`, `VideoExecution`, `PhaseExecution`, `Term`,

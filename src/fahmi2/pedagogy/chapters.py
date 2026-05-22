@@ -11,11 +11,11 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from fahmi2.core.slugify import slugify_anchor
+
 # H1 de chapitre : "# 1. Titre", "# 12. Autre". Le préfixe numérique distingue les
 # chapitres du titre global (sans numéro) et des sections méta (qui sont en ##).
 _RE_CHAPTER_H1 = re.compile(r"^#\s+(\d+)\.\s+(.+?)\s*$")
-_RE_ANCHOR_STRIP = re.compile(r"[^\w\s-]", flags=re.UNICODE)
-_RE_ANCHOR_SPACES = re.compile(r"\s+")
 
 
 @dataclass(frozen=True)
@@ -59,22 +59,8 @@ def parse_chapters(consolidated_markdown: str) -> tuple[Chapter, ...]:
             Chapter(
                 index=index,
                 title=title,
-                anchor=_slugify(f"{index}. {title}"),
+                anchor=slugify_anchor(f"{index}. {title}"),
                 body_markdown=body,
             )
         )
     return tuple(chapters)
-
-
-def _slugify(text: str) -> str:
-    """Construit une ancre GFM (minuscules, tirets) à partir d'un titre.
-
-    Args:
-        text: Texte du titre (ex: ``"1. Bases"``).
-
-    Returns:
-        Slug GFM (ex: ``"1-bases"``).
-    """
-    lowered = text.strip().lower()
-    cleaned = _RE_ANCHOR_STRIP.sub("", lowered)
-    return _RE_ANCHOR_SPACES.sub("-", cleaned).strip("-")

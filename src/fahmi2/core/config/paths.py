@@ -28,6 +28,8 @@ _PROJECTS_DIRNAME = "projects"
 _PROMPTS_DIRNAME = "prompts"
 _MODELS_DIRNAME = "models"
 _BACKUPS_DIRNAME = "backups"
+_YTDLP_OVERRIDE_ENV = "FAHMI2_YTDLP"
+_YTDLP_BINARY_NAME = "yt-dlp.exe"
 
 
 def _resolve_env_dir(env_var: str, fallback_relative: str) -> Path:
@@ -162,3 +164,24 @@ def resolve_ffprobe_binary_or_none() -> str | None:
     if bundle_dir is None:
         return None
     return str(bundle_dir / "ffprobe.exe")
+
+
+def resolve_ytdlp_binary_or_none() -> str | None:
+    """Retourne le chemin du binaire ``yt-dlp`` à utiliser, ou ``None``.
+
+    Priorité : variable d'environnement ``FAHMI2_YTDLP`` (override permettant de
+    pointer un yt-dlp à jour sans rebuild — yt-dlp casse régulièrement quand
+    YouTube évolue), puis binaire bundlé (mode packagé, même racine que ffmpeg),
+    sinon ``None`` (le ``PATH`` système est utilisé).
+
+    Returns:
+        Chemin explicite du binaire, ou ``None`` (fallback ``PATH``).
+    """
+    override = os.environ.get(_YTDLP_OVERRIDE_ENV)
+    if override:
+        return override
+    bundle_dir = resolve_bundled_ffmpeg_dir()
+    if bundle_dir is None:
+        return None
+    candidate = bundle_dir / _YTDLP_BINARY_NAME
+    return str(candidate) if candidate.exists() else None

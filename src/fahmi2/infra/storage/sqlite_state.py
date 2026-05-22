@@ -30,14 +30,17 @@ from typing import Any
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.core.errors.severity import Severity
+from fahmi2.domain.chat import ChatSettings
 from fahmi2.domain.enums import (
     BloomObjective,
+    ChatGroundingMode,
     ExportFormat,
     Language,
     LLMModel,
     PhaseId,
     PhaseStatus,
     ReasoningEffort,
+    RetrievalStrategy,
     RunStatus,
     SourceKind,
     SttProvider,
@@ -69,6 +72,7 @@ _BLOB_KEY_VERSION = "version"
 _BLOB_KEY_WORKSPACE = "workspace_folder"
 _BLOB_KEY_GENERATION = "generation"
 _BLOB_KEY_PEDAGOGY = "pedagogy"
+_BLOB_KEY_CHAT = "chat"
 
 
 @dataclass(frozen=True)
@@ -293,6 +297,58 @@ def _deserialize_pedagogy_settings(payload: dict[str, Any]) -> PedagogySettings:
     )
 
 
+def _serialize_chat_settings(chat: ChatSettings) -> dict[str, Any]:
+    """Sérialise un ``ChatSettings`` en dict JSON-compatible.
+
+    Args:
+        chat: Réglages du chat de dialogue.
+
+    Returns:
+        Dict prêt à être encodé en JSON.
+    """
+    return {
+        "grounding_mode": str(chat.grounding_mode),
+        "retrieval_strategy": str(chat.retrieval_strategy),
+        "query_expansion_enabled": chat.query_expansion_enabled,
+        "model": str(chat.model),
+        "thinking_enabled": chat.thinking_enabled,
+        "reasoning_effort": (
+            str(chat.reasoning_effort) if chat.reasoning_effort is not None else None
+        ),
+        "temperature": chat.temperature,
+        "top_k": chat.top_k,
+    }
+
+
+def _deserialize_chat_settings(payload: dict[str, Any]) -> ChatSettings:
+    """Désérialise un ``ChatSettings`` depuis un dict (clés absentes → défauts).
+
+    Args:
+        payload: Sous-objet ``chat`` du blob v2.
+
+    Returns:
+        Le ``ChatSettings`` reconstitué.
+
+    Raises:
+        KeyError: Si une clé requise manque (capturée par l'appelant).
+        ValueError: Si une valeur d'enum est invalide (capturée par l'appelant).
+    """
+    return ChatSettings(
+        grounding_mode=ChatGroundingMode(payload["grounding_mode"]),
+        retrieval_strategy=RetrievalStrategy(payload["retrieval_strategy"]),
+        query_expansion_enabled=bool(payload.get("query_expansion_enabled", True)),
+        model=LLMModel(payload["model"]),
+        thinking_enabled=bool(payload.get("thinking_enabled", False)),
+        reasoning_effort=(
+            ReasoningEffort(payload["reasoning_effort"])
+            if payload.get("reasoning_effort")
+            else None
+        ),
+        temperature=float(payload["temperature"]),
+        top_k=int(payload["top_k"]),
+    )
+
+
 def _serialize_project_blob(project: Project) -> str:
     """Sérialise le blob v2 ``settings_json`` d'un projet.
 
@@ -315,13 +371,20 @@ def _serialize_project_blob(project: Project) -> str:
             if project.pedagogy is not None
             else None
         ),
+        _BLOB_KEY_CHAT: (
+            _serialize_chat_settings(project.chat)
+            if project.chat is not None
+            else None
+        ),
     }
     return json.dumps(payload, ensure_ascii=False)
 
 
 def _deserialize_project_blob(
     raw: str,
-) -> tuple[Path, GenerationSettings | None, PedagogySettings | None]:
+) -> tuple[
+    Path, GenerationSettings | None, PedagogySettings | None, ChatSettings | None
+]:
     """Désérialise le blob d'un projet (v2, ou v1 à plat migré à la lecture).
 
     Un blob **sans** clé ``version`` est traité comme v1 « à plat » : son contenu
@@ -334,7 +397,7 @@ def _deserialize_project_blob(
         raw: Chaîne JSON stockée en base.
 
     Returns:
-        ``(workspace_folder, generation_or_none, pedagogy_or_none)``.
+        ``(workspace_folder, generation_or_none, pedagogy_or_none, chat_or_none)``.
 
     Raises:
         StorageError: Si le blob est illisible ou incomplet.
@@ -370,6 +433,12 @@ def _deserialize_project_blob(
             if ped_payload is not None
             else None
         )
+        chat_payload = payload.get(_BLOB_KEY_CHAT)
+        chat = (
+            _deserialize_chat_settings(chat_payload)
+            if chat_payload is not None
+            else None
+        )
     except (KeyError, ValueError) as exc:
         raise StorageError(
             code="STORAGE.PROJECT_BLOB_INVALID",
@@ -379,7 +448,7 @@ def _deserialize_project_blob(
             severity=Severity.ERROR,
             technical_details={"missing_or_invalid": str(exc)},
         ) from exc
-    return workspace_folder, generation, pedagogy
+    return workspace_folder, generation, pedagogy, chat
 
 
 def _serialize_run_snapshot(gen: GenerationSettings) -> str:
@@ -959,7 +1028,7 @@ class SqliteState:
     @staticmethod
     def _row_to_project(row: tuple[Any, ...]) -> Project:
         project_id, name, created_at_str, settings_json, last_run_at_str = row
-        workspace_folder, generation, pedagogy = _deserialize_project_blob(
+        workspace_folder, generation, pedagogy, chat = _deserialize_project_blob(
             settings_json
         )
         return Project(
@@ -970,6 +1039,7 @@ class SqliteState:
             last_run_at=_datetime_from_iso_or_none(last_run_at_str),
             generation=generation,
             pedagogy=pedagogy,
+            chat=chat,
         )
 
     @staticmethod

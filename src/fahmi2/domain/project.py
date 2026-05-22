@@ -12,6 +12,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
 
+from fahmi2.domain.chat import ChatSettings
 from fahmi2.domain.generation import GenerationSettings
 from fahmi2.domain.ids import ProjectId, RunId
 from fahmi2.domain.pedagogy import PedagogySettings
@@ -33,6 +34,8 @@ class Project:
             qu'elle n'est pas configurée.
         pedagogy: Réglages de la fonctionnalité Supports pédagogiques, ou ``None``
             tant qu'elle n'est pas configurée.
+        chat: Réglages de la fonctionnalité Dialogue (chat), ou ``None`` tant
+            qu'elle n'est pas configurée.
     """
 
     id: ProjectId
@@ -43,6 +46,7 @@ class Project:
     runs: tuple[RunId, ...] = ()
     generation: GenerationSettings | None = None
     pedagogy: PedagogySettings | None = None
+    chat: ChatSettings | None = None
 
     def with_name(self, name: str) -> Project:
         """Retourne une copie avec un nouveau ``name``.
@@ -76,3 +80,14 @@ class Project:
             Nouvelle instance immuable (notamment ``generation`` préservé).
         """
         return replace(self, pedagogy=pedagogy)
+
+    def with_chat(self, chat: ChatSettings | None) -> Project:
+        """Retourne une copie avec de nouveaux réglages Dialogue (chat).
+
+        Args:
+            chat: Réglages chat, ou ``None``.
+
+        Returns:
+            Nouvelle instance immuable (autres réglages préservés).
+        """
+        return replace(self, chat=chat)

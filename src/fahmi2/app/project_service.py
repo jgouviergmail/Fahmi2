@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 
+from fahmi2.domain.chat import ChatSettings
 from fahmi2.domain.enums import RunStatus
 from fahmi2.domain.generation import GenerationSettings
 from fahmi2.domain.ids import ProjectId, RunId
@@ -36,6 +37,7 @@ class ProjectService:
         workspace_folder: Path,
         generation: GenerationSettings | None = None,
         pedagogy: PedagogySettings | None = None,
+        chat: ChatSettings | None = None,
     ) -> Project:
         """Crée et persiste un nouveau ``Project`` (identité minimale).
 
@@ -45,6 +47,7 @@ class ProjectService:
             generation: Réglages de génération, ou ``None`` (à configurer plus tard).
             pedagogy: Réglages Supports pédagogiques, ou ``None`` (à configurer
                 plus tard).
+            chat: Réglages Dialogue (chat), ou ``None`` (à configurer plus tard).
 
         Returns:
             Le ``Project`` créé.
@@ -56,6 +59,7 @@ class ProjectService:
             created_at=datetime.now(tz=UTC),
             generation=generation,
             pedagogy=pedagogy,
+            chat=chat,
         )
         self._state.upsert_project(project)
         return project

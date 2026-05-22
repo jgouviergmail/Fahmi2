@@ -4,8 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Projet
 
-Fahmi2 transforme un dossier de cours (vidéos, fichiers audio **et** documents
-texte — pdf/docx/md/txt ; liens YouTube en cours d'ajout) en documents Markdown
+Fahmi2 transforme des cours (vidéos, fichiers audio, documents texte —
+pdf/docx/md/txt — **et** liens YouTube unitaires) en documents Markdown
 consolidés (reformulés, structurés, glossaire) via un pipeline STT + 7 phases
 LLM DeepSeek. Application desktop Windows mono-utilisateur, PySide6, packagée en
 `.zip` portable (installation double-clic, ffmpeg bundlé).
@@ -110,8 +110,9 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   injecté en phase 0 : `classify` [extensions vidéo/audio/document] + port
   `SourceIngestor` + `MediaIngestor` [vidéo+audio via ffmpeg+STT] +
   `DocumentIngestor` [pdf/docx/md/txt → transcription à **segment unique**, via
-  `TextExtractor` pypdf/python-docx] ; YouTube au lot suivant),
-  `anki/genanki_exporter` (`.apkg`),
+  `TextExtractor` pypdf/python-docx] + `YoutubeIngestor` [URL → `YtDlpDownloader`
+  télécharge l'audio (binaire yt-dlp résolu/remplaçable) → délègue au
+  `MediaIngestor`]), `anki/genanki_exporter` (`.apkg`),
   `export/markdown_pdf` (Markdown + PDF), `storage/sqlite_state` (WAL) +
   `fs_artifacts` (writes atomiques), `secrets/` (DPAPI Windows),
   `prompts/loader` + `defaults/*.j2` (8 phases + 8 `pedagogy_*`).
@@ -179,7 +180,11 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
   (le texte intégral, structure préservée — `_load_transcription_text` joint les
   segments par une espace, donc *un seul* segment évite tout aplatissement).
   `build_input_sources` (ex `scan_input_folder`) scanne le dossier via
-  `classify_file`. Un document n'a pas de STT (`duration_seconds=0`). Le drapeau
+  `classify_file`, puis **ajoute après** les liens YouTube de
+  `GenerationSettings.youtube_urls` (**unitaires**, `--no-playlist`) téléchargés
+  par `YtDlpDownloader` (binaire yt-dlp **résolu/remplaçable** :
+  `resolve_ytdlp_binary_or_none`, override `FAHMI2_YTDLP`). Un document n'a pas
+  de STT (`duration_seconds=0`). Le drapeau
   `GenerationSettings.reformulate_documents` (défaut `True`) : si désactivé, la
   phase 3 fait un **pass-through** (le document est inséré tel quel, coût 0) au
   lieu de reformuler. Le `CostEstimator` raisonne en `SourceWeight` (durée audio

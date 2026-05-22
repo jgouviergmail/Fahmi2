@@ -220,6 +220,14 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
   prompts autorisent un Markdown léger dans le contenu ; l'export Anki **convertit
   les champs Markdown en HTML** (`genanki_exporter._md_to_html`) — sauf le texte
   cloze (mécanique `{{cN::}}` préservée). MD/PDF/HTML consomment le Markdown rendu tel quel.
+  **Gotchas du renderer `infra/export/markdown_pdf` (fpdf2 + python-markdown)** :
+  (1) les tableaux pipe GFM exigent l'extension `tables` (`_MARKDOWN_EXTENSIONS`),
+  sinon ils restent du texte littéral (HTML comme PDF) ; (2) `fpdf2.write_html`
+  **lève** `FPDFException` sur un lien d'ancre interne `<a href="#...">` (sommaire
+  du consolidé) faute de `set_link` → on neutralise ces ancres au PDF
+  (`_INTERNAL_ANCHOR_RE`, texte conservé) ; (3) `fpdf2` rend les puces/numéros de
+  liste à une taille erronée sans `font_size_pt` explicite sur `li`/`ol`/`ul`
+  (`_pdf_tag_styles`).
 - **Erreurs → UI** : une exception levée par un handler **doit** être une
   `Fahmi2Error` (code + user_message + technical_details). Le moteur la convertit
   en `ErrorInfo`, la propage dans `PhaseFinished.error`, et `generation_controller._to_log_event`

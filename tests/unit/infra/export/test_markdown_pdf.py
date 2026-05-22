@@ -10,7 +10,14 @@ from fahmi2.domain.enums import ExportFormat
 from fahmi2.infra.export.markdown_pdf import (
     EXTENSION_BY_FORMAT,
     pdf_fonts_available,
+    render_markdown_to_html,
     render_markdown_to_pdf,
+)
+
+_TABLE_MD = "# Glossaire\n\n| Terme | Définition |\n|---|---|\n| ROI | Rentabilité |\n"
+_TOC_MD = (
+    "# Cours\n\n## Sommaire\n\n1. [Chapitre un](#1-chapitre-un)\n\n"
+    "# 1. Chapitre un\n\nTexte.\n"
 )
 
 
@@ -37,3 +44,29 @@ def test_render_pdf_handles_hr_and_lists(tmp_path: Path) -> None:
     out = tmp_path / "doc2.pdf"
     render_markdown_to_pdf("### Q\n\nR\n\n---\n\n- a\n- b\n", out)
     assert out.exists()
+
+
+def test_render_html_renders_tables(tmp_path: Path) -> None:
+    out = tmp_path / "doc.html"
+    render_markdown_to_html(_TABLE_MD, out)
+    content = out.read_text(encoding="utf-8")
+    assert "<table>" in content
+    assert "<td>ROI</td>" in content
+
+
+@pytest.mark.skipif(not pdf_fonts_available(), reason="Police Unicode indisponible")
+def test_render_pdf_handles_internal_anchor_links(tmp_path: Path) -> None:
+    # Le sommaire du consolidé contient des liens `[texte](#ancre)` : fpdf2
+    # crashait faute de set_link. On neutralise l'ancre (texte conservé).
+    out = tmp_path / "toc.pdf"
+    render_markdown_to_pdf(_TOC_MD, out)
+    assert out.exists()
+    assert out.read_bytes()[:5] == b"%PDF-"
+
+
+@pytest.mark.skipif(not pdf_fonts_available(), reason="Police Unicode indisponible")
+def test_render_pdf_renders_table(tmp_path: Path) -> None:
+    out = tmp_path / "tbl.pdf"
+    render_markdown_to_pdf(_TABLE_MD, out)
+    assert out.exists()
+    assert out.read_bytes()[:5] == b"%PDF-"

@@ -18,6 +18,7 @@ reste alors disponible).
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from html import escape
 from pathlib import Path
@@ -57,6 +58,25 @@ _PDF_HEADING_BOTTOM_MARGIN = 0.4
 _PDF_FONT_FAMILY = "AppSans"
 _PDF_FONT_SIZE = 11
 
+#: Extensions Python-Markdown activées au rendu : ``tables`` rend les tableaux
+#: pipe GFM (sinon ils restent du texte littéral, en HTML comme en PDF).
+_MARKDOWN_EXTENSIONS: list[str] = ["tables"]
+
+#: Liens d'ancre **internes** (``<a href="#...">``) : ``fpdf2.write_html`` exige une
+#: destination enregistrée via ``set_link`` (sinon ``FPDFException``). Au rendu PDF
+#: on neutralise ces liens en conservant leur texte (un sommaire en texte simple
+#: reste lisible ; le PDF ne porte pas de table d'ancres). Les liens externes
+#: (``http(s)://``) ne sont pas concernés.
+_INTERNAL_ANCHOR_RE = re.compile(r'<a href="#[^"]*">(.*?)</a>', re.DOTALL)
+
+#: Styles PDF des listes : ``fpdf2`` rend les puces/numéros sans ``font_size_pt``
+#: explicite à une taille erronée (numéros géants). On force la taille du corps et
+#: une marge d'item pour un rendu aéré et homogène.
+_PDF_LIST_INDENT = 5.0
+_PDF_LIST_ITEM_TOP_MARGIN = 1.0
+_PDF_LIST_ITEM_BOTTOM_MARGIN = 1.0
+_PDF_LIST_BLOCK_TOP_MARGIN = 2.0
+
 #: Préfixe Markdown d'un titre H1 (pour extraire le titre du document HTML).
 _MD_H1_PREFIX = "# "
 #: Titre HTML par défaut si le Markdown ne commence pas par un H1.
@@ -74,6 +94,10 @@ body {{ font-family: "Segoe UI", system-ui, sans-serif; max-width: 820px;
 h1, h2, h3 {{ color: #0a4f93; }}
 code, pre {{ background: #f5f7fb; border-radius: 4px; padding: 0.1em 0.3em; }}
 hr {{ border: none; border-top: 1px solid #e5e7eb; margin: 2rem 0; }}
+table {{ border-collapse: collapse; width: 100%; margin: 1rem 0; }}
+th, td {{ border: 1px solid #d0d7de; padding: 0.4em 0.6em; text-align: left;
+         vertical-align: top; }}
+th {{ background: #f5f7fb; }}
 </style>
 </head>
 <body>
@@ -160,7 +184,7 @@ def render_markdown_to_html(markdown_text: str, output_path: Path) -> None:
         markdown_text: Texte Markdown (commençant idéalement par un titre H1).
         output_path: Chemin du fichier ``.html`` à écrire.
     """
-    body = markdown.markdown(markdown_text)
+    body = markdown.markdown(markdown_text, extensions=_MARKDOWN_EXTENSIONS)
     document = _HTML_DOCUMENT_TEMPLATE.format(
         title=escape(_extract_title(markdown_text)), body=body
     )
@@ -168,17 +192,21 @@ def render_markdown_to_html(markdown_text: str, output_path: Path) -> None:
     output_path.write_text(document, encoding="utf-8")
 
 
-def _pdf_heading_styles() -> dict[str, TextStyle]:
-    """Styles de titres PDF : **noir gras** au lieu du rouge fpdf2 par défaut.
+def _pdf_tag_styles() -> dict[str, TextStyle]:
+    """Styles PDF des titres **et des listes** passés à ``write_html``.
 
-    Reconstruit des ``TextStyle`` (police courante en gras, couleur noire, tailles
-    standard) plutôt que de lire les styles par défaut — l'API ``TextStyle`` n'expose
-    pas ses champs en lecture.
+    - Titres : **noir gras** (au lieu du rouge fpdf2 par défaut), tailles standard.
+    - Listes (``li``/``ol``/``ul``) : ``font_size_pt`` du corps **explicite** —
+      fpdf2 rend sinon les numéros/puces à une taille erronée (numéros géants) — et
+      des marges d'item pour un rendu aéré.
+
+    ``TextStyle`` n'exposant pas ses champs en lecture, les styles sont reconstruits
+    plutôt que dérivés des défauts.
 
     Returns:
         Mapping ``tag → TextStyle`` à passer à ``write_html``.
     """
-    return {
+    styles: dict[str, TextStyle] = {
         tag: TextStyle(
             font_style="B",
             font_size_pt=size,
@@ -188,6 +216,19 @@ def _pdf_heading_styles() -> dict[str, TextStyle]:
         )
         for tag, size in _PDF_HEADING_SIZES_PT.items()
     }
+    styles["li"] = TextStyle(
+        font_size_pt=_PDF_FONT_SIZE,
+        l_margin=_PDF_LIST_INDENT,
+        t_margin=_PDF_LIST_ITEM_TOP_MARGIN,
+        b_margin=_PDF_LIST_ITEM_BOTTOM_MARGIN,
+    )
+    styles["ol"] = TextStyle(
+        font_size_pt=_PDF_FONT_SIZE, t_margin=_PDF_LIST_BLOCK_TOP_MARGIN
+    )
+    styles["ul"] = TextStyle(
+        font_size_pt=_PDF_FONT_SIZE, t_margin=_PDF_LIST_BLOCK_TOP_MARGIN
+    )
+    return styles
 
 
 def render_markdown_to_pdf(markdown_text: str, output_path: Path) -> None:
@@ -217,9 +258,11 @@ def render_markdown_to_pdf(markdown_text: str, output_path: Path) -> None:
     pdf.add_font(_PDF_FONT_FAMILY, "BI", str(fonts.bold_italic))
     pdf.add_page()
     pdf.set_font(_PDF_FONT_FAMILY, size=_PDF_FONT_SIZE)
+    html = markdown.markdown(markdown_text, extensions=_MARKDOWN_EXTENSIONS)
+    html = _INTERNAL_ANCHOR_RE.sub(r"\1", html)
     pdf.write_html(
-        markdown.markdown(markdown_text),
-        tag_styles=_pdf_heading_styles(),
+        html,
+        tag_styles=_pdf_tag_styles(),
         li_prefix_color=_PDF_LI_PREFIX_COLOR,
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)

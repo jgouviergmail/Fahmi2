@@ -81,8 +81,11 @@ if (-not (Test-Path $ffmpegExe) -or -not (Test-Path $ffprobeExe)) {
 }
 
 # L'encodeur libopus est requis pour le STT cloud (compression < 25 Mo).
+# Note : `-encoders` renvoie un tableau de lignes ; on joint en chaine avant de
+# tester, car `$array -notmatch 'x'` FILTRE les lignes (non booleen) et serait
+# toujours vrai.
 Write-Host "==> Verification de l'encodeur libopus (requis pour le STT cloud)" -ForegroundColor Cyan
-$encoders = & $ffmpegExe -hide_banner -encoders 2>$null
+$encoders = (& $ffmpegExe -hide_banner -encoders 2>$null) -join "`n"
 if ($encoders -notmatch 'libopus') {
     Write-Error "Le ffmpeg telecharge ne contient pas libopus (encodeur Opus requis pour le STT cloud > 25 Mo)."
 }

@@ -21,8 +21,15 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `<support>.<langue>.corrige.<ext>`), au lieu d'un document agrégé par langue.
   Chaque HTML est un document autonome. L'export **Anki `.apkg`** est inchangé.
 - **Factorisation** : cœur d'écriture partagé `app/document_export.py`
-  (`write_documents`) + helper UI `ui/_export_ui.py` ; `infra/export/markdown_pdf`
-  devient un pur *renderer* (suppression de `assemble_markdown`).
+  (`write_documents` + `ExportDocument`) + helper UI `ui/_export_ui.py`.
+- **Moteur PDF** : le PDF est désormais rendu **à partir du HTML via `xhtml2pdf`**
+  (ReportLab, Python pur) au lieu de `fpdf2` — vraie pagination (sommaire/listes/
+  tableaux multi-pages), typographie CSS, **sommaire cliquable**, **glossaire en
+  paysage** avec colonnes lisibles. Dépendance `fpdf2` remplacée par `xhtml2pdf`.
+- **Sommaire HTML cliquable** : ids de titres alignés sur les ancres du sommaire
+  via l'extension `toc` + `core/slugify.slugify_anchor` (source unique).
+- **Tableaux** rendus (extension python-markdown `tables`) ; tirets Unicode rares
+  non rendus par ReportLab+Arial normalisés au PDF.
 
 ### Corrigé — STT cloud (OpenAI Whisper) : fichiers volumineux & langue
 

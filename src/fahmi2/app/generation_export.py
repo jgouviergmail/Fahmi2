@@ -9,7 +9,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fahmi2.app.document_export import DocumentExportResult, write_documents
+from fahmi2.app.document_export import (
+    DocumentExportResult,
+    ExportDocument,
+    write_documents,
+)
 from fahmi2.domain.enums import ExportFormat, Language
 from fahmi2.domain.generation import (
     GENERATION_OUTPUT_SUBDIR,
@@ -19,21 +23,27 @@ from fahmi2.domain.generation import (
 )
 from fahmi2.domain.project import Project
 
-_MD_EXT = ".md"
 _ENCODING_UTF8 = "utf-8"
 
+#: Le glossaire (tableau Terme / Acronyme / Signification / Définition, dont les 2
+#: colonnes du milieu sont souvent vides) est exporté en **paysage** avec des
+#: largeurs de colonnes dédiées (sinon les définitions sont écrasées et illisibles).
+_GLOSSARY_PDF_COLUMN_WIDTHS: tuple[str, ...] = ("20%", "12%", "23%", "45%")
 
-def collect_generation_documents(project: Project) -> list[tuple[str, str]]:
+
+def collect_generation_documents(project: Project) -> list[ExportDocument]:
     """Collecte les documents de génération présents sur disque (par langue).
 
     Itère toutes les langues (robuste : ne dépend pas de ``project.generation``,
-    qui peut être ``None``) et retient les fichiers réellement présents.
+    qui peut être ``None``) et retient les fichiers réellement présents. Le
+    consolidé est en portrait ; le **glossaire** en paysage avec largeurs de
+    colonnes dédiées.
 
     Args:
         project: Projet (résout le dossier de sortie de génération).
 
     Returns:
-        Liste de ``(stem, markdown)`` : pour chaque langue, le consolidé puis le
+        Liste d'``ExportDocument`` : pour chaque langue, le consolidé puis le
         glossaire s'ils existent. ``stem`` = nom de fichier privé de ``.md``.
     """
     output_dir = (
@@ -41,16 +51,26 @@ def collect_generation_documents(project: Project) -> list[tuple[str, str]]:
         / GENERATION_WORKSPACE_SUBDIR
         / GENERATION_OUTPUT_SUBDIR
     )
-    documents: list[tuple[str, str]] = []
+    documents: list[ExportDocument] = []
     for language in Language:
-        for filename in (
-            consolidated_doc_filename(language),
-            glossary_doc_filename(language),
-        ):
-            path = output_dir / filename
-            if path.exists():
-                stem = filename[: -len(_MD_EXT)]
-                documents.append((stem, path.read_text(encoding=_ENCODING_UTF8)))
+        consolidated = output_dir / consolidated_doc_filename(language)
+        if consolidated.exists():
+            documents.append(
+                ExportDocument(
+                    stem=consolidated.stem,
+                    markdown=consolidated.read_text(encoding=_ENCODING_UTF8),
+                )
+            )
+        glossary = output_dir / glossary_doc_filename(language)
+        if glossary.exists():
+            documents.append(
+                ExportDocument(
+                    stem=glossary.stem,
+                    markdown=glossary.read_text(encoding=_ENCODING_UTF8),
+                    pdf_landscape=True,
+                    pdf_column_widths=_GLOSSARY_PDF_COLUMN_WIDTHS,
+                )
+            )
     return documents
 
 

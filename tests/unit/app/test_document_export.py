@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from fahmi2.app.document_export import write_documents
+from fahmi2.app.document_export import ExportDocument, write_documents
 from fahmi2.domain.enums import ExportFormat
 from fahmi2.infra.export.markdown_pdf import EXTENSION_BY_FORMAT, pdf_fonts_available
 
@@ -21,7 +21,10 @@ def test_extension_by_format_doc_formats_only() -> None:
 
 
 def test_write_markdown_copies_content_and_preserves_order(tmp_path: Path) -> None:
-    docs = [("a", "# A\n\nun"), ("b", "# B\n\ndeux")]
+    docs = [
+        ExportDocument(stem="a", markdown="# A\n\nun"),
+        ExportDocument(stem="b", markdown="# B\n\ndeux"),
+    ]
     result = write_documents(docs, output_dir=tmp_path, fmt=ExportFormat.MARKDOWN)
     assert result.document_count == 2
     assert result.output_paths == (tmp_path / "a.md", tmp_path / "b.md")
@@ -30,7 +33,9 @@ def test_write_markdown_copies_content_and_preserves_order(tmp_path: Path) -> No
 
 def test_write_html_renders_self_contained(tmp_path: Path) -> None:
     result = write_documents(
-        [("doc", "# Titre\n\n- x\n")], output_dir=tmp_path, fmt=ExportFormat.HTML
+        [ExportDocument(stem="doc", markdown="# Titre\n\n- x\n")],
+        output_dir=tmp_path,
+        fmt=ExportFormat.HTML,
     )
     assert result.document_count == 1
     content = (tmp_path / "doc.html").read_text(encoding="utf-8")
@@ -40,13 +45,19 @@ def test_write_html_renders_self_contained(tmp_path: Path) -> None:
 
 def test_write_rejects_non_document_format(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="non documentaire"):
-        write_documents([("a", "x")], output_dir=tmp_path, fmt=ExportFormat.APKG)
+        write_documents(
+            [ExportDocument(stem="a", markdown="x")],
+            output_dir=tmp_path,
+            fmt=ExportFormat.APKG,
+        )
 
 
 @pytest.mark.skipif(not pdf_fonts_available(), reason="Police Unicode indisponible")
 def test_write_pdf(tmp_path: Path) -> None:
     result = write_documents(
-        [("doc", "# Titre\n\ntexte\n")], output_dir=tmp_path, fmt=ExportFormat.PDF
+        [ExportDocument(stem="doc", markdown="# Titre\n\ntexte\n")],
+        output_dir=tmp_path,
+        fmt=ExportFormat.PDF,
     )
     assert (tmp_path / "doc.pdf").exists()
     assert result.document_count == 1

@@ -47,8 +47,14 @@ def _seed_output(project: Project) -> Path:
 def test_collect_returns_consolidated_then_glossary(tmp_path: Path) -> None:
     project = _project(tmp_path)
     _seed_output(project)
-    stems = [stem for stem, _ in collect_generation_documents(project)]
-    assert stems == ["consolidated.fr", "glossary.fr"]
+    docs = collect_generation_documents(project)
+    assert [doc.stem for doc in docs] == ["consolidated.fr", "glossary.fr"]
+    # Le glossaire est exporté en paysage avec des largeurs de colonnes ; le
+    # consolidé reste en portrait par défaut.
+    by_stem = {doc.stem: doc for doc in docs}
+    assert by_stem["consolidated.fr"].pdf_landscape is False
+    assert by_stem["glossary.fr"].pdf_landscape is True
+    assert by_stem["glossary.fr"].pdf_column_widths is not None
 
 
 def test_collect_empty_when_no_output(tmp_path: Path) -> None:

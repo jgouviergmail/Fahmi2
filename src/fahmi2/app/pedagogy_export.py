@@ -13,7 +13,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fahmi2.app.document_export import DocumentExportResult, write_documents
+from fahmi2.app.document_export import (
+    DocumentExportResult,
+    ExportDocument,
+    write_documents,
+)
 from fahmi2.domain.enums import ExportFormat, Language, SupportType
 from fahmi2.domain.pedagogy import PEDAGOGY_WORKSPACE_SUBDIR
 from fahmi2.domain.project import Project
@@ -77,29 +81,30 @@ def export_pedagogy_to_apkg(project: Project, *, output_path: Path) -> AnkiExpor
     )
 
 
-def collect_pedagogy_documents(project: Project) -> list[tuple[str, str]]:
+def collect_pedagogy_documents(project: Project) -> list[ExportDocument]:
     """Collecte un document par support et par corrigé présents (ordre déterministe).
 
     Lit les Markdown rendus (`<support>.md` / `<support>.corrige.md`) dans l'ordre
-    **pédagogique d'export** (``_EXPORT_SUPPORT_ORDER``).
+    **pédagogique d'export** (``_EXPORT_SUPPORT_ORDER``). Tous en portrait (les
+    supports n'ont pas de tableaux larges).
 
     Args:
         project: Projet.
 
     Returns:
-        Liste de ``(stem, markdown)`` : ``<support>.<lang>`` (sujet) et
+        Liste d'``ExportDocument`` : ``<support>.<lang>`` (sujet) et
         ``<support>.<lang>.corrige`` (corrigé) pour chaque fichier présent.
     """
     pedagogy_dir = project.workspace_folder / PEDAGOGY_WORKSPACE_SUBDIR
-    documents: list[tuple[str, str]] = []
+    documents: list[ExportDocument] = []
     for language in Language:
         for support in _EXPORT_SUPPORT_ORDER:
             subject_path = artifact_markdown_path(pedagogy_dir, support, language)
             if subject_path.exists():
                 documents.append(
-                    (
-                        f"{support.value}.{language.value}",
-                        subject_path.read_text(encoding=_ENCODING_UTF8),
+                    ExportDocument(
+                        stem=f"{support.value}.{language.value}",
+                        markdown=subject_path.read_text(encoding=_ENCODING_UTF8),
                     )
                 )
             correction_path = artifact_correction_markdown_path(
@@ -107,9 +112,9 @@ def collect_pedagogy_documents(project: Project) -> list[tuple[str, str]]:
             )
             if correction_path.exists():
                 documents.append(
-                    (
-                        f"{support.value}.{language.value}{_CORRECTION_SUFFIX}",
-                        correction_path.read_text(encoding=_ENCODING_UTF8),
+                    ExportDocument(
+                        stem=f"{support.value}.{language.value}{_CORRECTION_SUFFIX}",
+                        markdown=correction_path.read_text(encoding=_ENCODING_UTF8),
                     )
                 )
     return documents

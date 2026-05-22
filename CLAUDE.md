@@ -57,12 +57,14 @@ Note Windows : git réécrit LF→CRLF (warnings attendus, sans conséquence). L
 fichier `packaging/fahmi2.spec` est `.gitignore` (`*.spec`) — modifier le `.spec`
 pour bundler de nouvelles ressources ne sera pas versionné.
 
-Dépendances supports pédagogiques à bundler dans le `.spec` au prochain build :
-`genanki` embarque des fichiers de données (`apkg_schema.sql`, `apkg_col.anki2`)
-→ `--collect-data genanki` (ou `collect_data_files('genanki')`) ; `markdown` et
-`fpdf2` (+ `Pillow`, `fontTools`, `defusedxml`) sont des modules purs (ajouter en
-`hiddenimports` si l'analyse PyInstaller les manque) ; le PDF utilise la police
-**Arial système Windows** (rien à bundler). Détails dans `packaging/README.md`.
+Dépendances exports à bundler dans le `.spec` au prochain build : `genanki`
+embarque des fichiers de données (`apkg_schema.sql`, `apkg_col.anki2`) →
+`--collect-data genanki` ; le PDF est rendu par **`xhtml2pdf`** (moteur
+**`reportlab`**, + `html5lib`, `pypdf`, `Pillow`, `svglib`, `arabic-reshaper`,
+`python-bidi`, `pyHanko` — tous Python pur) → `--collect-all xhtml2pdf` +
+`--collect-all reportlab` (données/polices internes) ; `markdown` est un module
+pur. Le PDF utilise la police **Arial système Windows** (rien à bundler). Détails
+dans `packaging/README.md`.
 
 ## Architecture en couches
 
@@ -222,14 +224,19 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
   prompts autorisent un Markdown léger dans le contenu ; l'export Anki **convertit
   les champs Markdown en HTML** (`genanki_exporter._md_to_html`) — sauf le texte
   cloze (mécanique `{{cN::}}` préservée). MD/PDF/HTML consomment le Markdown rendu tel quel.
-  **Gotchas du renderer `infra/export/markdown_pdf` (fpdf2 + python-markdown)** :
-  (1) les tableaux pipe GFM exigent l'extension `tables` (`_MARKDOWN_EXTENSIONS`),
-  sinon ils restent du texte littéral (HTML comme PDF) ; (2) `fpdf2.write_html`
-  **lève** `FPDFException` sur un lien d'ancre interne `<a href="#...">` (sommaire
-  du consolidé) faute de `set_link` → on neutralise ces ancres au PDF
-  (`_INTERNAL_ANCHOR_RE`, texte conservé) ; (3) `fpdf2` rend les puces/numéros de
-  liste à une taille erronée sans `font_size_pt` explicite sur `li`/`ol`/`ul`
-  (`_pdf_tag_styles`).
+  **Rendu PDF/HTML (`infra/export/markdown_pdf`)** : le **PDF est rendu à partir du
+  HTML via `xhtml2pdf`** (moteur ReportLab, Python pur, *bundleable*) — vraie
+  pagination (listes/tableaux multi-pages), typo CSS, orientation paysage. Gotchas :
+  (1) tableaux pipe GFM → extension python-markdown `tables` (sinon texte littéral) ;
+  (2) sommaire **cliquable** via l'extension `toc` + `core/slugify.slugify_anchor`
+  (ids de titres = ancres du sommaire) ; (3) `app.document_export.ExportDocument`
+  porte les **options PDF par document** (`pdf_landscape`, `pdf_column_widths`) — le
+  **glossaire** s'exporte en paysage + largeurs dédiées ; (4) xhtml2pdf n'honore les
+  largeurs de colonnes que posées sur **chaque** cellule et effondre les cellules
+  vides → `_layout_table_cells` (largeurs + remplissage `&nbsp;`) ; (5) ReportLab+
+  Arial ne rend pas U+2010/2011/2012/2015 (carré) → `_normalize_for_pdf` les
+  normalise (em-dash/en-dash conservés). La police PDF est l'Arial système Windows
+  (enregistrée auprès de ReportLab) — rien à bundler côté police.
 - **Erreurs → UI** : une exception levée par un handler **doit** être une
   `Fahmi2Error` (code + user_message + technical_details). Le moteur la convertit
   en `ErrorInfo`, la propage dans `PhaseFinished.error`, et `generation_controller._to_log_event`

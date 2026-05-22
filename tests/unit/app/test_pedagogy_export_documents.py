@@ -128,7 +128,7 @@ def test_collect_order_learning_then_exercises(
         artifacts.write_text_atomic(
             artifact_markdown_path(ped_dir, support, Language.FR), body
         )
-    stems = [stem for stem, _ in collect_pedagogy_documents(project)]
+    stems = [doc.stem for doc in collect_pedagogy_documents(project)]
     assert stems.index("revision_sheet.fr") < stems.index("qcm.fr")
     assert stems.index("qcm.fr") < stems.index("mock_exam.fr")
 

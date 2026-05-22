@@ -1,31 +1,32 @@
-"""Renderer d'export Markdown / PDF / HTML (pur, sans I/O d'orchestration).
+"""Renderer d'export Markdown → HTML / PDF (pur, sans I/O d'orchestration).
 
-Rend un Markdown **déjà produit** en PDF (via ``markdown`` → HTML →
-``fpdf2.write_html``) ou en document HTML autonome (UTF-8, feuille de style
-intégrée), et expose la table d'extensions par format. L'orchestration (collecte
-des documents, dispatch par format, écriture) vit dans ``app.document_export``.
-La police PDF est une police Unicode système Windows (``Arial``) : les polices
-cœur de fpdf2 sont latin-1 et lèvent sur les caractères typographiques français
-(« — », « … »).
+Le HTML est un document autonome (CSS intégré, tableaux stylés, sommaire cliquable
+via l'extension ``toc``). Le **PDF** rend ce même HTML via ``xhtml2pdf`` (moteur
+ReportLab) : vraie pagination (listes/tableaux qui franchissent les pages), typo
+CSS, orientation **paysage** optionnelle (glossaire) et largeurs de colonnes de
+tableau maîtrisées. L'orchestration (collecte, dispatch par format, écriture) vit
+dans ``app.document_export``.
 
-Limite connue : ``fpdf2.write_html`` rend les blocs de code (``<pre>``/``<code>``)
-avec sa police monospace cœur (latin-1). Les rendus de supports pédagogiques n'en
-produisent pas ; un éventuel bloc de code (issu d'un chapitre) contenant des
-caractères non latin-1 pourrait faire échouer le rendu PDF (l'export Markdown
-reste alors disponible).
+La police PDF est une police Unicode système Windows (``Arial``), enregistrée
+auprès de ReportLab. Quelques tirets Unicode rares (U+2010/2011/2012/2015) ne sont
+pas rendus par ReportLab+Arial (carré ``□``) : ils sont normalisés vers
+``-``/``—`` au rendu PDF (cf. ``_PDF_CHAR_REPLACEMENTS``).
 """
 
 from __future__ import annotations
 
+import functools
+import io
 import os
 import re
-from dataclasses import dataclass
 from html import escape
 from pathlib import Path
 
 import markdown
-from fpdf import FPDF
-from fpdf.fonts import TextStyle
+from reportlab.lib.fonts import addMapping
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from xhtml2pdf import pisa
 
 from fahmi2.core.errors.exceptions import ConfigError
 from fahmi2.core.errors.severity import Severity
@@ -39,59 +40,42 @@ EXTENSION_BY_FORMAT: dict[ExportFormat, str] = {
     ExportFormat.HTML: ".html",
 }
 
-#: Couleur des titres PDF — noir (au lieu du rouge ``#960000`` par défaut de fpdf2).
-_PDF_HEADING_COLOR = "#000000"
-#: Couleur des puces PDF — gris foncé (au lieu du rouge par défaut de fpdf2).
-_PDF_LI_PREFIX_COLOR = "#1f2328"
-#: Tailles de titre par niveau (pt) — reprend les tailles par défaut de fpdf2.
-_PDF_HEADING_SIZES_PT: dict[str, float] = {
-    "h1": 24.0,
-    "h2": 18.0,
-    "h3": 14.0,
-    "h4": 12.0,
-    "h5": 10.0,
-    "h6": 8.0,
-}
-#: Marges verticales (mm) des titres PDF.
-_PDF_HEADING_TOP_MARGIN = 5.0
-_PDF_HEADING_BOTTOM_MARGIN = 0.4
+#: Extensions Python-Markdown : ``tables`` rend les tableaux pipe GFM (sinon texte
+#: littéral) ; ``toc`` ajoute aux titres un ``id`` slugifié via ``slugify_anchor``
+#: (cf. ``_toc_slugify``) identique aux ancres du sommaire → sommaire cliquable
+#: (HTML et PDF). Mêmes extensions pour les deux formats.
+_MARKDOWN_EXTENSIONS: list[str] = ["tables", "toc"]
 
+#: Famille de police enregistrée auprès de ReportLab (+ noms des 4 variantes).
 _PDF_FONT_FAMILY = "AppSans"
-_PDF_FONT_SIZE = 11
+_PDF_FONT_REGULAR = "AppSans"
+_PDF_FONT_BOLD = "AppSans-Bold"
+_PDF_FONT_ITALIC = "AppSans-Italic"
+_PDF_FONT_BOLD_ITALIC = "AppSans-BoldItalic"
+_WINDOWS_FONT_FILES: dict[str, str] = {
+    "": "arial.ttf",
+    "B": "arialbd.ttf",
+    "I": "ariali.ttf",
+    "BI": "arialbi.ttf",
+}
 
-#: Extensions Python-Markdown au rendu **PDF** : ``tables`` rend les tableaux pipe
-#: GFM (sinon texte littéral). Le PDF neutralise les ancres, ``toc`` est inutile.
-_MARKDOWN_EXTENSIONS: list[str] = ["tables"]
-
-#: Extensions au rendu **HTML** : ``toc`` ajoute aux titres un ``id`` slugifié via
-#: ``slugify_anchor`` (cf. ``_toc_slugify``), identique aux ancres du sommaire du
-#: consolidé → sommaire **cliquable**.
-_HTML_MARKDOWN_EXTENSIONS: list[str] = ["tables", "toc"]
-
-#: Cellules de tableau (``<td>``/``<th>``) sans attribut : ``fpdf2.write_html``
-#: justifie le texte des cellules par défaut (espaces larges). On injecte
-#: ``align="left"`` (attribut lu par fpdf2) pour un alignement à gauche au PDF.
-_TABLE_CELL_OPEN_RE = re.compile(r"<(t[dh])>")
-
-#: Liens d'ancre **internes** (``<a href="#...">``) : ``fpdf2.write_html`` exige une
-#: destination enregistrée via ``set_link`` (sinon ``FPDFException``). Au rendu PDF
-#: on neutralise ces liens en conservant leur texte (un sommaire en texte simple
-#: reste lisible ; le PDF ne porte pas de table d'ancres). Les liens externes
-#: (``http(s)://``) ne sont pas concernés.
-_INTERNAL_ANCHOR_RE = re.compile(r'<a href="#[^"]*">(.*?)</a>', re.DOTALL)
-
-#: Styles PDF des listes : ``fpdf2`` rend les puces/numéros sans ``font_size_pt``
-#: explicite à une taille erronée (numéros géants). On force la taille du corps et
-#: une marge d'item pour un rendu aéré et homogène.
-_PDF_LIST_INDENT = 5.0
-_PDF_LIST_ITEM_TOP_MARGIN = 1.0
-_PDF_LIST_ITEM_BOTTOM_MARGIN = 1.0
-_PDF_LIST_BLOCK_TOP_MARGIN = 2.0
+#: Caractères non rendus par ReportLab+Arial (affichés ``□``) → équivalents sûrs.
+#: Em-dash (—) et en-dash (–) sont conservés (ils, eux, sont rendus correctement).
+_PDF_CHAR_REPLACEMENTS = str.maketrans(
+    {
+        "‐": "-",  # HYPHEN
+        "‑": "-",  # NON-BREAKING HYPHEN (fréquent dans les sorties LLM)
+        "‒": "-",  # FIGURE DASH
+        "―": "—",  # HORIZONTAL BAR → EM DASH
+        "­": "",  # SOFT HYPHEN (invisible → retiré)
+    }
+)
 
 #: Préfixe Markdown d'un titre H1 (pour extraire le titre du document HTML).
 _MD_H1_PREFIX = "# "
 #: Titre HTML par défaut si le Markdown ne commence pas par un H1.
 _HTML_DEFAULT_TITLE = "Supports de révision"
+
 #: Gabarit d'un document HTML autonome (UTF-8 + feuille de style intégrée).
 _HTML_DOCUMENT_TEMPLATE = """<!DOCTYPE html>
 <html lang="fr">
@@ -116,12 +100,33 @@ th {{ background: #f5f7fb; }}
 </body>
 </html>
 """
-_WINDOWS_FONT_FILES: dict[str, str] = {
-    "": "arial.ttf",
-    "B": "arialbd.ttf",
-    "I": "ariali.ttf",
-    "BI": "arialbi.ttf",
-}
+
+#: Gabarit d'un document PDF (xhtml2pdf) : ``@page`` (orientation), police Arial
+#: enregistrée, styles de titres/tableaux. ``{orientation}`` = ``portrait``/
+#: ``landscape`` ; ``{body}`` = corps HTML rendu depuis le Markdown.
+_PDF_HTML_TEMPLATE = """<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+@page {{ size: a4 {orientation}; margin: 1.8cm; }}
+body {{ font-family: "AppSans"; font-size: 10.5pt; line-height: 1.4; color: #1f2328; }}
+h1 {{ font-size: 19pt; color: #0a4f93; }}
+h2 {{ font-size: 14pt; color: #0a4f93; }}
+h3 {{ font-size: 12pt; color: #0a4f93; }}
+h4, h5, h6 {{ font-size: 11pt; color: #0a4f93; }}
+li {{ margin-bottom: 2pt; }}
+table {{ border-collapse: collapse; width: 100%; }}
+th, td {{ border: 0.5pt solid #d0d7de; padding: 3pt 5pt; text-align: left;
+         vertical-align: top; }}
+th {{ background: #f5f7fb; }}
+a {{ color: #0a4f93; text-decoration: none; }}
+</style></head><body>
+{body}
+</body></html>
+"""
+
+#: Découpe d'une ligne de tableau et de ses cellules (tables Markdown simples,
+#: sans imbrication) pour l'aménagement PDF (remplissage des vides + largeurs).
+_TABLE_ROW_RE = re.compile(r"<tr>.*?</tr>", re.DOTALL)
+_TABLE_CELL_RE = re.compile(r"<(td|th)((?:\s[^>]*)?)>(.*?)</(?:td|th)>", re.DOTALL)
 
 
 def _fonts_dir() -> Path:
@@ -142,32 +147,30 @@ def pdf_fonts_available() -> bool:
     return (_fonts_dir() / _WINDOWS_FONT_FILES[""]).exists()
 
 
-@dataclass(frozen=True)
-class _PdfFonts:
-    """Chemins des 4 variantes de police pour le rendu PDF."""
+@functools.cache
+def _ensure_pdf_fonts_registered() -> None:
+    """Enregistre Arial (4 variantes) auprès de ReportLab, une seule fois.
 
-    regular: Path
-    bold: Path
-    italic: Path
-    bold_italic: Path
-
-
-def _resolve_pdf_fonts() -> _PdfFonts | None:
-    """Résout les 4 variantes Arial, ou ``None`` si la régulière est absente.
-
-    Returns:
-        Les chemins de police, ou ``None``.
+    Mémoïsé (``functools.cache``) : exécuté au premier rendu PDF. ``registerFont``
+    est idempotent, donc une rare double-exécution concurrente est sans effet.
     """
     fonts = _fonts_dir()
-    regular = fonts / _WINDOWS_FONT_FILES[""]
-    if not regular.exists():
-        return None
-    return _PdfFonts(
-        regular=regular,
-        bold=fonts / _WINDOWS_FONT_FILES["B"],
-        italic=fonts / _WINDOWS_FONT_FILES["I"],
-        bold_italic=fonts / _WINDOWS_FONT_FILES["BI"],
+    pdfmetrics.registerFont(
+        TTFont(_PDF_FONT_REGULAR, str(fonts / _WINDOWS_FONT_FILES[""]))
     )
+    pdfmetrics.registerFont(
+        TTFont(_PDF_FONT_BOLD, str(fonts / _WINDOWS_FONT_FILES["B"]))
+    )
+    pdfmetrics.registerFont(
+        TTFont(_PDF_FONT_ITALIC, str(fonts / _WINDOWS_FONT_FILES["I"]))
+    )
+    pdfmetrics.registerFont(
+        TTFont(_PDF_FONT_BOLD_ITALIC, str(fonts / _WINDOWS_FONT_FILES["BI"]))
+    )
+    addMapping(_PDF_FONT_FAMILY, 0, 0, _PDF_FONT_REGULAR)
+    addMapping(_PDF_FONT_FAMILY, 1, 0, _PDF_FONT_BOLD)
+    addMapping(_PDF_FONT_FAMILY, 0, 1, _PDF_FONT_ITALIC)
+    addMapping(_PDF_FONT_FAMILY, 1, 1, _PDF_FONT_BOLD_ITALIC)
 
 
 def _extract_title(markdown_text: str) -> str:
@@ -206,9 +209,9 @@ def _toc_slugify(value: str, separator: str) -> str:
 def render_markdown_to_html(markdown_text: str, output_path: Path) -> None:
     """Rend un Markdown en document HTML autonome (UTF-8, style intégré).
 
-    Contrairement au PDF, aucune police système n'est requise — le fichier est
-    ouvrable dans n'importe quel navigateur. Les titres reçoivent un ``id`` slugifié
-    (extension ``toc``) → le sommaire du consolidé est cliquable.
+    Aucune police système n'est requise — le fichier est ouvrable dans n'importe
+    quel navigateur. Les titres reçoivent un ``id`` slugifié (extension ``toc``) →
+    le sommaire du consolidé est cliquable.
 
     Args:
         markdown_text: Texte Markdown (commençant idéalement par un titre H1).
@@ -216,7 +219,7 @@ def render_markdown_to_html(markdown_text: str, output_path: Path) -> None:
     """
     body = markdown.markdown(
         markdown_text,
-        extensions=_HTML_MARKDOWN_EXTENSIONS,
+        extensions=_MARKDOWN_EXTENSIONS,
         extension_configs={"toc": {"slugify": _toc_slugify}},
     )
     document = _HTML_DOCUMENT_TEMPLATE.format(
@@ -226,79 +229,100 @@ def render_markdown_to_html(markdown_text: str, output_path: Path) -> None:
     output_path.write_text(document, encoding="utf-8")
 
 
-def _pdf_tag_styles() -> dict[str, TextStyle]:
-    """Styles PDF des titres **et des listes** passés à ``write_html``.
+def _normalize_for_pdf(text: str) -> str:
+    """Remplace les caractères non rendus par ReportLab+Arial par des équivalents.
 
-    - Titres : **noir gras** (au lieu du rouge fpdf2 par défaut), tailles standard.
-    - Listes (``li``/``ol``/``ul``) : ``font_size_pt`` du corps **explicite** —
-      fpdf2 rend sinon les numéros/puces à une taille erronée (numéros géants) — et
-      des marges d'item pour un rendu aéré.
-
-    ``TextStyle`` n'exposant pas ses champs en lecture, les styles sont reconstruits
-    plutôt que dérivés des défauts.
+    Args:
+        text: Texte Markdown source.
 
     Returns:
-        Mapping ``tag → TextStyle`` à passer à ``write_html``.
+        Le texte avec tirets Unicode problématiques normalisés.
     """
-    styles: dict[str, TextStyle] = {
-        tag: TextStyle(
-            font_style="B",
-            font_size_pt=size,
-            color=_PDF_HEADING_COLOR,
-            t_margin=_PDF_HEADING_TOP_MARGIN,
-            b_margin=_PDF_HEADING_BOTTOM_MARGIN,
-        )
-        for tag, size in _PDF_HEADING_SIZES_PT.items()
-    }
-    styles["li"] = TextStyle(
-        font_size_pt=_PDF_FONT_SIZE,
-        l_margin=_PDF_LIST_INDENT,
-        t_margin=_PDF_LIST_ITEM_TOP_MARGIN,
-        b_margin=_PDF_LIST_ITEM_BOTTOM_MARGIN,
-    )
-    styles["ol"] = TextStyle(
-        font_size_pt=_PDF_FONT_SIZE, t_margin=_PDF_LIST_BLOCK_TOP_MARGIN
-    )
-    styles["ul"] = TextStyle(
-        font_size_pt=_PDF_FONT_SIZE, t_margin=_PDF_LIST_BLOCK_TOP_MARGIN
-    )
-    return styles
+    return text.translate(_PDF_CHAR_REPLACEMENTS)
 
 
-def render_markdown_to_pdf(markdown_text: str, output_path: Path) -> None:
-    """Rend un Markdown en PDF (``markdown`` → HTML → ``fpdf2``).
+def _layout_table_cells(body: str, column_widths: tuple[str, ...] | None) -> str:
+    """Aménage les cellules de tableau pour un rendu PDF correct (xhtml2pdf).
+
+    - Remplit les cellules **vides** d'un espace insécable : sinon xhtml2pdf
+      effondre la colonne et le contenu des autres lignes déborde.
+    - Si ``column_widths`` est fourni, applique une largeur à **chaque** cellule
+      selon sa position de colonne (xhtml2pdf n'honore ni ``<colgroup>`` ni la
+      largeur sur le seul en-tête).
+
+    Args:
+        body: Corps HTML rendu depuis le Markdown.
+        column_widths: Largeurs CSS par colonne (ex: ``("20%", "12%", …)``), ou
+            ``None`` (cellules vides comblées, sans largeur imposée).
+
+    Returns:
+        Le corps HTML avec les tableaux aménagés.
+    """
+
+    def _fix_row(row_match: re.Match[str]) -> str:
+        column_index = [0]
+
+        def _fix_cell(cell_match: re.Match[str]) -> str:
+            tag, attrs, content = cell_match.group(1, 2, 3)
+            if not content.strip():
+                content = "&nbsp;"
+            width_attr = ""
+            if column_widths is not None and column_index[0] < len(column_widths):
+                width_attr = f' width="{column_widths[column_index[0]]}"'
+            column_index[0] += 1
+            return f"<{tag}{attrs}{width_attr}>{content}</{tag}>"
+
+        return _TABLE_CELL_RE.sub(_fix_cell, row_match.group(0))
+
+    return _TABLE_ROW_RE.sub(_fix_row, body)
+
+
+def render_markdown_to_pdf(
+    markdown_text: str,
+    output_path: Path,
+    *,
+    landscape: bool = False,
+    table_column_widths: tuple[str, ...] | None = None,
+) -> None:
+    """Rend un Markdown en PDF via ``xhtml2pdf`` (Markdown → HTML → PDF).
 
     Args:
         markdown_text: Texte Markdown.
         output_path: Chemin du PDF à écrire.
+        landscape: Orientation paysage (ex: glossaire large) ; portrait sinon.
+        table_column_widths: Largeurs CSS par colonne appliquées aux tableaux
+            (ex: glossaire). ``None`` = largeurs automatiques.
 
     Raises:
-        ConfigError: ``EXPORT.NO_PDF_FONT`` si aucune police Unicode n'est résolue.
+        ConfigError: ``EXPORT.NO_PDF_FONT`` si la police Arial est introuvable, ou
+            ``EXPORT.PDF_RENDER_FAILED`` si le moteur de rendu échoue.
     """
-    fonts = _resolve_pdf_fonts()
-    if fonts is None:
+    if not pdf_fonts_available():
         raise ConfigError(
             code="EXPORT.NO_PDF_FONT",
             user_message=(
                 "Aucune police Unicode trouvée pour l'export PDF. Utilisez "
-                "l'export Markdown."
+                "l'export Markdown ou HTML."
             ),
             severity=Severity.ERROR,
         )
-    pdf = FPDF()
-    pdf.add_font(_PDF_FONT_FAMILY, "", str(fonts.regular))
-    pdf.add_font(_PDF_FONT_FAMILY, "B", str(fonts.bold))
-    pdf.add_font(_PDF_FONT_FAMILY, "I", str(fonts.italic))
-    pdf.add_font(_PDF_FONT_FAMILY, "BI", str(fonts.bold_italic))
-    pdf.add_page()
-    pdf.set_font(_PDF_FONT_FAMILY, size=_PDF_FONT_SIZE)
-    html = markdown.markdown(markdown_text, extensions=_MARKDOWN_EXTENSIONS)
-    html = _INTERNAL_ANCHOR_RE.sub(r"\1", html)
-    html = _TABLE_CELL_OPEN_RE.sub(r'<\1 align="left">', html)
-    pdf.write_html(
-        html,
-        tag_styles=_pdf_tag_styles(),
-        li_prefix_color=_PDF_LI_PREFIX_COLOR,
+    _ensure_pdf_fonts_registered()
+    body = markdown.markdown(
+        _normalize_for_pdf(markdown_text),
+        extensions=_MARKDOWN_EXTENSIONS,
+        extension_configs={"toc": {"slugify": _toc_slugify}},
     )
+    body = _layout_table_cells(body, table_column_widths)
+    document = _PDF_HTML_TEMPLATE.format(
+        orientation="landscape" if landscape else "portrait", body=body
+    )
+    buffer = io.BytesIO()
+    status = pisa.CreatePDF(document, dest=buffer, encoding="utf-8")
+    if status.err:
+        raise ConfigError(
+            code="EXPORT.PDF_RENDER_FAILED",
+            user_message="Le rendu du PDF a échoué. Utilisez l'export Markdown ou HTML.",
+            severity=Severity.ERROR,
+        )
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    pdf.output(str(output_path))
+    output_path.write_bytes(buffer.getvalue())

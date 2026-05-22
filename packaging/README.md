@@ -108,29 +108,31 @@ dist/Fahmi2/
 └── …
 ```
 
-### Dépendances supports pédagogiques (genanki / markdown / fpdf2)
+### Dépendances exports (genanki / markdown / xhtml2pdf)
 
-Les exports des supports de révision (Anki / Markdown / PDF) ajoutent trois
-dépendances à collecter par PyInstaller (l'export **HTML** est généré en pur
-Python, sans dépendance supplémentaire à bundler). À vérifier dans
-`packaging/fahmi2.spec` (gitignored — modification non versionnée) au prochain
-build :
+Les exports (Anki / Markdown / PDF / HTML) ajoutent des dépendances à collecter
+par PyInstaller. À vérifier dans `packaging/fahmi2.spec` (gitignored — modification
+non versionnée) au prochain build :
 
 - **`genanki`** (export `.apkg`) embarque des **fichiers de données**
   (`apkg_schema.sql`, `apkg_col.anki2`) qui ne sont pas détectés par l'analyse
   d'imports : les collecter explicitement via `--collect-data genanki` (CLI) ou
   `collect_data_files('genanki')` dans le `.spec`. Sans cela, l'export plante au
   runtime (fichier de données introuvable).
-- **`markdown`** et **`fpdf2`** (export Markdown / PDF), avec leurs dépendances
-  transitives **`Pillow`**, **`fontTools`**, **`defusedxml`** : modules purs
-  normalement collectés automatiquement ; les ajouter en `hiddenimports` si
-  l'analyse PyInstaller en manque.
+- **`xhtml2pdf`** (export **PDF**, rendu du HTML) s'appuie sur **`reportlab`** et
+  tire `html5lib`, `pypdf`, `Pillow`, `svglib`, `arabic-reshaper`, `python-bidi`,
+  `pyHanko` — **tous Python pur** (aucun binaire natif), donc *bundleables* mais
+  ils **alourdissent** l'archive. Collecter données + sous-modules :
+  `--collect-all xhtml2pdf` et `--collect-all reportlab` (ReportLab embarque des
+  données et polices internes) ; ajouter en `hiddenimports` ce que l'analyse
+  manque. **`markdown`** (rendu Markdown→HTML, partagé HTML/PDF) est un module pur.
+  L'export **HTML** n'ajoute rien (pur Python).
 - **Police PDF** : le rendu PDF s'appuie sur la police **Arial du système
-  Windows** (`%SystemRoot%\Fonts\arial*.ttf`) — **aucune police à bundler**, mais
-  l'EXE en dépend à l'exécution (toujours présent sur une cible Windows). Les
-  polices cœur de `fpdf2` étant latin-1, elles plantent sur la typographie
-  française (tiret cadratin, points de suspension) : c'est pourquoi Arial Unicode
-  est imposé.
+  Windows** (`%SystemRoot%\Fonts\arial*.ttf`), enregistrée auprès de ReportLab —
+  **aucune police à bundler**, mais l'EXE en dépend à l'exécution (toujours
+  présente sur une cible Windows). Quelques tirets Unicode rares
+  (U+2010/2011/2012/2015) non rendus par ReportLab+Arial sont normalisés au rendu
+  PDF (`markdown_pdf._normalize_for_pdf`).
 
 ### Résolution runtime du ffmpeg bundlé
 

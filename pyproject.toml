@@ -25,7 +25,7 @@ dependencies = [
   "scikit-learn>=1.5,<2",
   "genanki>=0.13,<1",
   "markdown>=3.5,<4",
-  "fpdf2>=2.8,<3",
+  "xhtml2pdf>=0.2.17,<0.3",
 ]
 
 [project.optional-dependencies]
@@ -94,6 +94,7 @@ module = [
   "ctranslate2.*",
   "genanki.*",
   "markdown.*",
-  "fpdf.*",
+  "xhtml2pdf.*",
+  "reportlab.*",
 ]
 ignore_missing_imports = true

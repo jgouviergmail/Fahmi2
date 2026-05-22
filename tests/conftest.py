@@ -50,6 +50,7 @@ def make_generation_settings() -> Any:
             "cost_ceiling_usd": None,
             "parallelism": ParallelismConfig(),
             "delete_audio_after_stt": True,
+            "export_formats": frozenset(),
         }
         base.update(overrides)
         return GenerationSettings(**base)

@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from fahmi2.domain.enums import (
+    ExportFormat,
     Language,
     LLMModel,
     PhaseId,
@@ -48,6 +49,27 @@ def consolidated_doc_filename(language: Language) -> str:
         Le nom de fichier (ex: ``"consolidated.fr.md"``).
     """
     return f"consolidated.{language}.md"
+
+
+def glossary_doc_filename(language: Language) -> str:
+    """Nom de fichier du glossaire pour une langue.
+
+    Args:
+        language: Langue cible.
+
+    Returns:
+        Le nom de fichier (ex: ``"glossary.fr.md"``).
+    """
+    return f"glossary.{language}.md"
+
+
+#: Formats d'export documentaire autorisés en génération (pas d'APKG : pas de cartes).
+GENERATION_EXPORT_FORMATS: frozenset[ExportFormat] = frozenset(
+    {ExportFormat.MARKDOWN, ExportFormat.PDF, ExportFormat.HTML}
+)
+
+#: Formats cochés par défaut pour un nouveau projet (vide = opt-in).
+DEFAULT_GENERATION_EXPORT_FORMATS: frozenset[ExportFormat] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -92,6 +114,8 @@ class GenerationSettings:
         cost_ceiling_usd: Plafond de coût (``None`` = pas de plafond).
         parallelism: Configuration de parallélisme.
         delete_audio_after_stt: Si ``True``, l'audio extrait est supprimé après STT.
+        export_formats: Formats d'export documentaire (sous-ensemble de
+            {MARKDOWN, PDF, HTML} ; vide par défaut = opt-in).
     """
 
     input_folder: Path
@@ -105,6 +129,7 @@ class GenerationSettings:
     cost_ceiling_usd: float | None
     parallelism: ParallelismConfig
     delete_audio_after_stt: bool
+    export_formats: frozenset[ExportFormat] = DEFAULT_GENERATION_EXPORT_FORMATS
 
     def __post_init__(self) -> None:
         if not self.output_languages:
@@ -126,4 +151,12 @@ class GenerationSettings:
         if self.cost_ceiling_usd is not None and self.cost_ceiling_usd < 0:
             raise ValueError(
                 f"cost_ceiling_usd must be >= 0 or None, got {self.cost_ceiling_usd}"
+            )
+        if not self.export_formats <= GENERATION_EXPORT_FORMATS:
+            invalid = sorted(
+                f.value for f in self.export_formats - GENERATION_EXPORT_FORMATS
+            )
+            raise ValueError(
+                f"export_formats must be a subset of {{markdown, pdf, html}}; "
+                f"got invalid: {invalid}"
             )

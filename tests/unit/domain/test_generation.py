@@ -6,13 +6,21 @@ from pathlib import Path
 
 import pytest
 
-from fahmi2.domain.enums import Language, LLMModel, PhaseId, SttProvider, StylePreset
+from fahmi2.domain.enums import (
+    ExportFormat,
+    Language,
+    LLMModel,
+    PhaseId,
+    SttProvider,
+    StylePreset,
+)
 from fahmi2.domain.generation import (
     GENERATION_WORKSPACE_SUBDIR,
     MAX_LLM_WORKERS,
     MAX_STT_CLOUD_WORKERS,
     GenerationSettings,
     ParallelismConfig,
+    glossary_doc_filename,
 )
 from fahmi2.domain.phase import PhaseConfig
 
@@ -66,6 +74,25 @@ def test_negative_ceiling_rejected() -> None:
 
 def test_cost_ceiling_zero_is_valid() -> None:
     assert _make(cost_ceiling_usd=0.0).cost_ceiling_usd == 0.0
+
+
+def test_glossary_doc_filename() -> None:
+    assert glossary_doc_filename(Language.FR) == "glossary.fr.md"
+    assert glossary_doc_filename(Language.EN) == "glossary.en.md"
+
+
+def test_export_formats_defaults_empty() -> None:
+    assert _make().export_formats == frozenset()
+
+
+def test_export_formats_rejects_apkg() -> None:
+    with pytest.raises(ValueError, match="subset"):
+        _make(export_formats=frozenset({ExportFormat.APKG}))
+
+
+def test_export_formats_accepts_doc_formats() -> None:
+    out = _make(export_formats=frozenset({ExportFormat.PDF, ExportFormat.HTML}))
+    assert out.export_formats == frozenset({ExportFormat.PDF, ExportFormat.HTML})
 
 
 def test_requires_at_least_one_output_language() -> None:

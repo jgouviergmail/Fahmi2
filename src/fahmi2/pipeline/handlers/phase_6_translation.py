@@ -25,7 +25,7 @@ from fahmi2.core.concurrency import map_bounded
 from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import Language, PhaseId
-from fahmi2.domain.generation import consolidated_doc_filename
+from fahmi2.domain.generation import consolidated_doc_filename, glossary_doc_filename
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.video import VideoExecution
 from fahmi2.pipeline.handlers._base import (
@@ -178,7 +178,7 @@ class Phase6TranslationHandler(PhaseHandler):
                 _TranslationTask(consolidated_master_md, target, consolidated_target)
             )
 
-        glossary_target = ctx.output_dir / f"glossary.{target.value}.md"
+        glossary_target = ctx.output_dir / glossary_doc_filename(target)
         glossary_md = _render_glossary_md(glossary_master_payload, target)
         if is_source:
             ctx.artifacts.write_text_atomic(glossary_target, glossary_md)

@@ -161,6 +161,27 @@ _TEMPLATE_METADATA: tuple[PromptTemplateMeta, ...] = (
             "Examen blanc composite (sujet + barème) couvrant tout le document."
         ),
     ),
+    PromptTemplateMeta(
+        name="chat_strict",
+        display_name="Dialogue — Réponse ancrée (strict)",
+        description=(
+            "Chat : répond uniquement à partir du corpus, avec citations [§N]."
+        ),
+    ),
+    PromptTemplateMeta(
+        name="chat_augmented",
+        display_name="Dialogue — Réponse augmentée",
+        description=(
+            "Chat : corpus prioritaire + complément balisé « Au-delà du cours »."
+        ),
+    ),
+    PromptTemplateMeta(
+        name="chat_query_expansion",
+        display_name="Dialogue — Expansion de requête",
+        description=(
+            "Chat : reformule une question en mots-clés pour le retrieval lexical."
+        ),
+    ),
 )
 
 

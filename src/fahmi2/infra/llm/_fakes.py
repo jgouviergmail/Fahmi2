@@ -10,10 +10,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Iterator
 
 from fahmi2.core.errors.exceptions import Fahmi2Error
 from fahmi2.infra.llm._pricing import get_pricing
-from fahmi2.infra.llm.interface import LLMResponse, Message
+from fahmi2.infra.llm.interface import LLMResponse, LLMStreamChunk, Message
 
 
 def make_request_key(
@@ -124,6 +125,47 @@ class FakeLLMProvider:
         if key in self._failures:
             raise self._failures[key]
         return self._scenarios.get(key, self._default)
+
+    def chat_stream(
+        self,
+        *,
+        messages: list[Message],
+        model: str,
+        thinking: bool,
+        reasoning_effort: str | None = None,
+        temperature: float,
+        max_tokens: int | None = None,
+    ) -> Iterator[LLMStreamChunk]:
+        """Émet la réponse scénarisée en deltas (un par mot) + chunk final.
+
+        Args:
+            messages: Conversation.
+            model: Modèle.
+            thinking: Mode raisonnement.
+            reasoning_effort: Ignoré (présent pour respecter l'interface).
+            temperature: Température.
+            max_tokens: Ignoré (présent pour respecter l'interface).
+
+        Yields:
+            ``LLMStreamChunk`` (deltas, puis un dernier ``is_final``).
+
+        Raises:
+            Fahmi2Error: Si un scénario d'échec match la clé.
+        """
+        del reasoning_effort, max_tokens
+        key = make_request_key(
+            messages=messages,
+            model=model,
+            thinking=thinking,
+            temperature=temperature,
+        )
+        if key in self._failures:
+            raise self._failures[key]
+        response = self._scenarios.get(key, self._default)
+        for index, word in enumerate(response.content.split(" ")):
+            delta = word if index == 0 else f" {word}"
+            yield LLMStreamChunk(content_delta=delta)
+        yield LLMStreamChunk(content_delta="", is_final=True, response=response)
 
     def estimate_cost(
         self,

@@ -6,6 +6,7 @@ providers OpenAI-compatibles plus tard (Anthropic, Mistral, etc.).
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
@@ -46,6 +47,23 @@ class LLMResponse:
     cost_usd: float
 
 
+@dataclass(frozen=True)
+class LLMStreamChunk:
+    """Fragment de réponse en streaming.
+
+    Attributes:
+        content_delta: Incrément de texte de réponse (vide sur le chunk final).
+        thinking_delta: Incrément de raisonnement (``None`` si absent).
+        is_final: ``True`` pour le dernier chunk (porteur de l'usage/coût).
+        response: ``LLMResponse`` complète (usage + coût), seulement si ``is_final``.
+    """
+
+    content_delta: str
+    thinking_delta: str | None = None
+    is_final: bool = False
+    response: LLMResponse | None = None
+
+
 class LLMProvider(Protocol):
     """Contrat commun aux adapters LLM (DeepSeek, mais ouvert à d'autres)."""
 
@@ -74,6 +92,34 @@ class LLMProvider(Protocol):
 
         Returns:
             ``LLMResponse``.
+
+        Raises:
+            LLMError: En cas d'échec d'appel.
+        """
+
+    def chat_stream(
+        self,
+        *,
+        messages: list[Message],
+        model: str,
+        thinking: bool,
+        reasoning_effort: str | None = None,
+        temperature: float,
+        max_tokens: int | None = None,
+    ) -> Iterator[LLMStreamChunk]:
+        """Émet un appel chat en streaming (deltas + chunk final porteur du coût).
+
+        Args:
+            messages: Liste ordonnée des messages.
+            model: Identifiant du modèle.
+            thinking: Active le mode raisonnement.
+            reasoning_effort: Niveau d'effort de raisonnement (si ``thinking``).
+            temperature: Température LLM.
+            max_tokens: Borne supérieure de tokens en sortie (None = défaut modèle).
+
+        Returns:
+            Itérateur de ``LLMStreamChunk`` ; le dernier a ``is_final=True`` et
+            porte la ``LLMResponse`` complète (usage + coût).
 
         Raises:
             LLMError: En cas d'échec d'appel.

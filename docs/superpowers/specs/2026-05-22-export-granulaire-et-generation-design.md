@@ -50,31 +50,39 @@ le cœur (limite commune à A et C).
 
 ### 1. `infra/export/markdown_pdf.py` (modifié)
 
-- **Ajout** d'un dispatcher de format et de la table d'extensions (centralisation,
-  pas de magic string) :
-  - `EXTENSION_BY_FORMAT: dict[ExportFormat, str]` → `{MARKDOWN: ".md", PDF: ".pdf",
-    HTML: ".html"}`.
-  - `render_document(markdown_text: str, output_path: Path, fmt: ExportFormat) -> None`
-    qui dispatche : `MARKDOWN` → écriture texte atomique ; `PDF` →
-    `render_markdown_to_pdf` ; `HTML` → `render_markdown_to_html`.
-- Les primitives existantes `render_markdown_to_pdf` / `render_markdown_to_html`
-  sont **réutilisées telles quelles** (le HTML autonome stylé convient à un
-  document par support).
+- **Ajout** de la table d'extensions (centralisation, pas de magic string) :
+  `EXTENSION_BY_FORMAT: dict[ExportFormat, str]` → `{MARKDOWN: ".md", PDF: ".pdf",
+  HTML: ".html"}` (APKG **absent** — format non documentaire).
+- Les primitives `render_markdown_to_pdf` / `render_markdown_to_html` /
+  `pdf_fonts_available` sont **conservées telles quelles** : le module reste un
+  **pur *renderer*** sans dépendance vers la couche storage. Le **dispatch** par
+  format vit dans la couche app (cf. §2), **pas ici** (on évite de coupler
+  `infra/export` à `FsArtifactStore`).
 - **Suppression** de `assemble_markdown` (et de ses 2 tests dans
   `tests/unit/infra/export/test_markdown_pdf.py`) : devient mort une fois
   l'agrégation pédagogie supprimée (les fichiers consolidé/glossaire et chaque
   support sont déjà des documents Markdown complets — aucun assemblage requis).
 
-### 2. `app/_export_common.py` (nouveau, interne)
+### 2. `app/document_export.py` (nouveau, **public**)
+
+Module **public** (pas `_underscore`) car l'UI en importe `DocumentExportResult`
+(type de retour du helper d'export). Précédent : `app/_cost_common.py` est interne
+et n'est jamais importé par l'UI — ce ne serait pas le cas ici.
 
 - `@dataclass(frozen=True) DocumentExportResult` (**déplacé** depuis
   `pedagogy_export.py` ; conserve `output_paths` + propriété `document_count`).
 - `DocumentCollector = Callable[[Project], list[tuple[str, str]]]` (alias de type,
   documente le contrat « prêt-pour-C »).
 - `write_documents(documents: Iterable[tuple[str, str]], *, output_dir: Path, fmt:
-  ExportFormat) -> DocumentExportResult` : pour chaque `(stem, markdown)`, calcule
-  `output_dir / f"{stem}{EXTENSION_BY_FORMAT[fmt]}"` et appelle `render_document`.
-  Retourne les chemins écrits (ordre d'entrée préservé → déterministe).
+  ExportFormat) -> DocumentExportResult` — **porte le dispatch** :
+  - garde : `if fmt not in EXTENSION_BY_FORMAT: raise ValueError(...)` (rejette
+    APKG / format non documentaire — erreur de programmation) ;
+  - pour chaque `(stem, markdown)`, chemin
+    `output_dir / f"{stem}{EXTENSION_BY_FORMAT[fmt]}"` ;
+  - `MARKDOWN` → `FsArtifactStore().write_text_atomic` (**copie atomique** du
+    contenu — préserve le comportement actuel de l'export MD) ;
+  - `PDF` → `render_markdown_to_pdf` ; `HTML` → `render_markdown_to_html`.
+  - Retourne les chemins écrits (ordre d'entrée préservé → déterministe).
 
 ### 3. `app/pedagogy_export.py` (refactor)
 
@@ -89,26 +97,38 @@ le cœur (limite commune à A et C).
     `(f"{support.value}.{lang.value}.corrige", contenu)`.
 - `export_pedagogy_documents(project, *, output_dir, fmt) -> DocumentExportResult`
   délègue à `write_documents(collect_pedagogy_documents(project), …)`.
+- `DocumentExportResult` est désormais importé depuis `app.document_export` (plus
+  défini ici).
 - Constantes d'agrégation obsolètes supprimées (`_SUBJECT_STEM`,
   `_CORRECTION_STEM`, `_SUBJECT_TITLE`, `_CORRECTION_TITLE`, `_SECTION_SEPARATOR`
   côté pédagogie). Les stems suivent la convention `<support>.<lang>` /
   `<support>.<lang>.corrige`, cohérente avec `consolidated.{lang}` et le layout
-  disque.
+  disque. `_EXPORT_SUPPORT_ORDER` est **conservé** (ordre déterministe des fichiers
+  produits) ; sa docstring est mise à jour (plus d'agrégation).
 
 ### 4. `app/generation_export.py` (nouveau)
 
-- `collect_generation_documents(project) -> list[tuple[str, str]]` : pour chaque
-  langue de sortie présente, lit (si le fichier existe) :
-  - `consolidated.{lang}.md` → `(f"consolidated.{lang.value}", contenu)` ;
-  - `glossary.{lang}.md` → `(f"glossary.{lang.value}", contenu)`.
-  La source est lue sur disque dans `output_dir` de génération
-  (`workspace_folder / generation / output`), via les helpers existants
-  (`consolidated_doc_filename`, et le nom `glossary.{lang}.md`).
+- `collect_generation_documents(project) -> list[tuple[str, str]]` : itère
+  **toutes** les `Language` (robuste, sans dépendre de `project.generation` qui
+  peut être `None`) et, pour chaque fichier **présent** sur disque :
+  - `consolidated.{lang}.md` → stem `consolidated.{lang.value}` (nom de fichier
+    `consolidated_doc_filename(lang)` privé de son extension `.md`), contenu ;
+  - `glossary.{lang}.md` → stem `glossary.{lang.value}`, contenu.
+  La source est le dossier de sortie génération
+  (`workspace_folder / GENERATION_WORKSPACE_SUBDIR / GENERATION_OUTPUT_SUBDIR`).
+  Les noms de fichiers proviennent des helpers domaine `consolidated_doc_filename`
+  et **`glossary_doc_filename`** (nouveau, cf. §5) — **pas de magic string**. Les
+  stems exportés sont dérivés en retirant l'extension `.md`.
 - `export_generation_documents(project, *, output_dir, fmt) -> DocumentExportResult`
-  délègue à `write_documents`.
+  délègue à `write_documents`. (`output_dir` = dossier **destination** choisi par
+  l'utilisateur, distinct du dossier source ci-dessus.)
 
 ### 5. Domaine — `domain/generation.py`
 
+- **Nouveau helper** `glossary_doc_filename(language: Language) -> str` →
+  `f"glossary.{language}.md"`, à côté de `consolidated_doc_filename`. **Refactor**
+  de `pipeline/handlers/phase_6_translation.py:181` (qui code le nom en dur) pour
+  l'utiliser → source unique de vérité, réutilisée par le collecteur génération.
 - Constante `DEFAULT_GENERATION_EXPORT_FORMATS: frozenset[ExportFormat] =
   frozenset()` (**vide = opt-in**).
 - Ensemble autorisé `GENERATION_EXPORT_FORMATS: frozenset[ExportFormat] =
@@ -138,23 +158,28 @@ le cœur (limite commune à A et C).
   - `to_settings` lit les cases → `export_formats` ; `populate` coche selon
     `generation.export_formats`.
 - `ui/_export_ui.py` (nouveau) — **helper UI partagé** :
-  `run_document_export(*, window, logs_dock, configured_formats, labels,
+  `run_document_export(*, window, logs_dock, configured_formats, label_by_format,
   exporter)` qui factorise la séquence commune : si aucun format → message ;
   `QInputDialog` (choix du format) → `QFileDialog.getExistingDirectory` → appel de
   `exporter(fmt, output_dir)` → gestion `Fahmi2Error` / `Exception` → cas
   « 0 document » → log `*_EXPORTED` + `QMessageBox`. `exporter` est un
-  `Callable[[ExportFormat, Path], DocumentExportResult]`.
+  `Callable[[ExportFormat, Path], DocumentExportResult]`. `DocumentExportResult`
+  est importé de `app.document_export`.
 - `ui/pedagogy_controller.py` : `export_markdown/pdf/html` + `_export_documents`
   remplacés par un appel au helper partagé, en passant
   `lambda fmt, d: export_pedagogy_documents(project, output_dir=d, fmt=fmt)` et
   `project.pedagogy.export_formats`. La pré-condition « pédagogie configurée »
-  reste dans le contrôleur. APKG conserve son chemin dédié.
-- `ui/generation_controller.py` : `show_export=True` + tooltip ;
+  (`project.pedagogy is None`) reste dans le contrôleur. APKG conserve son chemin
+  dédié (`export_apkg`).
+- `ui/generation_controller.py` : `show_export=True` + tooltip ; le bouton reste
+  **toujours actif** (validation au clic, comme la pédagogie) ; pré-condition
+  `project.generation is None` → message « génération non configurée » ;
   `export_requested` → handler qui appelle le helper partagé avec
-  `export_generation_documents` et `generation.export_formats`.
+  `lambda fmt, d: export_generation_documents(project, output_dir=d, fmt=fmt)` et
+  `project.generation.export_formats`.
 - `EXPORT_LABELS` (dans `ui/pedagogy_labels.py`) est **réutilisé** par la
-  génération (libellés génériques Anki/Markdown/PDF/HTML). Pas de déplacement
-  (YAGNI) ; importé tel quel.
+  génération (libellés génériques Anki/Markdown/PDF/HTML ; seules les clés
+  MD/PDF/HTML sont passées). Pas de déplacement (YAGNI) ; importé tel quel.
 
 ## Conventions de nommage des fichiers exportés
 
@@ -183,23 +208,29 @@ dossier choisi) ; PDF/HTML rendent ce Markdown.
 ## Tests
 
 - `tests/unit/infra/export/test_markdown_pdf.py` : retrait des 2 tests
-  `assemble_markdown` ; ajout d'un test du dispatcher `render_document`
-  (extension correcte par format) et de `EXTENSION_BY_FORMAT`.
-- `tests/unit/app/test_export_common.py` (nouveau) : `write_documents` écrit un
-  fichier par `(stem, md)` avec la bonne extension ; ordre préservé ;
-  `document_count`.
+  `assemble_markdown` ; ajout d'un test de `EXTENSION_BY_FORMAT` (clés MD/PDF/HTML,
+  valeurs `.md/.pdf/.html`, APKG absent).
+- `tests/unit/app/test_document_export.py` (nouveau) : `write_documents` écrit un
+  fichier par `(stem, md)` avec la bonne extension ; MD = contenu copié ; ordre
+  préservé ; `document_count` ; **garde** : `fmt=APKG` lève `ValueError`. Les cas
+  PDF sont sous `@pytest.mark.skipif(not pdf_fonts_available())`.
 - `tests/unit/app/test_pedagogy_export_documents.py` : adapté — vérifie **un
   fichier par support/corrigé** (plus d'agrégat `supports.{lang}.md`) ; noms
-  `<support>.<lang>(.corrige).<ext>` ; supports absents omis.
+  `<support>.<lang>(.corrige).<ext>` ; supports absents omis. PDF sous `skipif`
+  (pattern existant `pdf_fonts_available`).
 - `tests/unit/app/test_pedagogy_export.py` : `.apkg` inchangé (régression).
 - `tests/unit/app/test_generation_export.py` (nouveau) : consolidé + glossaire par
-  langue ; fichiers manquants omis ; formats MD/PDF/HTML.
-- `tests/unit/domain/` : invariant `GenerationSettings.export_formats` (APKG
-  rejeté ; défaut vide).
+  langue ; fichiers manquants omis ; `project.generation is None` → liste vide ;
+  formats MD/HTML ; PDF sous `skipif`.
+- `tests/unit/domain/test_generation.py` : helper `glossary_doc_filename` ;
+  invariant `GenerationSettings.export_formats` (APKG rejeté → `ValueError` ;
+  défaut vide).
+- `tests/unit/pipeline/handlers/test_phase_6_translation.py` : le nom du glossaire
+  reste `glossary.{lang}.md` après refactor vers le helper (non-régression).
 - `tests/unit/infra/storage/` : round-trip + désérialisation **lenient** (payload
   sans `export_formats` → ensemble vide) ; snapshot de run.
-- `tests/conftest.py` : `make_generation_settings` accepte/ initialise
-  `export_formats` (défaut vide).
+- `tests/conftest.py` : `make_generation_settings` initialise `export_formats`
+  (défaut vide ; surchargeable par kwarg).
 - UI : smoke tests `pytest-qt` de la page Export génération (build/populate/
   to_settings) ; viewmodels inchangés.
 

@@ -2,7 +2,7 @@
 
 « Sources à traiter » (ordonnée, glisser-déposer interne pour réordonner) /
 « Exclues » (non traitées). Boutons : ↑ / ↓ (réordonner), Exclure ▼ / Réinclure ▲
-(déplacer entre listes), ↻ Rafraîchir (émet ``refreshRequested``), Tout réinclure.
+(déplacer entre listes), ↻ Rafraîchir (émet ``refresh_requested``), Tout réinclure.
 Expose ``source_order()`` et ``excluded_sources()`` (clés stables) consommés par
 ``GenerationSettingsView``. La logique de réconciliation est déléguée à la
 fonction pure ``app.input_sources.reconcile_source_order``.
@@ -47,7 +47,7 @@ _LIST_MIN_HEIGHT_PX = 110
 class SourceOrderView(QWidget):
     """Double liste réordonnable pour l'ordre et l'exclusion des sources."""
 
-    refreshRequested = Signal()
+    refresh_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Construit le widget (listes vides ; appeler ``populate``).
@@ -191,7 +191,7 @@ class SourceOrderView(QWidget):
 
         actions_row = QHBoxLayout()
         refresh_btn = QPushButton(_REFRESH_LABEL, self)
-        refresh_btn.clicked.connect(self.refreshRequested.emit)
+        refresh_btn.clicked.connect(self.refresh_requested.emit)
         reinclude_all_btn = QPushButton(_REINCLUDE_ALL_LABEL, self)
         reinclude_all_btn.clicked.connect(self.reinclude_all)
         actions_row.addWidget(refresh_btn)

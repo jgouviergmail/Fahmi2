@@ -172,13 +172,7 @@ class GenerationSettingsView(QDialog):
         self._browse_btn = QPushButton("Parcourir…", self)
         self._browse_btn.clicked.connect(self._browse_input_folder)
 
-        self._youtube_urls_input = QTextEdit(self)
-        self._youtube_urls_input.setPlaceholderText(_YOUTUBE_URLS_PLACEHOLDER)
-        self._youtube_urls_input.setFixedHeight(_YOUTUBE_URLS_HEIGHT_PX)
-        self._youtube_urls_input.setAcceptRichText(False)
-
-        self._source_order_view = SourceOrderView(self)
-        self._source_order_view.refreshRequested.connect(self._refresh_source_order)
+        self._build_source_fields()
 
         self._source_lang_combo = QComboBox(self)
         for lang in Language:
@@ -242,6 +236,16 @@ class GenerationSettingsView(QDialog):
         for fmt in ExportFormat:
             if fmt in GENERATION_EXPORT_FORMATS:
                 self._export_checks[fmt] = QCheckBox(EXPORT_LABELS[fmt], self)
+
+    def _build_source_fields(self) -> None:
+        """Instancie les widgets de saisie des sources (URLs + ordre/exclusion)."""
+        self._youtube_urls_input = QTextEdit(self)
+        self._youtube_urls_input.setPlaceholderText(_YOUTUBE_URLS_PLACEHOLDER)
+        self._youtube_urls_input.setFixedHeight(_YOUTUBE_URLS_HEIGHT_PX)
+        self._youtube_urls_input.setAcceptRichText(False)
+
+        self._source_order_view = SourceOrderView(self)
+        self._source_order_view.refresh_requested.connect(self._refresh_source_order)
 
     # ------------------------------------------------------------------- pages
 

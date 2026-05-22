@@ -188,7 +188,12 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
   `GenerationSettings.reformulate_documents` (défaut `True`) : si désactivé, la
   phase 3 fait un **pass-through** (le document est inséré tel quel, coût 0) au
   lieu de reformuler. Le `CostEstimator` raisonne en `SourceWeight` (durée audio
-  **ou** tokens texte, drapeau `reformulated`).
+  **ou** tokens texte, drapeau `reformulated`). **Ordre & exclusion** :
+  `source_order` (clés ordonnées des incluses) + `excluded_sources` (clés exclues)
+  sont réconciliés au scan par la fonction pure `reconcile_source_order` (partagée
+  `build_input_sources` ↔ widget UI `SourceOrderView` double liste) ; clés stables
+  = `InputSource.order_key()` (nom de fichier / URL) ; les clés obsolètes sont
+  ignorées, les nouvelles ajoutées en fin.
 - **Checkpoint / reprise après erreur** : un Run garde le même `RunId` du début à
   la fin. `RunOrchestrator.resume_or_create_run(project)` reprend le dernier Run
   s'il est `FAILED`/`PAUSED`/`RUNNING`-orphelin (les phases `SUCCEEDED` seront

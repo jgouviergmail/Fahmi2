@@ -30,6 +30,8 @@ from PySide6.QtWidgets import (
 )
 
 from fahmi2.app.hardware_probe import HardwareInfo
+from fahmi2.app.input_sources import collect_available_sources_from
+from fahmi2.core.errors.exceptions import Fahmi2Error
 from fahmi2.domain.enums import (
     ExportFormat,
     Language,
@@ -44,9 +46,11 @@ from fahmi2.domain.generation import (
     GenerationSettings,
     ParallelismConfig,
 )
+from fahmi2.domain.source import InputSource
 from fahmi2.ui.pedagogy_labels import EXPORT_LABELS
 from fahmi2.ui.widgets.phase_configs_widget import PhaseConfigsWidget
 from fahmi2.ui.widgets.settings_view import SettingsView
+from fahmi2.ui.widgets.source_order_view import SourceOrderView
 
 _DIALOG_WIDTH_PX = 760
 _DIALOG_HEIGHT_PX = 620
@@ -173,6 +177,9 @@ class GenerationSettingsView(QDialog):
         self._youtube_urls_input.setFixedHeight(_YOUTUBE_URLS_HEIGHT_PX)
         self._youtube_urls_input.setAcceptRichText(False)
 
+        self._source_order_view = SourceOrderView(self)
+        self._source_order_view.refreshRequested.connect(self._refresh_source_order)
+
         self._source_lang_combo = QComboBox(self)
         for lang in Language:
             self._source_lang_combo.addItem(lang.value, lang)
@@ -252,6 +259,7 @@ class GenerationSettingsView(QDialog):
         folder_row.addWidget(self._browse_btn)
         form.addRow(_FOLDER_LABEL, folder_row)
         form.addRow(_YOUTUBE_URLS_LABEL, self._youtube_urls_input)
+        form.addRow(self._source_order_view)
         form.addRow("Langue source :", self._source_lang_combo)
         langs_row = QHBoxLayout()
         for cb in self._output_langs.values():
@@ -342,10 +350,59 @@ class GenerationSettingsView(QDialog):
     # ----------------------------------------------------------------- actions
 
     def _browse_input_folder(self) -> None:
-        """Ouvre un sélecteur de dossier des vidéos."""
-        folder = QFileDialog.getExistingDirectory(self, "Dossier des vidéos")
+        """Ouvre un sélecteur de dossier d'entrée et rafraîchit la liste."""
+        folder = QFileDialog.getExistingDirectory(self, "Dossier d'entrée")
         if folder:
             self._input_folder_input.setText(folder)
+            self._refresh_source_order()
+
+    def _parse_youtube_urls(self) -> tuple[str, ...]:
+        """Extrait les liens YouTube saisis (une URL non vide par ligne)."""
+        return tuple(
+            line.strip()
+            for line in self._youtube_urls_input.toPlainText().splitlines()
+            if line.strip()
+        )
+
+    def _scan_available(self) -> list[InputSource]:
+        """Liste les sources disponibles depuis les champs courants (best-effort).
+
+        Returns:
+            Les ``InputSource`` du dossier + URLs ; liste vide si le dossier est
+            inaccessible et qu'aucune URL n'est saisie.
+        """
+        folder_text = self._input_folder_input.text().strip()
+        urls = self._parse_youtube_urls()
+        folder = Path(folder_text) if folder_text else Path("__inexistant__")
+        try:
+            return collect_available_sources_from(folder, urls)
+        except Fahmi2Error:
+            return []
+
+    def _refresh_source_order(
+        self,
+        source_order: tuple[str, ...] | None = None,
+        excluded: tuple[str, ...] | None = None,
+    ) -> None:
+        """Re-scanne les sources et repeuple la double liste.
+
+        Args:
+            source_order: État d'ordre à appliquer (``None`` = état courant du
+                widget — utilisé par le bouton « Rafraîchir » qui conserve les
+                exclusions).
+            excluded: État d'exclusion à appliquer (``None`` = état courant).
+        """
+        order = (
+            source_order
+            if source_order is not None
+            else self._source_order_view.source_order()
+        )
+        excl = (
+            excluded
+            if excluded is not None
+            else self._source_order_view.excluded_sources()
+        )
+        self._source_order_view.populate(self._scan_available(), order, excl)
 
     def _on_stt_changed(self, index: int) -> None:
         """Bloque ``faster_whisper_local`` sans GPU CUDA.
@@ -399,6 +456,9 @@ class GenerationSettingsView(QDialog):
         self._phase_configs_widget.set_phase_configs(generation.phases_config)
         for fmt, cb in self._export_checks.items():
             cb.setChecked(fmt in generation.export_formats)
+        self._refresh_source_order(
+            generation.source_order, generation.excluded_sources
+        )
 
     def _on_accept(self) -> None:
         """Valide la saisie et construit le ``GenerationSettings``."""
@@ -424,11 +484,7 @@ class GenerationSettingsView(QDialog):
         export_formats = frozenset(
             fmt for fmt, cb in self._export_checks.items() if cb.isChecked()
         )
-        youtube_urls = tuple(
-            line.strip()
-            for line in self._youtube_urls_input.toPlainText().splitlines()
-            if line.strip()
-        )
+        youtube_urls = self._parse_youtube_urls()
         self._result = GenerationSettings(
             input_folder=Path(input_folder_text),
             source_language=source_lang,
@@ -447,5 +503,7 @@ class GenerationSettingsView(QDialog):
             export_formats=export_formats,
             reformulate_documents=self._reformulate_documents_checkbox.isChecked(),
             youtube_urls=youtube_urls,
+            source_order=self._source_order_view.source_order(),
+            excluded_sources=self._source_order_view.excluded_sources(),
         )
         self.accept()

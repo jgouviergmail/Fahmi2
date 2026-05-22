@@ -27,7 +27,7 @@ def test_run_minimal(make_generation_settings: Any) -> None:
     assert run.finished_at is None
     assert run.status is RunStatus.CREATED
     assert run.cost_usd == 0.0
-    assert run.videos == ()
+    assert run.sources == ()
     assert run.phase_executions == {}
 
 

@@ -1,7 +1,7 @@
 """ViewModel générique d'une matrice de coût (présentationnel, sans Qt).
 
 Structure 2D ``lignes × colonnes`` où chaque cellule porte un statut et un coût
-optionnel. Produit par les viewmodels génération (vidéos × phases) et pédagogie
+optionnel. Produit par les viewmodels génération (sources × phases) et pédagogie
 (supports × langues) ; consommé par ``CostMatrixView``. Les totaux (par ligne, par
 colonne, général) sont calculés ici (somme des coûts, ``None`` comptant pour 0).
 """

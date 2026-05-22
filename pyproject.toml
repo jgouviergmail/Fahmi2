@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fahmi2"
-version = "1.0.0"
+version = "1.1.0"
 description = "Local desktop app converting pedagogical video lectures to consolidated Markdown documents."
 authors = [{ name = "Fahmi2 contributors" }]
 readme = "README.md"
@@ -26,6 +26,8 @@ dependencies = [
   "genanki>=0.13,<1",
   "markdown>=3.5,<4",
   "xhtml2pdf>=0.2.17,<0.3",
+  "pypdf>=4,<8",
+  "python-docx>=1.1,<2",
 ]
 
 [project.optional-dependencies]
@@ -37,6 +39,9 @@ dev = [
   "ruff>=0.6",
   "mypy>=1.11",
   "pre-commit>=3.8",
+  # yt-dlp : binaire bundlé au build en prod (cf. packaging/), installé via pip
+  # en dev pour que l'ingestion YouTube fonctionne (yt-dlp.exe dans le venv).
+  "yt-dlp>=2024.0",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -96,5 +101,6 @@ module = [
   "markdown.*",
   "xhtml2pdf.*",
   "reportlab.*",
+  "docx.*",
 ]
 ignore_missing_imports = true

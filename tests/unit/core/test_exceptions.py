@@ -6,6 +6,7 @@ from fahmi2.core.errors.exceptions import (
     ConfigError,
     Fahmi2Error,
     FFmpegError,
+    IngestionError,
     LLMError,
     PausedError,
     PermanentError,
@@ -46,8 +47,18 @@ def test_transient_and_permanent_are_subclasses() -> None:
 
 
 def test_domain_specific_errors_inherit_from_base() -> None:
-    for cls in (STTError, LLMError, FFmpegError, StorageError, ConfigError):
+    for cls in (STTError, LLMError, FFmpegError, IngestionError, StorageError, ConfigError):
         assert issubclass(cls, Fahmi2Error)
+
+
+def test_ingestion_error_carries_code() -> None:
+    err = IngestionError(
+        code="INGESTION.UNSUPPORTED_SOURCE",
+        user_message="Type de source non pris en charge.",
+        severity=Severity.ERROR,
+    )
+    assert isinstance(err, Fahmi2Error)
+    assert err.code == "INGESTION.UNSUPPORTED_SOURCE"
 
 
 def test_budget_exceeded_is_distinct() -> None:

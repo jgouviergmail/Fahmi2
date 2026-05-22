@@ -11,7 +11,7 @@ from fahmi2.domain.glossary import (
     parse_glossary_master_terms,
     render_glossary_markdown_table,
 )
-from fahmi2.domain.ids import VideoId
+from fahmi2.domain.ids import SourceId
 
 
 def test_term_minimal() -> None:
@@ -24,7 +24,7 @@ def test_term_minimal() -> None:
 
 
 def test_term_with_sources_and_aliases() -> None:
-    vid = VideoId.new()
+    vid = SourceId.new()
     t = Term(
         term="PIB",
         definition="produit intérieur brut",
@@ -88,7 +88,7 @@ def test_glossary_is_iterable_multiple_times() -> None:
 
 
 def test_parse_master_terms_reads_all_fields() -> None:
-    vid = VideoId.new()
+    vid = SourceId.new()
     payload = {
         "terms": [
             {

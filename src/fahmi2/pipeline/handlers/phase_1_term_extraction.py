@@ -2,7 +2,7 @@
 
 Lit la transcription brute persistée par la phase 0, appelle le LLM pour
 extraire les termes techniques candidats avec définition contextuelle, et
-persiste le résultat JSON dans ``workspace/candidates/{video_id}.json``.
+persiste le résultat JSON dans ``workspace/candidates/{source_id}.json``.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import PhaseId
 from fahmi2.domain.phase import PhaseExecution
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.source import SourceExecution
 from fahmi2.pipeline.handlers._base import (
     build_succeeded_phase,
     invoke_llm,
@@ -31,7 +31,7 @@ _TEMPLATE_NAME = "phase_1_term_extraction"
 
 
 class Phase1TermExtractionHandler(PhaseHandler):
-    """Phase 1 — extraction des termes candidats par vidéo."""
+    """Phase 1 — extraction des termes candidats par source."""
 
     @property
     def phase_id(self) -> PhaseId:
@@ -39,39 +39,40 @@ class Phase1TermExtractionHandler(PhaseHandler):
         return PhaseId.TERM_EXTRACTION
 
     @property
-    def is_per_video(self) -> bool:
-        """Phase par vidéo."""
+    def is_per_source(self) -> bool:
+        """Phase par source."""
         return True
 
     def max_parallel_workers(self, ctx: PhaseContext) -> int:
-        """Parallélise les vidéos via le pool LLM configuré."""
+        """Parallélise les sources via le pool LLM configuré."""
         return ctx.settings.parallelism.llm_workers
 
     def execute(
         self,
         ctx: PhaseContext,
         *,
-        video: VideoExecution | None,
+        source: SourceExecution | None,
     ) -> PhaseExecution:
-        """Extrait les termes candidats pour ``video``.
+        """Extrait les termes candidats pour ``source``.
 
         Args:
             ctx: Contexte d'exécution.
-            video: Vidéo à traiter (obligatoire).
+            source: Source à traiter (obligatoire).
 
         Returns:
-            ``PhaseExecution`` ``SUCCEEDED`` pointant vers ``candidates/{vid}.json``.
+            ``PhaseExecution`` ``SUCCEEDED`` pointant vers
+            ``candidates/{source_id}.json``.
 
         Raises:
-            ValueError: Si ``video`` est ``None``.
+            ValueError: Si ``source`` est ``None``.
             StorageError: Si la transcription n'est pas présente sur disque.
             LLMError: Si le LLM renvoie un JSON invalide.
         """
-        if video is None:
-            raise ValueError("Phase1TermExtractionHandler requires a VideoExecution")
+        if source is None:
+            raise ValueError("Phase1TermExtractionHandler requires a SourceExecution")
 
         started_at = utc_now()
-        transcription_text = _load_transcription_text(ctx.workspace, video.video_id.value)
+        transcription_text = _load_transcription_text(ctx.workspace, source.source_id.value)
         prompt = ctx.prompts.render(
             _TEMPLATE_NAME,
             source_language_label=language_label(ctx.settings.source_language),
@@ -87,7 +88,7 @@ class Phase1TermExtractionHandler(PhaseHandler):
         )
         payload = parse_json_response(response.content, phase_id=self.phase_id)
         candidates_path = (
-            ctx.workspace / _CANDIDATES_SUBDIR / f"{video.video_id.value}.json"
+            ctx.workspace / _CANDIDATES_SUBDIR / f"{source.source_id.value}.json"
         )
         ctx.artifacts.write_json_atomic(candidates_path, payload)
         return build_succeeded_phase(
@@ -98,12 +99,12 @@ class Phase1TermExtractionHandler(PhaseHandler):
         )
 
 
-def _load_transcription_text(workspace: Path, video_id: str) -> str:
+def _load_transcription_text(workspace: Path, source_id: str) -> str:
     """Charge le texte complet d'une transcription persistée.
 
     Args:
         workspace: Dossier de travail du run.
-        video_id: Identifiant ULID de la vidéo.
+        source_id: Identifiant ULID de la source.
 
     Returns:
         Texte concaténé de tous les segments.
@@ -111,12 +112,12 @@ def _load_transcription_text(workspace: Path, video_id: str) -> str:
     Raises:
         StorageError: Si le fichier n'existe pas ou est invalide.
     """
-    transcript_path = workspace / _TRANSCRIPTS_SUBDIR / f"{video_id}.json"
+    transcript_path = workspace / _TRANSCRIPTS_SUBDIR / f"{source_id}.json"
     if not transcript_path.exists():
         raise StorageError(
             code="STORAGE.TRANSCRIPT_MISSING",
             user_message=(
-                f"La transcription pour {video_id} est introuvable. "
+                f"La transcription pour {source_id} est introuvable. "
                 "Relance la phase STT."
             ),
             severity=Severity.ERROR,

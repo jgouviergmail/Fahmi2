@@ -30,6 +30,11 @@ from PySide6.QtWidgets import (
 )
 
 from fahmi2.app.hardware_probe import HardwareInfo
+from fahmi2.app.input_sources import (
+    collect_available_sources_from,
+    reconcile_source_order,
+)
+from fahmi2.core.errors.exceptions import Fahmi2Error
 from fahmi2.domain.enums import (
     ExportFormat,
     Language,
@@ -44,9 +49,11 @@ from fahmi2.domain.generation import (
     GenerationSettings,
     ParallelismConfig,
 )
+from fahmi2.domain.source import InputSource
 from fahmi2.ui.pedagogy_labels import EXPORT_LABELS
 from fahmi2.ui.widgets.phase_configs_widget import PhaseConfigsWidget
 from fahmi2.ui.widgets.settings_view import SettingsView
+from fahmi2.ui.widgets.source_order_view import SourceOrderView
 
 _DIALOG_WIDTH_PX = 760
 _DIALOG_HEIGHT_PX = 620
@@ -76,8 +83,24 @@ _DIRECTIVES_PLACEHOLDER = (
 
 _KEEP_AUDIO_LABEL = "Conserver les fichiers audio extraits"
 _KEEP_AUDIO_TOOLTIP = (
-    "Si coché, les fichiers .wav extraits des vidéos ne sont pas supprimés "
+    "Si coché, les fichiers .wav extraits des médias (vidéo/audio/YouTube) ne "
+    "sont pas supprimés "
     "après la transcription (utile pour réécouter / déboguer)."
+)
+
+_REFORMULATE_DOCS_LABEL = "Reformuler les documents texte"
+_REFORMULATE_DOCS_TOOLTIP = (
+    "Si coché (défaut), les documents (PDF, Word, Markdown, texte) passent par "
+    "la reformulation comme une transcription orale. Décoché : le texte est "
+    "inséré tel quel (utile pour un cours déjà bien rédigé)."
+)
+
+_FOLDER_LABEL = "Dossier d'entrée :"
+_YOUTUBE_URLS_LABEL = "Liens YouTube :"
+_YOUTUBE_URLS_HEIGHT_PX = 70
+_YOUTUBE_URLS_PLACEHOLDER = (
+    "Un lien YouTube par ligne (vidéos unitaires).\n"
+    "Ex : https://youtu.be/XXXXXXXXXXX"
 )
 
 
@@ -153,6 +176,8 @@ class GenerationSettingsView(QDialog):
         self._browse_btn = QPushButton("Parcourir…", self)
         self._browse_btn.clicked.connect(self._browse_input_folder)
 
+        self._build_source_fields()
+
         self._source_lang_combo = QComboBox(self)
         for lang in Language:
             self._source_lang_combo.addItem(lang.value, lang)
@@ -179,6 +204,10 @@ class GenerationSettingsView(QDialog):
 
         self._keep_audio_checkbox = QCheckBox(_KEEP_AUDIO_LABEL, self)
         self._keep_audio_checkbox.setToolTip(_KEEP_AUDIO_TOOLTIP)
+
+        self._reformulate_documents_checkbox = QCheckBox(_REFORMULATE_DOCS_LABEL, self)
+        self._reformulate_documents_checkbox.setToolTip(_REFORMULATE_DOCS_TOOLTIP)
+        self._reformulate_documents_checkbox.setChecked(True)
 
         self._llm_combo = QComboBox(self)
         for model in LLMModel:
@@ -212,6 +241,16 @@ class GenerationSettingsView(QDialog):
             if fmt in GENERATION_EXPORT_FORMATS:
                 self._export_checks[fmt] = QCheckBox(EXPORT_LABELS[fmt], self)
 
+    def _build_source_fields(self) -> None:
+        """Instancie les widgets de saisie des sources (URLs + ordre/exclusion)."""
+        self._youtube_urls_input = QTextEdit(self)
+        self._youtube_urls_input.setPlaceholderText(_YOUTUBE_URLS_PLACEHOLDER)
+        self._youtube_urls_input.setFixedHeight(_YOUTUBE_URLS_HEIGHT_PX)
+        self._youtube_urls_input.setAcceptRichText(False)
+
+        self._source_order_view = SourceOrderView(self)
+        self._source_order_view.refresh_requested.connect(self._refresh_source_order)
+
     # ------------------------------------------------------------------- pages
 
     def _build_input_page(self) -> QWidget:
@@ -226,7 +265,9 @@ class GenerationSettingsView(QDialog):
         folder_row = QHBoxLayout()
         folder_row.addWidget(self._input_folder_input)
         folder_row.addWidget(self._browse_btn)
-        form.addRow("Dossier des vidéos :", folder_row)
+        form.addRow(_FOLDER_LABEL, folder_row)
+        form.addRow(_YOUTUBE_URLS_LABEL, self._youtube_urls_input)
+        form.addRow(self._source_order_view)
         form.addRow("Langue source :", self._source_lang_combo)
         langs_row = QHBoxLayout()
         for cb in self._output_langs.values():
@@ -248,6 +289,7 @@ class GenerationSettingsView(QDialog):
         form = QFormLayout()
         form.addRow("Style :", self._style_combo)
         form.addRow("Directives stylistiques :", self._style_directives_input)
+        form.addRow(self._reformulate_documents_checkbox)
         outer.addLayout(form)
         outer.addStretch(1)
         return page
@@ -316,10 +358,75 @@ class GenerationSettingsView(QDialog):
     # ----------------------------------------------------------------- actions
 
     def _browse_input_folder(self) -> None:
-        """Ouvre un sélecteur de dossier des vidéos."""
-        folder = QFileDialog.getExistingDirectory(self, "Dossier des vidéos")
+        """Ouvre un sélecteur de dossier d'entrée et rafraîchit la liste."""
+        folder = QFileDialog.getExistingDirectory(self, "Dossier d'entrée")
         if folder:
             self._input_folder_input.setText(folder)
+            self._refresh_source_order()
+
+    def _parse_youtube_urls(self) -> tuple[str, ...]:
+        """Extrait les liens YouTube saisis (une URL non vide par ligne, dédupliquée).
+
+        Returns:
+            Les URLs non vides, sans doublon, dans l'ordre de saisie
+            (``dict.fromkeys`` préserve l'ordre d'insertion).
+        """
+        lines = (
+            line.strip()
+            for line in self._youtube_urls_input.toPlainText().splitlines()
+        )
+        return tuple(dict.fromkeys(line for line in lines if line))
+
+    def _scan_available(self) -> list[InputSource]:
+        """Liste les sources disponibles depuis les champs courants (best-effort).
+
+        Returns:
+            Les ``InputSource`` du dossier + URLs ; liste vide si le dossier est
+            inaccessible et qu'aucune URL n'est saisie. Tant qu'aucun dossier
+            n'est sélectionné, seules les URLs YouTube sont collectées.
+        """
+        folder_text = self._input_folder_input.text().strip()
+        folder = Path(folder_text) if folder_text else None
+        try:
+            return collect_available_sources_from(folder, self._parse_youtube_urls())
+        except Fahmi2Error:
+            return []
+
+    def _refresh_source_order(
+        self,
+        source_order: tuple[str, ...] | None = None,
+        excluded: tuple[str, ...] | None = None,
+    ) -> None:
+        """Re-scanne les sources, réconcilie l'ordre/exclusion et repeuple la liste.
+
+        La réconciliation (fonction pure ``reconcile_source_order``) est faite ici
+        : le widget ``SourceOrderView`` ne reçoit que des clés déjà résolues.
+
+        Args:
+            source_order: État d'ordre à appliquer (``None`` = état courant du
+                widget — utilisé par le bouton « Rafraîchir » qui conserve les
+                exclusions).
+            excluded: État d'exclusion à appliquer (``None`` = état courant).
+        """
+        order = (
+            source_order
+            if source_order is not None
+            else self._source_order_view.source_order()
+        )
+        excl = (
+            excluded
+            if excluded is not None
+            else self._source_order_view.excluded_sources()
+        )
+        available = self._scan_available()
+        available_keys = [source.order_key() for source in available]
+        included, excluded_keys = reconcile_source_order(available_keys, order, excl)
+        self._source_order_view.populate(
+            available,
+            included=included,
+            excluded=excluded_keys,
+            known=set(order) | set(excl),
+        )
 
     def _on_stt_changed(self, index: int) -> None:
         """Bloque ``faster_whisper_local`` sans GPU CUDA.
@@ -349,6 +456,7 @@ class GenerationSettingsView(QDialog):
             generation: Réglages à éditer.
         """
         self._input_folder_input.setText(str(generation.input_folder))
+        self._youtube_urls_input.setPlainText("\n".join(generation.youtube_urls))
         src_idx = self._source_lang_combo.findData(generation.source_language)
         if src_idx >= 0:
             self._source_lang_combo.setCurrentIndex(src_idx)
@@ -358,6 +466,7 @@ class GenerationSettingsView(QDialog):
         if style_idx >= 0:
             self._style_combo.setCurrentIndex(style_idx)
         self._style_directives_input.setPlainText(generation.style_directives)
+        self._reformulate_documents_checkbox.setChecked(generation.reformulate_documents)
         stt_idx = self._stt_combo.findData(generation.stt_provider)
         if stt_idx >= 0:
             self._stt_combo.setCurrentIndex(stt_idx)
@@ -371,6 +480,9 @@ class GenerationSettingsView(QDialog):
         self._phase_configs_widget.set_phase_configs(generation.phases_config)
         for fmt, cb in self._export_checks.items():
             cb.setChecked(fmt in generation.export_formats)
+        self._refresh_source_order(
+            generation.source_order, generation.excluded_sources
+        )
 
     def _on_accept(self) -> None:
         """Valide la saisie et construit le ``GenerationSettings``."""
@@ -378,8 +490,9 @@ class GenerationSettingsView(QDialog):
         if not input_folder_text:
             QMessageBox.warning(
                 self,
-                "Dossier des vidéos manquant",
-                "Veuillez sélectionner le dossier contenant les vidéos.",
+                "Dossier d'entrée manquant",
+                "Veuillez sélectionner le dossier d'entrée (vidéos, audios, "
+                "documents).",
             )
             return
         source_lang: Language = self._source_lang_combo.currentData()
@@ -396,6 +509,7 @@ class GenerationSettingsView(QDialog):
         export_formats = frozenset(
             fmt for fmt, cb in self._export_checks.items() if cb.isChecked()
         )
+        youtube_urls = self._parse_youtube_urls()
         self._result = GenerationSettings(
             input_folder=Path(input_folder_text),
             source_language=source_lang,
@@ -412,5 +526,9 @@ class GenerationSettingsView(QDialog):
             ),
             delete_audio_after_stt=not self._keep_audio_checkbox.isChecked(),
             export_formats=export_formats,
+            reformulate_documents=self._reformulate_documents_checkbox.isChecked(),
+            youtube_urls=youtube_urls,
+            source_order=self._source_order_view.source_order(),
+            excluded_sources=self._source_order_view.excluded_sources(),
         )
         self.accept()

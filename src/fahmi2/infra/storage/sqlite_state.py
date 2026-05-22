@@ -39,6 +39,7 @@ from fahmi2.domain.enums import (
     PhaseStatus,
     ReasoningEffort,
     RunStatus,
+    SourceKind,
     SttProvider,
     StylePreset,
     SupportDensity,
@@ -46,12 +47,12 @@ from fahmi2.domain.enums import (
     TargetAudience,
 )
 from fahmi2.domain.generation import GenerationSettings, ParallelismConfig
-from fahmi2.domain.ids import ProjectId, RunId, VideoId
+from fahmi2.domain.ids import ProjectId, RunId, SourceId
 from fahmi2.domain.pedagogy import DEFAULT_PEDAGOGY_LLM_WORKERS, PedagogySettings
 from fahmi2.domain.phase import PhaseConfig, PhaseExecution
 from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.source import InputSource, SourceExecution
 
 SCHEMA_VERSION = 1
 
@@ -72,18 +73,18 @@ _BLOB_KEY_PEDAGOGY = "pedagogy"
 
 @dataclass(frozen=True)
 class PhaseCell:
-    """Statut + coût d'une exécution de phase pour une ``(phase, vidéo)``.
+    """Statut + coût d'une exécution de phase pour une ``(phase, source)``.
 
     Attributes:
         phase_id: Phase.
-        video_id: Vidéo (``None`` pour une phase batch).
+        source_id: Source (``None`` pour une phase batch).
         status: Statut.
         cost_usd: Coût en USD.
         retry_count: Nombre de retries.
     """
 
     phase_id: PhaseId
-    video_id: VideoId | None
+    source_id: SourceId | None
     status: PhaseStatus
     cost_usd: float
     retry_count: int
@@ -140,6 +141,10 @@ def _serialize_generation_settings(gen: GenerationSettings) -> dict[str, Any]:
         },
         "delete_audio_after_stt": gen.delete_audio_after_stt,
         "export_formats": sorted(f.value for f in gen.export_formats),
+        "reformulate_documents": gen.reformulate_documents,
+        "youtube_urls": list(gen.youtube_urls),
+        "source_order": list(gen.source_order),
+        "excluded_sources": list(gen.excluded_sources),
     }
 
 
@@ -192,6 +197,10 @@ def _deserialize_generation_settings(payload: dict[str, Any]) -> GenerationSetti
         export_formats=frozenset(
             ExportFormat(f) for f in payload.get("export_formats", [])
         ),
+        reformulate_documents=bool(payload.get("reformulate_documents", True)),
+        youtube_urls=tuple(payload.get("youtube_urls", [])),
+        source_order=tuple(payload.get("source_order", [])),
+        excluded_sources=tuple(payload.get("excluded_sources", [])),
     )
 
 
@@ -550,7 +559,7 @@ class SqliteState:
     def delete_runs_for_project(self, project_id: ProjectId) -> None:
         """Supprime tous les runs d'un projet (sans supprimer le projet).
 
-        Les ``videos`` et ``phase_executions`` liés sont supprimés par cascade
+        Les ``sources`` et ``phase_executions`` liées sont supprimées par cascade
         (``ON DELETE CASCADE``). Utilisé par la « Réinitialisation » de la
         Génération (le projet est conservé, son historique d'exécution effacé).
 
@@ -564,7 +573,7 @@ class SqliteState:
     # --------------------------------------------------------------------- runs
 
     def upsert_run(self, run: Run) -> None:
-        """Insère ou met à jour un Run et ses ``VideoExecution`` associées.
+        """Insère ou met à jour un Run et ses ``SourceExecution`` associées.
 
         Args:
             run: Run à persister.
@@ -592,20 +601,23 @@ class SqliteState:
                 _serialize_run_snapshot(run.settings_snapshot),
             ),
         )
-        for video in run.videos:
+        for src in run.sources:
             conn.execute(
                 """
-                INSERT INTO videos (id, run_id, source_path, detected_language)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO sources (
+                    id, run_id, source_kind, source_location, detected_language
+                ) VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
-                    source_path       = excluded.source_path,
+                    source_kind       = excluded.source_kind,
+                    source_location   = excluded.source_location,
                     detected_language = excluded.detected_language
                 """,
                 (
-                    video.video_id.value,
+                    src.source_id.value,
                     run.id.value,
-                    str(video.source_path),
-                    str(video.detected_language) if video.detected_language else None,
+                    str(src.source.kind),
+                    src.source.location,
+                    str(src.detected_language) if src.detected_language else None,
                 ),
             )
         conn.commit()
@@ -646,44 +658,44 @@ class SqliteState:
         return [self._hydrate_run(self._row_to_run(row)) for row in rows]
 
     def _hydrate_run(self, run: Run) -> Run:
-        """Recharge les ``VideoExecution`` associées à un ``Run`` depuis SQLite.
+        """Recharge les ``SourceExecution`` associées à un ``Run`` depuis SQLite.
 
         Args:
-            run: Run sans vidéos hydratées (sortie directe de ``_row_to_run``).
+            run: Run sans sources hydratées (sortie directe de ``_row_to_run``).
 
         Returns:
-            Un ``Run`` immutable avec ses ``VideoExecution`` rechargées dans
+            Un ``Run`` immutable avec ses ``SourceExecution`` rechargées dans
             l'ordre de persistance.
         """
         rows = self._get_connection().execute(
-            "SELECT id, source_path, detected_language FROM videos "
+            "SELECT id, source_kind, source_location, detected_language FROM sources "
             "WHERE run_id = ? ORDER BY rowid",
             (run.id.value,),
         ).fetchall()
-        videos = tuple(self._row_to_video_execution(row) for row in rows)
-        if not videos:
+        sources = tuple(self._row_to_source_execution(row) for row in rows)
+        if not sources:
             return run
-        return replace(run, videos=videos)
+        return replace(run, sources=sources)
 
     @staticmethod
-    def _row_to_video_execution(row: tuple[Any, ...]) -> VideoExecution:
-        """Construit une ``VideoExecution`` depuis une ligne SQL.
+    def _row_to_source_execution(row: tuple[Any, ...]) -> SourceExecution:
+        """Construit une ``SourceExecution`` depuis une ligne SQL.
 
         Args:
-            row: ``(id, source_path, detected_language)``.
+            row: ``(id, source_kind, source_location, detected_language)``.
 
         Returns:
-            ``VideoExecution`` reconstituée (sans ses phase_executions, qui
+            ``SourceExecution`` reconstituée (sans ses phase_executions, qui
             sont accédées séparément via les méthodes ``get_phase_status`` /
             ``list_phase_executions``).
         """
-        video_id_str, source_path_str, detected_language_str = row
+        source_id_str, kind_str, location_str, detected_language_str = row
         detected_language = (
             Language(detected_language_str) if detected_language_str else None
         )
-        return VideoExecution(
-            video_id=VideoId(value=video_id_str),
-            source_path=Path(source_path_str),
+        return SourceExecution(
+            source_id=SourceId(value=source_id_str),
+            source=InputSource(kind=SourceKind(kind_str), location=location_str),
             detected_language=detected_language,
         )
 
@@ -694,27 +706,27 @@ class SqliteState:
         run_id: RunId,
         phase_execution: PhaseExecution,
         *,
-        video_id: VideoId | None,
+        source_id: SourceId | None,
     ) -> None:
         """Insère ou met à jour une PhaseExecution.
 
         SQLite traite ``NULL`` comme distinct dans les contraintes ``UNIQUE``
-        : un ``ON CONFLICT(run_id, phase_id, video_id)`` ne se déclenche
-        donc jamais pour les phases batch (où ``video_id IS NULL``), ce qui
+        : un ``ON CONFLICT(run_id, phase_id, source_id)`` ne se déclenche
+        donc jamais pour les phases batch (où ``source_id IS NULL``), ce qui
         accumulerait silencieusement plusieurs lignes. On gère explicitement
-        les deux cas : ``ON CONFLICT`` quand ``video_id`` est défini,
+        les deux cas : ``ON CONFLICT`` quand ``source_id`` est défini,
         ``DELETE + INSERT`` quand il est ``NULL``.
 
         Args:
             run_id: Run propriétaire.
             phase_execution: État de la phase.
-            video_id: Vidéo associée (``None`` pour les phases batch 2 & 5).
+            source_id: Source associée (``None`` pour les phases batch 2 & 5).
         """
         conn = self._get_connection()
         params = (
             run_id.value,
             str(phase_execution.phase_id),
-            video_id.value if video_id else None,
+            source_id.value if source_id else None,
             str(phase_execution.status),
             _datetime_to_iso(phase_execution.started_at)
             if phase_execution.started_at
@@ -729,18 +741,18 @@ class SqliteState:
             phase_execution.cost_usd,
             _serialize_error_info(phase_execution.error),
         )
-        if video_id is None:
+        if source_id is None:
             # Phase batch : on garantit l'unicité par (run_id, phase_id, NULL)
             # avec un DELETE explicite, l'INSERT suit toujours.
             conn.execute(
                 "DELETE FROM phase_executions "
-                "WHERE run_id = ? AND phase_id = ? AND video_id IS NULL",
+                "WHERE run_id = ? AND phase_id = ? AND source_id IS NULL",
                 (run_id.value, str(phase_execution.phase_id)),
             )
             conn.execute(
                 """
                 INSERT INTO phase_executions (
-                    run_id, phase_id, video_id, status, started_at, finished_at,
+                    run_id, phase_id, source_id, status, started_at, finished_at,
                     artifact_path, retry_count, cost_usd, error_json
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
@@ -750,10 +762,10 @@ class SqliteState:
             conn.execute(
                 """
                 INSERT INTO phase_executions (
-                    run_id, phase_id, video_id, status, started_at, finished_at,
+                    run_id, phase_id, source_id, status, started_at, finished_at,
                     artifact_path, retry_count, cost_usd, error_json
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(run_id, phase_id, video_id) DO UPDATE SET
+                ON CONFLICT(run_id, phase_id, source_id) DO UPDATE SET
                     status        = excluded.status,
                     started_at    = excluded.started_at,
                     finished_at   = excluded.finished_at,
@@ -771,22 +783,22 @@ class SqliteState:
         run_id: RunId,
         phase_id: PhaseId,
         *,
-        video_id: VideoId | None,
+        source_id: SourceId | None,
     ) -> PhaseStatus | None:
         """Lit le statut d'une PhaseExecution.
 
         Args:
             run_id: Run propriétaire.
             phase_id: Phase.
-            video_id: Vidéo associée ou ``None`` (phase batch).
+            source_id: Source associée ou ``None`` (phase batch).
 
         Returns:
             Le ``PhaseStatus``, ou ``None`` si l'entrée n'existe pas.
         """
         row = self._get_connection().execute(
             "SELECT status FROM phase_executions "
-            "WHERE run_id = ? AND phase_id = ? AND video_id IS ?",
-            (run_id.value, str(phase_id), video_id.value if video_id else None),
+            "WHERE run_id = ? AND phase_id = ? AND source_id IS ?",
+            (run_id.value, str(phase_id), source_id.value if source_id else None),
         ).fetchone()
         if row is None:
             return None
@@ -810,23 +822,23 @@ class SqliteState:
         return [self._row_to_phase_execution(row) for row in rows]
 
     def list_phase_cells(self, run_id: RunId) -> list[PhaseCell]:
-        """Liste le statut + coût par ``(phase, vidéo)`` d'un Run.
+        """Liste le statut + coût par ``(phase, source)`` d'un Run.
 
         Args:
             run_id: Run propriétaire.
 
         Returns:
-            Une ``PhaseCell`` par exécution (``video_id`` ``None`` = phase batch).
+            Une ``PhaseCell`` par exécution (``source_id`` ``None`` = phase batch).
         """
         rows = self._get_connection().execute(
-            "SELECT phase_id, video_id, status, cost_usd, retry_count "
+            "SELECT phase_id, source_id, status, cost_usd, retry_count "
             "FROM phase_executions WHERE run_id = ? ORDER BY id",
             (run_id.value,),
         ).fetchall()
         return [
             PhaseCell(
                 phase_id=PhaseId(row[0]),
-                video_id=VideoId(value=row[1]) if row[1] else None,
+                source_id=SourceId(value=row[1]) if row[1] else None,
                 status=PhaseStatus(row[2]),
                 cost_usd=row[3],
                 retry_count=row[4],
@@ -853,6 +865,7 @@ class SqliteState:
 
     def _init_database(self) -> None:
         conn = self._get_connection()
+        self._migrate_videos_to_sources(conn)
         ddl = self._load_schema_ddl()
         conn.executescript(ddl)
         self._apply_soft_migrations(conn)
@@ -864,6 +877,42 @@ class SqliteState:
                 "INSERT INTO meta (key, value) VALUES (?, ?)",
                 (_META_KEY_SCHEMA_VERSION, str(SCHEMA_VERSION)),
             )
+
+    @staticmethod
+    def _migrate_videos_to_sources(conn: sqlite3.Connection) -> None:
+        """Migre l'ancien schéma (table ``videos`` / colonne ``video_id``) vers
+        ``sources`` / ``source_id``. Idempotente : ne fait rien si déjà migré.
+
+        Doit être appelée **avant** le chargement du DDL (qui crée ``sources``
+        en ``IF NOT EXISTS``), sinon le renommage de table entrerait en conflit
+        avec une table ``sources`` vide fraîchement créée.
+
+        Args:
+            conn: Connexion SQLite ouverte sur la DB.
+        """
+        tables = {
+            r[0]
+            for r in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            )
+        }
+        if "videos" in tables and "sources" not in tables:
+            conn.execute("ALTER TABLE videos RENAME TO sources")
+            conn.execute(
+                "ALTER TABLE sources RENAME COLUMN source_path TO source_location"
+            )
+            conn.execute(
+                "ALTER TABLE sources ADD COLUMN source_kind TEXT NOT NULL "
+                "DEFAULT 'video'"
+            )
+        pe_cols = {
+            r[1] for r in conn.execute("PRAGMA table_info(phase_executions)")
+        }
+        if "video_id" in pe_cols and "source_id" not in pe_cols:
+            conn.execute(
+                "ALTER TABLE phase_executions RENAME COLUMN video_id TO source_id"
+            )
+        conn.commit()
 
     @staticmethod
     def _apply_soft_migrations(conn: sqlite3.Connection) -> None:
@@ -882,16 +931,16 @@ class SqliteState:
         conn.execute("DROP TABLE IF EXISTS glossary_terms")
 
         # Nettoyage rétroactif : SQLite a permis l'accumulation de doublons sur
-        # les phases batch (video_id NULL) tant que upsert_phase_execution ne
+        # les phases batch (source_id NULL) tant que upsert_phase_execution ne
         # gérait pas explicitement le NULL. On garde uniquement la ligne la
-        # plus récente (id MAX) par (run_id, phase_id) avec video_id NULL.
+        # plus récente (id MAX) par (run_id, phase_id) avec source_id NULL.
         conn.execute(
             """
             DELETE FROM phase_executions
-            WHERE video_id IS NULL
+            WHERE source_id IS NULL
               AND id NOT IN (
                 SELECT MAX(id) FROM phase_executions
-                WHERE video_id IS NULL
+                WHERE source_id IS NULL
                 GROUP BY run_id, phase_id
               )
             """

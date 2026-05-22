@@ -17,8 +17,9 @@ from fahmi2.domain.enums import PhaseId
 from fahmi2.domain.generation import GenerationSettings
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.run import Run
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.source import SourceExecution
 from fahmi2.infra.audio.ffmpeg_extractor import FFmpegExtractor
+from fahmi2.infra.ingestion.dispatcher import IngestionDispatcher
 from fahmi2.infra.llm.interface import LLMProvider
 from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
@@ -43,6 +44,7 @@ class PhaseContext:
         stt_provider: Provider STT à utiliser pour la phase 0.
         llm_provider: Provider LLM utilisé par les phases 1..7.
         ffmpeg: Extracteur ``ffmpeg``.
+        ingestion: Dispatcher d'ingestion (phase 0 : source → transcription).
         retriever: Retriever du glossaire pour les phases 3, 4, 5, 6, 7.
         prompts: Loader de templates de prompts (défauts bundlés + override).
         pause_token: Jeton coopératif pause/cancel.
@@ -58,6 +60,7 @@ class PhaseContext:
     stt_provider: STTProvider
     llm_provider: LLMProvider
     ffmpeg: FFmpegExtractor
+    ingestion: IngestionDispatcher
     retriever: GlossaryRetriever
     prompts: PromptLoader
     pause_token: PauseToken
@@ -74,16 +77,16 @@ class PhaseHandler(ABC):
 
     @property
     @abstractmethod
-    def is_per_video(self) -> bool:
-        """Indique si la phase tourne par vidéo (``True``) ou en batch (``False``)."""
+    def is_per_source(self) -> bool:
+        """Indique si la phase tourne par source (``True``) ou en batch (``False``)."""
 
     def max_parallel_workers(self, ctx: PhaseContext) -> int:
-        """Nombre d'unités per-video à traiter en parallèle pour cette phase.
+        """Nombre d'unités per-source à traiter en parallèle pour cette phase.
 
-        Défaut : ``1`` (séquentiel). Les phases dont les unités per-video sont
+        Défaut : ``1`` (séquentiel). Les phases dont les unités per-source sont
         indépendantes et I/O-bound surchargent cette méthode pour autoriser un
         pool borné (cf. ``GenerationSettings.parallelism``). Ignoré pour les
-        phases batch (``is_per_video`` faux).
+        phases batch (``is_per_source`` faux).
 
         Args:
             ctx: Contexte d'exécution (accès aux réglages).
@@ -99,13 +102,13 @@ class PhaseHandler(ABC):
         self,
         ctx: PhaseContext,
         *,
-        video: VideoExecution | None,
+        source: SourceExecution | None,
     ) -> PhaseExecution:
         """Exécute la phase pour le contexte donné.
 
         Args:
             ctx: Contexte d'exécution.
-            video: Vidéo ciblée (``None`` pour les phases batch).
+            source: Source ciblée (``None`` pour les phases batch).
 
         Returns:
             ``PhaseExecution`` finale avec ``status``, ``artifact_path``,

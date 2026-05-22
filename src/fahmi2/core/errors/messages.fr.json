@@ -49,10 +49,35 @@
     "body": "L'application ne peut pas lire le dossier d'entrée. Vérifie les permissions ou choisis un autre dossier.",
     "actions": []
   },
-  "CONFIG.INPUT_FOLDER_EMPTY": {
-    "title": "Dossier d'entrée vide",
-    "body": "Le dossier d'entrée ne contient aucune vidéo prise en charge (.mp4, .m4v, .mkv, .mov, .webm).",
+  "CONFIG.NO_INPUT_SOURCE": {
+    "title": "Aucune source d'entrée",
+    "body": "Aucune source à traiter : le dossier d'entrée ne contient aucun fichier pris en charge (vidéos : .mp4, .m4v, .mkv, .mov, .webm ; audios : .wav, .mp3, .m4a, .flac, .ogg, .opus, .aac ; documents : .pdf, .docx, .md, .txt), aucun lien YouTube n'a été saisi, ou toutes les sources sont exclues.",
     "actions": []
+  },
+  "INGESTION.UNSUPPORTED_SOURCE": {
+    "title": "Type de source non pris en charge",
+    "body": "Cette source n'est pas reconnue par l'application. Sources acceptées : vidéos, fichiers audio, documents texte (PDF, Word, Markdown, txt) et liens YouTube.",
+    "actions": []
+  },
+  "INGESTION.EMPTY_DOCUMENT": {
+    "title": "Document vide",
+    "body": "Le document fourni ne contient aucun texte exploitable. Vérifie qu'il n'est pas vide, protégé, ou composé uniquement d'images (PDF scanné non reconnu).",
+    "actions": []
+  },
+  "INGESTION.TEXT_EXTRACTION_FAILED": {
+    "title": "Extraction de texte impossible",
+    "body": "Impossible d'extraire le texte de ce document (format non géré ou fichier corrompu). Formats pris en charge : PDF, Word (.docx), Markdown et texte brut.",
+    "actions": [{"label": "Ouvrir les logs", "action": "open_logs"}]
+  },
+  "INGESTION.YTDLP_NOT_FOUND": {
+    "title": "yt-dlp introuvable",
+    "body": "Le téléchargement des liens YouTube nécessite l'outil yt-dlp, introuvable sur ce poste. Réinstalle l'application complète, ou définis la variable d'environnement FAHMI2_YTDLP vers un yt-dlp.exe valide.",
+    "actions": [{"label": "Ouvrir les logs", "action": "open_logs"}]
+  },
+  "INGESTION.YOUTUBE_DOWNLOAD_FAILED": {
+    "title": "Échec du téléchargement YouTube",
+    "body": "Le téléchargement de la vidéo YouTube a échoué (vidéo indisponible, privée, géo-bloquée, délai dépassé, ou yt-dlp obsolète). Réessaie, ou mets à jour yt-dlp.",
+    "actions": [{"label": "Ouvrir les logs", "action": "open_logs"}]
   },
   "BUDGET.EXCEEDED": {
     "title": "Plafond de budget atteint",

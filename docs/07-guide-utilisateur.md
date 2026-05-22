@@ -5,9 +5,10 @@ de 10 minutes.
 
 ## 1. Qu'est-ce que Fahmi2 ?
 
-Fahmi2 transforme automatiquement vos vidéos de cours (MP4) en documents
-écrits structurés en Markdown, avec un glossaire et un document consolidé,
-dans la langue de votre choix (FR ou EN).
+Fahmi2 transforme automatiquement vos cours — **vidéos, fichiers audio, liens
+YouTube ou documents texte** (PDF, Word, Markdown, txt) — en documents écrits
+structurés en Markdown, avec un glossaire et un document consolidé, dans la
+langue de votre choix (FR ou EN).
 
 L'application tourne **entièrement sur votre poste** : pas de serveur, pas
 de cloud sauf si vous choisissez explicitement OpenAI Whisper cloud ou
@@ -59,14 +60,14 @@ configurer la génération (vue à 6 catégories) :
 
 | Catégorie | Champs |
 |-----------|--------|
-| **Entrée & langues** | Dossier des vidéos · Langue source · Langues de sortie |
+| **Entrée & langues** | Dossier d'entrée (vidéos/audios/documents) · Liens YouTube · Ordre & exclusion des sources · Langue source · Langues de sortie |
 | **Style** | Style (`décontracté`/`standard`/`professionnel`/`académique`) · Directives libres |
 | **Transcription** | Provider STT (`openai_cloud` sans GPU, sinon `faster_whisper_local`) · *Transcriptions en parallèle* (cloud) |
 | **Modèle & coût** | Modèle LLM (`deepseek-v4-flash` pour démarrer) · Plafond budget · *Appels LLM en parallèle* |
 | **Phases** | Thinking, effort, température, retries par phase LLM (avancé) |
 | **Export** | Formats d'export proposés : Markdown / PDF / HTML (aucun par défaut) |
 
-Validez : l'aperçu des vidéos détectées s'affiche dans le cockpit.
+Validez : l'aperçu des sources détectées s'affiche dans le cockpit.
 
 ## 5. Lancer le traitement
 

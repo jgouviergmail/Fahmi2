@@ -73,6 +73,10 @@ class FFmpegError(Fahmi2Error):
     """Erreur d'extraction audio via ffmpeg."""
 
 
+class IngestionError(Fahmi2Error):
+    """Erreur survenue pendant l'ingestion d'une source (phase 0)."""
+
+
 class StorageError(Fahmi2Error):
     """Erreur de stockage (SQLite, FS, secrets)."""
 

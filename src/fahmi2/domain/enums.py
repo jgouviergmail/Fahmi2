@@ -46,13 +46,22 @@ class RunStatus(StrEnum):
 
 
 class PhaseStatus(StrEnum):
-    """État d'exécution d'une phase (pour une vidéo ou pour le batch)."""
+    """État d'exécution d'une phase (pour une source ou pour le batch)."""
 
     PENDING = "pending"
     RUNNING = "running"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
     SKIPPED = "skipped"
+
+
+class SourceKind(StrEnum):
+    """Origine d'une source d'entrée de la génération."""
+
+    VIDEO = "video"
+    AUDIO = "audio"
+    DOCUMENT = "document"
+    YOUTUBE = "youtube"
 
 
 class SttProvider(StrEnum):

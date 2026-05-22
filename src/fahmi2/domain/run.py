@@ -9,14 +9,14 @@ from fahmi2.domain.enums import PhaseId, RunStatus
 from fahmi2.domain.generation import GenerationSettings
 from fahmi2.domain.ids import ProjectId, RunId
 from fahmi2.domain.phase import PhaseExecution
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.source import SourceExecution
 
 
 @dataclass(frozen=True)
 class Run:
     """Représente une exécution complète d'un Project.
 
-    Les ``videos`` et ``phase_executions`` sont mis à jour par le pipeline. Le
+    Les ``sources`` et ``phase_executions`` sont mis à jour par le pipeline. Le
     ``settings_snapshot`` est une copie immuable des ``ProjectSettings`` au
     moment du démarrage du run : modifier le ``Project`` après lancement
     n'affecte pas le ``Run`` en cours.
@@ -29,7 +29,7 @@ class Run:
         settings_snapshot: Copie immuable des ``GenerationSettings`` à t0.
         finished_at: Date de fin (None si non terminé).
         cost_usd: Coût cumulé en USD.
-        videos: Tuple immuable des ``VideoExecution``.
+        sources: Tuple immuable des ``SourceExecution``.
         phase_executions: Phases batch (2, 5) au niveau Run.
     """
 
@@ -40,7 +40,7 @@ class Run:
     settings_snapshot: GenerationSettings
     finished_at: datetime | None = None
     cost_usd: float = 0.0
-    videos: tuple[VideoExecution, ...] = ()
+    sources: tuple[SourceExecution, ...] = ()
     phase_executions: dict[PhaseId, PhaseExecution] = field(default_factory=dict)
 
     def with_status(self, status: RunStatus) -> Run:

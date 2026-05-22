@@ -13,6 +13,7 @@ from fahmi2.domain.ids import ProjectId, RunId
 from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
 from fahmi2.infra.audio.ffmpeg_extractor import FFmpegExtractor
+from fahmi2.infra.ingestion.dispatcher import build_default_ingestion_dispatcher
 from fahmi2.infra.llm._fakes import FakeLLMProvider
 from fahmi2.infra.llm.interface import LLMResponse
 from fahmi2.infra.prompts.loader import PromptLoader
@@ -25,19 +26,19 @@ from fahmi2.pipeline.phase_handler import PhaseContext
 
 
 def write_transcription_fixture(
-    workspace: Path, video_id: str, *, text: str = "contenu de test"
+    workspace: Path, source_id: str, *, text: str = "contenu de test"
 ) -> Path:
     """Écrit un fichier transcription JSON minimal pour les tests.
 
     Args:
         workspace: Dossier de travail.
-        video_id: ULID de la vidéo.
+        source_id: ULID de la source.
         text: Texte du segment.
 
     Returns:
         Chemin du fichier écrit.
     """
-    path = workspace / "transcripts" / f"{video_id}.json"
+    path = workspace / "transcripts" / f"{source_id}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "detected_language": "fr",
@@ -53,7 +54,7 @@ def build_phase_context(
     make_generation_settings: Any,
     *,
     llm_response: LLMResponse | None = None,
-    videos: tuple[Any, ...] = (),
+    sources: tuple[Any, ...] = (),
     settings_overrides: dict[str, Any] | None = None,
 ) -> tuple[PhaseContext, Run]:
     """Construit un ``PhaseContext`` prêt à l'usage pour les tests handlers.
@@ -62,7 +63,7 @@ def build_phase_context(
         tmp_path: Dossier temporaire de test.
         make_generation_settings: Factory de ``GenerationSettings``.
         llm_response: Réponse fixe à retourner pour tous les appels LLM.
-        videos: Tuple de ``VideoExecution`` à attacher au Run.
+        sources: Tuple de ``SourceExecution`` à attacher au Run.
         settings_overrides: Overrides additionnels pour ``GenerationSettings``.
 
     Returns:
@@ -84,7 +85,7 @@ def build_phase_context(
         started_at=datetime.now(tz=UTC),
         status=RunStatus.RUNNING,
         settings_snapshot=settings,
-        videos=videos,
+        sources=sources,
     )
     state.upsert_run(run)
     fake_llm = FakeLLMProvider(
@@ -100,6 +101,7 @@ def build_phase_context(
         stt_provider=FakeSTTProvider(),
         llm_provider=fake_llm,
         ffmpeg=FFmpegExtractor(),
+        ingestion=build_default_ingestion_dispatcher(),
         retriever=PassthroughRetriever(),
         prompts=PromptLoader(),
         pause_token=PauseToken(),

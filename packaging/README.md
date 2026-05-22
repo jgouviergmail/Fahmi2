@@ -136,6 +136,46 @@ Les exports (Anki / Markdown / PDF / HTML) ajoutent des dépendances. Elles sont
   (U+2010/2011/2012/2015) non rendus par ReportLab+Arial sont normalisés au rendu
   PDF (`markdown_pdf._normalize_for_pdf`).
 
+### Dépendances ingestion documents (pypdf / python-docx)
+
+L'ingestion des **documents texte** (`infra/ingestion/text_extractor.py`) ajoute :
+
+- **`pypdf`** (extraction du texte des **PDF**) est **déjà** tiré par `xhtml2pdf`
+  (cf. ci-dessus) → déjà bundlé, rien de plus à câbler.
+- **`python-docx`** (module `docx`, extraction des **.docx**) **embarque un
+  template** (`docx/templates/default.docx`) chargé à l'instanciation de
+  `Document()` → ajouter `collect_data_files('docx')` (ou `collect_all('docx')`)
+  dans le `.spec`, sinon l'extraction `.docx` échoue en mode packagé.
+- `pypdf` et `docx` sont importés **paresseusement** (dans les fonctions de
+  `DefaultTextExtractor`) : si l'analyse statique de PyInstaller les manque, les
+  ajouter en `hiddenimports`.
+
+### Binaire yt-dlp (ingestion YouTube)
+
+L'ingestion des **liens YouTube** (`infra/ingestion/youtube_downloader.py`)
+appelle le **binaire** `yt-dlp` (pas une dépendance pip importée) :
+
+- **Au build** : télécharger `yt-dlp.exe` depuis la release GitHub officielle
+  (`yt-dlp/yt-dlp`) et le copier **à la racine du bundle** (même dossier que
+  `ffmpeg.exe`). Cf. `packaging/fetch-ytdlp.ps1` (script dédié).
+- **Au runtime** : `resolve_ytdlp_binary_or_none()` cherche, dans l'ordre, la
+  variable d'environnement **`FAHMI2_YTDLP`** (override), puis le binaire bundlé,
+  puis le binaire installé **à côté de l'interpréteur** (venv), sinon retombe sur
+  le `PATH`.
+- **En développement** : `pip install yt-dlp` (déjà dans les dépendances `dev`)
+  suffit — `yt-dlp.exe` atterrit dans `.venv/Scripts/` et est résolu
+  automatiquement, sans variable d'environnement.
+- **Fragilité (important)** : yt-dlp **casse régulièrement** quand YouTube change
+  ses protections. Le binaire est donc **remplaçable sans rebuild** (override
+  `FAHMI2_YTDLP` ou remplacement du `yt-dlp.exe` bundlé). Recommander un rebuild
+  régulier pour rafraîchir la version bundlée. En cas d'échec, le message
+  `INGESTION.YOUTUBE_DOWNLOAD_FAILED` invite à mettre à jour yt-dlp.
+- **Réseau requis** ; le téléchargement de contenu YouTube relève de la
+  **responsabilité de l'utilisateur** (ToS YouTube).
+- yt-dlp télécharge la **meilleure piste audio** (`-f bestaudio/best`,
+  `--no-playlist`) ; la conversion WAV est faite ensuite par le ffmpeg bundlé du
+  `MediaIngestor` (yt-dlp n'a donc pas besoin d'une `--ffmpeg-location` dédiée).
+
 ### Résolution runtime du ffmpeg bundlé
 
 Au démarrage de l'application, `core/config/paths.py` détecte

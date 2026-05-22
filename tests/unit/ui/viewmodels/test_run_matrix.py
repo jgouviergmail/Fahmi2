@@ -6,12 +6,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from fahmi2.domain.enums import PhaseId, PhaseStatus, RunStatus
-from fahmi2.domain.ids import ProjectId, RunId, VideoId
+from fahmi2.domain.enums import PhaseId, PhaseStatus, RunStatus, SourceKind
+from fahmi2.domain.ids import ProjectId, RunId, SourceId
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.source import InputSource, SourceExecution
 from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.pipeline.handlers.phase_0_stt import Phase0SttHandler
 from fahmi2.pipeline.handlers.phase_1_term_extraction import (
@@ -38,7 +38,10 @@ def _setup(
     )
     state.upsert_project(project)
     videos = tuple(
-        VideoExecution(video_id=VideoId.new(), source_path=tmp_path / f"v{i}.mp4")
+        SourceExecution(
+            source_id=SourceId.new(),
+            source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / f"v{i}.mp4")),
+        )
         for i in range(2)
     )
     run = Run(
@@ -47,7 +50,7 @@ def _setup(
         started_at=datetime.now(tz=UTC),
         status=RunStatus.RUNNING,
         settings_snapshot=settings,
-        videos=videos,
+        sources=videos,
     )
     state.upsert_run(run)
     registry = PhaseRegistry(
@@ -67,8 +70,8 @@ def test_snapshot_row_per_video_and_phase_columns(
     vm = RunMatrixViewModel(state=state, registry=registry)
     snap = vm.cost_matrix_snapshot(run)
     assert len(snap.row_labels) == 2  # 2 vidéos
-    assert snap.column_labels == ("STT", "Termes", "Glossaire")
-    assert snap.row_labels[0] == run.videos[0].source_path.name
+    assert snap.column_labels == ("Ingestion", "Termes", "Glossaire")
+    assert snap.row_labels[0] == run.sources[0].source.as_path.name
 
 
 def test_per_video_cost_in_cell_and_row_total(
@@ -80,7 +83,7 @@ def test_per_video_cost_in_cell_and_row_total(
         PhaseExecution(
             phase_id=PhaseId.STT, status=PhaseStatus.SUCCEEDED, cost_usd=0.05
         ),
-        video_id=run.videos[0].video_id,
+        source_id=run.sources[0].source_id,
     )
     vm = RunMatrixViewModel(state=state, registry=registry)
     snap = vm.cost_matrix_snapshot(run)
@@ -100,7 +103,7 @@ def test_batch_phase_cost_in_column_total_not_in_cell(
             status=PhaseStatus.SUCCEEDED,
             cost_usd=0.20,
         ),
-        video_id=None,
+        source_id=None,
     )
     vm = RunMatrixViewModel(state=state, registry=registry)
     snap = vm.cost_matrix_snapshot(run)
@@ -115,7 +118,7 @@ def test_batch_phase_cost_in_column_total_not_in_cell(
 def test_preview_all_pending(tmp_path: Path, make_generation_settings: Any) -> None:
     state, run, registry = _setup(tmp_path, make_generation_settings)
     vm = RunMatrixViewModel(state=state, registry=registry)
-    snap = vm.preview_cost_matrix(run.videos)
+    snap = vm.preview_cost_matrix(run.sources)
     assert len(snap.row_labels) == 2
     assert all(
         cell.status is PhaseStatus.PENDING for row in snap.cells for cell in row

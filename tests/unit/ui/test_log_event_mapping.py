@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import PhaseId, PhaseStatus, RunStatus
-from fahmi2.domain.ids import RunId, VideoId
+from fahmi2.domain.ids import RunId, SourceId
 from fahmi2.pipeline.events import (
     PhaseFinished,
     PhaseStarted,
@@ -35,7 +35,7 @@ def test_phase_finished_succeeded_log_message() -> None:
         timestamp=_now(),
         run_id=RunId.new(),
         phase_id=PhaseId.STT,
-        video_id=None,
+        source_id=None,
         final_status=PhaseStatus.SUCCEEDED,
         cost_usd=0.0123,
         error=None,
@@ -65,7 +65,7 @@ def test_phase_finished_failed_log_exposes_error_details() -> None:
         timestamp=_now(),
         run_id=RunId.new(),
         phase_id=PhaseId.CONSOLIDATION,
-        video_id=None,
+        source_id=None,
         final_status=PhaseStatus.FAILED,
         cost_usd=0.0042,
         error=error,
@@ -95,7 +95,7 @@ def test_phase_finished_failed_log_includes_traceback_in_extra() -> None:
         timestamp=_now(),
         run_id=RunId.new(),
         phase_id=PhaseId.CONSOLIDATION,
-        video_id=None,
+        source_id=None,
         final_status=PhaseStatus.FAILED,
         cost_usd=0.0,
         error=error,
@@ -115,7 +115,7 @@ def test_retry_attempt_log_includes_user_message() -> None:
         timestamp=_now(),
         run_id=RunId.new(),
         phase_id=PhaseId.REFORMULATION,
-        video_id=VideoId.new(),
+        source_id=SourceId.new(),
         attempt=2,
         delay_seconds=4.0,
         error=error,
@@ -147,7 +147,7 @@ def test_phase_started_log_format() -> None:
         timestamp=_now(),
         run_id=RunId.new(),
         phase_id=PhaseId.STT,
-        video_id=VideoId.new(),
+        source_id=SourceId.new(),
     )
     log = _to_log_event(event)
     assert log.severity is Severity.INFO

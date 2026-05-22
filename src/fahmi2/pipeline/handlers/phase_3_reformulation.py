@@ -1,8 +1,8 @@
-"""Handler Phase 3 — reformulation par vidéo (transcription -> texte écrit).
+"""Handler Phase 3 — reformulation par source (transcription -> texte écrit).
 
 Charge la transcription brute, sélectionne les termes du glossaire master
 pertinents (top-K via retriever), appelle le LLM, et persiste le texte
-reformulé dans ``workspace/reformulated/{video_id}.md``.
+reformulé dans ``workspace/reformulated/{source_id}.md``.
 """
 
 from __future__ import annotations
@@ -12,9 +12,9 @@ from pathlib import Path
 
 from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.core.errors.severity import Severity
-from fahmi2.domain.enums import PhaseId
+from fahmi2.domain.enums import PhaseId, SourceKind
 from fahmi2.domain.phase import PhaseExecution
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.source import SourceExecution
 from fahmi2.pipeline.handlers._base import (
     build_succeeded_phase,
     invoke_llm,
@@ -49,40 +49,57 @@ class Phase3ReformulationHandler(PhaseHandler):
         return PhaseId.REFORMULATION
 
     @property
-    def is_per_video(self) -> bool:
-        """Phase par vidéo."""
+    def is_per_source(self) -> bool:
+        """Phase par source."""
         return True
 
     def max_parallel_workers(self, ctx: PhaseContext) -> int:
-        """Parallélise les vidéos via le pool LLM configuré."""
+        """Parallélise les sources via le pool LLM configuré."""
         return ctx.settings.parallelism.llm_workers
 
     def execute(
         self,
         ctx: PhaseContext,
         *,
-        video: VideoExecution | None,
+        source: SourceExecution | None,
     ) -> PhaseExecution:
-        """Reformule la transcription d'une vidéo.
+        """Reformule la transcription d'une source.
 
         Args:
             ctx: Contexte d'exécution.
-            video: Vidéo (obligatoire).
+            source: Source (obligatoire).
 
         Returns:
             ``PhaseExecution`` ``SUCCEEDED`` pointant vers
-            ``reformulated/{video_id}.md``.
+            ``reformulated/{source_id}.md``.
 
         Raises:
-            ValueError: Si ``video`` est ``None``.
+            ValueError: Si ``source`` est ``None``.
             StorageError: Si la transcription est introuvable.
             LLMError: En cas d'échec LLM.
         """
-        if video is None:
-            raise ValueError("Phase3ReformulationHandler requires a VideoExecution")
+        if source is None:
+            raise ValueError("Phase3ReformulationHandler requires a SourceExecution")
         started_at = utc_now()
+        out_path = (
+            ctx.workspace / _REFORMULATED_SUBDIR / f"{source.source_id.value}.md"
+        )
+        if (
+            source.source.kind is SourceKind.DOCUMENT
+            and not ctx.settings.reformulate_documents
+        ):
+            # Pass-through : un document déjà rédigé est inséré tel quel (le
+            # segment unique de l'ingestion préserve la structure du texte).
+            text = _load_transcription_text(ctx.workspace, source.source_id.value)
+            ctx.artifacts.write_text_atomic(out_path, text)
+            return build_succeeded_phase(
+                phase_id=self.phase_id,
+                artifact_path=out_path,
+                started_at=started_at,
+                cost_usd=0.0,
+            )
         transcription_text = _load_transcription_text(
-            ctx.workspace, video.video_id.value
+            ctx.workspace, source.source_id.value
         )
         master_terms = load_glossary_master(ctx.workspace)
         glossary_terms = select_top_glossary_terms(
@@ -102,9 +119,6 @@ class Phase3ReformulationHandler(PhaseHandler):
         response = invoke_llm(
             ctx, phase_id=self.phase_id, system_prompt=None, user_prompt=prompt
         )
-        out_path = (
-            ctx.workspace / _REFORMULATED_SUBDIR / f"{video.video_id.value}.md"
-        )
         ctx.artifacts.write_text_atomic(out_path, response.content)
         return build_succeeded_phase(
             phase_id=self.phase_id,
@@ -114,12 +128,12 @@ class Phase3ReformulationHandler(PhaseHandler):
         )
 
 
-def _load_transcription_text(workspace: Path, video_id: str) -> str:
+def _load_transcription_text(workspace: Path, source_id: str) -> str:
     """Charge le texte complet d'une transcription persistée.
 
     Args:
         workspace: Dossier de travail.
-        video_id: ULID de la vidéo.
+        source_id: ULID de la source.
 
     Returns:
         Texte concaténé.
@@ -127,12 +141,12 @@ def _load_transcription_text(workspace: Path, video_id: str) -> str:
     Raises:
         StorageError: Si le fichier est introuvable.
     """
-    transcript_path = workspace / _TRANSCRIPTS_SUBDIR / f"{video_id}.json"
+    transcript_path = workspace / _TRANSCRIPTS_SUBDIR / f"{source_id}.json"
     if not transcript_path.exists():
         raise StorageError(
             code="STORAGE.TRANSCRIPT_MISSING",
             user_message=(
-                f"La transcription pour {video_id} est introuvable. "
+                f"La transcription pour {source_id} est introuvable. "
                 "Relance la phase STT."
             ),
             severity=Severity.ERROR,

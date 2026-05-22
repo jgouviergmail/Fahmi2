@@ -7,10 +7,10 @@ from typing import Any
 import pytest
 
 from fahmi2.core.errors.exceptions import StorageError
-from fahmi2.domain.enums import PhaseStatus
+from fahmi2.domain.enums import PhaseStatus, SourceKind
 from fahmi2.domain.generation import ParallelismConfig
-from fahmi2.domain.ids import VideoId
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.ids import SourceId
+from fahmi2.domain.source import InputSource, SourceExecution
 from fahmi2.infra.llm.interface import LLMResponse
 from fahmi2.pipeline.handlers.phase_3_reformulation import Phase3ReformulationHandler
 from tests.unit.pipeline.handlers._helpers import (
@@ -33,22 +33,25 @@ def _llm(content: str) -> LLMResponse:
 def test_handler_metadata() -> None:
     handler = Phase3ReformulationHandler()
     assert handler.phase_id.value == "phase_3_reformulation"
-    assert handler.is_per_video is True
+    assert handler.is_per_source is True
 
 
 def test_execute_writes_reformulated_markdown(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
+    video = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / "v.mp4")),
+    )
     ctx, _ = build_phase_context(
         tmp_path,
         make_generation_settings,
         llm_response=_llm("Texte reformulé."),
-        videos=(video,),
+        sources=(video,),
     )
-    write_transcription_fixture(ctx.workspace, video.video_id.value)
+    write_transcription_fixture(ctx.workspace, video.source_id.value)
     handler = Phase3ReformulationHandler()
-    result = handler.execute(ctx, video=video)
+    result = handler.execute(ctx, source=video)
     assert result.status is PhaseStatus.SUCCEEDED
     assert result.artifact_path is not None
     assert result.artifact_path.read_text(encoding="utf-8") == "Texte reformulé."
@@ -57,15 +60,18 @@ def test_execute_writes_reformulated_markdown(
 def test_execute_includes_top_k_glossary_terms_in_prompt(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
+    video = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / "v.mp4")),
+    )
     ctx, _ = build_phase_context(
         tmp_path,
         make_generation_settings,
         llm_response=_llm("ok"),
-        videos=(video,),
+        sources=(video,),
     )
     write_transcription_fixture(
-        ctx.workspace, video.video_id.value, text="PIB inflation"
+        ctx.workspace, video.source_id.value, text="PIB inflation"
     )
     # Glossary master présent
     master_path = ctx.workspace / "glossary_master.json"
@@ -78,7 +84,7 @@ def test_execute_includes_top_k_glossary_terms_in_prompt(
     )
 
     handler = Phase3ReformulationHandler()
-    handler.execute(ctx, video=video)
+    handler.execute(ctx, source=video)
     # On vérifie que le LLM a été appelé avec un user prompt qui mentionne PIB
     fake_llm = ctx.llm_provider
     assert hasattr(fake_llm, "calls")
@@ -90,11 +96,14 @@ def test_execute_includes_top_k_glossary_terms_in_prompt(
 def test_execute_raises_when_transcription_missing(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
-    ctx, _ = build_phase_context(tmp_path, make_generation_settings, videos=(video,))
+    video = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / "v.mp4")),
+    )
+    ctx, _ = build_phase_context(tmp_path, make_generation_settings, sources=(video,))
     handler = Phase3ReformulationHandler()
     with pytest.raises(StorageError) as exc_info:
-        handler.execute(ctx, video=video)
+        handler.execute(ctx, source=video)
     assert exc_info.value.code == "STORAGE.TRANSCRIPT_MISSING"
 
 
@@ -103,23 +112,26 @@ def test_execute_raises_when_video_is_none(
 ) -> None:
     ctx, _ = build_phase_context(tmp_path, make_generation_settings)
     handler = Phase3ReformulationHandler()
-    with pytest.raises(ValueError, match="VideoExecution"):
-        handler.execute(ctx, video=None)
+    with pytest.raises(ValueError, match="SourceExecution"):
+        handler.execute(ctx, source=None)
 
 
 def test_execute_works_when_glossary_master_absent(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
+    video = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / "v.mp4")),
+    )
     ctx, _ = build_phase_context(
         tmp_path,
         make_generation_settings,
         llm_response=_llm("ok"),
-        videos=(video,),
+        sources=(video,),
     )
-    write_transcription_fixture(ctx.workspace, video.video_id.value)
+    write_transcription_fixture(ctx.workspace, video.source_id.value)
     handler = Phase3ReformulationHandler()
-    result = handler.execute(ctx, video=video)
+    result = handler.execute(ctx, source=video)
     assert result.status is PhaseStatus.SUCCEEDED
 
 
@@ -133,3 +145,27 @@ def test_phase_workers_is_llm_pool(
         settings_overrides={"parallelism": ParallelismConfig(llm_workers=7)},
     )
     assert handler.max_parallel_workers(ctx) == 7
+
+
+def test_document_passthrough_when_reformulation_disabled(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    source = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.DOCUMENT, location=str(tmp_path / "c.pdf")),
+    )
+    ctx, _ = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        sources=(source,),
+        settings_overrides={"reformulate_documents": False},
+    )
+    write_transcription_fixture(
+        ctx.workspace, source.source_id.value, text="Texte de cours déjà rédigé."
+    )
+    handler = Phase3ReformulationHandler()
+    result = handler.execute(ctx, source=source)
+    assert result.status is PhaseStatus.SUCCEEDED
+    assert result.cost_usd == 0.0
+    out = ctx.workspace / "reformulated" / f"{source.source_id.value}.md"
+    assert out.read_text(encoding="utf-8") == "Texte de cours déjà rédigé."

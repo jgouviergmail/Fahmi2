@@ -23,7 +23,7 @@ from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import Language, PhaseId
 from fahmi2.domain.generation import consolidated_doc_filename
 from fahmi2.domain.phase import PhaseExecution
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.source import SourceExecution
 from fahmi2.pipeline.handlers._base import (
     build_succeeded_phase,
     invoke_llm,
@@ -46,7 +46,7 @@ class Phase7CoherenceHandler(PhaseHandler):
         return PhaseId.COHERENCE
 
     @property
-    def is_per_video(self) -> bool:
+    def is_per_source(self) -> bool:
         """Phase batch (boucle sur les langues)."""
         return False
 
@@ -54,24 +54,24 @@ class Phase7CoherenceHandler(PhaseHandler):
         self,
         ctx: PhaseContext,
         *,
-        video: VideoExecution | None,
+        source: SourceExecution | None,
     ) -> PhaseExecution:
         """Réécrit chaque ``consolidated.{lang}.md`` après passe de cohérence.
 
         Args:
             ctx: Contexte d'exécution.
-            video: Doit être ``None``.
+            source: Doit être ``None``.
 
         Returns:
             ``PhaseExecution`` ``SUCCEEDED`` pointant vers ``output_dir``.
 
         Raises:
-            ValueError: Si ``video`` est non-None.
+            ValueError: Si ``source`` est non-None.
             StorageError: Si un fichier consolidé est manquant.
             LLMError: En cas d'échec LLM.
         """
-        if video is not None:
-            raise ValueError("Phase7CoherenceHandler is batch (video must be None)")
+        if source is not None:
+            raise ValueError("Phase7CoherenceHandler is batch (source must be None)")
         started_at = utc_now()
         glossary_terms = _load_glossary_terms(ctx.workspace)
 

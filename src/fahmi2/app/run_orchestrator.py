@@ -7,7 +7,7 @@ d'exécution pur (:py:class:`~fahmi2.pipeline.engine.PipelineEngine`).
 Le ``RunOrchestrator`` expose des opérations *synchrones* :
 
 - ``create_run`` : génère un Run avec sa liste de vidéos scannées, persiste
-  l'ensemble (Project + Run + VideoExecutions).
+  l'ensemble (Project + Run + SourceExecutions).
 - ``execute`` : appelle le moteur (``PipelineEngine.execute``) et met à jour
   l'état final du Run en SQLite.
 - ``request_pause``/``request_cancel``/``resume`` : délègue au ``PauseToken``
@@ -21,8 +21,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from fahmi2.app.input_sources import build_input_sources
 from fahmi2.app.project_service import ProjectService
-from fahmi2.app.video_scanner import scan_input_folder
 from fahmi2.core.errors.exceptions import ConfigError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import RunStatus
@@ -75,8 +75,8 @@ class RunOrchestrator:
             Le ``Run`` créé (à l'état ``CREATED``).
 
         Raises:
-            ConfigError: Si la génération n'est pas configurée, ou si aucun
-                fichier vidéo supporté n'est trouvé.
+            ConfigError: Si la génération n'est pas configurée, ou si aucune
+                source d'entrée prise en charge n'est trouvée.
             StorageError: Si le dossier d'entrée est inaccessible.
         """
         if project.generation is None:
@@ -88,14 +88,14 @@ class RunOrchestrator:
                 ),
                 severity=Severity.ERROR,
             )
-        videos = scan_input_folder(project.generation.input_folder)
+        sources = build_input_sources(project.generation)
         run = Run(
             id=RunId.new(),
             project_id=project.id,
             started_at=datetime.now(tz=UTC),
             status=RunStatus.CREATED,
             settings_snapshot=project.generation,
-            videos=tuple(videos),
+            sources=tuple(sources),
         )
         self._state.upsert_run(run)
         return run

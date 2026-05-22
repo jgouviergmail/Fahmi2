@@ -14,6 +14,12 @@ from fahmi2.domain.phase import PhaseConfig
 WORDS_PER_MINUTE_ORAL = 150.0
 #: Tokens par mot (hypothèse DeepSeek).
 TOKENS_PER_WORD = 1.3
+#: Octets de fichier par token : heuristique pré-run pour estimer les tokens
+#: d'un document depuis sa **taille sur disque** (avant extraction du texte
+#: réel, qui n'a lieu qu'en phase 0). Pour un texte UTF-8 majoritairement latin,
+#: ~4 octets par token (un caractère accenté pèse 2 octets, ce qui surévalue
+#: légèrement le compte de tokens — acceptable pour une estimation indicative).
+TEXT_BYTES_PER_TOKEN = 4.0
 
 # Multiplicateurs empiriques appliqués aux tokens de sortie quand le mode
 # thinking est activé.

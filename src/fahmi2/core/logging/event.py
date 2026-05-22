@@ -24,7 +24,7 @@ class LogEvent:
         message: Texte libre destiné au lecteur.
         run_id: ULID du Run associé, optionnel.
         phase_id: Identifiant de la phase associée, optionnel.
-        video_id: ULID de la vidéo associée, optionnel.
+        source_id: ULID de la source associée, optionnel.
         extra: Métadonnées additionnelles (sérialisables JSON).
     """
 
@@ -34,7 +34,7 @@ class LogEvent:
     message: str
     run_id: str | None = None
     phase_id: str | None = None
-    video_id: str | None = None
+    source_id: str | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -50,6 +50,6 @@ class LogEvent:
             "message": self.message,
             "run_id": self.run_id,
             "phase_id": self.phase_id,
-            "video_id": self.video_id,
+            "source_id": self.source_id,
             "extra": dict(self.extra),
         }

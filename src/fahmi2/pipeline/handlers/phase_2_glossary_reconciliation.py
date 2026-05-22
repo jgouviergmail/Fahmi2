@@ -1,7 +1,7 @@
-"""Handler Phase 2 — réconciliation du glossaire à partir des candidats par vidéo.
+"""Handler Phase 2 — réconciliation du glossaire à partir des candidats par source.
 
-Charge tous les artefacts ``candidates/{vid}.json`` produits par la phase 1,
-les agrège dans un format ``{video_id: payload}``, appelle le LLM avec le
+Charge tous les artefacts ``candidates/{source_id}.json`` produits par la phase 1,
+les agrège dans un format ``{source_id: payload}``, appelle le LLM avec le
 prompt de réconciliation, et persiste le glossaire master dans
 ``workspace/glossary_master.json``.
 """
@@ -16,7 +16,7 @@ from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import PhaseId
 from fahmi2.domain.phase import PhaseExecution
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.source import SourceExecution
 from fahmi2.pipeline.handlers._base import (
     build_succeeded_phase,
     invoke_llm,
@@ -41,7 +41,7 @@ class Phase2GlossaryReconciliationHandler(PhaseHandler):
         return PhaseId.GLOSSARY_RECONCILIATION
 
     @property
-    def is_per_video(self) -> bool:
+    def is_per_source(self) -> bool:
         """Phase batch (un seul appel pour tout le run)."""
         return False
 
@@ -49,29 +49,29 @@ class Phase2GlossaryReconciliationHandler(PhaseHandler):
         self,
         ctx: PhaseContext,
         *,
-        video: VideoExecution | None,
+        source: SourceExecution | None,
     ) -> PhaseExecution:
         """Réconcilie le glossaire à partir de tous les candidats.
 
         Args:
             ctx: Contexte d'exécution.
-            video: Doit être ``None`` (phase batch).
+            source: Doit être ``None`` (phase batch).
 
         Returns:
             ``PhaseExecution`` ``SUCCEEDED`` pointant vers
             ``workspace/glossary_master.json``.
 
         Raises:
-            ValueError: Si ``video`` est non-None.
+            ValueError: Si ``source`` est non-None.
             StorageError: Si aucun fichier candidates n'a été trouvé.
             LLMError: Si la réponse LLM n'est pas du JSON valide.
         """
-        if video is not None:
+        if source is not None:
             raise ValueError(
-                "Phase2GlossaryReconciliationHandler is batch (video must be None)"
+                "Phase2GlossaryReconciliationHandler is batch (source must be None)"
             )
         started_at = utc_now()
-        candidates = _load_all_candidates(ctx.workspace, ctx.run.videos)
+        candidates = _load_all_candidates(ctx.workspace, ctx.run.sources)
         prompt = ctx.prompts.render(
             _TEMPLATE_NAME,
             source_language_label=language_label(ctx.settings.source_language),
@@ -94,25 +94,25 @@ class Phase2GlossaryReconciliationHandler(PhaseHandler):
 
 
 def _load_all_candidates(
-    workspace: Path, videos: tuple[VideoExecution, ...]
+    workspace: Path, sources: tuple[SourceExecution, ...]
 ) -> dict[str, Any]:
-    """Charge tous les fichiers candidates et les agrège par ``video_id``.
+    """Charge tous les fichiers candidates et les agrège par ``source_id``.
 
     Args:
         workspace: Dossier de travail.
-        videos: Vidéos du run à itérer.
+        sources: Sources du run à itérer.
 
     Returns:
-        Dictionnaire ``{video_id: payload_candidates}``.
+        Dictionnaire ``{source_id: payload_candidates}``.
 
     Raises:
-        StorageError: Si aucun candidat n'a été trouvé pour aucune vidéo.
+        StorageError: Si aucun candidat n'a été trouvé pour aucune source.
     """
     aggregated: dict[str, Any] = {}
-    for v in videos:
-        path = workspace / _CANDIDATES_SUBDIR / f"{v.video_id.value}.json"
+    for source in sources:
+        path = workspace / _CANDIDATES_SUBDIR / f"{source.source_id.value}.json"
         if path.exists():
-            aggregated[v.video_id.value] = json.loads(path.read_text(encoding="utf-8"))
+            aggregated[source.source_id.value] = json.loads(path.read_text(encoding="utf-8"))
     if not aggregated:
         raise StorageError(
             code="STORAGE.NO_CANDIDATES",

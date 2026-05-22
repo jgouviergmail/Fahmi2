@@ -3,13 +3,13 @@
 Pour chaque langue de ``settings.output_languages`` :
 
 - Si la langue est la langue source : on **copie** les artefacts master sans
-  appel LLM (per-video structurés + consolidated_master + glossaire master
-  rendu en Markdown).
+  appel LLM (documents structurés par source + consolidated_master + glossaire
+  master rendu en Markdown).
 - Sinon : on **traduit** chaque artefact via le LLM.
 
 Les artefacts produits vivent dans ``output_dir`` :
 
-- ``output_dir/per-video/{lang}/{video_id}.md``
+- ``output_dir/per-video/{lang}/{source_id}.md``
 - ``output_dir/consolidated.{lang}.md``
 - ``output_dir/glossary.{lang}.md``
 """
@@ -27,7 +27,7 @@ from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import Language, PhaseId
 from fahmi2.domain.generation import consolidated_doc_filename, glossary_doc_filename
 from fahmi2.domain.phase import PhaseExecution
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.source import SourceExecution
 from fahmi2.pipeline.handlers._base import (
     build_succeeded_phase,
     invoke_llm,
@@ -62,32 +62,32 @@ class Phase6TranslationHandler(PhaseHandler):
         return PhaseId.TRANSLATION
 
     @property
-    def is_per_video(self) -> bool:
-        """Phase batch (traite toutes les vidéos et toutes les langues)."""
+    def is_per_source(self) -> bool:
+        """Phase batch (traite toutes les sources et toutes les langues)."""
         return False
 
     def execute(
         self,
         ctx: PhaseContext,
         *,
-        video: VideoExecution | None,
+        source: SourceExecution | None,
     ) -> PhaseExecution:
         """Produit les artefacts finaux par langue.
 
         Args:
             ctx: Contexte d'exécution.
-            video: Doit être ``None`` (phase batch).
+            source: Doit être ``None`` (phase batch).
 
         Returns:
             ``PhaseExecution`` ``SUCCEEDED`` pointant vers ``output_dir``.
 
         Raises:
-            ValueError: Si ``video`` est non-None.
+            ValueError: Si ``source`` est non-None.
             StorageError: Si un artefact master est manquant.
             LLMError: En cas d'échec LLM.
         """
-        if video is not None:
-            raise ValueError("Phase6TranslationHandler is batch (video must be None)")
+        if source is not None:
+            raise ValueError("Phase6TranslationHandler is batch (source must be None)")
         started_at = utc_now()
 
         consolidated_master = _load_required(
@@ -102,8 +102,8 @@ class Phase6TranslationHandler(PhaseHandler):
                 "Le glossaire master est introuvable.",
             )
         )
-        per_video_structured = _load_per_video_structured(
-            ctx.workspace, ctx.run.videos
+        per_source_structured = _load_per_source_structured(
+            ctx.workspace, ctx.run.sources
         )
 
         # Les copies (langue source) sont écrites directement ; les traductions
@@ -116,7 +116,7 @@ class Phase6TranslationHandler(PhaseHandler):
                 target=target,
                 consolidated_master_md=consolidated_master,
                 glossary_master_payload=glossary_master,
-                per_video_structured=per_video_structured,
+                per_source_structured=per_source_structured,
                 tasks=tasks,
             )
         costs = map_bounded(
@@ -141,7 +141,7 @@ class Phase6TranslationHandler(PhaseHandler):
         target: Language,
         consolidated_master_md: str,
         glossary_master_payload: dict[str, Any],
-        per_video_structured: dict[str, str],
+        per_source_structured: dict[str, str],
         tasks: list[_TranslationTask],
     ) -> None:
         """Écrit les copies (langue source) et empile les traductions (sinon).
@@ -151,17 +151,17 @@ class Phase6TranslationHandler(PhaseHandler):
             target: Langue cible.
             consolidated_master_md: Document consolidé en langue source.
             glossary_master_payload: Glossaire JSON master.
-            per_video_structured: Mapping ``video_id -> markdown structuré``.
+            per_source_structured: Mapping ``source_id -> markdown structuré``.
             tasks: Liste de tâches de traduction à compléter (effet de bord).
         """
         is_source = target is ctx.settings.source_language
 
-        for video_id, structured_md in per_video_structured.items():
+        for source_id, structured_md in per_source_structured.items():
             target_path = (
                 ctx.output_dir
                 / _PER_VIDEO_OUTPUT_SUBDIR
                 / target.value
-                / f"{video_id}.md"
+                / f"{source_id}.md"
             )
             if is_source:
                 ctx.artifacts.write_text_atomic(target_path, structured_md)
@@ -266,34 +266,34 @@ def _load_required(path: Path, code: str, user_message: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def _load_per_video_structured(
-    workspace: Path, videos: tuple[VideoExecution, ...]
+def _load_per_source_structured(
+    workspace: Path, sources: tuple[SourceExecution, ...]
 ) -> dict[str, str]:
-    """Charge tous les documents structurés indexés par ``video_id``.
+    """Charge tous les documents structurés indexés par ``source_id``.
 
     Args:
         workspace: Dossier de travail.
-        videos: Vidéos du run.
+        sources: Sources du run.
 
     Returns:
-        Mapping ordonné ``video_id -> markdown``.
+        Mapping ordonné ``source_id -> markdown``.
 
     Raises:
         StorageError: Si un fichier structuré manque.
     """
     result: dict[str, str] = {}
-    for v in videos:
-        path = workspace / _STRUCTURED_SUBDIR / f"{v.video_id.value}.md"
+    for source in sources:
+        path = workspace / _STRUCTURED_SUBDIR / f"{source.source_id.value}.md"
         if not path.exists():
             raise StorageError(
                 code="STORAGE.STRUCTURED_MISSING",
                 user_message=(
-                    f"Le document structuré pour {v.video_id.value} est introuvable."
+                    f"Le document structuré pour {source.source_id.value} est introuvable."
                 ),
                 severity=Severity.ERROR,
                 technical_details={"path": str(path)},
             )
-        result[v.video_id.value] = path.read_text(encoding="utf-8")
+        result[source.source_id.value] = path.read_text(encoding="utf-8")
     return result
 
 

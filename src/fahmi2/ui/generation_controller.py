@@ -24,21 +24,22 @@ from PySide6.QtCore import QObject, Qt, QThread, Signal
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox, QWidget
 
-from fahmi2.app.cost_estimator import CostEstimation, CostEstimator
+from fahmi2.app._cost_common import TEXT_BYTES_PER_TOKEN
+from fahmi2.app.cost_estimator import CostEstimation, CostEstimator, SourceWeight
 from fahmi2.app.generation_export import export_generation_documents
 from fahmi2.app.hardware_probe import HardwareInfo
+from fahmi2.app.input_sources import build_input_sources
 from fahmi2.app.project_service import ProjectService
 from fahmi2.app.run_orchestrator import RunOrchestrator
 from fahmi2.app.secrets_service import SecretsService
-from fahmi2.app.video_scanner import scan_input_folder
-from fahmi2.core.config.paths import AppPaths
+from fahmi2.core.config.paths import AppPaths, resolve_ytdlp_binary_or_none
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.exceptions import Fahmi2Error
 from fahmi2.core.errors.severity import Severity
 from fahmi2.core.logging.event import LogEvent
 from fahmi2.core.retrieval.interface import PassthroughRetriever
 from fahmi2.core.retry.policy import RetryPolicy
-from fahmi2.domain.enums import PhaseId, RunStatus, SttProvider
+from fahmi2.domain.enums import PhaseId, RunStatus, SourceKind, SttProvider
 from fahmi2.domain.generation import (
     GENERATION_OUTPUT_SUBDIR,
     GENERATION_WORKSPACE_SUBDIR,
@@ -47,8 +48,11 @@ from fahmi2.domain.generation import (
 from fahmi2.domain.ids import ProjectId
 from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
+from fahmi2.domain.source import SourceExecution
 from fahmi2.infra.audio.cloud_audio_preparer import CloudAudioPreparer
 from fahmi2.infra.audio.ffmpeg_extractor import FFmpegExtractor
+from fahmi2.infra.ingestion.dispatcher import build_default_ingestion_dispatcher
+from fahmi2.infra.ingestion.youtube_downloader import YoutubeDownloader, YtDlpDownloader
 from fahmi2.infra.llm.deepseek_adapter import DeepSeekAdapter
 from fahmi2.infra.llm.interface import LLMProvider
 from fahmi2.infra.prompts.loader import PromptLoader
@@ -177,6 +181,45 @@ def build_stt_provider(
     return FasterWhisperAdapter(model_cache_dir=models_dir)
 
 
+def _source_weight(
+    source: SourceExecution,
+    ffmpeg: FFmpegExtractor,
+    settings: GenerationSettings,
+    youtube_downloader: YoutubeDownloader,
+) -> SourceWeight:
+    """Construit le poids de coût d'une source (durée audio ou tokens texte).
+
+    Args:
+        source: Source à peser.
+        ffmpeg: Extracteur (sonde la durée des médias locaux).
+        settings: Réglages (drapeau ``reformulate_documents``).
+        youtube_downloader: Sonde la durée d'une source YouTube (réseau).
+
+    Returns:
+        Le ``SourceWeight`` correspondant. Pour un document, les tokens sont
+        estimés depuis la taille du fichier (heuristique pré-run grossière ; le
+        texte réel n'est extrait qu'en phase 0). Pour YouTube, la durée provient
+        de la métadonnée yt-dlp (``0`` si le réseau est indisponible).
+    """
+    kind = source.source.kind
+    if kind is SourceKind.YOUTUBE:
+        return SourceWeight(
+            audio_seconds=youtube_downloader.probe_duration(source.source.location),
+            text_tokens=0.0,
+        )
+    if kind is SourceKind.DOCUMENT:
+        size_bytes = source.source.as_path.stat().st_size
+        return SourceWeight(
+            audio_seconds=0.0,
+            text_tokens=size_bytes / TEXT_BYTES_PER_TOKEN,
+            reformulated=settings.reformulate_documents,
+        )
+    return SourceWeight(
+        audio_seconds=ffmpeg.probe_duration_seconds(source.source.as_path),
+        text_tokens=0.0,
+    )
+
+
 class _RunWorker(QObject):
     """Worker QObject exécutant ``orchestrator.execute(run, ctx)`` dans un thread."""
 
@@ -241,7 +284,7 @@ class GenerationController(QObject):
         Args:
             header_bar: Barre de titre + actions du cockpit.
             stats_strip: Bande de statistiques.
-            run_matrix: Matrice vidéos × phases.
+            run_matrix: Matrice sources × phases.
             logs_dock: Dock de logs partagé (alimenté par cet onglet quand actif).
             window: Fenêtre parente, utilisée comme parent des dialogues modaux.
             project_service: Service projets.
@@ -366,7 +409,7 @@ class GenerationController(QObject):
         """Rafraîchit matrice + stats avec le dernier run du projet courant.
 
         Si le projet ne contient aucun run, on affiche une **prévisualisation**
-        : liste des vidéos détectées dans le dossier d'entrée, toutes phases
+        : liste des sources détectées dans le dossier d'entrée, toutes phases
         en ``PENDING``. Cela permet à l'utilisateur de valider visuellement
         le périmètre avant le premier ``Lancer`` (sans avoir à créer un Run).
         Si le dossier d'entrée est inaccessible ou vide, on retombe sur des
@@ -386,7 +429,7 @@ class GenerationController(QObject):
         """Affiche une prévisualisation du Run à venir.
 
         Scanne le dossier d'entrée et construit un ``CostMatrixSnapshot`` de
-        prévisualisation (une ligne par vidéo détectée, toutes phases ``PENDING``)
+        prévisualisation (une ligne par source détectée, toutes phases ``PENDING``)
         via ``RunMatrixViewModel.preview_cost_matrix``. Échec silencieux du scan →
         vues vides.
 
@@ -399,20 +442,20 @@ class GenerationController(QObject):
             self._reset_views()
             return
         try:
-            videos = scan_input_folder(project.generation.input_folder)
+            sources = build_input_sources(project.generation)
         except Fahmi2Error:
             self._reset_views()
             return
 
         matrix_vm = RunMatrixViewModel(state=self._state, registry=self._registry)
-        self._run_matrix.apply_snapshot(matrix_vm.preview_cost_matrix(tuple(videos)))
+        self._run_matrix.apply_snapshot(matrix_vm.preview_cost_matrix(tuple(sources)))
 
         now = datetime.now(tz=UTC)
         self._stats_strip.apply_snapshot(
             StatsSnapshot(
                 run_status=RunStatus.CREATED,
-                videos_total=len(videos),
-                videos_completed=0,
+                sources_total=len(sources),
+                sources_completed=0,
                 phases_total=0,
                 phases_completed=0,
                 cost_usd_so_far=0.0,
@@ -425,15 +468,15 @@ class GenerationController(QObject):
         )
 
     def _reset_views(self) -> None:
-        """Vide la matrice et la bande de stats (fallback si pas de vidéos)."""
+        """Vide la matrice et la bande de stats (fallback si pas de sources)."""
         from fahmi2.ui.viewmodels.stats_strip import StatsSnapshot  # noqa: PLC0415
 
         self._run_matrix.apply_snapshot(EMPTY_COST_MATRIX)
         now = datetime.now(tz=UTC)
         empty_stats = StatsSnapshot(
             run_status=RunStatus.CREATED,
-            videos_total=0,
-            videos_completed=0,
+            sources_total=0,
+            sources_completed=0,
             phases_total=0,
             phases_completed=0,
             cost_usd_so_far=0.0,
@@ -531,6 +574,7 @@ class GenerationController(QObject):
             stt_provider=stt_provider,
             llm_provider=llm_provider,
             ffmpeg=build_ffmpeg_from_runtime(),
+            ingestion=build_default_ingestion_dispatcher(),
             retriever=PassthroughRetriever(),
             prompts=PromptLoader(override_dir=self._app_paths.prompts_override_dir),
             pause_token=self._current_pause_token,
@@ -590,7 +634,7 @@ class GenerationController(QObject):
                 "Le dossier de sortie sera ensuite **supprimé** "
                 "(livrables Markdown générés jusqu'ici) et le cockpit "
                 "réinitialisé.\n\n"
-                "Cette action ne supprime pas les fichiers vidéo "
+                "Cette action ne supprime pas les fichiers source "
                 "originaux ni les artefacts intermédiaires de "
                 "« workspace »."
             ),
@@ -661,10 +705,10 @@ class GenerationController(QObject):
     def estimate_cost(self) -> None:
         """Slot : pré-estime le coût total du Run et affiche un rapport.
 
-        Scanne le dossier d'entrée du projet, lit la durée de chaque vidéo
+        Scanne le dossier d'entrée du projet, lit la durée de chaque source
         via ``ffprobe`` et délègue le calcul à :py:class:`CostEstimator`.
         Le probe est exécuté sur le thread UI avec un curseur d'attente :
-        pour 10 à 50 vidéos l'opération reste sous la dizaine de secondes.
+        pour 10 à 50 sources l'opération reste sous la dizaine de secondes.
         """
         if self._current_project is None:
             QMessageBox.warning(
@@ -682,7 +726,7 @@ class GenerationController(QObject):
             return
         settings = self._current_project.generation
         try:
-            videos = scan_input_folder(settings.input_folder)
+            sources = build_input_sources(settings)
         except Fahmi2Error as exc:
             QMessageBox.warning(
                 self._window,
@@ -692,10 +736,14 @@ class GenerationController(QObject):
             return
 
         ffmpeg = build_ffmpeg_from_runtime()
+        youtube_downloader = YtDlpDownloader(
+            ytdlp_binary=resolve_ytdlp_binary_or_none()
+        )
         QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
         try:
-            durations = [
-                ffmpeg.probe_duration_seconds(v.source_path) for v in videos
+            weights = [
+                _source_weight(s, ffmpeg, settings, youtube_downloader)
+                for s in sources
             ]
         finally:
             QApplication.restoreOverrideCursor()
@@ -704,7 +752,7 @@ class GenerationController(QObject):
             1 for lang in settings.output_languages if lang is not settings.source_language
         )
         estimation = CostEstimator().estimate(
-            videos_durations_seconds=durations,
+            source_weights=weights,
             stt_provider=settings.stt_provider,
             llm_model=settings.llm_model,
             active_target_languages_count=len(settings.output_languages),
@@ -714,7 +762,7 @@ class GenerationController(QObject):
         _show_cost_estimation_dialog(
             self._window,
             project_name=self._current_project.name,
-            n_videos=len(videos),
+            n_sources=len(sources),
             estimation=estimation,
             cost_ceiling_usd=settings.cost_ceiling_usd,
         )
@@ -1142,11 +1190,11 @@ def _to_log_event(event: PipelineEvent) -> LogEvent:
             code="PHASE_STARTED",
             message=(
                 f"{event.phase_id.value}"
-                + (f" vidéo {event.video_id.value[:8]}…" if event.video_id else "")
+                + (f" source {event.source_id.value[:8]}…" if event.source_id else "")
             ),
             run_id=event.run_id.value,
             phase_id=str(event.phase_id),
-            video_id=event.video_id.value if event.video_id else None,
+            source_id=event.source_id.value if event.source_id else None,
         )
     if isinstance(event, PhaseFinished):
         base_message = (
@@ -1181,7 +1229,7 @@ def _to_log_event(event: PipelineEvent) -> LogEvent:
             message=base_message,
             run_id=event.run_id.value,
             phase_id=str(event.phase_id),
-            video_id=event.video_id.value if event.video_id else None,
+            source_id=event.source_id.value if event.source_id else None,
             extra=extra,
         )
     if isinstance(event, RetryAttempt):
@@ -1196,7 +1244,7 @@ def _to_log_event(event: PipelineEvent) -> LogEvent:
             ),
             run_id=event.run_id.value,
             phase_id=str(event.phase_id),
-            video_id=event.video_id.value if event.video_id else None,
+            source_id=event.source_id.value if event.source_id else None,
             extra={
                 "attempt": event.attempt,
                 "error_code": event.error.code,
@@ -1290,7 +1338,7 @@ def _show_cost_estimation_dialog(
     parent: QWidget,
     *,
     project_name: str,
-    n_videos: int,
+    n_sources: int,
     estimation: CostEstimation,
     cost_ceiling_usd: float | None,
 ) -> None:
@@ -1299,7 +1347,7 @@ def _show_cost_estimation_dialog(
     Args:
         parent: Fenêtre parente.
         project_name: Nom du projet.
-        n_videos: Nombre de vidéos détectées dans l'input.
+        n_sources: Nombre de sources détectées dans l'input.
         estimation: Résultat du ``CostEstimator``.
         cost_ceiling_usd: Plafond budget du projet, le cas échéant.
     """
@@ -1308,7 +1356,7 @@ def _show_cost_estimation_dialog(
     duration_label = _format_duration_label(estimation.total_audio_seconds)
     header = [
         f"<b>Projet :</b> {project_name}",
-        f"<b>Vidéos détectées :</b> {n_videos}",
+        f"<b>Sources détectées :</b> {n_sources}",
         f"<b>Durée totale audio :</b> {duration_label}",
     ]
     breakdown = [

@@ -4,12 +4,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from fahmi2.domain.enums import PhaseId, PhaseStatus, RunStatus
-from fahmi2.domain.ids import ProjectId, RunId, VideoId
+from fahmi2.domain.enums import PhaseId, PhaseStatus, RunStatus, SourceKind
+from fahmi2.domain.ids import ProjectId, RunId, SourceId
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.source import InputSource, SourceExecution
 from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.pipeline.handlers.phase_0_stt import Phase0SttHandler
 from fahmi2.pipeline.handlers.phase_1_term_extraction import (
@@ -23,7 +23,7 @@ from fahmi2.ui.viewmodels.stats_strip import StatsStripViewModel
 
 
 def _setup(
-    tmp_path: Path, make_generation_settings: Any, *, n_videos: int = 2
+    tmp_path: Path, make_generation_settings: Any, *, n_sources: int = 2
 ) -> tuple[SqliteState, Run, PhaseRegistry]:
     state = SqliteState(tmp_path / "t.db")
     settings = make_generation_settings()
@@ -36,8 +36,11 @@ def _setup(
     )
     state.upsert_project(project)
     videos = tuple(
-        VideoExecution(video_id=VideoId.new(), source_path=tmp_path / f"v{i}.mp4")
-        for i in range(n_videos)
+        SourceExecution(
+            source_id=SourceId.new(),
+            source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / f"v{i}.mp4")),
+        )
+        for i in range(n_sources)
     )
     run = Run(
         id=RunId.new(),
@@ -45,7 +48,7 @@ def _setup(
         started_at=datetime.now(tz=UTC),
         status=RunStatus.RUNNING,
         settings_snapshot=settings,
-        videos=videos,
+        sources=videos,
     )
     state.upsert_run(run)
     registry = PhaseRegistry(
@@ -62,8 +65,8 @@ def test_snapshot_zero_when_run_starts(tmp_path: Path, make_generation_settings:
     state, run, registry = _setup(tmp_path, make_generation_settings)
     vm = StatsStripViewModel(state=state, registry=registry)
     snap = vm.snapshot(run)
-    assert snap.videos_total == 2
-    assert snap.videos_completed == 0
+    assert snap.sources_total == 2
+    assert snap.sources_completed == 0
     assert snap.cost_usd_so_far == 0.0
 
 
@@ -71,19 +74,19 @@ def test_snapshot_counts_completed_videos(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:
     state, run, registry = _setup(tmp_path, make_generation_settings)
-    # Marquer toutes les phases per-video succeeded pour video[0]
-    per_video_phase_ids = [
-        h.phase_id for h in registry.ordered_handlers() if h.is_per_video
+    # Marquer toutes les phases per-source succeeded pour video[0]
+    per_source_phase_ids = [
+        h.phase_id for h in registry.ordered_handlers() if h.is_per_source
     ]
-    for pid in per_video_phase_ids:
+    for pid in per_source_phase_ids:
         state.upsert_phase_execution(
             run.id,
             PhaseExecution(phase_id=pid, status=PhaseStatus.SUCCEEDED),
-            video_id=run.videos[0].video_id,
+            source_id=run.sources[0].source_id,
         )
     vm = StatsStripViewModel(state=state, registry=registry)
     snap = vm.snapshot(run)
-    assert snap.videos_completed == 1
+    assert snap.sources_completed == 1
 
 
 def test_snapshot_accumulates_cost(tmp_path: Path, make_generation_settings: Any) -> None:
@@ -95,7 +98,7 @@ def test_snapshot_accumulates_cost(tmp_path: Path, make_generation_settings: Any
             status=PhaseStatus.SUCCEEDED,
             cost_usd=0.5,
         ),
-        video_id=run.videos[0].video_id,
+        source_id=run.sources[0].source_id,
     )
     state.upsert_phase_execution(
         run.id,
@@ -104,7 +107,7 @@ def test_snapshot_accumulates_cost(tmp_path: Path, make_generation_settings: Any
             status=PhaseStatus.SUCCEEDED,
             cost_usd=0.3,
         ),
-        video_id=run.videos[1].video_id,
+        source_id=run.sources[1].source_id,
     )
     vm = StatsStripViewModel(state=state, registry=registry)
     snap = vm.snapshot(run)

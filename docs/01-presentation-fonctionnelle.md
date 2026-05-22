@@ -15,9 +15,13 @@ ou d'entrée pour d'autres outils de mise en forme (DOCX, PDF…).
 
 Une **application desktop locale** qui :
 
-- prend en entrée **un dossier contenant 10 à 50 vidéos MP4** ;
+- prend en entrée un **dossier de sources hétérogènes** — **vidéos** (MP4,
+  MKV, MOV, WebM…), **fichiers audio** (WAV, MP3, M4A, FLAC…), **documents
+  texte** (PDF, Word, Markdown, txt) — et/ou des **liens YouTube** (vidéos
+  unitaires), avec **contrôle de l'ordre** de traitement et possibilité
+  d'**exclure** certaines sources ;
 - produit en sortie **un document consolidé** par langue de sortie demandée,
-  accompagné des **documents par vidéo** et d'un **glossaire** ;
+  accompagné des **documents par source** et d'un **glossaire** ;
 - garantit la **fidélité au discours oral** (pas d'hallucination,
   reformulation pure) tout en respectant **les règles de l'art de l'écrit**
   dans la langue cible ;

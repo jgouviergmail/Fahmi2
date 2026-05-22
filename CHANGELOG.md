@@ -5,6 +5,43 @@ Toutes les évolutions notables du projet Fahmi2.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] — 2026-05-22
+
+### Ajouté — Entrants de génération élargis
+
+- La génération accepte désormais, **en plus des vidéos**, des **fichiers audio**
+  (wav, mp3, m4a, flac, ogg, opus, aac), des **liens YouTube** (vidéos unitaires,
+  audio téléchargé par yt-dlp) et des **documents texte** (PDF, Word, Markdown,
+  txt). Sources **mixtes** acceptées dans un même projet.
+- Nouveau réglage **« Reformuler les documents texte »** (coché par défaut) :
+  décoché, les documents sont insérés tels quels (pass-through phase 3, coût 0,
+  structure préservée).
+- **Ordre & exclusion des sources** : composant **double liste** réordonnable
+  (glisser-déposer) dans **⚙ Réglages** — l'ordre de traitement définit l'ordre
+  des chapitres du document consolidé ; toute source peut être exclue puis
+  réincluse. « Rafraîchir » conserve les exclusions.
+- Ingestion en **ports/adapters** (`infra/ingestion/`) : dispatcher
+  `SourceKind → SourceIngestor` (calqué sur `PhaseRegistry`) ; les phases 1-7
+  restent inchangées (pivot « une transcription par source »).
+
+### Modifié
+
+- Renommage de fondation `video → source` (`SourceId`, `SourceExecution`,
+  `Run.sources`, événements du pipeline, `LogEvent.source_id`) **et migration
+  SQLite** idempotente (`video_id → source_id` ; colonnes `source_kind` /
+  `source_location` ; lignes legacy → `source_kind='video'`).
+- L'**estimation de coût** raisonne par **source** (`SourceWeight` : durée audio
+  des médias **ou** tokens texte des documents ; STT exclu pour les documents).
+- UI orientée « sources » : libellés de la matrice, bande de statistiques
+  (carte « Sources ») et dialogue d'estimation.
+
+### Dépendances
+
+- Ajout `pypdf` (extraction PDF) et `python-docx` (extraction .docx). `yt-dlp`
+  est utilisé en **binaire** (bundlé au build via `packaging/fetch-ytdlp.ps1`,
+  remplaçable sans rebuild ; override par la variable d'environnement
+  `FAHMI2_YTDLP`).
+
 ## [1.0.0] — 2026-05-22
 
 Première version officielle. Pipeline de génération complet (STT + 7 phases LLM),

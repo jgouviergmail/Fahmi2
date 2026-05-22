@@ -1,7 +1,7 @@
 """Wrappers typés pour les identifiants du domaine.
 
 Trois types distincts pour éviter les confusions cross-type au type-check :
-``ProjectId``, ``RunId``, ``VideoId``. Tous reposent sur ULID en interne via
+``ProjectId``, ``RunId``, ``SourceId``. Tous reposent sur ULID en interne via
 :py:mod:`fahmi2.core.ids` et partagent leur logique via une base ``_UlidIdBase``.
 """
 
@@ -17,7 +17,7 @@ from fahmi2.core.ids import new_ulid, parse_ulid
 class _UlidIdBase:
     """Base partagée pour les identifiants typés ULID.
 
-    Les sous-classes vides ``ProjectId``/``RunId``/``VideoId`` héritent du
+    Les sous-classes vides ``ProjectId``/``RunId``/``SourceId`` héritent du
     comportement (validation + factory) tout en restant des types distincts au
     sens de mypy (évite ``ProjectId`` interchangeable avec ``RunId``).
 
@@ -51,5 +51,5 @@ class RunId(_UlidIdBase):
 
 
 @dataclass(frozen=True)
-class VideoId(_UlidIdBase):
-    """Identifiant stable d'une vidéo dans un Project."""
+class SourceId(_UlidIdBase):
+    """Identifiant stable d'une source d'entrée dans un Run."""

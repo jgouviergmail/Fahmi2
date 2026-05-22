@@ -145,3 +145,27 @@ def test_phase_workers_is_llm_pool(
         settings_overrides={"parallelism": ParallelismConfig(llm_workers=7)},
     )
     assert handler.max_parallel_workers(ctx) == 7
+
+
+def test_document_passthrough_when_reformulation_disabled(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    source = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.DOCUMENT, location=str(tmp_path / "c.pdf")),
+    )
+    ctx, _ = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        sources=(source,),
+        settings_overrides={"reformulate_documents": False},
+    )
+    write_transcription_fixture(
+        ctx.workspace, source.source_id.value, text="Texte de cours déjà rédigé."
+    )
+    handler = Phase3ReformulationHandler()
+    result = handler.execute(ctx, source=source)
+    assert result.status is PhaseStatus.SUCCEEDED
+    assert result.cost_usd == 0.0
+    out = ctx.workspace / "reformulated" / f"{source.source_id.value}.md"
+    assert out.read_text(encoding="utf-8") == "Texte de cours déjà rédigé."

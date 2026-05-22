@@ -12,7 +12,7 @@ from pathlib import Path
 
 from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.core.errors.severity import Severity
-from fahmi2.domain.enums import PhaseId
+from fahmi2.domain.enums import PhaseId, SourceKind
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.source import SourceExecution
 from fahmi2.pipeline.handlers._base import (
@@ -81,6 +81,23 @@ class Phase3ReformulationHandler(PhaseHandler):
         if source is None:
             raise ValueError("Phase3ReformulationHandler requires a SourceExecution")
         started_at = utc_now()
+        out_path = (
+            ctx.workspace / _REFORMULATED_SUBDIR / f"{source.source_id.value}.md"
+        )
+        if (
+            source.source.kind is SourceKind.DOCUMENT
+            and not ctx.settings.reformulate_documents
+        ):
+            # Pass-through : un document déjà rédigé est inséré tel quel (le
+            # segment unique de l'ingestion préserve la structure du texte).
+            text = _load_transcription_text(ctx.workspace, source.source_id.value)
+            ctx.artifacts.write_text_atomic(out_path, text)
+            return build_succeeded_phase(
+                phase_id=self.phase_id,
+                artifact_path=out_path,
+                started_at=started_at,
+                cost_usd=0.0,
+            )
         transcription_text = _load_transcription_text(
             ctx.workspace, source.source_id.value
         )
@@ -101,9 +118,6 @@ class Phase3ReformulationHandler(PhaseHandler):
         )
         response = invoke_llm(
             ctx, phase_id=self.phase_id, system_prompt=None, user_prompt=prompt
-        )
-        out_path = (
-            ctx.workspace / _REFORMULATED_SUBDIR / f"{source.source_id.value}.md"
         )
         ctx.artifacts.write_text_atomic(out_path, response.content)
         return build_succeeded_phase(

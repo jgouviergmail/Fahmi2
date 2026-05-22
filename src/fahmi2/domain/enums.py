@@ -150,3 +150,13 @@ class RetrievalStrategy(StrEnum):
     AUTO = "auto"            # défaut : sémantique si clé OpenAI dispo, sinon lexical
     LEXICAL = "lexical"      # TF-IDF (+ query expansion), 100% offline
     SEMANTIC = "semantic"    # embeddings OpenAI
+
+
+class ChatTabState(StrEnum):
+    """États de l'onglet Dialogue (machine UX, cf. spec §10.1)."""
+
+    NO_PROJECT = "no_project"
+    NO_CORPUS = "no_corpus"
+    READY = "ready"
+    ANSWERING = "answering"
+    ERROR = "error"

@@ -21,6 +21,7 @@ class FeatureId(StrEnum):
 
     GENERATION = "generation"
     PEDAGOGY = "pedagogy"
+    CHAT = "chat"
 
 
 class FeatureTab(ABC):

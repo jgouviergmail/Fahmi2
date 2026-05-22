@@ -32,7 +32,7 @@ from fahmi2.app.input_sources import build_input_sources
 from fahmi2.app.project_service import ProjectService
 from fahmi2.app.run_orchestrator import RunOrchestrator
 from fahmi2.app.secrets_service import SecretsService
-from fahmi2.core.config.paths import AppPaths
+from fahmi2.core.config.paths import AppPaths, resolve_ytdlp_binary_or_none
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.exceptions import Fahmi2Error
 from fahmi2.core.errors.severity import Severity
@@ -52,6 +52,7 @@ from fahmi2.domain.source import SourceExecution
 from fahmi2.infra.audio.cloud_audio_preparer import CloudAudioPreparer
 from fahmi2.infra.audio.ffmpeg_extractor import FFmpegExtractor
 from fahmi2.infra.ingestion.dispatcher import build_default_ingestion_dispatcher
+from fahmi2.infra.ingestion.youtube_downloader import YoutubeDownloader, YtDlpDownloader
 from fahmi2.infra.llm.deepseek_adapter import DeepSeekAdapter
 from fahmi2.infra.llm.interface import LLMProvider
 from fahmi2.infra.prompts.loader import PromptLoader
@@ -184,20 +185,29 @@ def _source_weight(
     source: SourceExecution,
     ffmpeg: FFmpegExtractor,
     settings: GenerationSettings,
+    youtube_downloader: YoutubeDownloader,
 ) -> SourceWeight:
     """Construit le poids de coût d'une source (durée audio ou tokens texte).
 
     Args:
         source: Source à peser.
-        ffmpeg: Extracteur (sonde la durée des médias).
+        ffmpeg: Extracteur (sonde la durée des médias locaux).
         settings: Réglages (drapeau ``reformulate_documents``).
+        youtube_downloader: Sonde la durée d'une source YouTube (réseau).
 
     Returns:
         Le ``SourceWeight`` correspondant. Pour un document, les tokens sont
         estimés depuis la taille du fichier (heuristique pré-run grossière ; le
-        texte réel n'est extrait qu'en phase 0).
+        texte réel n'est extrait qu'en phase 0). Pour YouTube, la durée provient
+        de la métadonnée yt-dlp (``0`` si le réseau est indisponible).
     """
-    if source.source.kind is SourceKind.DOCUMENT:
+    kind = source.source.kind
+    if kind is SourceKind.YOUTUBE:
+        return SourceWeight(
+            audio_seconds=youtube_downloader.probe_duration(source.source.location),
+            text_tokens=0.0,
+        )
+    if kind is SourceKind.DOCUMENT:
         size_bytes = source.source.as_path.stat().st_size
         return SourceWeight(
             audio_seconds=0.0,
@@ -726,9 +736,15 @@ class GenerationController(QObject):
             return
 
         ffmpeg = build_ffmpeg_from_runtime()
+        youtube_downloader = YtDlpDownloader(
+            ytdlp_binary=resolve_ytdlp_binary_or_none()
+        )
         QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
         try:
-            weights = [_source_weight(s, ffmpeg, settings) for s in sources]
+            weights = [
+                _source_weight(s, ffmpeg, settings, youtube_downloader)
+                for s in sources
+            ]
         finally:
             QApplication.restoreOverrideCursor()
 

@@ -21,6 +21,7 @@ _CHARS_PER_TOKEN = 4
 _CHUNK_TARGET_TOKENS = 700
 _CHUNK_MIN_TOKENS = 120
 _CHUNK_OVERLAP_BLOCKS = 1
+_MIN_CHUNKS_TO_MERGE_TAIL = 2  # il faut >= 2 chunks pour fusionner un reliquat court
 _ORIGIN_CONSOLIDATED = "consolidated"
 _ORIGIN_GLOSSARY = "glossary"
 _GLOSSARY_CHAPTER_TITLE = "Glossaire"
@@ -123,7 +124,10 @@ def _pack_blocks(blocks: list[str]) -> list[str]:
         accumulated_tokens += block_tokens
     if accumulated:
         packed.append("\n\n".join(accumulated))
-    if len(packed) >= 2 and _estimate_tokens(packed[-1]) < _CHUNK_MIN_TOKENS:
+    if (
+        len(packed) >= _MIN_CHUNKS_TO_MERGE_TAIL
+        and _estimate_tokens(packed[-1]) < _CHUNK_MIN_TOKENS
+    ):
         tail = packed.pop()
         packed[-1] = f"{packed[-1]}\n\n{tail}"
     return packed

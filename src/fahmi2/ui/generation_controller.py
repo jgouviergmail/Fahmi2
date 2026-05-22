@@ -49,6 +49,7 @@ from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
 from fahmi2.infra.audio.cloud_audio_preparer import CloudAudioPreparer
 from fahmi2.infra.audio.ffmpeg_extractor import FFmpegExtractor
+from fahmi2.infra.ingestion.dispatcher import build_default_ingestion_dispatcher
 from fahmi2.infra.llm.deepseek_adapter import DeepSeekAdapter
 from fahmi2.infra.llm.interface import LLMProvider
 from fahmi2.infra.prompts.loader import PromptLoader
@@ -531,6 +532,7 @@ class GenerationController(QObject):
             stt_provider=stt_provider,
             llm_provider=llm_provider,
             ffmpeg=build_ffmpeg_from_runtime(),
+            ingestion=build_default_ingestion_dispatcher(),
             retriever=PassthroughRetriever(),
             prompts=PromptLoader(override_dir=self._app_paths.prompts_override_dir),
             pause_token=self._current_pause_token,

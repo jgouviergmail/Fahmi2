@@ -17,6 +17,7 @@ from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
 from fahmi2.domain.source import SourceExecution
 from fahmi2.infra.audio.ffmpeg_extractor import FFmpegExtractor
+from fahmi2.infra.ingestion.dispatcher import build_default_ingestion_dispatcher
 from fahmi2.infra.llm._fakes import FakeLLMProvider
 from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
@@ -74,6 +75,7 @@ def _build_ctx(tmp_path: Path, run: Run) -> PhaseContext:
         stt_provider=FakeSTTProvider(),
         llm_provider=FakeLLMProvider(),
         ffmpeg=FFmpegExtractor(),
+        ingestion=build_default_ingestion_dispatcher(),
         retriever=PassthroughRetriever(),
         prompts=PromptLoader(),
         pause_token=PauseToken(),

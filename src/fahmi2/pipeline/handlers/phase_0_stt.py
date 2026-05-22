@@ -1,12 +1,11 @@
-"""Handler de la phase 0 : extraction audio + transcription STT.
+"""Handler de la phase 0 : ingestion d'une source → transcription JSON.
 
-Pour chaque vidéo, le handler :
-
-1. Extrait l'audio (WAV 16 kHz mono) via ``FFmpegExtractor`` dans
-   ``workspace/audio/{source_id}.wav``.
-2. Transcrit l'audio via le ``STTProvider`` configuré.
-3. Persiste la transcription JSON dans ``workspace/transcripts/{source_id}.json``.
-4. Si ``settings.delete_audio_after_stt`` est ``True``, supprime le WAV.
+Le handler délègue à l'``IngestionDispatcher`` (injecté dans le ``PhaseContext``),
+qui choisit l'ingesteur adapté au type de source (vidéo/audio via ffmpeg + STT ;
+documents et YouTube aux lots ultérieurs) et renvoie une ``Transcription``. Le
+handler persiste cette transcription en JSON dans
+``workspace/transcripts/{source_id}.json`` et calcule le coût STT à partir de la
+durée transcrite.
 
 Le handler ne gère pas le retry / le checkpoint : ces logiques sont au niveau
 du ``PipelineEngine``.
@@ -15,23 +14,20 @@ du ``PipelineEngine``.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from pathlib import Path
 
-from fahmi2.core.errors.exceptions import Fahmi2Error
 from fahmi2.domain.enums import PhaseId, PhaseStatus, SttProvider
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.source import SourceExecution
+from fahmi2.infra.ingestion.interface import IngestionDeps
 from fahmi2.infra.stt.interface import Transcription
 from fahmi2.pipeline.phase_handler import PhaseContext, PhaseHandler
 
-_AUDIO_SUBDIR = "audio"
 _TRANSCRIPTS_SUBDIR = "transcripts"
-_AUDIO_EXTENSION = ".wav"
 _TRANSCRIPT_EXTENSION = ".json"
 
 
 class Phase0SttHandler(PhaseHandler):
-    """Phase 0 — extraction audio + transcription STT."""
+    """Phase 0 — ingestion d'une source en transcription."""
 
     @property
     def phase_id(self) -> PhaseId:
@@ -40,7 +36,7 @@ class Phase0SttHandler(PhaseHandler):
 
     @property
     def is_per_video(self) -> bool:
-        """Phase par vidéo."""
+        """Phase par source."""
         return True
 
     def max_parallel_workers(self, ctx: PhaseContext) -> int:
@@ -55,11 +51,11 @@ class Phase0SttHandler(PhaseHandler):
         *,
         source: SourceExecution | None,
     ) -> PhaseExecution:
-        """Extrait l'audio et produit la transcription pour une source.
+        """Ingère une source et produit sa transcription JSON.
 
         Args:
             ctx: Contexte d'exécution.
-            source: Source à transcrire (obligatoire, la phase est per-video).
+            source: Source à ingérer (obligatoire, la phase est per-source).
 
         Returns:
             ``PhaseExecution`` avec ``status=SUCCEEDED`` et ``artifact_path``
@@ -67,36 +63,36 @@ class Phase0SttHandler(PhaseHandler):
 
         Raises:
             ValueError: Si ``source`` est ``None``.
-            Fahmi2Error: Toute erreur des sous-systèmes (ffmpeg, STT) est
-                propagée pour permettre au moteur d'appliquer la retry policy.
+            Fahmi2Error: Toute erreur des sous-systèmes (ingestion, ffmpeg, STT)
+                est propagée pour permettre au moteur d'appliquer la retry policy.
         """
         if source is None:
             raise ValueError("Phase0SttHandler requires a SourceExecution")
 
         started = datetime.now(tz=UTC)
-        audio_path = ctx.workspace / _AUDIO_SUBDIR / f"{source.source_id.value}{_AUDIO_EXTENSION}"
         transcript_path = (
             ctx.workspace
             / _TRANSCRIPTS_SUBDIR
             / f"{source.source_id.value}{_TRANSCRIPT_EXTENSION}"
         )
-
-        try:
-            audio_info = ctx.ffmpeg.extract(source.source.as_path, audio_path)
-            transcription = ctx.stt_provider.transcribe(
-                audio_path,
-                language_hint=ctx.settings.source_language,
-            )
-            cost = ctx.stt_provider.estimate_cost(audio_info.duration_seconds)
-            ctx.artifacts.write_json_atomic(
-                transcript_path,
-                _serialize_transcription(transcription),
-            )
-        except Fahmi2Error:
-            raise
-        finally:
-            if ctx.settings.delete_audio_after_stt:
-                _safe_delete(audio_path)
+        deps = IngestionDeps(
+            workspace=ctx.workspace,
+            artifacts=ctx.artifacts,
+            stt_provider=ctx.stt_provider,
+            ffmpeg=ctx.ffmpeg,
+        )
+        transcription = ctx.ingestion.ingest(
+            source.source,
+            source.source_id.value,
+            deps,
+            language_hint=ctx.settings.source_language,
+            delete_audio_after=ctx.settings.delete_audio_after_stt,
+        )
+        cost = ctx.stt_provider.estimate_cost(transcription.duration_seconds)
+        ctx.artifacts.write_json_atomic(
+            transcript_path,
+            _serialize_transcription(transcription),
+        )
 
         finished = datetime.now(tz=UTC)
         return PhaseExecution(
@@ -113,7 +109,7 @@ def _serialize_transcription(transcription: Transcription) -> dict[str, object]:
     """Sérialise une ``Transcription`` au format dict JSON-friendly.
 
     Args:
-        transcription: Résultat STT.
+        transcription: Résultat de l'ingestion.
 
     Returns:
         Représentation dict.
@@ -130,16 +126,3 @@ def _serialize_transcription(transcription: Transcription) -> dict[str, object]:
             for s in transcription.segments
         ],
     }
-
-
-def _safe_delete(path: Path) -> None:
-    """Supprime ``path`` si présent, sans lever en cas d'échec.
-
-    Args:
-        path: Fichier à supprimer.
-    """
-    if path.exists():
-        try:
-            path.unlink()
-        except OSError:
-            pass

@@ -19,6 +19,7 @@ from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.run import Run
 from fahmi2.domain.source import SourceExecution
 from fahmi2.infra.audio.ffmpeg_extractor import FFmpegExtractor
+from fahmi2.infra.ingestion.dispatcher import IngestionDispatcher
 from fahmi2.infra.llm.interface import LLMProvider
 from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
@@ -43,6 +44,7 @@ class PhaseContext:
         stt_provider: Provider STT à utiliser pour la phase 0.
         llm_provider: Provider LLM utilisé par les phases 1..7.
         ffmpeg: Extracteur ``ffmpeg``.
+        ingestion: Dispatcher d'ingestion (phase 0 : source → transcription).
         retriever: Retriever du glossaire pour les phases 3, 4, 5, 6, 7.
         prompts: Loader de templates de prompts (défauts bundlés + override).
         pause_token: Jeton coopératif pause/cancel.
@@ -58,6 +60,7 @@ class PhaseContext:
     stt_provider: STTProvider
     llm_provider: LLMProvider
     ffmpeg: FFmpegExtractor
+    ingestion: IngestionDispatcher
     retriever: GlossaryRetriever
     prompts: PromptLoader
     pause_token: PauseToken

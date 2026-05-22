@@ -23,6 +23,7 @@ from fahmi2.core.retrieval.interface import PassthroughRetriever
 from fahmi2.core.retry.policy import RetryPolicy
 from fahmi2.domain.enums import Language, RunStatus
 from fahmi2.infra.audio.ffmpeg_extractor import FFmpegExtractor
+from fahmi2.infra.ingestion.dispatcher import build_default_ingestion_dispatcher
 from fahmi2.infra.llm._fakes import FakeLLMProvider
 from fahmi2.infra.llm.interface import LLMResponse
 from fahmi2.infra.prompts.loader import PromptLoader
@@ -233,6 +234,7 @@ def test_full_pipeline_produces_expected_outputs(
         stt_provider=fake_stt,
         llm_provider=_RotatingFakeLLM(),
         ffmpeg=FFmpegExtractor(),
+        ingestion=build_default_ingestion_dispatcher(),
         retriever=PassthroughRetriever(),
         prompts=PromptLoader(),
         pause_token=PauseToken(),

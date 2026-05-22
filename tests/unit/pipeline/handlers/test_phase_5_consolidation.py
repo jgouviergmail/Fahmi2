@@ -117,6 +117,7 @@ def test_execute_assembles_consolidated_markdown(
         stt_provider=ctx.stt_provider,
         llm_provider=_sequential_responses(responses),
         ffmpeg=ctx.ffmpeg,
+        ingestion=ctx.ingestion,
         retriever=ctx.retriever,
         prompts=ctx.prompts,
         pause_token=ctx.pause_token,

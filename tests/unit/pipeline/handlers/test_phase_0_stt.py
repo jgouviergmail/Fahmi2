@@ -18,6 +18,7 @@ from fahmi2.domain.ids import ProjectId, RunId, SourceId
 from fahmi2.domain.run import Run
 from fahmi2.domain.source import InputSource, SourceExecution
 from fahmi2.infra.audio.ffmpeg_extractor import AudioInfo, FFmpegExtractor
+from fahmi2.infra.ingestion.dispatcher import build_default_ingestion_dispatcher
 from fahmi2.infra.llm._fakes import FakeLLMProvider
 from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
@@ -95,6 +96,7 @@ def _make_context(
         stt_provider=stt,
         llm_provider=FakeLLMProvider(),
         ffmpeg=FFmpegExtractor(),
+        ingestion=build_default_ingestion_dispatcher(),
         retriever=PassthroughRetriever(),
         prompts=PromptLoader(),
         pause_token=PauseToken(),
@@ -207,6 +209,7 @@ def test_execute_propagates_ffmpeg_errors(
         stt_provider=FakeSTTProvider(),
         llm_provider=FakeLLMProvider(),
         ffmpeg=bad_extractor,
+        ingestion=build_default_ingestion_dispatcher(),
         retriever=PassthroughRetriever(),
         prompts=PromptLoader(),
         pause_token=PauseToken(),
@@ -243,6 +246,7 @@ def test_execute_reports_severity_on_failure(
         stt_provider=FakeSTTProvider(),
         llm_provider=FakeLLMProvider(),
         ffmpeg=FFmpegExtractor(),
+        ingestion=build_default_ingestion_dispatcher(),
         retriever=PassthroughRetriever(),
         prompts=PromptLoader(),
         pause_token=PauseToken(),
@@ -287,6 +291,7 @@ def test_mocked_full_path(tmp_path: Path, make_generation_settings: Any) -> None
         stt_provider=fake_stt,
         llm_provider=FakeLLMProvider(),
         ffmpeg=fake_ffmpeg,
+        ingestion=build_default_ingestion_dispatcher(),
         retriever=PassthroughRetriever(),
         prompts=PromptLoader(),
         pause_token=PauseToken(),

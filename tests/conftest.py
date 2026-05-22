@@ -52,6 +52,7 @@ def make_generation_settings() -> Any:
             "delete_audio_after_stt": True,
             "export_formats": frozenset(),
             "reformulate_documents": True,
+            "youtube_urls": (),
         }
         base.update(overrides)
         return GenerationSettings(**base)

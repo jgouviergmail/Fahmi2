@@ -119,6 +119,8 @@ class GenerationSettings:
         reformulate_documents: Si ``True`` (défaut), les documents texte passent
             par la reformulation (phase 3) comme une transcription ; sinon ils
             sont insérés tels quels (pass-through, structure préservée).
+        youtube_urls: Liens YouTube **unitaires** à traiter (ajoutés aux sources
+            après les fichiers du dossier d'entrée).
     """
 
     input_folder: Path
@@ -134,6 +136,7 @@ class GenerationSettings:
     delete_audio_after_stt: bool
     export_formats: frozenset[ExportFormat] = DEFAULT_GENERATION_EXPORT_FORMATS
     reformulate_documents: bool = True
+    youtube_urls: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.output_languages:

@@ -87,6 +87,14 @@ _REFORMULATE_DOCS_TOOLTIP = (
     "inséré tel quel (utile pour un cours déjà bien rédigé)."
 )
 
+_FOLDER_LABEL = "Dossier d'entrée :"
+_YOUTUBE_URLS_LABEL = "Liens YouTube :"
+_YOUTUBE_URLS_HEIGHT_PX = 70
+_YOUTUBE_URLS_PLACEHOLDER = (
+    "Un lien YouTube par ligne (vidéos unitaires).\n"
+    "Ex : https://youtu.be/XXXXXXXXXXX"
+)
+
 
 class GenerationSettingsView(QDialog):
     """Dialogue d'édition des réglages de génération (master-detail)."""
@@ -159,6 +167,11 @@ class GenerationSettingsView(QDialog):
         self._input_folder_input.setReadOnly(True)
         self._browse_btn = QPushButton("Parcourir…", self)
         self._browse_btn.clicked.connect(self._browse_input_folder)
+
+        self._youtube_urls_input = QTextEdit(self)
+        self._youtube_urls_input.setPlaceholderText(_YOUTUBE_URLS_PLACEHOLDER)
+        self._youtube_urls_input.setFixedHeight(_YOUTUBE_URLS_HEIGHT_PX)
+        self._youtube_urls_input.setAcceptRichText(False)
 
         self._source_lang_combo = QComboBox(self)
         for lang in Language:
@@ -237,7 +250,8 @@ class GenerationSettingsView(QDialog):
         folder_row = QHBoxLayout()
         folder_row.addWidget(self._input_folder_input)
         folder_row.addWidget(self._browse_btn)
-        form.addRow("Dossier des vidéos :", folder_row)
+        form.addRow(_FOLDER_LABEL, folder_row)
+        form.addRow(_YOUTUBE_URLS_LABEL, self._youtube_urls_input)
         form.addRow("Langue source :", self._source_lang_combo)
         langs_row = QHBoxLayout()
         for cb in self._output_langs.values():
@@ -361,6 +375,7 @@ class GenerationSettingsView(QDialog):
             generation: Réglages à éditer.
         """
         self._input_folder_input.setText(str(generation.input_folder))
+        self._youtube_urls_input.setPlainText("\n".join(generation.youtube_urls))
         src_idx = self._source_lang_combo.findData(generation.source_language)
         if src_idx >= 0:
             self._source_lang_combo.setCurrentIndex(src_idx)
@@ -409,6 +424,11 @@ class GenerationSettingsView(QDialog):
         export_formats = frozenset(
             fmt for fmt, cb in self._export_checks.items() if cb.isChecked()
         )
+        youtube_urls = tuple(
+            line.strip()
+            for line in self._youtube_urls_input.toPlainText().splitlines()
+            if line.strip()
+        )
         self._result = GenerationSettings(
             input_folder=Path(input_folder_text),
             source_language=source_lang,
@@ -426,5 +446,6 @@ class GenerationSettingsView(QDialog):
             delete_audio_after_stt=not self._keep_audio_checkbox.isChecked(),
             export_formats=export_formats,
             reformulate_documents=self._reformulate_documents_checkbox.isChecked(),
+            youtube_urls=youtube_urls,
         )
         self.accept()

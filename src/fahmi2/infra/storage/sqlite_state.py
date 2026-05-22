@@ -142,6 +142,7 @@ def _serialize_generation_settings(gen: GenerationSettings) -> dict[str, Any]:
         "delete_audio_after_stt": gen.delete_audio_after_stt,
         "export_formats": sorted(f.value for f in gen.export_formats),
         "reformulate_documents": gen.reformulate_documents,
+        "youtube_urls": list(gen.youtube_urls),
     }
 
 
@@ -195,6 +196,7 @@ def _deserialize_generation_settings(payload: dict[str, Any]) -> GenerationSetti
             ExportFormat(f) for f in payload.get("export_formats", [])
         ),
         reformulate_documents=bool(payload.get("reformulate_documents", True)),
+        youtube_urls=tuple(payload.get("youtube_urls", [])),
     )
 
 

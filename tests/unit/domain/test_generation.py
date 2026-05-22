@@ -127,3 +127,9 @@ def test_parallelism_config_validates_positive() -> None:
 def test_reformulate_documents_defaults_true() -> None:
     assert _make().reformulate_documents is True
     assert _make(reformulate_documents=False).reformulate_documents is False
+
+
+def test_youtube_urls_default_empty() -> None:
+    assert _make().youtube_urls == ()
+    urls = ("https://youtu.be/x", "https://youtu.be/y")
+    assert _make(youtube_urls=urls).youtube_urls == urls

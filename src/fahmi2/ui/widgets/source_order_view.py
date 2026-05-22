@@ -4,11 +4,14 @@
 « Exclues » (non traitées). Boutons : ↑ / ↓ (réordonner), Exclure ▼ / Réinclure ▲
 (déplacer entre listes), ↻ Rafraîchir (émet ``refresh_requested``), Tout réinclure.
 Expose ``source_order()`` et ``excluded_sources()`` (clés stables) consommés par
-``GenerationSettingsView``. La logique de réconciliation est déléguée à la
-fonction pure ``app.input_sources.reconcile_source_order``.
+``GenerationSettingsView``. Composant de **présentation pur** : la réconciliation
+ordre/exclusion (fonction pure ``app.input_sources.reconcile_source_order``) est
+appliquée par l'appelant, qui transmet les listes déjà réconciliées à ``populate``.
 """
 
 from __future__ import annotations
+
+from collections.abc import Sequence
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
@@ -70,29 +73,28 @@ class SourceOrderView(QWidget):
     def populate(
         self,
         available: list[InputSource],
-        source_order: tuple[str, ...],
-        excluded: tuple[str, ...],
+        *,
+        included: Sequence[str],
+        excluded: Sequence[str],
+        known: set[str],
     ) -> None:
-        """Peuple les deux listes via la réconciliation pure.
+        """Peuple les deux listes à partir de clés déjà réconciliées.
 
         Args:
-            available: Sources disponibles (dans l'ordre de collecte).
-            source_order: Clés ordonnées des incluses (état persisté/courant).
-            excluded: Clés des exclues (état persisté/courant).
+            available: Sources disponibles (renseigne le type affiché et le badge
+                « nouveau »).
+            included: Clés des sources à traiter, déjà ordonnées et réconciliées.
+            excluded: Clés des sources exclues, déjà réconciliées.
+            known: Clés présentes dans l'état persisté/courant ; les sources
+                absentes de cet ensemble reçoivent le badge « nouveau ».
         """
-        from fahmi2.app.input_sources import (  # noqa: PLC0415 — éviter cycle app↔ui
-            reconcile_source_order,
-        )
-
         self._kinds = {s.order_key(): s.kind for s in available}
-        self._known = set(source_order) | set(excluded)
-        keys = [s.order_key() for s in available]
-        included, excluded_keys = reconcile_source_order(keys, source_order, excluded)
+        self._known = set(known)
         self._included.clear()
         self._excluded.clear()
         for key in included:
             self._included.addItem(self._make_item(key))
-        for key in excluded_keys:
+        for key in excluded:
             self._excluded.addItem(self._make_item(key))
 
     def source_order(self) -> tuple[str, ...]:
@@ -118,6 +120,14 @@ class SourceOrderView(QWidget):
 
     @staticmethod
     def _keys(widget: QListWidget) -> tuple[str, ...]:
+        """Extrait les clés stockées des items d'une liste, dans l'ordre.
+
+        Args:
+            widget: Liste à parcourir.
+
+        Returns:
+            Les clés (rôle ``_KEY_ROLE``) dans l'ordre d'affichage.
+        """
         keys: list[str] = []
         for i in range(widget.count()):
             item = widget.item(i)
@@ -126,6 +136,15 @@ class SourceOrderView(QWidget):
         return tuple(keys)
 
     def _make_item(self, key: str) -> QListWidgetItem:
+        """Construit un item d'affichage pour une clé de source.
+
+        Args:
+            key: Clé de la source (stockée dans le rôle ``_KEY_ROLE``).
+
+        Returns:
+            L'item libellé ``[TYPE] clé`` avec un badge « nouveau » si la clé est
+            absente de l'ensemble ``_known``.
+        """
         kind = self._kinds.get(key, SourceKind.VIDEO)
         badge = "" if key in self._known else _NEW_BADGE
         item = QListWidgetItem(f"[{_KIND_LABELS[kind]}] {key}{badge}")
@@ -134,6 +153,13 @@ class SourceOrderView(QWidget):
 
     @staticmethod
     def _move(src: QListWidget, dst: QListWidget, key: str) -> None:
+        """Déplace l'item de clé ``key`` de ``src`` vers la fin de ``dst``.
+
+        Args:
+            src: Liste source.
+            dst: Liste destination.
+            key: Clé de l'item à déplacer (sans effet si introuvable).
+        """
         for i in range(src.count()):
             item = src.item(i)
             if item is not None and item.data(_KEY_ROLE) == key:
@@ -141,16 +167,24 @@ class SourceOrderView(QWidget):
                 return
 
     def _exclude_selected(self) -> None:
+        """Exclut la source actuellement sélectionnée dans la liste des incluses."""
         item = self._included.currentItem()
         if item is not None:
             self.exclude_key(str(item.data(_KEY_ROLE)))
 
     def _reinclude_selected(self) -> None:
+        """Réintègre la source actuellement sélectionnée dans la liste des exclues."""
         item = self._excluded.currentItem()
         if item is not None:
             self._move(self._excluded, self._included, str(item.data(_KEY_ROLE)))
 
     def _move_selected(self, delta: int) -> None:
+        """Déplace la source incluse sélectionnée de ``delta`` positions.
+
+        Args:
+            delta: Décalage (``-1`` = monter, ``+1`` = descendre) ; sans effet si
+                la cible sort des bornes de la liste.
+        """
         row = self._included.currentRow()
         target = row + delta
         if row < 0 or target < 0 or target >= self._included.count():
@@ -160,6 +194,7 @@ class SourceOrderView(QWidget):
         self._included.setCurrentRow(target)
 
     def _build_layout(self) -> None:
+        """Assemble les deux listes, les boutons de déplacement et la barre d'actions."""
         outer = QVBoxLayout(self)
         outer.addWidget(QLabel(_INCLUDED_TITLE, self))
 

@@ -36,7 +36,7 @@ def _write_reformulated(workspace: Path, source_id: str, content: str) -> Path:
 def test_handler_metadata() -> None:
     handler = Phase4StructurationHandler()
     assert handler.phase_id.value == "phase_4_structuration"
-    assert handler.is_per_video is True
+    assert handler.is_per_source is True
 
 
 def test_execute_writes_structured_markdown(

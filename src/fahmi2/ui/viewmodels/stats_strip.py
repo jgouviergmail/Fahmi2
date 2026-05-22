@@ -67,8 +67,8 @@ class StatsStripViewModel:
         Returns:
             ``StatsSnapshot``.
         """
-        per_video_phase_ids = [
-            h.phase_id for h in self._registry.ordered_handlers() if h.is_per_video
+        per_source_phase_ids = [
+            h.phase_id for h in self._registry.ordered_handlers() if h.is_per_source
         ]
         videos_total = len(run.sources)
         videos_completed = 0
@@ -81,9 +81,9 @@ class StatsStripViewModel:
                     run.id, phase_id, source_id=source.source_id
                 )
                 in completed_statuses
-                for phase_id in per_video_phase_ids
+                for phase_id in per_source_phase_ids
             )
-            if done and per_video_phase_ids:
+            if done and per_source_phase_ids:
                 videos_completed += 1
 
         executions = self._state.list_phase_executions(run.id)

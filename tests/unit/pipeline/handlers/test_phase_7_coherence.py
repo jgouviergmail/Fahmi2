@@ -29,7 +29,7 @@ def _llm(content: str) -> LLMResponse:
 def test_handler_metadata() -> None:
     handler = Phase7CoherenceHandler()
     assert handler.phase_id.value == "phase_7_coherence"
-    assert handler.is_per_video is False
+    assert handler.is_per_source is False
 
 
 def test_execute_rewrites_consolidated_for_each_language(

@@ -49,7 +49,7 @@ class Phase3ReformulationHandler(PhaseHandler):
         return PhaseId.REFORMULATION
 
     @property
-    def is_per_video(self) -> bool:
+    def is_per_source(self) -> bool:
         """Phase par vidéo."""
         return True
 

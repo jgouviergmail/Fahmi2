@@ -39,7 +39,7 @@ class Phase1TermExtractionHandler(PhaseHandler):
         return PhaseId.TERM_EXTRACTION
 
     @property
-    def is_per_video(self) -> bool:
+    def is_per_source(self) -> bool:
         """Phase par vidéo."""
         return True
 

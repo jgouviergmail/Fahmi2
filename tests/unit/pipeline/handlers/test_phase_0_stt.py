@@ -118,7 +118,7 @@ def _scripted_transcription() -> Transcription:
 def test_handler_metadata() -> None:
     handler = Phase0SttHandler()
     assert handler.phase_id.value == "phase_0_stt"
-    assert handler.is_per_video is True
+    assert handler.is_per_source is True
 
 
 def test_execute_writes_transcription_json(

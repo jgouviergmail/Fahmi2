@@ -38,7 +38,7 @@ class _NoOpHandler(PhaseHandler):
         return PhaseId.STT
 
     @property
-    def is_per_video(self) -> bool:
+    def is_per_source(self) -> bool:
         return True
 
     def execute(

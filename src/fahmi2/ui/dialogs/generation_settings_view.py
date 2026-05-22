@@ -30,7 +30,10 @@ from PySide6.QtWidgets import (
 )
 
 from fahmi2.app.hardware_probe import HardwareInfo
-from fahmi2.app.input_sources import collect_available_sources_from
+from fahmi2.app.input_sources import (
+    collect_available_sources_from,
+    reconcile_source_order,
+)
 from fahmi2.core.errors.exceptions import Fahmi2Error
 from fahmi2.domain.enums import (
     ExportFormat,
@@ -361,25 +364,30 @@ class GenerationSettingsView(QDialog):
             self._refresh_source_order()
 
     def _parse_youtube_urls(self) -> tuple[str, ...]:
-        """Extrait les liens YouTube saisis (une URL non vide par ligne)."""
-        return tuple(
+        """Extrait les liens YouTube saisis (une URL non vide par ligne, dédupliquée).
+
+        Returns:
+            Les URLs non vides, sans doublon, dans l'ordre de saisie
+            (``dict.fromkeys`` préserve l'ordre d'insertion).
+        """
+        lines = (
             line.strip()
             for line in self._youtube_urls_input.toPlainText().splitlines()
-            if line.strip()
         )
+        return tuple(dict.fromkeys(line for line in lines if line))
 
     def _scan_available(self) -> list[InputSource]:
         """Liste les sources disponibles depuis les champs courants (best-effort).
 
         Returns:
             Les ``InputSource`` du dossier + URLs ; liste vide si le dossier est
-            inaccessible et qu'aucune URL n'est saisie.
+            inaccessible et qu'aucune URL n'est saisie. Tant qu'aucun dossier
+            n'est sélectionné, seules les URLs YouTube sont collectées.
         """
         folder_text = self._input_folder_input.text().strip()
-        urls = self._parse_youtube_urls()
-        folder = Path(folder_text) if folder_text else Path("__inexistant__")
+        folder = Path(folder_text) if folder_text else None
         try:
-            return collect_available_sources_from(folder, urls)
+            return collect_available_sources_from(folder, self._parse_youtube_urls())
         except Fahmi2Error:
             return []
 
@@ -388,7 +396,10 @@ class GenerationSettingsView(QDialog):
         source_order: tuple[str, ...] | None = None,
         excluded: tuple[str, ...] | None = None,
     ) -> None:
-        """Re-scanne les sources et repeuple la double liste.
+        """Re-scanne les sources, réconcilie l'ordre/exclusion et repeuple la liste.
+
+        La réconciliation (fonction pure ``reconcile_source_order``) est faite ici
+        : le widget ``SourceOrderView`` ne reçoit que des clés déjà résolues.
 
         Args:
             source_order: État d'ordre à appliquer (``None`` = état courant du
@@ -406,7 +417,15 @@ class GenerationSettingsView(QDialog):
             if excluded is not None
             else self._source_order_view.excluded_sources()
         )
-        self._source_order_view.populate(self._scan_available(), order, excl)
+        available = self._scan_available()
+        available_keys = [source.order_key() for source in available]
+        included, excluded_keys = reconcile_source_order(available_keys, order, excl)
+        self._source_order_view.populate(
+            available,
+            included=included,
+            excluded=excluded_keys,
+            known=set(order) | set(excl),
+        )
 
     def _on_stt_changed(self, index: int) -> None:
         """Bloque ``faster_whisper_local`` sans GPU CUDA.

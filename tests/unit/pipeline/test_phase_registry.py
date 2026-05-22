@@ -11,17 +11,17 @@ from fahmi2.pipeline.phase_registry import PhaseRegistry
 class _FakeHandler(PhaseHandler):
     """Handler factice pour tester le registre."""
 
-    def __init__(self, phase_id: PhaseId, per_video: bool = True) -> None:
+    def __init__(self, phase_id: PhaseId, per_source: bool = True) -> None:
         self._phase_id = phase_id
-        self._per_video = per_video
+        self._per_source = per_source
 
     @property
     def phase_id(self) -> PhaseId:
         return self._phase_id
 
     @property
-    def is_per_video(self) -> bool:
-        return self._per_video
+    def is_per_source(self) -> bool:
+        return self._per_source
 
     def execute(self, ctx: PhaseContext, *, source: object | None) -> PhaseExecution:
         del ctx, source

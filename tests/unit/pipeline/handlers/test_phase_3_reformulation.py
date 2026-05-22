@@ -33,7 +33,7 @@ def _llm(content: str) -> LLMResponse:
 def test_handler_metadata() -> None:
     handler = Phase3ReformulationHandler()
     assert handler.phase_id.value == "phase_3_reformulation"
-    assert handler.is_per_video is True
+    assert handler.is_per_source is True
 
 
 def test_execute_writes_reformulated_markdown(

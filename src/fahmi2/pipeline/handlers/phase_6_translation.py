@@ -62,7 +62,7 @@ class Phase6TranslationHandler(PhaseHandler):
         return PhaseId.TRANSLATION
 
     @property
-    def is_per_video(self) -> bool:
+    def is_per_source(self) -> bool:
         """Phase batch (traite toutes les vidéos et toutes les langues)."""
         return False
 

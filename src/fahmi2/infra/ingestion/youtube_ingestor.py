@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from fahmi2.domain.enums import Language, SourceKind
 from fahmi2.domain.source import InputSource
+from fahmi2.infra.ingestion._fs import safe_delete
 from fahmi2.infra.ingestion.interface import IngestionDeps
 from fahmi2.infra.ingestion.media_ingestor import MediaIngestor
 from fahmi2.infra.ingestion.youtube_downloader import YoutubeDownloader
@@ -79,8 +80,4 @@ class YoutubeIngestor:
                 delete_audio_after=delete_audio_after,
             )
         finally:
-            if downloaded.exists():
-                try:
-                    downloaded.unlink()
-                except OSError:
-                    pass
+            safe_delete(downloaded)

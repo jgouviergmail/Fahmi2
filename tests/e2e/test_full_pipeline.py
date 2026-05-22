@@ -64,6 +64,24 @@ def _generate_mp4(out: Path, duration: float = 1.0) -> None:
     )
 
 
+def _generate_wav(out: Path, duration: float = 1.0) -> None:
+    """Génère un fichier audio WAV (sinusoïde) via ffmpeg.
+
+    Args:
+        out: Chemin du WAV à produire.
+        duration: Durée en secondes.
+    """
+    subprocess.run(
+        [
+            "ffmpeg", "-y",
+            "-f", "lavfi", "-i", f"sine=frequency=440:duration={duration}",
+            "-loglevel", "error", str(out),
+        ],
+        check=True,
+        capture_output=True,
+    )
+
+
 @pytest.fixture(scope="module")
 def e2e_input_folder(
     tmp_path_factory: pytest.TempPathFactory,
@@ -278,3 +296,121 @@ def test_full_pipeline_produces_expected_outputs(
     assert reloaded.status is RunStatus.COMPLETED
     assert reloaded.finished_at is not None
     assert reloaded.finished_at <= datetime.now(tz=UTC)
+
+
+_DOCUMENT_BODY = (
+    "Le PIB mesure la production d'un pays. "
+    "Ce document de cours présente les agrégats macroéconomiques."
+)
+
+
+@pytest.fixture(scope="module")
+def e2e_mixed_input_folder(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Path:
+    """Dossier d'entrée mixte : un audio WAV + un document Markdown.
+
+    Args:
+        tmp_path_factory: Fabrique de dossiers temporaires (scope module).
+
+    Returns:
+        Le dossier contenant ``audio_01.wav`` et ``doc_02.md``.
+    """
+    folder = tmp_path_factory.mktemp("e2e_mixed_input")
+    _generate_wav(folder / "audio_01.wav")
+    (folder / "doc_02.md").write_text(_DOCUMENT_BODY, encoding="utf-8")
+    return folder
+
+
+def test_full_pipeline_handles_mixed_audio_and_document(
+    tmp_path: Path,
+    make_generation_settings: Any,
+    e2e_mixed_input_folder: Path,
+) -> None:
+    """Le pipeline ingère un audio (ffmpeg + STT) et un document (extraction texte).
+
+    Vérifie qu'une entrée hétérogène (un WAV + un Markdown) franchit les 8 phases
+    et produit les livrables consolidés, le document étant reformulé comme l'audio
+    (``reformulate_documents=True`` par défaut).
+    """
+    state = SqliteState(tmp_path / "state.db")
+    workspace = tmp_path / "workspace"
+    output_dir = tmp_path / "output"
+
+    project_service = ProjectService(state)
+    settings = make_generation_settings(
+        input_folder=e2e_mixed_input_folder,
+        source_language=Language.FR,
+        output_languages=(Language.FR,),
+    )
+    project = project_service.create_project(
+        name="E2E mixte", workspace_folder=workspace, generation=settings
+    )
+
+    registry = PhaseRegistry(
+        [
+            Phase0SttHandler(),
+            Phase1TermExtractionHandler(),
+            Phase2GlossaryReconciliationHandler(),
+            Phase3ReformulationHandler(),
+            Phase4StructurationHandler(),
+            Phase5ConsolidationHandler(),
+            Phase6TranslationHandler(),
+            Phase7CoherenceHandler(),
+        ]
+    )
+    engine = PipelineEngine(
+        registry=registry,
+        retry_policy=RetryPolicy(jitter=False, initial_delay_seconds=0.001),
+    )
+    orchestrator = RunOrchestrator(
+        state=state, engine=engine, project_service=project_service
+    )
+    run = orchestrator.create_run(project)
+    assert len(run.sources) == 2
+
+    fake_stt = FakeSTTProvider(
+        default_transcription=Transcription(
+            segments=(
+                TranscriptionSegment(
+                    start_seconds=0.0,
+                    end_seconds=1.0,
+                    text="le PIB mesure la production",
+                ),
+            ),
+            detected_language=Language.FR,
+            duration_seconds=1.0,
+        )
+    )
+
+    ctx = PhaseContext(
+        run=run,
+        settings=run.settings_snapshot,
+        workspace=workspace,
+        output_dir=output_dir,
+        state=state,
+        artifacts=FsArtifactStore(),
+        stt_provider=fake_stt,
+        llm_provider=_RotatingFakeLLM(),
+        ffmpeg=FFmpegExtractor(),
+        ingestion=build_default_ingestion_dispatcher(),
+        retriever=PassthroughRetriever(),
+        prompts=PromptLoader(),
+        pause_token=PauseToken(),
+        event_bus=EventBus(),
+    )
+
+    final_status = orchestrator.execute(run=run, ctx=ctx)
+    assert final_status is RunStatus.COMPLETED, (
+        f"Pipeline mixte failed: status={final_status}"
+    )
+
+    # Chaque source (audio + document) produit son artefact par-vidéo FR.
+    for source in run.sources:
+        assert (
+            output_dir / "per-video" / "fr" / f"{source.source_id.value}.md"
+        ).exists()
+
+    # Le document consolidé FR est produit à partir des deux sources.
+    assert (output_dir / "consolidated.fr.md").exists()
+    assert (workspace / "consolidated_master.md").exists()

@@ -98,7 +98,7 @@ class PipelineEngine:
             handler: Handler de la phase.
             ctx: Contexte.
         """
-        if handler.is_per_video:
+        if handler.is_per_source:
             workers = handler.max_parallel_workers(ctx)
             map_bounded(
                 lambda source: self._execute_one(handler, ctx, source=source),

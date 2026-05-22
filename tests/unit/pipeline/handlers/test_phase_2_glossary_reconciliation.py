@@ -38,7 +38,7 @@ def _llm_response(content: str) -> LLMResponse:
 def test_handler_metadata() -> None:
     handler = Phase2GlossaryReconciliationHandler()
     assert handler.phase_id.value == "phase_2_glossary_reconciliation"
-    assert handler.is_per_video is False
+    assert handler.is_per_source is False
 
 
 def test_execute_aggregates_and_writes_master(

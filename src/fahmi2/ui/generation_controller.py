@@ -24,7 +24,7 @@ from PySide6.QtCore import QObject, Qt, QThread, Signal
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox, QWidget
 
-from fahmi2.app._cost_common import TEXT_CHARS_PER_TOKEN
+from fahmi2.app._cost_common import TEXT_BYTES_PER_TOKEN
 from fahmi2.app.cost_estimator import CostEstimation, CostEstimator, SourceWeight
 from fahmi2.app.generation_export import export_generation_documents
 from fahmi2.app.hardware_probe import HardwareInfo
@@ -211,7 +211,7 @@ def _source_weight(
         size_bytes = source.source.as_path.stat().st_size
         return SourceWeight(
             audio_seconds=0.0,
-            text_tokens=size_bytes / TEXT_CHARS_PER_TOKEN,
+            text_tokens=size_bytes / TEXT_BYTES_PER_TOKEN,
             reformulated=settings.reformulate_documents,
         )
     return SourceWeight(

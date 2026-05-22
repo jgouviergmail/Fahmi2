@@ -47,7 +47,7 @@ class RunMatrixViewModel:
 
         Args:
             state: Accès SQLite.
-            registry: Registre des handlers (ordre des colonnes + per-video).
+            registry: Registre des handlers (ordre des colonnes + per-source).
         """
         self._state = state
         self._registry = registry
@@ -56,10 +56,10 @@ class RunMatrixViewModel:
         """Phases dans l'ordre canonique + drapeau per-source.
 
         Returns:
-            Tuple de ``(phase_id, is_per_video)``.
+            Tuple de ``(phase_id, is_per_source)``.
         """
         return tuple(
-            (h.phase_id, h.is_per_video) for h in self._registry.ordered_handlers()
+            (h.phase_id, h.is_per_source) for h in self._registry.ordered_handlers()
         )
 
     def cost_matrix_snapshot(self, run: Run) -> CostMatrixSnapshot:
@@ -111,12 +111,12 @@ class RunMatrixViewModel:
         for source in sources:
             row: list[CostMatrixCell] = []
             row_total = 0.0
-            for phase_id, per_video in phases:
-                key = (phase_id, source.source_id if per_video else None)
+            for phase_id, per_source in phases:
+                key = (phase_id, source.source_id if per_source else None)
                 pc = cells_by_key.get(key)
                 status = pc.status if pc is not None else PhaseStatus.PENDING
                 cost = pc.cost_usd if pc is not None else 0.0
-                if per_video:
+                if per_source:
                     row_total += cost
                     cell_cost = cost if pc is not None else None
                 else:
@@ -125,7 +125,7 @@ class RunMatrixViewModel:
                     CostMatrixCell(
                         status=status,
                         cost_usd=cell_cost,
-                        tooltip=_tooltip(phase_id, status, cost, batch=not per_video),
+                        tooltip=_tooltip(phase_id, status, cost, batch=not per_source),
                     )
                 )
             grid.append(tuple(row))
@@ -133,8 +133,8 @@ class RunMatrixViewModel:
 
         column_totals: list[float] = []
         grand_total = sum(row_totals)
-        for phase_id, per_video in phases:
-            if per_video:
+        for phase_id, per_source in phases:
+            if per_source:
                 column_totals.append(
                     sum(
                         pc.cost_usd

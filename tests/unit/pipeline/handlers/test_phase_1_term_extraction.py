@@ -35,7 +35,7 @@ def _scripted_terms_response(content: str) -> LLMResponse:
 def test_handler_metadata() -> None:
     handler = Phase1TermExtractionHandler()
     assert handler.phase_id.value == "phase_1_term_extraction"
-    assert handler.is_per_video is True
+    assert handler.is_per_source is True
 
 
 def test_execute_writes_candidates_json(tmp_path: Path, make_generation_settings: Any) -> None:

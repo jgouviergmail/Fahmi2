@@ -74,11 +74,11 @@ def test_snapshot_counts_completed_videos(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:
     state, run, registry = _setup(tmp_path, make_generation_settings)
-    # Marquer toutes les phases per-video succeeded pour video[0]
-    per_video_phase_ids = [
-        h.phase_id for h in registry.ordered_handlers() if h.is_per_video
+    # Marquer toutes les phases per-source succeeded pour video[0]
+    per_source_phase_ids = [
+        h.phase_id for h in registry.ordered_handlers() if h.is_per_source
     ]
-    for pid in per_video_phase_ids:
+    for pid in per_source_phase_ids:
         state.upsert_phase_execution(
             run.id,
             PhaseExecution(phase_id=pid, status=PhaseStatus.SUCCEEDED),

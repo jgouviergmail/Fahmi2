@@ -108,7 +108,7 @@ class Phase5ConsolidationHandler(PhaseHandler):
         return PhaseId.CONSOLIDATION
 
     @property
-    def is_per_video(self) -> bool:
+    def is_per_source(self) -> bool:
         """Phase batch."""
         return False
 

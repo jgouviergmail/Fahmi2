@@ -18,6 +18,13 @@ from fahmi2.core.errors.severity import Severity
 _YTDLP_BINARY = "yt-dlp"
 _BESTAUDIO_FORMAT = "bestaudio/best"
 _NO_PLAYLIST = "--no-playlist"
+#: Délai maximal du téléchargement audio (s). Généreux : une longue vidéo de
+#: cours peut produire un flux audio volumineux sur une connexion lente. Au-delà,
+#: le processus est tué pour éviter un blocage indéfini du worker.
+_DOWNLOAD_TIMEOUT_SECONDS = 1800.0
+#: Délai maximal de la sonde de durée (s). L'opération ne télécharge pas le
+#: média (``--skip-download``), donc reste rapide.
+_PROBE_TIMEOUT_SECONDS = 60.0
 
 
 class YoutubeDownloader(Protocol):
@@ -83,7 +90,9 @@ class YtDlpDownloader:
             "-o", output_template, url,
         ]
         try:
-            subprocess.run(cmd, check=True, capture_output=True)  # noqa: S603
+            subprocess.run(  # noqa: S603
+                cmd, check=True, capture_output=True, timeout=_DOWNLOAD_TIMEOUT_SECONDS
+            )
         except FileNotFoundError as exc:
             raise IngestionError(
                 code="INGESTION.YTDLP_NOT_FOUND",
@@ -93,6 +102,19 @@ class YtDlpDownloader:
                 ),
                 severity=Severity.FATAL,
                 technical_details={"ytdlp_binary": self._ytdlp},
+            ) from exc
+        except subprocess.TimeoutExpired as exc:
+            raise IngestionError(
+                code="INGESTION.YOUTUBE_DOWNLOAD_FAILED",
+                user_message=(
+                    "Le téléchargement YouTube a dépassé le délai imparti "
+                    "(connexion lente, ou yt-dlp bloqué). Réessayez."
+                ),
+                severity=Severity.ERROR,
+                technical_details={
+                    "url": url,
+                    "timeout_seconds": _DOWNLOAD_TIMEOUT_SECONDS,
+                },
             ) from exc
         except subprocess.CalledProcessError as exc:
             stderr = exc.stderr.decode("utf-8", errors="replace") if exc.stderr else ""
@@ -128,8 +150,14 @@ class YtDlpDownloader:
             self._ytdlp, _NO_PLAYLIST, "--skip-download", "--print", "duration", url,
         ]
         try:
-            result = subprocess.run(cmd, check=True, capture_output=True)  # noqa: S603
-        except (FileNotFoundError, subprocess.CalledProcessError):
+            result = subprocess.run(  # noqa: S603
+                cmd, check=True, capture_output=True, timeout=_PROBE_TIMEOUT_SECONDS
+            )
+        except (
+            FileNotFoundError,
+            subprocess.CalledProcessError,
+            subprocess.TimeoutExpired,
+        ):
             return 0.0
         try:
             return float(result.stdout.decode("utf-8").strip().splitlines()[-1])

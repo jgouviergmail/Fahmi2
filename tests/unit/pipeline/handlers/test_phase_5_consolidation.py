@@ -54,7 +54,7 @@ def _sequential_responses(responses: list[LLMResponse]) -> FakeLLMProvider:
 def test_handler_metadata() -> None:
     handler = Phase5ConsolidationHandler()
     assert handler.phase_id.value == "phase_5_consolidation"
-    assert handler.is_per_video is False
+    assert handler.is_per_source is False
 
 
 def test_execute_assembles_consolidated_markdown(

@@ -1,16 +1,24 @@
 # Fahmi2
 
-> Transformez des vidéos de cours oraux (MP4) en documents Markdown
-> structurés, glossaire compris, multilingue, en quelques heures et sans
-> intervention manuelle.
+> Transformez vos cours — **vidéos, fichiers audio, liens YouTube ou documents
+> texte** — en documents Markdown structurés, glossaire compris, multilingue, en
+> quelques heures et sans intervention manuelle.
 
 Application desktop Windows, mono-utilisateur, **installation en double-clic**
 (aucune dépendance système à installer, ffmpeg bundlé). Pipeline en 8 phases
-(transcription Whisper + 7 phases LLM DeepSeek v4), entièrement
-paramétrable via l'interface graphique.
+(ingestion polymorphe — transcription Whisper ou extraction de texte — puis
+7 phases LLM DeepSeek v4), entièrement paramétrable via l'interface graphique.
 
 ## Capacités
 
+- **Entrées polymorphes** : vidéos (MP4, MKV, MOV, WebM…), fichiers audio (WAV,
+  MP3, M4A, FLAC, OGG…), **liens YouTube** (vidéos unitaires ; l'audio est
+  téléchargé par yt-dlp) et **documents texte** (PDF, Word, Markdown, txt —
+  reformulés comme une transcription orale, ou insérés tels quels). Sources
+  mixtes acceptées dans un même projet.
+- **Ordre & exclusion des sources** : l'ordre de traitement (donc l'ordre des
+  chapitres du document final) est réglable par glisser-déposer ; toute source
+  peut être exclue puis réincluse.
 - 2 langues de sortie : **français** et **anglais**.
 - 2 providers STT : **faster-whisper-large-v3-turbo** local (GPU NVIDIA) ou
   **OpenAI Whisper** cloud — ce dernier gère **toute durée de cours**
@@ -66,8 +74,9 @@ paramétrable via l'interface graphique.
    obligatoire, OpenAI optionnel).
 6. **Fichier → Nouveau projet** : donner un nom + choisir l'emplacement du
    projet, valider.
-7. Onglet **Génération → ⚙ Réglages** : choisir le dossier des vidéos, les
-   langues, le style, le modèle ; valider.
+7. Onglet **Génération → ⚙ Réglages** : choisir le dossier d'entrée (vidéos,
+   audios et/ou documents) et/ou coller des liens YouTube, ordonner ou exclure
+   les sources, puis régler les langues, le style et le modèle ; valider.
 8. (Optionnel) Cliquer sur **💵 Estimer le coût** pour voir le budget
    avant le lancement.
 9. Cliquer sur **▶ Lancer**. Récupérer les livrables Markdown à la fin
@@ -140,7 +149,7 @@ Export des supports en **Anki `.apkg`** (flashcards / cloze / QCM, ré-import sa
 doublon), **Markdown**, **PDF** et **HTML** (documents autonomes, sujet / corrigé
 séparés).
 
-781 tests passants, `mypy --strict` et `ruff` propres sur 299 fichiers.
+829 tests passants, `mypy --strict` et `ruff` propres sur 321 fichiers.
 
 ## Licence
 

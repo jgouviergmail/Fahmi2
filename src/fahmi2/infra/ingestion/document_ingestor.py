@@ -19,6 +19,9 @@ from fahmi2.infra.stt.interface import Transcription, TranscriptionSegment
 
 _DOCUMENT_DURATION_SECONDS = 0.0
 _SEGMENT_TIMESTAMP_SECONDS = 0.0
+#: Langue de repli quand aucun ``language_hint`` n'est fourni. En pratique le
+#: hint vaut toujours la langue source du projet (jamais ``None`` dans le flux
+#: normal) ; ce défaut n'est qu'un garde-fou pour les appels directs/tests.
 _DEFAULT_DOCUMENT_LANGUAGE = Language.FR
 
 

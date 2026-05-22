@@ -46,7 +46,7 @@ class Phase7CoherenceHandler(PhaseHandler):
         return PhaseId.COHERENCE
 
     @property
-    def is_per_video(self) -> bool:
+    def is_per_source(self) -> bool:
         """Phase batch (boucle sur les langues)."""
         return False
 

@@ -41,7 +41,7 @@ class Phase2GlossaryReconciliationHandler(PhaseHandler):
         return PhaseId.GLOSSARY_RECONCILIATION
 
     @property
-    def is_per_video(self) -> bool:
+    def is_per_source(self) -> bool:
         """Phase batch (un seul appel pour tout le run)."""
         return False
 

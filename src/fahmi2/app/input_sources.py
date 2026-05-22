@@ -59,25 +59,35 @@ def reconcile_source_order(
 
 
 def collect_available_sources_from(
-    input_folder: Path, youtube_urls: tuple[str, ...]
+    input_folder: Path | None, youtube_urls: tuple[str, ...]
 ) -> list[InputSource]:
     """Liste les sources disponibles (fichiers + URLs), sans ordre ni exclusion.
 
+    Les URLs YouTube sont **dédupliquées** en préservant l'ordre de saisie
+    (``dict.fromkeys``) : c'est ce qui garantit l'unicité des ``order_key`` —
+    invariant exploité par ``build_input_sources`` (cf. son indexation ``by_key``).
+
     Args:
-        input_folder: Dossier d'entrée à scanner.
-        youtube_urls: Liens YouTube saisis.
+        input_folder: Dossier d'entrée à scanner, ou ``None`` si aucun dossier
+            n'est sélectionné (seules les URLs sont alors collectées).
+        youtube_urls: Liens YouTube saisis (doublons tolérés en entrée).
 
     Returns:
         Les ``InputSource`` dans l'ordre de collecte (fichiers triés naturellement
-        puis URLs).
+        puis URLs uniques).
 
     Raises:
-        StorageError: ``STORAGE.READ_DENIED`` si le dossier est inaccessible et
-            qu'aucune URL n'est fournie.
+        StorageError: ``STORAGE.READ_DENIED`` si le dossier est fourni mais
+            inaccessible, et qu'aucune URL n'est fournie.
     """
-    file_sources = _scan_file_sources(input_folder, has_urls=bool(youtube_urls))
+    file_sources = (
+        _scan_file_sources(input_folder, has_urls=bool(youtube_urls))
+        if input_folder is not None
+        else []
+    )
     youtube_sources = [
-        InputSource(kind=SourceKind.YOUTUBE, location=url) for url in youtube_urls
+        InputSource(kind=SourceKind.YOUTUBE, location=url)
+        for url in dict.fromkeys(youtube_urls)
     ]
     return file_sources + youtube_sources
 
@@ -113,6 +123,9 @@ def build_input_sources(settings: GenerationSettings) -> list[SourceExecution]:
             présent, ou tout est exclu).
     """
     available = collect_available_sources(settings)
+    # ``order_key`` est unique par construction : les fichiers d'un même dossier
+    # ont des noms distincts et les URLs sont dédupliquées par
+    # ``collect_available_sources_from``. L'indexation ``by_key`` est donc sûre.
     by_key = {source.order_key(): source for source in available}
     available_keys = [source.order_key() for source in available]
     included_keys, _ = reconcile_source_order(

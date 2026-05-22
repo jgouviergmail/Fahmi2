@@ -7,10 +7,9 @@ piste audio WAV 16 kHz mono, que le ``STTProvider`` transcrit.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from fahmi2.domain.enums import Language, SourceKind
 from fahmi2.domain.source import InputSource
+from fahmi2.infra.ingestion._fs import safe_delete
 from fahmi2.infra.ingestion.interface import IngestionDeps
 from fahmi2.infra.stt.interface import Transcription
 
@@ -66,17 +65,4 @@ class MediaIngestor:
             )
         finally:
             if delete_audio_after:
-                _safe_delete(audio_path)
-
-
-def _safe_delete(path: Path) -> None:
-    """Supprime ``path`` si présent, sans lever en cas d'échec.
-
-    Args:
-        path: Fichier à supprimer.
-    """
-    if path.exists():
-        try:
-            path.unlink()
-        except OSError:
-            pass
+                safe_delete(audio_path)

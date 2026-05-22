@@ -84,7 +84,7 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   en génération, parseur de chapitres pédagogiques, ids de titres de l'export HTML).
 - `domain/` — entités pures immuables (`Project` [identité minimale : nom +
   emplacement + réglages par fonctionnalité], `GenerationSettings`,
-  `PedagogySettings`, `Run`, `VideoExecution`, `PhaseExecution`, `Term`,
+  `PedagogySettings`, `Run`, `InputSource`, `SourceExecution`, `PhaseExecution`, `Term`,
   `Glossary`, entités de support dans `supports.py` : `Flashcard`, `QcmItem`,
   `TrueFalseItem`, `ClozeItem`, `OpenQuestion`, `RevisionSheet`, `KeyPoints`,
   `MockExam`, `SupportArtifact`), enums (génération + pédagogie : `SupportType`×8,
@@ -135,29 +135,30 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
 
 ## Le pipeline en 8 phases
 
-Ordre canonique dans `phase_registry.py`. Chaque handler déclare `is_per_video` :
+Ordre canonique dans `phase_registry.py`. Chaque handler déclare `is_per_source`
+(une source = vidéo, audio, document ou lien YouTube) :
 
 | Phase | Handler | Mode |
 |-------|---------|------|
-| 0 STT | `phase_0_stt` | **par vidéo** |
-| 1 Extraction termes | `phase_1_term_extraction` | **par vidéo** |
+| 0 STT | `phase_0_stt` | **par source** |
+| 1 Extraction termes | `phase_1_term_extraction` | **par source** |
 | 2 Réconciliation glossaire | `phase_2_glossary_reconciliation` | batch |
-| 3 Reformulation | `phase_3_reformulation` | **par vidéo** |
-| 4 Structuration | `phase_4_structuration` | **par vidéo** |
+| 3 Reformulation | `phase_3_reformulation` | **par source** |
+| 4 Structuration | `phase_4_structuration` | **par source** |
 | 5 Consolidation | `phase_5_consolidation` | batch |
-| 6 Traduction | `phase_6_translation` | batch (boucle vidéos × langues) |
+| 6 Traduction | `phase_6_translation` | batch (boucle sources × langues) |
 | 7 Cohérence | `phase_7_coherence` | batch (boucle langues) |
 
 Le `PipelineEngine._execute_one` persiste chaque `PhaseExecution` en SQLite. Une
 phase déjà `SUCCEEDED` est **skippée** (passée en `SKIPPED`). C'est le socle du
-checkpoint/reprise. Les phases batch sont persistées avec `video_id IS NULL`.
+checkpoint/reprise. Les phases batch sont persistées avec `source_id IS NULL`.
 
-**Parallélisme** : le moteur exécute les phases per-video via
+**Parallélisme** : le moteur exécute les phases per-source via
 `core/concurrency/map_bounded` borné par `PhaseHandler.max_parallel_workers(ctx)`
 (défaut 1 ; phase 0 = `parallelism.stt_cloud_workers` si STT cloud sinon 1 — 1 GPU
 local ; phases 1/3/4 = `parallelism.llm_workers`). Les phases batch parallélisent
 leurs boucles internes : 6 sur `(langue × document)`, 7 sur les langues, 5 sur les
-résumés vidéo (ordre des résultats préservé → assemblage déterministe). Les
+résumés par source (ordre des résultats préservé → assemblage déterministe). Les
 barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase »).
 `ParallelismConfig` est câblée et réglable dans l'UI (défaut `llm_workers=16`,
 `stt_cloud_workers=3`). Détails : `docs/superpowers/specs/2026-05-21-parallelisation-traitements-design.md`.
@@ -201,8 +202,8 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
   `FAILED → RUNNING`. Ne jamais re-`create_run` pour « reprendre » : ça forge un
   nouveau `RunId` et perd tout le checkpoint.
 - **Piège SQLite `UNIQUE` + `NULL`** : SQLite traite `NULL` comme distinct dans
-  une contrainte `UNIQUE`, donc `ON CONFLICT(run_id, phase_id, video_id)` ne se
-  déclenche **jamais** pour les phases batch (`video_id IS NULL`).
+  une contrainte `UNIQUE`, donc `ON CONFLICT(run_id, phase_id, source_id)` ne se
+  déclenche **jamais** pour les phases batch (`source_id IS NULL`).
   `SqliteState.upsert_phase_execution` fait un `DELETE + INSERT` explicite dans ce
   cas. Toute évolution du schéma passe par `_apply_soft_migrations` (idempotent,
   `ALTER TABLE ADD COLUMN` ou nettoyage de données).

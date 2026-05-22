@@ -49,7 +49,7 @@ def _seed_workspace(
 def test_handler_metadata() -> None:
     handler = Phase6TranslationHandler()
     assert handler.phase_id.value == "phase_6_translation"
-    assert handler.is_per_video is False
+    assert handler.is_per_source is False
 
 
 def test_execute_copies_artifacts_for_source_language(

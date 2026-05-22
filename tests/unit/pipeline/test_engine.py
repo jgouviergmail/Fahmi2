@@ -48,7 +48,7 @@ class _CountingHandler(PhaseHandler):
         self,
         phase_id: PhaseId,
         *,
-        is_per_video: bool = True,
+        is_per_source: bool = True,
         fail_until_attempt: int = 0,
         permanent_failure: bool = False,
         raise_on_call: Fahmi2Error | None = None,
@@ -56,7 +56,7 @@ class _CountingHandler(PhaseHandler):
         parallel_workers: int = 1,
     ) -> None:
         self._phase_id = phase_id
-        self._per_video = is_per_video
+        self._per_source = is_per_source
         self.calls: list[SourceId | None] = []
         self._fail_until_attempt = fail_until_attempt
         self._permanent_failure = permanent_failure
@@ -70,8 +70,8 @@ class _CountingHandler(PhaseHandler):
         return self._phase_id
 
     @property
-    def is_per_video(self) -> bool:
-        return self._per_video
+    def is_per_source(self) -> bool:
+        return self._per_source
 
     def max_parallel_workers(self, ctx: PhaseContext) -> int:
         del ctx
@@ -174,13 +174,13 @@ def test_default_max_parallel_workers_is_one(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:
     ctx = _make_ctx(tmp_path, make_generation_settings, n_videos=1)
-    handler = _CountingHandler(PhaseId.STT, is_per_video=True)
+    handler = _CountingHandler(PhaseId.STT, is_per_source=True)
     assert handler.max_parallel_workers(ctx) == 1
 
 
 def test_engine_runs_phase_per_video(tmp_path: Path, make_generation_settings: Any) -> None:
     ctx = _make_ctx(tmp_path, make_generation_settings, n_videos=3)
-    handler = _CountingHandler(PhaseId.STT, is_per_video=True)
+    handler = _CountingHandler(PhaseId.STT, is_per_source=True)
     engine = _make_engine(handler)
     final = engine.execute(ctx)
     assert final is RunStatus.COMPLETED
@@ -189,7 +189,7 @@ def test_engine_runs_phase_per_video(tmp_path: Path, make_generation_settings: A
 
 def test_engine_runs_batch_phase_once(tmp_path: Path, make_generation_settings: Any) -> None:
     ctx = _make_ctx(tmp_path, make_generation_settings, n_videos=5)
-    handler = _CountingHandler(PhaseId.GLOSSARY_RECONCILIATION, is_per_video=False)
+    handler = _CountingHandler(PhaseId.GLOSSARY_RECONCILIATION, is_per_source=False)
     engine = _make_engine(handler)
     engine.execute(ctx)
     assert handler.calls == [None]
@@ -202,7 +202,7 @@ def test_engine_skips_already_succeeded(tmp_path: Path, make_generation_settings
     ctx.state.upsert_phase_execution(
         ctx.run.id, pe, source_id=ctx.run.sources[0].source_id
     )
-    handler = _CountingHandler(PhaseId.STT, is_per_video=True)
+    handler = _CountingHandler(PhaseId.STT, is_per_source=True)
     engine = _make_engine(handler)
     engine.execute(ctx)
     assert len(handler.calls) == 1  # juste la 2e vidéo
@@ -211,7 +211,7 @@ def test_engine_skips_already_succeeded(tmp_path: Path, make_generation_settings
 def test_engine_retries_transient_errors(tmp_path: Path, make_generation_settings: Any) -> None:
     ctx = _make_ctx(tmp_path, make_generation_settings, n_videos=1)
     handler = _CountingHandler(
-        PhaseId.STT, is_per_video=True, fail_until_attempt=1
+        PhaseId.STT, is_per_source=True, fail_until_attempt=1
     )
     engine = _make_engine(handler)
     final = engine.execute(ctx)
@@ -222,7 +222,7 @@ def test_engine_retries_transient_errors(tmp_path: Path, make_generation_setting
 def test_engine_fails_on_permanent_error(tmp_path: Path, make_generation_settings: Any) -> None:
     ctx = _make_ctx(tmp_path, make_generation_settings, n_videos=1)
     handler = _CountingHandler(
-        PhaseId.STT, is_per_video=True, permanent_failure=True
+        PhaseId.STT, is_per_source=True, permanent_failure=True
     )
     engine = _make_engine(handler)
     final = engine.execute(ctx)
@@ -235,7 +235,7 @@ def test_engine_emits_run_started_and_finished(
     ctx = _make_ctx(tmp_path, make_generation_settings, n_videos=1)
     events: list[PipelineEvent] = []
     ctx.event_bus.subscribe(events.append)
-    handler = _CountingHandler(PhaseId.STT, is_per_video=True)
+    handler = _CountingHandler(PhaseId.STT, is_per_source=True)
     engine = _make_engine(handler)
     engine.execute(ctx)
     assert isinstance(events[0], RunStarted)
@@ -249,7 +249,7 @@ def test_engine_emits_phase_started_and_finished(
     ctx = _make_ctx(tmp_path, make_generation_settings, n_videos=1)
     events: list[PipelineEvent] = []
     ctx.event_bus.subscribe(events.append)
-    handler = _CountingHandler(PhaseId.STT, is_per_video=True)
+    handler = _CountingHandler(PhaseId.STT, is_per_source=True)
     engine = _make_engine(handler)
     engine.execute(ctx)
     starts = [e for e in events if isinstance(e, PhaseStarted)]
@@ -263,7 +263,7 @@ def test_engine_emits_retry_attempt(tmp_path: Path, make_generation_settings: An
     events: list[PipelineEvent] = []
     ctx.event_bus.subscribe(events.append)
     handler = _CountingHandler(
-        PhaseId.STT, is_per_video=True, fail_until_attempt=1
+        PhaseId.STT, is_per_source=True, fail_until_attempt=1
     )
     engine = _make_engine(handler)
     engine.execute(ctx)
@@ -275,7 +275,7 @@ def test_engine_respects_budget_exceeded(tmp_path: Path, make_generation_setting
     ctx = _make_ctx(tmp_path, make_generation_settings, n_videos=1)
     handler = _CountingHandler(
         PhaseId.STT,
-        is_per_video=True,
+        is_per_source=True,
         raise_on_call=BudgetExceededError(
             code="BUDGET.EXCEEDED",
             user_message="x",
@@ -289,7 +289,7 @@ def test_engine_respects_budget_exceeded(tmp_path: Path, make_generation_setting
 
 def test_engine_respects_cancel(tmp_path: Path, make_generation_settings: Any) -> None:
     ctx = _make_ctx(tmp_path, make_generation_settings, n_videos=2)
-    handler = _CountingHandler(PhaseId.STT, is_per_video=True)
+    handler = _CountingHandler(PhaseId.STT, is_per_source=True)
 
     # On cancel le token avant exécution
     ctx.pause_token.request_cancel()
@@ -303,7 +303,7 @@ def test_engine_persists_phase_status_succeeded(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:
     ctx = _make_ctx(tmp_path, make_generation_settings, n_videos=1)
-    handler = _CountingHandler(PhaseId.STT, is_per_video=True)
+    handler = _CountingHandler(PhaseId.STT, is_per_source=True)
     engine = _make_engine(handler)
     engine.execute(ctx)
     source_id = ctx.run.sources[0].source_id
@@ -315,7 +315,7 @@ def test_engine_persists_phase_status_failed(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:
     ctx = _make_ctx(tmp_path, make_generation_settings, n_videos=1)
-    handler = _CountingHandler(PhaseId.STT, is_per_video=True, permanent_failure=True)
+    handler = _CountingHandler(PhaseId.STT, is_per_source=True, permanent_failure=True)
     engine = _make_engine(handler)
     engine.execute(ctx)
     source_id = ctx.run.sources[0].source_id
@@ -327,7 +327,7 @@ def test_engine_parallel_per_video_processes_all_videos(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:
     ctx = _make_ctx(tmp_path, make_generation_settings, n_videos=6)
-    handler = _CountingHandler(PhaseId.STT, is_per_video=True, parallel_workers=4)
+    handler = _CountingHandler(PhaseId.STT, is_per_source=True, parallel_workers=4)
     engine = _make_engine(handler)
     final = engine.execute(ctx)
     assert final is RunStatus.COMPLETED

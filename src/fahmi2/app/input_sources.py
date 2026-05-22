@@ -30,22 +30,66 @@ _TOKEN_SPLIT_RE = re.compile(r"[\s\-_]+")
 def build_input_sources(settings: GenerationSettings) -> list[SourceExecution]:
     """Construit la liste ordonnée des sources d'entrée d'un Run.
 
-    Scanne ``settings.input_folder`` pour les fichiers reconnus (vidéo + audio)
-    et les trie naturellement par numéro de séquence dans le nom.
+    Combine les fichiers reconnus du dossier d'entrée (vidéo/audio/document,
+    triés naturellement) et les liens YouTube saisis (ajoutés **après** les
+    fichiers, dans l'ordre de saisie).
 
     Args:
-        settings: Réglages de génération (porteurs du dossier d'entrée).
+        settings: Réglages de génération (dossier d'entrée + ``youtube_urls``).
 
     Returns:
-        Liste des ``SourceExecution`` initiaux (status PENDING implicite),
-        triés par nom de fichier.
+        Liste ordonnée des ``SourceExecution`` initiaux (fichiers puis YouTube).
 
     Raises:
-        StorageError: Si le dossier d'entrée est inaccessible.
-        ConfigError: ``CONFIG.NO_INPUT_SOURCE`` si aucune source prise en charge.
+        StorageError: Si le dossier d'entrée est inaccessible **et** qu'aucun
+            lien YouTube n'est fourni.
+        ConfigError: ``CONFIG.NO_INPUT_SOURCE`` si aucune source au total.
     """
-    input_folder = settings.input_folder
+    has_urls = bool(settings.youtube_urls)
+    file_sources = _scan_files(settings.input_folder, has_urls=has_urls)
+    youtube_sources = [
+        SourceExecution(
+            source_id=SourceId.new(),
+            source=InputSource(kind=SourceKind.YOUTUBE, location=url),
+        )
+        for url in settings.youtube_urls
+    ]
+    all_sources = file_sources + youtube_sources
+    if not all_sources:
+        raise ConfigError(
+            code="CONFIG.NO_INPUT_SOURCE",
+            user_message=(
+                "Aucune source à traiter : le dossier d'entrée ne contient aucun "
+                "fichier pris en charge (vidéos, audios, documents) et aucun lien "
+                "YouTube n'a été saisi."
+            ),
+            severity=Severity.ERROR,
+            technical_details={
+                "input_folder": str(settings.input_folder),
+                "supported": sorted(supported_file_extensions()),
+            },
+        )
+    return all_sources
+
+
+def _scan_files(input_folder: Path, *, has_urls: bool) -> list[SourceExecution]:
+    """Scanne les fichiers reconnus du dossier d'entrée, triés naturellement.
+
+    Args:
+        input_folder: Dossier à scanner.
+        has_urls: ``True`` si des liens YouTube sont par ailleurs fournis (alors
+            un dossier inaccessible est toléré : projet YouTube seul).
+
+    Returns:
+        Liste des ``SourceExecution`` fichier (vide si dossier absent + ``has_urls``).
+
+    Raises:
+        StorageError: ``STORAGE.READ_DENIED`` si le dossier est inaccessible et
+            qu'aucune URL n'est fournie.
+    """
     if not input_folder.exists() or not input_folder.is_dir():
+        if has_urls:
+            return []
         raise StorageError(
             code="STORAGE.READ_DENIED",
             user_message=(
@@ -54,7 +98,6 @@ def build_input_sources(settings: GenerationSettings) -> list[SourceExecution]:
             severity=Severity.ERROR,
             technical_details={"input_folder": str(input_folder)},
         )
-
     candidates = sorted(
         (
             p
@@ -63,21 +106,6 @@ def build_input_sources(settings: GenerationSettings) -> list[SourceExecution]:
         ),
         key=_natural_sort_key,
     )
-
-    if not candidates:
-        raise ConfigError(
-            code="CONFIG.NO_INPUT_SOURCE",
-            user_message=(
-                "Le dossier d'entrée ne contient aucune source prise en charge "
-                "(vidéos, audios)."
-            ),
-            severity=Severity.ERROR,
-            technical_details={
-                "input_folder": str(input_folder),
-                "supported": sorted(supported_file_extensions()),
-            },
-        )
-
     return [
         SourceExecution(
             source_id=SourceId.new(),

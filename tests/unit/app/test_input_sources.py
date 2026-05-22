@@ -45,3 +45,36 @@ def test_missing_folder_raises_storage_error(
     with pytest.raises(StorageError) as exc:
         build_input_sources(settings)
     assert exc.value.code == "STORAGE.READ_DENIED"
+
+
+def test_youtube_urls_appended_after_files(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    (tmp_path / "01-a.mp4").write_bytes(b"x")
+    settings = make_generation_settings(
+        input_folder=tmp_path, youtube_urls=("https://youtu.be/abc",)
+    )
+    sources = build_input_sources(settings)
+    assert sources[0].source.kind is SourceKind.VIDEO
+    assert sources[-1].source.kind is SourceKind.YOUTUBE
+    assert sources[-1].source.location == "https://youtu.be/abc"
+
+
+def test_youtube_only_with_missing_folder_is_valid(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    settings = make_generation_settings(
+        input_folder=tmp_path / "missing", youtube_urls=("https://youtu.be/abc",)
+    )
+    sources = build_input_sources(settings)
+    assert len(sources) == 1
+    assert sources[0].source.kind is SourceKind.YOUTUBE
+
+
+def test_no_files_no_urls_raises_no_input_source(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    settings = make_generation_settings(input_folder=tmp_path)
+    with pytest.raises(ConfigError) as exc:
+        build_input_sources(settings)
+    assert exc.value.code == "CONFIG.NO_INPUT_SOURCE"

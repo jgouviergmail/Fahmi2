@@ -133,3 +133,12 @@ def test_youtube_urls_default_empty() -> None:
     assert _make().youtube_urls == ()
     urls = ("https://youtu.be/x", "https://youtu.be/y")
     assert _make(youtube_urls=urls).youtube_urls == urls
+
+
+def test_source_order_and_excluded_default_empty() -> None:
+    s = _make()
+    assert s.source_order == ()
+    assert s.excluded_sources == ()
+    s2 = _make(source_order=("b.mp4", "a.mp4"), excluded_sources=("c.mp4",))
+    assert s2.source_order == ("b.mp4", "a.mp4")
+    assert s2.excluded_sources == ("c.mp4",)

@@ -143,6 +143,8 @@ def _serialize_generation_settings(gen: GenerationSettings) -> dict[str, Any]:
         "export_formats": sorted(f.value for f in gen.export_formats),
         "reformulate_documents": gen.reformulate_documents,
         "youtube_urls": list(gen.youtube_urls),
+        "source_order": list(gen.source_order),
+        "excluded_sources": list(gen.excluded_sources),
     }
 
 
@@ -197,6 +199,8 @@ def _deserialize_generation_settings(payload: dict[str, Any]) -> GenerationSetti
         ),
         reformulate_documents=bool(payload.get("reformulate_documents", True)),
         youtube_urls=tuple(payload.get("youtube_urls", [])),
+        source_order=tuple(payload.get("source_order", [])),
+        excluded_sources=tuple(payload.get("excluded_sources", [])),
     )
 
 

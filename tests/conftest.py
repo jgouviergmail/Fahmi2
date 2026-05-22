@@ -53,6 +53,8 @@ def make_generation_settings() -> Any:
             "export_formats": frozenset(),
             "reformulate_documents": True,
             "youtube_urls": (),
+            "source_order": (),
+            "excluded_sources": (),
         }
         base.update(overrides)
         return GenerationSettings(**base)

@@ -121,6 +121,10 @@ class GenerationSettings:
             sont insérés tels quels (pass-through, structure préservée).
         youtube_urls: Liens YouTube **unitaires** à traiter (ajoutés aux sources
             après les fichiers du dossier d'entrée).
+        source_order: Clés stables (``InputSource.order_key()`` : nom de fichier
+            ou URL) des sources **incluses**, dans l'ordre de traitement souhaité.
+        excluded_sources: Clés stables des sources **exclues** (présentes mais
+            non traitées).
     """
 
     input_folder: Path
@@ -137,6 +141,8 @@ class GenerationSettings:
     export_formats: frozenset[ExportFormat] = DEFAULT_GENERATION_EXPORT_FORMATS
     reformulate_documents: bool = True
     youtube_urls: tuple[str, ...] = ()
+    source_order: tuple[str, ...] = ()
+    excluded_sources: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.output_languages:

@@ -23,6 +23,9 @@ from fahmi2.domain.phase import PhaseConfig
 
 ChatRole = Literal["user", "assistant"]
 
+#: Sous-dossier du workspace dédié à la fonctionnalité Dialogue (chat).
+CHAT_WORKSPACE_SUBDIR = "chat"
+
 _DEFAULT_CHAT_TEMPERATURE = 0.3
 _DEFAULT_TOP_K = 6
 

@@ -1,13 +1,15 @@
 """Construction de la liste des sources d'entrée d'un Run.
 
-Scanne le dossier d'entrée des réglages de génération et produit les
-``SourceExecution`` initiaux. Les types de fichiers reconnus sont centralisés
-dans ``infra.ingestion.classify`` (vidéo + audio au Lot 1B ; documents au Lot 2).
+Collecte les sources disponibles (fichiers reconnus du dossier d'entrée + liens
+YouTube), puis applique l'**ordonnancement** et l'**exclusion** définis par
+l'utilisateur via ``reconcile_source_order`` (fonction pure, partagée avec l'UI
+d'édition de l'ordre).
 
-Le tri d'entrée est **naturel** : on extrait le premier token purement
+Les types de fichiers reconnus sont centralisés dans ``infra.ingestion.classify``.
+Le tri d'entrée par défaut est **naturel** : on extrait le premier token purement
 numérique du nom (après suppression de l'extension et découpage sur les
-séparateurs usuels ``[\\s\\-_]+``), ce qui permet de gérer correctement
-des nommages préfixés du type ``V.1 - 1 - Intro.mp4`` ou ``doc 01 - X.mp4``.
+séparateurs usuels ``[\\s\\-_]+``), ce qui gère les nommages préfixés du type
+``V.1 - 1 - Intro.mp4`` ou ``doc 01 - X.mp4``.
 """
 
 from __future__ import annotations
@@ -27,41 +29,106 @@ from fahmi2.infra.ingestion.classify import classify_file, supported_file_extens
 _TOKEN_SPLIT_RE = re.compile(r"[\s\-_]+")
 
 
-def build_input_sources(settings: GenerationSettings) -> list[SourceExecution]:
-    """Construit la liste ordonnée des sources d'entrée d'un Run.
-
-    Combine les fichiers reconnus du dossier d'entrée (vidéo/audio/document,
-    triés naturellement) et les liens YouTube saisis (ajoutés **après** les
-    fichiers, dans l'ordre de saisie).
+def reconcile_source_order(
+    available_keys: list[str],
+    source_order: tuple[str, ...],
+    excluded: tuple[str, ...],
+) -> tuple[list[str], list[str]]:
+    """Réconcilie l'ordre/exclusion persistés avec les sources réellement présentes.
 
     Args:
-        settings: Réglages de génération (dossier d'entrée + ``youtube_urls``).
+        available_keys: Clés des sources présentes, dans l'ordre de collecte
+            (fichiers triés naturellement puis URLs).
+        source_order: Clés ordonnées des sources à inclure (persistées).
+        excluded: Clés des sources exclues (persistées).
 
     Returns:
-        Liste ordonnée des ``SourceExecution`` initiaux (fichiers puis YouTube).
+        ``(included_keys, excluded_keys)`` : les incluses ordonnées (clés de
+        ``source_order`` encore présentes d'abord, puis les nouvelles dans
+        l'ordre de collecte), et les exclues encore présentes. Les clés
+        obsolètes (absentes de ``available_keys``) sont ignorées.
+    """
+    excluded_set = set(excluded)
+    excluded_keys = [k for k in available_keys if k in excluded_set]
+    non_excluded = [k for k in available_keys if k not in excluded_set]
+    non_excluded_set = set(non_excluded)
+    ordered = [k for k in source_order if k in non_excluded_set]
+    ordered_set = set(ordered)
+    ordered += [k for k in non_excluded if k not in ordered_set]
+    return ordered, excluded_keys
+
+
+def collect_available_sources_from(
+    input_folder: Path, youtube_urls: tuple[str, ...]
+) -> list[InputSource]:
+    """Liste les sources disponibles (fichiers + URLs), sans ordre ni exclusion.
+
+    Args:
+        input_folder: Dossier d'entrée à scanner.
+        youtube_urls: Liens YouTube saisis.
+
+    Returns:
+        Les ``InputSource`` dans l'ordre de collecte (fichiers triés naturellement
+        puis URLs).
 
     Raises:
-        StorageError: Si le dossier d'entrée est inaccessible **et** qu'aucun
-            lien YouTube n'est fourni.
-        ConfigError: ``CONFIG.NO_INPUT_SOURCE`` si aucune source au total.
+        StorageError: ``STORAGE.READ_DENIED`` si le dossier est inaccessible et
+            qu'aucune URL n'est fournie.
     """
-    has_urls = bool(settings.youtube_urls)
-    file_sources = _scan_files(settings.input_folder, has_urls=has_urls)
+    file_sources = _scan_file_sources(input_folder, has_urls=bool(youtube_urls))
     youtube_sources = [
-        SourceExecution(
-            source_id=SourceId.new(),
-            source=InputSource(kind=SourceKind.YOUTUBE, location=url),
-        )
-        for url in settings.youtube_urls
+        InputSource(kind=SourceKind.YOUTUBE, location=url) for url in youtube_urls
     ]
-    all_sources = file_sources + youtube_sources
-    if not all_sources:
+    return file_sources + youtube_sources
+
+
+def collect_available_sources(settings: GenerationSettings) -> list[InputSource]:
+    """Liste les sources disponibles depuis les réglages (cf. ``_from``).
+
+    Args:
+        settings: Réglages de génération.
+
+    Returns:
+        Les ``InputSource`` disponibles, dans l'ordre de collecte.
+    """
+    return collect_available_sources_from(settings.input_folder, settings.youtube_urls)
+
+
+def build_input_sources(settings: GenerationSettings) -> list[SourceExecution]:
+    """Construit la liste ordonnée des sources d'entrée incluses d'un Run.
+
+    Collecte les sources disponibles, applique l'ordre (``source_order``) et
+    l'exclusion (``excluded_sources``) via ``reconcile_source_order``, puis
+    matérialise les ``SourceExecution`` (un ``SourceId`` frais par source).
+
+    Args:
+        settings: Réglages de génération.
+
+    Returns:
+        Liste ordonnée des ``SourceExecution`` **incluses**.
+
+    Raises:
+        StorageError: Si le dossier est inaccessible et qu'aucune URL n'est fournie.
+        ConfigError: ``CONFIG.NO_INPUT_SOURCE`` si aucune source incluse (rien de
+            présent, ou tout est exclu).
+    """
+    available = collect_available_sources(settings)
+    by_key = {source.order_key(): source for source in available}
+    available_keys = [source.order_key() for source in available]
+    included_keys, _ = reconcile_source_order(
+        available_keys, settings.source_order, settings.excluded_sources
+    )
+    result = [
+        SourceExecution(source_id=SourceId.new(), source=by_key[key])
+        for key in included_keys
+    ]
+    if not result:
         raise ConfigError(
             code="CONFIG.NO_INPUT_SOURCE",
             user_message=(
                 "Aucune source à traiter : le dossier d'entrée ne contient aucun "
-                "fichier pris en charge (vidéos, audios, documents) et aucun lien "
-                "YouTube n'a été saisi."
+                "fichier pris en charge (vidéos, audios, documents), aucun lien "
+                "YouTube n'a été saisi, ou toutes les sources sont exclues."
             ),
             severity=Severity.ERROR,
             technical_details={
@@ -69,10 +136,10 @@ def build_input_sources(settings: GenerationSettings) -> list[SourceExecution]:
                 "supported": sorted(supported_file_extensions()),
             },
         )
-    return all_sources
+    return result
 
 
-def _scan_files(input_folder: Path, *, has_urls: bool) -> list[SourceExecution]:
+def _scan_file_sources(input_folder: Path, *, has_urls: bool) -> list[InputSource]:
     """Scanne les fichiers reconnus du dossier d'entrée, triés naturellement.
 
     Args:
@@ -81,7 +148,7 @@ def _scan_files(input_folder: Path, *, has_urls: bool) -> list[SourceExecution]:
             un dossier inaccessible est toléré : projet YouTube seul).
 
     Returns:
-        Liste des ``SourceExecution`` fichier (vide si dossier absent + ``has_urls``).
+        Liste des ``InputSource`` fichier (vide si dossier absent + ``has_urls``).
 
     Raises:
         StorageError: ``STORAGE.READ_DENIED`` si le dossier est inaccessible et
@@ -107,11 +174,7 @@ def _scan_files(input_folder: Path, *, has_urls: bool) -> list[SourceExecution]:
         key=_natural_sort_key,
     )
     return [
-        SourceExecution(
-            source_id=SourceId.new(),
-            source=InputSource(kind=_kind_of(p), location=str(p)),
-        )
-        for p in candidates
+        InputSource(kind=_kind_of(p), location=str(p)) for p in candidates
     ]
 
 
@@ -126,7 +189,7 @@ def _kind_of(path: Path) -> SourceKind:
         Le ``SourceKind`` du fichier.
     """
     kind = classify_file(path)
-    assert kind is not None  # garanti par le filtre de build_input_sources  # noqa: S101
+    assert kind is not None  # garanti par le filtre de _scan_file_sources  # noqa: S101
     return kind
 
 

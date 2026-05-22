@@ -17,7 +17,7 @@ from fahmi2.domain.enums import PhaseId
 from fahmi2.domain.generation import GenerationSettings
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.run import Run
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.source import SourceExecution
 from fahmi2.infra.audio.ffmpeg_extractor import FFmpegExtractor
 from fahmi2.infra.llm.interface import LLMProvider
 from fahmi2.infra.prompts.loader import PromptLoader
@@ -99,13 +99,13 @@ class PhaseHandler(ABC):
         self,
         ctx: PhaseContext,
         *,
-        video: VideoExecution | None,
+        source: SourceExecution | None,
     ) -> PhaseExecution:
         """Exécute la phase pour le contexte donné.
 
         Args:
             ctx: Contexte d'exécution.
-            video: Vidéo ciblée (``None`` pour les phases batch).
+            source: Source ciblée (``None`` pour les phases batch).
 
         Returns:
             ``PhaseExecution`` finale avec ``status``, ``artifact_path``,

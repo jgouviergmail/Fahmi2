@@ -207,7 +207,7 @@ def test_full_pipeline_produces_expected_outputs(
         state=state, engine=engine, project_service=project_service
     )
     run = orchestrator.create_run(project)
-    assert len(run.videos) == 2
+    assert len(run.sources) == 2
 
     fake_stt = FakeSTTProvider(
         default_transcription=Transcription(
@@ -245,12 +245,12 @@ def test_full_pipeline_produces_expected_outputs(
     )
 
     # Artefacts par-vidéo FR + EN
-    for video in run.videos:
+    for video in run.sources:
         assert (
-            output_dir / "per-video" / "fr" / f"{video.video_id.value}.md"
+            output_dir / "per-video" / "fr" / f"{video.source_id.value}.md"
         ).exists()
         assert (
-            output_dir / "per-video" / "en" / f"{video.video_id.value}.md"
+            output_dir / "per-video" / "en" / f"{video.source_id.value}.md"
         ).exists()
 
     # Document consolidé FR + EN

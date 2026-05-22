@@ -7,7 +7,7 @@ d'exécution pur (:py:class:`~fahmi2.pipeline.engine.PipelineEngine`).
 Le ``RunOrchestrator`` expose des opérations *synchrones* :
 
 - ``create_run`` : génère un Run avec sa liste de vidéos scannées, persiste
-  l'ensemble (Project + Run + VideoExecutions).
+  l'ensemble (Project + Run + SourceExecutions).
 - ``execute`` : appelle le moteur (``PipelineEngine.execute``) et met à jour
   l'état final du Run en SQLite.
 - ``request_pause``/``request_cancel``/``resume`` : délègue au ``PauseToken``
@@ -88,14 +88,14 @@ class RunOrchestrator:
                 ),
                 severity=Severity.ERROR,
             )
-        videos = scan_input_folder(project.generation.input_folder)
+        sources = scan_input_folder(project.generation.input_folder)
         run = Run(
             id=RunId.new(),
             project_id=project.id,
             started_at=datetime.now(tz=UTC),
             status=RunStatus.CREATED,
             settings_snapshot=project.generation,
-            videos=tuple(videos),
+            sources=tuple(sources),
         )
         self._state.upsert_run(run)
         return run

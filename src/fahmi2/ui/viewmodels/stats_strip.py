@@ -70,15 +70,15 @@ class StatsStripViewModel:
         per_video_phase_ids = [
             h.phase_id for h in self._registry.ordered_handlers() if h.is_per_video
         ]
-        videos_total = len(run.videos)
+        videos_total = len(run.sources)
         videos_completed = 0
-        # Une phase per-video est considérée comme terminée si elle est
+        # Une phase per-source est considérée comme terminée si elle est
         # SUCCEEDED ou SKIPPED (skip = succès d'un run précédent).
         completed_statuses = {PhaseStatus.SUCCEEDED, PhaseStatus.SKIPPED}
-        for video in run.videos:
+        for source in run.sources:
             done = all(
                 self._state.get_phase_status(
-                    run.id, phase_id, video_id=video.video_id
+                    run.id, phase_id, source_id=source.source_id
                 )
                 in completed_statuses
                 for phase_id in per_video_phase_ids

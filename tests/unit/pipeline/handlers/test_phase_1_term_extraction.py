@@ -7,10 +7,10 @@ from typing import Any
 import pytest
 
 from fahmi2.core.errors.exceptions import LLMError, StorageError
-from fahmi2.domain.enums import PhaseStatus
+from fahmi2.domain.enums import PhaseStatus, SourceKind
 from fahmi2.domain.generation import ParallelismConfig
-from fahmi2.domain.ids import VideoId
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.ids import SourceId
+from fahmi2.domain.source import InputSource, SourceExecution
 from fahmi2.infra.llm.interface import LLMResponse
 from fahmi2.pipeline.handlers.phase_1_term_extraction import (
     Phase1TermExtractionHandler,
@@ -39,7 +39,10 @@ def test_handler_metadata() -> None:
 
 
 def test_execute_writes_candidates_json(tmp_path: Path, make_generation_settings: Any) -> None:
-    video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
+    video = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / "v.mp4")),
+    )
     expected_payload = {
         "terms": [
             {
@@ -53,11 +56,11 @@ def test_execute_writes_candidates_json(tmp_path: Path, make_generation_settings
         tmp_path,
         make_generation_settings,
         llm_response=_scripted_terms_response(json.dumps(expected_payload)),
-        videos=(video,),
+        sources=(video,),
     )
-    write_transcription_fixture(ctx.workspace, video.video_id.value)
+    write_transcription_fixture(ctx.workspace, video.source_id.value)
     handler = Phase1TermExtractionHandler()
-    result = handler.execute(ctx, video=video)
+    result = handler.execute(ctx, source=video)
     assert result.status is PhaseStatus.SUCCEEDED
     assert result.artifact_path is not None
     written = json.loads(result.artifact_path.read_text(encoding="utf-8"))
@@ -66,34 +69,40 @@ def test_execute_writes_candidates_json(tmp_path: Path, make_generation_settings
 
 
 def test_execute_raises_on_invalid_json(tmp_path: Path, make_generation_settings: Any) -> None:
-    video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
+    video = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / "v.mp4")),
+    )
     ctx, _ = build_phase_context(
         tmp_path,
         make_generation_settings,
         llm_response=_scripted_terms_response("ce n'est pas du JSON"),
-        videos=(video,),
+        sources=(video,),
     )
-    write_transcription_fixture(ctx.workspace, video.video_id.value)
+    write_transcription_fixture(ctx.workspace, video.source_id.value)
     handler = Phase1TermExtractionHandler()
     with pytest.raises(LLMError) as exc_info:
-        handler.execute(ctx, video=video)
+        handler.execute(ctx, source=video)
     assert exc_info.value.code == "LLM.INVALID_JSON"
 
 
 def test_execute_handles_json_fenced_response(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
+    video = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / "v.mp4")),
+    )
     fenced = "```json\n{\"terms\": []}\n```"
     ctx, _ = build_phase_context(
         tmp_path,
         make_generation_settings,
         llm_response=_scripted_terms_response(fenced),
-        videos=(video,),
+        sources=(video,),
     )
-    write_transcription_fixture(ctx.workspace, video.video_id.value)
+    write_transcription_fixture(ctx.workspace, video.source_id.value)
     handler = Phase1TermExtractionHandler()
-    result = handler.execute(ctx, video=video)
+    result = handler.execute(ctx, source=video)
     assert result.status is PhaseStatus.SUCCEEDED
     assert result.artifact_path is not None
     written = json.loads(result.artifact_path.read_text(encoding="utf-8"))
@@ -103,11 +112,14 @@ def test_execute_handles_json_fenced_response(
 def test_execute_raises_when_transcription_missing(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
-    ctx, _ = build_phase_context(tmp_path, make_generation_settings, videos=(video,))
+    video = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / "v.mp4")),
+    )
+    ctx, _ = build_phase_context(tmp_path, make_generation_settings, sources=(video,))
     handler = Phase1TermExtractionHandler()
     with pytest.raises(StorageError) as exc_info:
-        handler.execute(ctx, video=video)
+        handler.execute(ctx, source=video)
     assert exc_info.value.code == "STORAGE.TRANSCRIPT_MISSING"
 
 
@@ -116,8 +128,8 @@ def test_execute_raises_when_video_is_none(
 ) -> None:
     ctx, _ = build_phase_context(tmp_path, make_generation_settings)
     handler = Phase1TermExtractionHandler()
-    with pytest.raises(ValueError, match="VideoExecution"):
-        handler.execute(ctx, video=None)
+    with pytest.raises(ValueError, match="SourceExecution"):
+        handler.execute(ctx, source=None)
 
 
 def test_phase_workers_is_llm_pool(

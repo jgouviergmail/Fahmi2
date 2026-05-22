@@ -4,12 +4,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from fahmi2.domain.enums import PhaseId, PhaseStatus, RunStatus
-from fahmi2.domain.ids import ProjectId, RunId, VideoId
+from fahmi2.domain.enums import PhaseId, PhaseStatus, RunStatus, SourceKind
+from fahmi2.domain.ids import ProjectId, RunId, SourceId
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.source import InputSource, SourceExecution
 from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.pipeline.handlers.phase_0_stt import Phase0SttHandler
 from fahmi2.pipeline.handlers.phase_1_term_extraction import (
@@ -36,7 +36,10 @@ def _setup(
     )
     state.upsert_project(project)
     videos = tuple(
-        VideoExecution(video_id=VideoId.new(), source_path=tmp_path / f"v{i}.mp4")
+        SourceExecution(
+            source_id=SourceId.new(),
+            source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / f"v{i}.mp4")),
+        )
         for i in range(n_videos)
     )
     run = Run(
@@ -45,7 +48,7 @@ def _setup(
         started_at=datetime.now(tz=UTC),
         status=RunStatus.RUNNING,
         settings_snapshot=settings,
-        videos=videos,
+        sources=videos,
     )
     state.upsert_run(run)
     registry = PhaseRegistry(
@@ -79,7 +82,7 @@ def test_snapshot_counts_completed_videos(
         state.upsert_phase_execution(
             run.id,
             PhaseExecution(phase_id=pid, status=PhaseStatus.SUCCEEDED),
-            video_id=run.videos[0].video_id,
+            source_id=run.sources[0].source_id,
         )
     vm = StatsStripViewModel(state=state, registry=registry)
     snap = vm.snapshot(run)
@@ -95,7 +98,7 @@ def test_snapshot_accumulates_cost(tmp_path: Path, make_generation_settings: Any
             status=PhaseStatus.SUCCEEDED,
             cost_usd=0.5,
         ),
-        video_id=run.videos[0].video_id,
+        source_id=run.sources[0].source_id,
     )
     state.upsert_phase_execution(
         run.id,
@@ -104,7 +107,7 @@ def test_snapshot_accumulates_cost(tmp_path: Path, make_generation_settings: Any
             status=PhaseStatus.SUCCEEDED,
             cost_usd=0.3,
         ),
-        video_id=run.videos[1].video_id,
+        source_id=run.sources[1].source_id,
     )
     vm = StatsStripViewModel(state=state, registry=registry)
     snap = vm.snapshot(run)

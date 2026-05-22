@@ -399,19 +399,19 @@ class GenerationController(QObject):
             self._reset_views()
             return
         try:
-            videos = scan_input_folder(project.generation.input_folder)
+            sources = scan_input_folder(project.generation.input_folder)
         except Fahmi2Error:
             self._reset_views()
             return
 
         matrix_vm = RunMatrixViewModel(state=self._state, registry=self._registry)
-        self._run_matrix.apply_snapshot(matrix_vm.preview_cost_matrix(tuple(videos)))
+        self._run_matrix.apply_snapshot(matrix_vm.preview_cost_matrix(tuple(sources)))
 
         now = datetime.now(tz=UTC)
         self._stats_strip.apply_snapshot(
             StatsSnapshot(
                 run_status=RunStatus.CREATED,
-                videos_total=len(videos),
+                videos_total=len(sources),
                 videos_completed=0,
                 phases_total=0,
                 phases_completed=0,
@@ -682,7 +682,7 @@ class GenerationController(QObject):
             return
         settings = self._current_project.generation
         try:
-            videos = scan_input_folder(settings.input_folder)
+            sources = scan_input_folder(settings.input_folder)
         except Fahmi2Error as exc:
             QMessageBox.warning(
                 self._window,
@@ -695,7 +695,7 @@ class GenerationController(QObject):
         QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
         try:
             durations = [
-                ffmpeg.probe_duration_seconds(v.source_path) for v in videos
+                ffmpeg.probe_duration_seconds(v.source.as_path) for v in sources
             ]
         finally:
             QApplication.restoreOverrideCursor()
@@ -714,7 +714,7 @@ class GenerationController(QObject):
         _show_cost_estimation_dialog(
             self._window,
             project_name=self._current_project.name,
-            n_videos=len(videos),
+            n_videos=len(sources),
             estimation=estimation,
             cost_ceiling_usd=settings.cost_ceiling_usd,
         )
@@ -1142,11 +1142,11 @@ def _to_log_event(event: PipelineEvent) -> LogEvent:
             code="PHASE_STARTED",
             message=(
                 f"{event.phase_id.value}"
-                + (f" vidéo {event.video_id.value[:8]}…" if event.video_id else "")
+                + (f" source {event.source_id.value[:8]}…" if event.source_id else "")
             ),
             run_id=event.run_id.value,
             phase_id=str(event.phase_id),
-            video_id=event.video_id.value if event.video_id else None,
+            source_id=event.source_id.value if event.source_id else None,
         )
     if isinstance(event, PhaseFinished):
         base_message = (
@@ -1181,7 +1181,7 @@ def _to_log_event(event: PipelineEvent) -> LogEvent:
             message=base_message,
             run_id=event.run_id.value,
             phase_id=str(event.phase_id),
-            video_id=event.video_id.value if event.video_id else None,
+            source_id=event.source_id.value if event.source_id else None,
             extra=extra,
         )
     if isinstance(event, RetryAttempt):
@@ -1196,7 +1196,7 @@ def _to_log_event(event: PipelineEvent) -> LogEvent:
             ),
             run_id=event.run_id.value,
             phase_id=str(event.phase_id),
-            video_id=event.video_id.value if event.video_id else None,
+            source_id=event.source_id.value if event.source_id else None,
             extra={
                 "attempt": event.attempt,
                 "error_code": event.error.code,

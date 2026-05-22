@@ -4,7 +4,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from fahmi2.domain.ids import ProjectId, RunId, VideoId
+from fahmi2.domain.ids import ProjectId, RunId, SourceId
 
 
 def test_project_id_wraps_string() -> None:
@@ -18,8 +18,8 @@ def test_run_id_wraps_string() -> None:
     assert isinstance(rid.value, str)
 
 
-def test_video_id_wraps_string() -> None:
-    vid = VideoId.new()
+def test_source_id_wraps_string() -> None:
+    vid = SourceId.new()
     assert isinstance(vid.value, str)
 
 
@@ -41,7 +41,7 @@ def test_ids_validate_format() -> None:
     with pytest.raises(ValueError):
         RunId(value="bad")
     with pytest.raises(ValueError):
-        VideoId(value="bad")
+        SourceId(value="bad")
 
 
 def test_ids_are_immutable() -> None:

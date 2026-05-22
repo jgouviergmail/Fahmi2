@@ -7,9 +7,9 @@ from typing import Any
 import pytest
 
 from fahmi2.core.errors.exceptions import StorageError
-from fahmi2.domain.enums import Language, PhaseStatus
-from fahmi2.domain.ids import VideoId
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.enums import Language, PhaseStatus, SourceKind
+from fahmi2.domain.ids import SourceId
+from fahmi2.domain.source import InputSource, SourceExecution
 from fahmi2.infra.llm.interface import LLMResponse
 from fahmi2.pipeline.handlers.phase_7_coherence import Phase7CoherenceHandler
 from tests.unit.pipeline.handlers._helpers import build_phase_context
@@ -55,7 +55,7 @@ def test_execute_rewrites_consolidated_for_each_language(
     )
 
     handler = Phase7CoherenceHandler()
-    result = handler.execute(ctx, video=None)
+    result = handler.execute(ctx, source=None)
     assert result.status is PhaseStatus.SUCCEEDED
     fr = (ctx.output_dir / "consolidated.fr.md").read_text(encoding="utf-8")
     en = (ctx.output_dir / "consolidated.en.md").read_text(encoding="utf-8")
@@ -77,15 +77,18 @@ def test_execute_raises_when_consolidated_lang_missing(
     )
     handler = Phase7CoherenceHandler()
     with pytest.raises(StorageError) as exc_info:
-        handler.execute(ctx, video=None)
+        handler.execute(ctx, source=None)
     assert exc_info.value.code == "STORAGE.CONSOLIDATED_LANG_MISSING"
 
 
 def test_execute_raises_when_video_provided(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
-    ctx, _ = build_phase_context(tmp_path, make_generation_settings, videos=(video,))
+    video = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / "v.mp4")),
+    )
+    ctx, _ = build_phase_context(tmp_path, make_generation_settings, sources=(video,))
     handler = Phase7CoherenceHandler()
     with pytest.raises(ValueError, match="batch"):
-        handler.execute(ctx, video=video)
+        handler.execute(ctx, source=video)

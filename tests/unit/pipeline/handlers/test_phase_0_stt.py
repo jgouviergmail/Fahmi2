@@ -12,11 +12,11 @@ import pytest
 from fahmi2.core.errors.exceptions import FFmpegError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.core.retrieval.interface import PassthroughRetriever
-from fahmi2.domain.enums import Language, PhaseStatus, RunStatus, SttProvider
+from fahmi2.domain.enums import Language, PhaseStatus, RunStatus, SourceKind, SttProvider
 from fahmi2.domain.generation import ParallelismConfig
-from fahmi2.domain.ids import ProjectId, RunId, VideoId
+from fahmi2.domain.ids import ProjectId, RunId, SourceId
 from fahmi2.domain.run import Run
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.source import InputSource, SourceExecution
 from fahmi2.infra.audio.ffmpeg_extractor import AudioInfo, FFmpegExtractor
 from fahmi2.infra.llm._fakes import FakeLLMProvider
 from fahmi2.infra.prompts.loader import PromptLoader
@@ -68,7 +68,7 @@ def _make_context(
     video_source: Path,
     *,
     delete_audio_after_stt: bool = True,
-) -> tuple[PhaseContext, VideoExecution]:
+) -> tuple[PhaseContext, SourceExecution]:
     settings = make_generation_settings(
         delete_audio_after_stt=delete_audio_after_stt,
     )
@@ -80,7 +80,10 @@ def _make_context(
         status=RunStatus.RUNNING,
         settings_snapshot=settings,
     )
-    video = VideoExecution(video_id=VideoId.new(), source_path=video_source)
+    video = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.VIDEO, location=str(video_source)),
+    )
     state = SqliteState(tmp_path / "state.db")
     ctx = PhaseContext(
         run=run,
@@ -123,10 +126,10 @@ def test_execute_writes_transcription_json(
         short_mp4_with_audio.stem + ".wav": _scripted_transcription(),
     })
     ctx, video = _make_context(tmp_path, make_generation_settings, stt, short_mp4_with_audio)
-    # On force le video_id à mapper sur le nom de fichier WAV pour le scénario
+    # On force le source_id à mapper sur le nom de fichier WAV pour le scénario
     # — en réalité on utilise le fake générique qui sert toutes les requêtes.
     handler = Phase0SttHandler()
-    result = handler.execute(ctx, video=video)
+    result = handler.execute(ctx, source=video)
 
     assert result.status is PhaseStatus.SUCCEEDED
     assert result.artifact_path is not None
@@ -144,7 +147,7 @@ def test_execute_deletes_audio_when_enabled(
         tmp_path, make_generation_settings, stt, short_mp4_with_audio, delete_audio_after_stt=True
     )
     handler = Phase0SttHandler()
-    handler.execute(ctx, video=video)
+    handler.execute(ctx, source=video)
     audio_files = list((tmp_path / "workspace" / "audio").glob("*.wav"))
     assert audio_files == []
 
@@ -161,7 +164,7 @@ def test_execute_keeps_audio_when_disabled(
         delete_audio_after_stt=False,
     )
     handler = Phase0SttHandler()
-    handler.execute(ctx, video=video)
+    handler.execute(ctx, source=video)
     audio_files = list((tmp_path / "workspace" / "audio").glob("*.wav"))
     assert len(audio_files) == 1
 
@@ -172,8 +175,8 @@ def test_execute_raises_when_video_is_none(
     stt = FakeSTTProvider()
     ctx, _ = _make_context(tmp_path, make_generation_settings, stt, short_mp4_with_audio)
     handler = Phase0SttHandler()
-    with pytest.raises(ValueError, match="VideoExecution"):
-        handler.execute(ctx, video=None)
+    with pytest.raises(ValueError, match="SourceExecution"):
+        handler.execute(ctx, source=None)
 
 
 def test_execute_propagates_ffmpeg_errors(
@@ -190,7 +193,10 @@ def test_execute_propagates_ffmpeg_errors(
     )
     bad_extractor = FFmpegExtractor(ffmpeg_binary="ffmpeg-does-not-exist")
     state = SqliteState(tmp_path / "state.db")
-    video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "missing.mp4")
+    video = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / "missing.mp4")),
+    )
     ctx = PhaseContext(
         run=run,
         settings=settings,
@@ -208,7 +214,7 @@ def test_execute_propagates_ffmpeg_errors(
     )
     handler = Phase0SttHandler()
     with pytest.raises(FFmpegError):
-        handler.execute(ctx, video=video)
+        handler.execute(ctx, source=video)
 
 
 def test_execute_reports_severity_on_failure(
@@ -223,7 +229,10 @@ def test_execute_reports_severity_on_failure(
         status=RunStatus.RUNNING,
         settings_snapshot=settings,
     )
-    video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "missing.mp4")
+    video = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / "missing.mp4")),
+    )
     ctx = PhaseContext(
         run=run,
         settings=settings,
@@ -241,7 +250,7 @@ def test_execute_reports_severity_on_failure(
     )
     handler = Phase0SttHandler()
     with pytest.raises(FFmpegError) as exc_info:
-        handler.execute(ctx, video=video)
+        handler.execute(ctx, source=video)
     assert exc_info.value.severity is Severity.ERROR
 
 
@@ -257,7 +266,10 @@ def test_mocked_full_path(tmp_path: Path, make_generation_settings: Any) -> None
         settings_snapshot=settings,
     )
     state = SqliteState(tmp_path / "state.db")
-    video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
+    video = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / "v.mp4")),
+    )
 
     fake_ffmpeg = MagicMock()
     fake_ffmpeg.extract.return_value = AudioInfo(
@@ -281,7 +293,7 @@ def test_mocked_full_path(tmp_path: Path, make_generation_settings: Any) -> None
         event_bus=EventBus(),
     )
     handler = Phase0SttHandler()
-    result = handler.execute(ctx, video=video)
+    result = handler.execute(ctx, source=video)
     assert result.status is PhaseStatus.SUCCEEDED
     assert result.artifact_path is not None
     assert result.cost_usd == 0.0

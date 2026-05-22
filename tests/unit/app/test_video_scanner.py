@@ -22,7 +22,7 @@ def test_scan_returns_videos_sorted_by_name(tmp_path: Path) -> None:
     (tmp_path / "a_first.mp4").write_bytes(b"x")
     (tmp_path / "c_third.mkv").write_bytes(b"x")
     result = scan_input_folder(tmp_path)
-    names = [v.source_path.name for v in result]
+    names = [v.source.as_path.name for v in result]
     assert names == ["a_first.mp4", "b_second.mp4", "c_third.mkv"]
 
 
@@ -32,7 +32,7 @@ def test_scan_ignores_unsupported_extensions(tmp_path: Path) -> None:
     (tmp_path / "image.png").write_bytes(b"x")
     result = scan_input_folder(tmp_path)
     assert len(result) == 1
-    assert result[0].source_path.name == "video.mp4"
+    assert result[0].source.as_path.name == "video.mp4"
 
 
 def test_scan_raises_when_folder_missing(tmp_path: Path) -> None:
@@ -56,7 +56,7 @@ def test_scan_natural_sort_numeric_prefix(tmp_path: Path) -> None:
     for name in ("1.mp4", "2.mp4", "10.mp4", "11.mp4"):
         (tmp_path / name).write_bytes(b"x")
     result = scan_input_folder(tmp_path)
-    assert [v.source_path.name for v in result] == [
+    assert [v.source.as_path.name for v in result] == [
         "1.mp4",
         "2.mp4",
         "10.mp4",
@@ -81,7 +81,7 @@ def test_scan_natural_sort_complex_prefix(tmp_path: Path) -> None:
     extracted_numbers = []
     for v in result:
         # Recupere le numero de chaque fichier en se basant sur le pattern V.1 - N
-        token = v.source_path.stem.split(" - ")[1]
+        token = v.source.as_path.stem.split(" - ")[1]
         extracted_numbers.append(int(token))
     assert extracted_numbers == [1, 2, 3, 9, 10, 11, 12]
 
@@ -92,7 +92,7 @@ def test_scan_natural_sort_roman_prefix(tmp_path: Path) -> None:
     (tmp_path / "V.i - 01 - Premier.mp4").write_bytes(b"x")
     (tmp_path / "V.i - 10 - Dixieme.mp4").write_bytes(b"x")
     result = scan_input_folder(tmp_path)
-    assert [v.source_path.name for v in result] == [
+    assert [v.source.as_path.name for v in result] == [
         "V.i - 01 - Premier.mp4",
         "V.i - 02 - Second.mp4",
         "V.i - 10 - Dixieme.mp4",
@@ -105,7 +105,7 @@ def test_scan_natural_sort_simple_doc_prefix(tmp_path: Path) -> None:
     (tmp_path / "doc 10 conclusion.mp4").write_bytes(b"x")
     (tmp_path / "doc 2 partie A.mp4").write_bytes(b"x")
     result = scan_input_folder(tmp_path)
-    assert [v.source_path.name for v in result] == [
+    assert [v.source.as_path.name for v in result] == [
         "doc 1 intro.mp4",
         "doc 2 partie A.mp4",
         "doc 10 conclusion.mp4",
@@ -120,7 +120,7 @@ def test_scan_natural_sort_fallback_alphabetical(tmp_path: Path) -> None:
     (tmp_path / "annexe.mp4").write_bytes(b"x")
     (tmp_path / "2 - milieu.mp4").write_bytes(b"x")
     result = scan_input_folder(tmp_path)
-    assert [v.source_path.name for v in result] == [
+    assert [v.source.as_path.name for v in result] == [
         "1 - debut.mp4",
         "2 - milieu.mp4",
         "annexe.mp4",

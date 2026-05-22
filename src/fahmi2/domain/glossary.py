@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from fahmi2.domain.enums import Language
-from fahmi2.domain.ids import VideoId
+from fahmi2.domain.ids import SourceId
 
 _HEADERS_BY_LANGUAGE: dict[Language, tuple[str, str, str, str]] = {
     Language.FR: ("Terme", "Acronyme", "Signification", "Définition"),
@@ -32,7 +32,7 @@ class Term:
             techniques gardent leur signification dans leur langue
             d'origine quelle que soit la langue du glossaire). ``None``
             si l'acronyme n'a pas d'expansion connue.
-        sources: Vidéos d'où le terme a été extrait.
+        sources: Sources d'où le terme a été extrait.
         aliases: Variantes orthographiques ou rédactionnelles connues
             (différentes de l'acronyme).
         cross_lang: Mapping ``Language`` → traduction (alimenté par la phase 6).
@@ -42,7 +42,7 @@ class Term:
     definition: str
     acronym: str | None = None
     acronym_expansion: str | None = None
-    sources: tuple[VideoId, ...] = ()
+    sources: tuple[SourceId, ...] = ()
     aliases: tuple[str, ...] = ()
     cross_lang: dict[Language, str] = field(default_factory=dict)
 
@@ -109,7 +109,7 @@ def parse_glossary_master_terms(payload: dict[str, Any]) -> tuple[Term, ...]:
                 definition=str(raw.get("definition", "")),
                 acronym=str(acronym) if acronym else None,
                 acronym_expansion=str(expansion) if expansion else None,
-                sources=tuple(VideoId(value=str(s)) for s in sources_raw),
+                sources=tuple(SourceId(value=str(s)) for s in sources_raw),
                 aliases=tuple(str(a) for a in aliases_raw),
                 cross_lang={Language(k): str(v) for k, v in cross_lang_raw.items()},
             )

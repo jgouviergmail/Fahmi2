@@ -1,7 +1,7 @@
 """Scanner de vidéos dans un dossier d'entrée.
 
 Identifie les fichiers vidéo supportés (extensions configurées) et produit
-les ``VideoExecution`` initiaux pour un ``Run``.
+les ``SourceExecution`` initiaux pour un ``Run``.
 
 Le tri d'entrée est **naturel** : on extrait le premier token purement
 numérique du nom (après suppression de l'extension et découpage sur les
@@ -17,8 +17,9 @@ from pathlib import Path
 
 from fahmi2.core.errors.exceptions import ConfigError, StorageError
 from fahmi2.core.errors.severity import Severity
-from fahmi2.domain.ids import VideoId
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.enums import SourceKind
+from fahmi2.domain.ids import SourceId
+from fahmi2.domain.source import InputSource, SourceExecution
 
 _SUPPORTED_EXTENSIONS: frozenset[str] = frozenset(
     {".mp4", ".m4v", ".mkv", ".mov", ".webm"}
@@ -36,14 +37,14 @@ def supported_extensions() -> frozenset[str]:
     return _SUPPORTED_EXTENSIONS
 
 
-def scan_input_folder(input_folder: Path) -> list[VideoExecution]:
+def scan_input_folder(input_folder: Path) -> list[SourceExecution]:
     """Liste les vidéos supportées dans ``input_folder``.
 
     Args:
         input_folder: Dossier à scanner.
 
     Returns:
-        Liste des ``VideoExecution`` initiaux (status PENDING implicite),
+        Liste des ``SourceExecution`` initiaux (status PENDING implicite),
         triés par nom de fichier.
 
     Raises:
@@ -83,7 +84,13 @@ def scan_input_folder(input_folder: Path) -> list[VideoExecution]:
             },
         )
 
-    return [VideoExecution(video_id=VideoId.new(), source_path=p) for p in candidates]
+    return [
+        SourceExecution(
+            source_id=SourceId.new(),
+            source=InputSource(kind=SourceKind.VIDEO, location=str(p)),
+        )
+        for p in candidates
+    ]
 
 
 def _natural_sort_key(path: Path) -> tuple[float, str]:

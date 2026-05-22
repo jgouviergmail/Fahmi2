@@ -1,23 +1,23 @@
 """ViewModel ``RunMatrixViewModel`` — alimente la matrice générique de coût.
 
 Convertit un ``Run`` + ses ``PhaseExecution`` SQLite en ``CostMatrixSnapshot``
-(lignes = vidéos, colonnes = phases). Les phases **batch** (non per-vidéo) affichent
+(lignes = sources, colonnes = phases). Les phases **batch** (non per-source) affichent
 leur statut sur chaque ligne mais leur **coût n'est porté que par le total de
 colonne** (coût au niveau du run, ``—`` en cellule) ; le total de ligne ne somme que
-les phases par-vidéo. Sans logique Qt.
+les phases par-source. Sans logique Qt.
 """
 
 from __future__ import annotations
 
 from fahmi2.domain.enums import PhaseId, PhaseStatus
-from fahmi2.domain.ids import VideoId
+from fahmi2.domain.ids import SourceId
 from fahmi2.domain.run import Run
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.source import SourceExecution
 from fahmi2.infra.storage.sqlite_state import PhaseCell, SqliteState
 from fahmi2.pipeline.phase_registry import PhaseRegistry
 from fahmi2.ui.viewmodels.cost_matrix import CostMatrixCell, CostMatrixSnapshot
 
-_ROW_HEADER = "Vidéo"
+_ROW_HEADER = "Source"
 
 _PHASE_SHORT_LABELS: dict[PhaseId, str] = {
     PhaseId.STT: "STT",
@@ -53,7 +53,7 @@ class RunMatrixViewModel:
         self._registry = registry
 
     def _phases(self) -> tuple[tuple[PhaseId, bool], ...]:
-        """Phases dans l'ordre canonique + drapeau per-vidéo.
+        """Phases dans l'ordre canonique + drapeau per-source.
 
         Returns:
             Tuple de ``(phase_id, is_per_video)``.
@@ -63,7 +63,7 @@ class RunMatrixViewModel:
         )
 
     def cost_matrix_snapshot(self, run: Run) -> CostMatrixSnapshot:
-        """Construit la matrice vidéos × phases (statut + coût + totaux).
+        """Construit la matrice sources × phases (statut + coût + totaux).
 
         Args:
             run: Run en cours ou terminé.
@@ -71,36 +71,36 @@ class RunMatrixViewModel:
         Returns:
             ``CostMatrixSnapshot`` (coût batch porté par les totaux de colonne).
         """
-        cells_by_key: dict[tuple[PhaseId, VideoId | None], PhaseCell] = {
-            (c.phase_id, c.video_id): c for c in self._state.list_phase_cells(run.id)
+        cells_by_key: dict[tuple[PhaseId, SourceId | None], PhaseCell] = {
+            (c.phase_id, c.source_id): c for c in self._state.list_phase_cells(run.id)
         }
-        return self._build(run.videos, self._phases(), cells_by_key)
+        return self._build(run.sources, self._phases(), cells_by_key)
 
     def preview_cost_matrix(
-        self, videos: tuple[VideoExecution, ...]
+        self, sources: tuple[SourceExecution, ...]
     ) -> CostMatrixSnapshot:
         """Matrice de prévisualisation (toutes phases ``PENDING``, coût 0).
 
         Args:
-            videos: Vidéos détectées.
+            sources: Sources détectées.
 
         Returns:
             ``CostMatrixSnapshot`` sans coût.
         """
-        return self._build(videos, self._phases(), {})
+        return self._build(sources, self._phases(), {})
 
     def _build(
         self,
-        videos: tuple[VideoExecution, ...],
+        sources: tuple[SourceExecution, ...],
         phases: tuple[tuple[PhaseId, bool], ...],
-        cells_by_key: dict[tuple[PhaseId, VideoId | None], PhaseCell],
+        cells_by_key: dict[tuple[PhaseId, SourceId | None], PhaseCell],
     ) -> CostMatrixSnapshot:
         """Assemble le snapshot (cellules + totaux, gestion batch).
 
         Args:
-            videos: Vidéos (lignes).
-            phases: Phases + drapeau per-vidéo (colonnes).
-            cells_by_key: Statut/coût par ``(phase, vidéo|None)``.
+            sources: Sources (lignes).
+            phases: Phases + drapeau per-source (colonnes).
+            cells_by_key: Statut/coût par ``(phase, source|None)``.
 
         Returns:
             Le ``CostMatrixSnapshot`` complet.
@@ -108,11 +108,11 @@ class RunMatrixViewModel:
         column_labels = tuple(_PHASE_SHORT_LABELS.get(p, p.value) for p, _ in phases)
         grid: list[tuple[CostMatrixCell, ...]] = []
         row_totals: list[float] = []
-        for video in videos:
+        for source in sources:
             row: list[CostMatrixCell] = []
             row_total = 0.0
             for phase_id, per_video in phases:
-                key = (phase_id, video.video_id if per_video else None)
+                key = (phase_id, source.source_id if per_video else None)
                 pc = cells_by_key.get(key)
                 status = pc.status if pc is not None else PhaseStatus.PENDING
                 cost = pc.cost_usd if pc is not None else 0.0
@@ -138,8 +138,8 @@ class RunMatrixViewModel:
                 column_totals.append(
                     sum(
                         pc.cost_usd
-                        for v in videos
-                        if (pc := cells_by_key.get((phase_id, v.video_id))) is not None
+                        for s in sources
+                        if (pc := cells_by_key.get((phase_id, s.source_id))) is not None
                     )
                 )
             else:
@@ -151,7 +151,7 @@ class RunMatrixViewModel:
         return CostMatrixSnapshot(
             row_header=_ROW_HEADER,
             column_labels=column_labels,
-            row_labels=tuple(v.source_path.name for v in videos),
+            row_labels=tuple(s.source.display_name() for s in sources),
             cells=tuple(grid),
             row_totals=tuple(row_totals),
             column_totals=tuple(column_totals),

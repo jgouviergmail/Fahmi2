@@ -7,10 +7,10 @@ from typing import Any
 import pytest
 
 from fahmi2.core.errors.exceptions import StorageError
-from fahmi2.domain.enums import PhaseStatus
+from fahmi2.domain.enums import PhaseStatus, SourceKind
 from fahmi2.domain.generation import ParallelismConfig
-from fahmi2.domain.ids import VideoId
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.ids import SourceId
+from fahmi2.domain.source import InputSource, SourceExecution
 from fahmi2.infra.llm._fakes import FakeLLMProvider
 from fahmi2.infra.llm.interface import LLMResponse
 from fahmi2.pipeline.handlers.phase_5_consolidation import (
@@ -22,8 +22,8 @@ from fahmi2.pipeline.handlers.phase_5_consolidation import (
 from tests.unit.pipeline.handlers._helpers import build_phase_context
 
 
-def _write_structured(workspace: Path, video_id: str, content: str) -> None:
-    path = workspace / "structured" / f"{video_id}.md"
+def _write_structured(workspace: Path, source_id: str, content: str) -> None:
+    path = workspace / "structured" / f"{source_id}.md"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
 
@@ -61,7 +61,10 @@ def test_execute_assembles_consolidated_markdown(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:
     videos = tuple(
-        VideoExecution(video_id=VideoId.new(), source_path=tmp_path / f"v{i}.mp4")
+        SourceExecution(
+            source_id=SourceId.new(),
+            source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / f"v{i}.mp4")),
+        )
         for i in range(2)
     )
 
@@ -99,7 +102,7 @@ def test_execute_assembles_consolidated_markdown(
     ctx, _ = build_phase_context(
         tmp_path,
         make_generation_settings,
-        videos=videos,
+        sources=videos,
         # Réponses couplées à l'ordre des appels → exécution séquentielle requise.
         settings_overrides={"parallelism": ParallelismConfig(llm_workers=1)},
     )
@@ -119,11 +122,11 @@ def test_execute_assembles_consolidated_markdown(
         pause_token=ctx.pause_token,
         event_bus=ctx.event_bus,
     )
-    _write_structured(ctx2.workspace, videos[0].video_id.value, "Contenu chap 1")
-    _write_structured(ctx2.workspace, videos[1].video_id.value, "Contenu chap 2")
+    _write_structured(ctx2.workspace, videos[0].source_id.value, "Contenu chap 1")
+    _write_structured(ctx2.workspace, videos[1].source_id.value, "Contenu chap 2")
 
     handler = Phase5ConsolidationHandler()
-    result = handler.execute(ctx2, video=None)
+    result = handler.execute(ctx2, source=None)
     assert result.status is PhaseStatus.SUCCEEDED
     assert result.artifact_path is not None
     content = result.artifact_path.read_text(encoding="utf-8")
@@ -151,21 +154,27 @@ def test_execute_assembles_consolidated_markdown(
 def test_execute_raises_when_video_provided(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
-    ctx, _ = build_phase_context(tmp_path, make_generation_settings, videos=(video,))
+    video = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / "v.mp4")),
+    )
+    ctx, _ = build_phase_context(tmp_path, make_generation_settings, sources=(video,))
     handler = Phase5ConsolidationHandler()
     with pytest.raises(ValueError, match="batch"):
-        handler.execute(ctx, video=video)
+        handler.execute(ctx, source=video)
 
 
 def test_execute_raises_when_structured_missing(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:
-    video = VideoExecution(video_id=VideoId.new(), source_path=tmp_path / "v.mp4")
-    ctx, _ = build_phase_context(tmp_path, make_generation_settings, videos=(video,))
+    video = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / "v.mp4")),
+    )
+    ctx, _ = build_phase_context(tmp_path, make_generation_settings, sources=(video,))
     handler = Phase5ConsolidationHandler()
     with pytest.raises(StorageError) as exc_info:
-        handler.execute(ctx, video=None)
+        handler.execute(ctx, source=None)
     assert exc_info.value.code == "STORAGE.STRUCTURED_MISSING"
 
 
@@ -242,8 +251,8 @@ def test_assemble_consolidated_includes_subheadings_in_toc() -> None:
         ),
     }
     summaries = [
-        {"video_id": "v1", "title": "Chapitre Un"},
-        {"video_id": "v2", "title": "Chapitre Deux"},
+        {"source_id": "v1", "title": "Chapitre Un"},
+        {"source_id": "v2", "title": "Chapitre Deux"},
     ]
     meta = {
         "global_title": "Mon Cours",
@@ -268,7 +277,7 @@ def test_assemble_consolidated_includes_subheadings_in_toc() -> None:
 
 def test_assemble_consolidated_strips_llm_numbering_in_chapter_title() -> None:
     structured_by_video = {"v1": "# Vrai contenu\n## Section\n"}
-    summaries = [{"video_id": "v1", "title": "1. Chapitre Pre-Numerote"}]
+    summaries = [{"source_id": "v1", "title": "1. Chapitre Pre-Numerote"}]
     meta = {
         "global_title": "T",
         "introduction_markdown": "",
@@ -282,7 +291,7 @@ def test_assemble_consolidated_strips_llm_numbering_in_chapter_title() -> None:
 
 def test_assemble_consolidated_includes_summary_between_title_and_intro() -> None:
     structured_by_video = {"v1": "# Chap\n## Sec\ntexte\n"}
-    summaries = [{"video_id": "v1", "title": "Chap"}]
+    summaries = [{"source_id": "v1", "title": "Chap"}]
     meta = {
         "global_title": "Mon Cours",
         "summary_markdown": "Un abstract synthétique du cours.",
@@ -299,7 +308,7 @@ def test_assemble_consolidated_includes_summary_between_title_and_intro() -> Non
 
 def test_assemble_consolidated_omits_summary_when_empty() -> None:
     structured_by_video = {"v1": "# Chap\n"}
-    summaries = [{"video_id": "v1", "title": "Chap"}]
+    summaries = [{"source_id": "v1", "title": "Chap"}]
     meta = {
         "global_title": "T",
         "summary_markdown": "   ",
@@ -312,7 +321,7 @@ def test_assemble_consolidated_omits_summary_when_empty() -> None:
 
 def test_assemble_consolidated_omits_summary_when_key_missing() -> None:
     structured_by_video = {"v1": "# Chap\n"}
-    summaries = [{"video_id": "v1", "title": "Chap"}]
+    summaries = [{"source_id": "v1", "title": "Chap"}]
     meta = {"global_title": "T", "introduction_markdown": "", "conclusion_markdown": ""}
     md = _assemble_consolidated(meta, structured_by_video, summaries)
     assert "## Résumé" not in md
@@ -320,7 +329,7 @@ def test_assemble_consolidated_omits_summary_when_key_missing() -> None:
 
 def test_assemble_consolidated_summary_not_referenced_in_toc() -> None:
     structured_by_video = {"v1": "# Chap\n## Sec\ntexte\n"}
-    summaries = [{"video_id": "v1", "title": "Chap"}]
+    summaries = [{"source_id": "v1", "title": "Chap"}]
     meta = {
         "global_title": "T",
         "summary_markdown": "Abstract.",
@@ -337,7 +346,10 @@ def test_consolidation_parallel_summaries(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:
     videos = tuple(
-        VideoExecution(video_id=VideoId.new(), source_path=tmp_path / f"v{i}.mp4")
+        SourceExecution(
+            source_id=SourceId.new(),
+            source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / f"v{i}.mp4")),
+        )
         for i in range(3)
     )
     fixed = LLMResponse(
@@ -360,15 +372,15 @@ def test_consolidation_parallel_summaries(
         tmp_path,
         make_generation_settings,
         llm_response=fixed,
-        videos=videos,
+        sources=videos,
         settings_overrides={"parallelism": ParallelismConfig(llm_workers=4)},
     )
     for v in videos:
         _write_structured(
-            ctx.workspace, v.video_id.value, f"# Chap {v.video_id.value}\n\nContenu."
+            ctx.workspace, v.source_id.value, f"# Chap {v.source_id.value}\n\nContenu."
         )
 
-    result = Phase5ConsolidationHandler().execute(ctx, video=None)
+    result = Phase5ConsolidationHandler().execute(ctx, source=None)
     assert result.status is PhaseStatus.SUCCEEDED
     assert (ctx.workspace / "consolidated_master.md").exists()
     assert result.cost_usd > 0

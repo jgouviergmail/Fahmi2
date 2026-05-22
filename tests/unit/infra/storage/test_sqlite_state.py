@@ -12,7 +12,7 @@ from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import ExportFormat, PhaseId, PhaseStatus, RunStatus
-from fahmi2.domain.ids import ProjectId, RunId, VideoId
+from fahmi2.domain.ids import ProjectId, RunId, SourceId
 from fahmi2.domain.pedagogy import DEFAULT_PEDAGOGY_LLM_WORKERS
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.project import Project
@@ -207,14 +207,14 @@ def test_upsert_and_get_phase_execution(tmp_path: Path, make_generation_settings
             retry_count=2,
             cost_usd=0.05,
         )
-        vid = VideoId.new()
-        state.upsert_phase_execution(run.id, pe, video_id=vid)
+        vid = SourceId.new()
+        state.upsert_phase_execution(run.id, pe, source_id=vid)
 
-        status = state.get_phase_status(run.id, PhaseId.STT, video_id=vid)
+        status = state.get_phase_status(run.id, PhaseId.STT, source_id=vid)
         assert status is PhaseStatus.SUCCEEDED
 
 
-def test_phase_execution_batch_no_video_id(tmp_path: Path, make_generation_settings: Any) -> None:
+def test_phase_execution_batch_no_source_id(tmp_path: Path, make_generation_settings: Any) -> None:
     with SqliteState(tmp_path / "t.db") as state:
         project = _make_project(make_generation_settings)
         state.upsert_project(project)
@@ -223,10 +223,10 @@ def test_phase_execution_batch_no_video_id(tmp_path: Path, make_generation_setti
         pe = PhaseExecution(
             phase_id=PhaseId.GLOSSARY_RECONCILIATION, status=PhaseStatus.RUNNING
         )
-        state.upsert_phase_execution(run.id, pe, video_id=None)
+        state.upsert_phase_execution(run.id, pe, source_id=None)
         assert (
             state.get_phase_status(
-                run.id, PhaseId.GLOSSARY_RECONCILIATION, video_id=None
+                run.id, PhaseId.GLOSSARY_RECONCILIATION, source_id=None
             )
             is PhaseStatus.RUNNING
         )
@@ -240,13 +240,13 @@ def test_phase_execution_upsert_updates_status(
         state.upsert_project(project)
         run = _make_run(project)
         state.upsert_run(run)
-        vid = VideoId.new()
+        vid = SourceId.new()
         pe1 = PhaseExecution(phase_id=PhaseId.STT, status=PhaseStatus.RUNNING)
-        state.upsert_phase_execution(run.id, pe1, video_id=vid)
+        state.upsert_phase_execution(run.id, pe1, source_id=vid)
         pe2 = PhaseExecution(phase_id=PhaseId.STT, status=PhaseStatus.SUCCEEDED)
-        state.upsert_phase_execution(run.id, pe2, video_id=vid)
+        state.upsert_phase_execution(run.id, pe2, source_id=vid)
         assert (
-            state.get_phase_status(run.id, PhaseId.STT, video_id=vid)
+            state.get_phase_status(run.id, PhaseId.STT, source_id=vid)
             is PhaseStatus.SUCCEEDED
         )
 
@@ -266,8 +266,8 @@ def test_phase_execution_batch_upsert_replaces_previous_row(
         pe2 = PhaseExecution(
             phase_id=PhaseId.CONSOLIDATION, status=PhaseStatus.SUCCEEDED
         )
-        state.upsert_phase_execution(run.id, pe1, video_id=None)
-        state.upsert_phase_execution(run.id, pe2, video_id=None)
+        state.upsert_phase_execution(run.id, pe1, source_id=None)
+        state.upsert_phase_execution(run.id, pe2, source_id=None)
         executions = [
             e for e in state.list_phase_executions(run.id)
             if e.phase_id is PhaseId.CONSOLIDATION
@@ -296,8 +296,8 @@ def test_phase_execution_with_error_round_trip(
             status=PhaseStatus.FAILED,
             error=err,
         )
-        vid = VideoId.new()
-        state.upsert_phase_execution(run.id, pe, video_id=vid)
+        vid = SourceId.new()
+        state.upsert_phase_execution(run.id, pe, source_id=vid)
         executions = state.list_phase_executions(run.id)
         assert len(executions) == 1
         loaded = executions[0]
@@ -313,7 +313,7 @@ def test_get_phase_status_missing_returns_none(
         state.upsert_project(project)
         run = _make_run(project)
         state.upsert_run(run)
-        assert state.get_phase_status(run.id, PhaseId.STT, video_id=None) is None
+        assert state.get_phase_status(run.id, PhaseId.STT, source_id=None) is None
 
 
 def test_list_phase_cells_returns_status_and_cost(
@@ -324,13 +324,13 @@ def test_list_phase_cells_returns_status_and_cost(
         state.upsert_project(project)
         run = _make_run(project)
         state.upsert_run(run)
-        vid = VideoId.new()
+        vid = SourceId.new()
         state.upsert_phase_execution(
             run.id,
             PhaseExecution(
                 phase_id=PhaseId.STT, status=PhaseStatus.SUCCEEDED, cost_usd=0.07
             ),
-            video_id=vid,
+            source_id=vid,
         )
         state.upsert_phase_execution(
             run.id,
@@ -339,10 +339,10 @@ def test_list_phase_cells_returns_status_and_cost(
                 status=PhaseStatus.SUCCEEDED,
                 cost_usd=0.20,
             ),
-            video_id=None,
+            source_id=None,
         )
         cells = state.list_phase_cells(run.id)
-        by_key = {(c.phase_id, c.video_id): c for c in cells}
+        by_key = {(c.phase_id, c.source_id): c for c in cells}
         assert by_key[(PhaseId.STT, vid)].cost_usd == 0.07
         assert by_key[(PhaseId.STT, vid)].status is PhaseStatus.SUCCEEDED
         assert by_key[(PhaseId.GLOSSARY_RECONCILIATION, None)].cost_usd == 0.20
@@ -361,7 +361,7 @@ def test_delete_runs_for_project_keeps_project(
             PhaseExecution(
                 phase_id=PhaseId.STT, status=PhaseStatus.SUCCEEDED, cost_usd=0.07
             ),
-            video_id=VideoId.new(),
+            source_id=SourceId.new(),
         )
 
         state.delete_runs_for_project(project.id)
@@ -401,8 +401,8 @@ def test_concurrent_phase_execution_writes(
                         status=PhaseStatus.SUCCEEDED,
                         retry_count=worker_id * writes_per_thread + i,
                     )
-                    vid = VideoId.new()
-                    state.upsert_phase_execution(run_id, pe, video_id=vid)
+                    vid = SourceId.new()
+                    state.upsert_phase_execution(run_id, pe, source_id=vid)
         except BaseException as exc:  # noqa: BLE001
             errors.append(exc)
 

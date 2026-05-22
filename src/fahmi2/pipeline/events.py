@@ -1,7 +1,7 @@
 """Événements émis par le ``PipelineEngine`` lors de l'exécution d'un Run.
 
 Chaque événement est immuable et porteur d'informations contextuelles (run,
-phase, vidéo concernée). Les ``EventBus`` (in-memory ou Qt-bridgé) les
+phase, source concernée). Les ``EventBus`` (in-memory ou Qt-bridgé) les
 distribuent aux abonnés.
 """
 
@@ -12,7 +12,7 @@ from datetime import datetime
 
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.domain.enums import PhaseId, PhaseStatus, RunStatus
-from fahmi2.domain.ids import RunId, VideoId
+from fahmi2.domain.ids import RunId, SourceId
 
 
 @dataclass(frozen=True)
@@ -51,13 +51,13 @@ class PhaseStarted:
         timestamp: Horodatage.
         run_id: Run propriétaire.
         phase_id: Phase qui démarre.
-        video_id: Vidéo associée (``None`` pour les phases batch).
+        source_id: Source associée (``None`` pour les phases batch).
     """
 
     timestamp: datetime
     run_id: RunId
     phase_id: PhaseId
-    video_id: VideoId | None
+    source_id: SourceId | None
 
 
 @dataclass(frozen=True)
@@ -68,14 +68,14 @@ class PhaseProgress:
         timestamp: Horodatage.
         run_id: Run propriétaire.
         phase_id: Phase concernée.
-        video_id: Vidéo associée (``None`` pour batch).
+        source_id: Source associée (``None`` pour batch).
         progress: Valeur dans ``[0.0, 1.0]``.
     """
 
     timestamp: datetime
     run_id: RunId
     phase_id: PhaseId
-    video_id: VideoId | None
+    source_id: SourceId | None
     progress: float
 
 
@@ -87,7 +87,7 @@ class PhaseFinished:
         timestamp: Horodatage.
         run_id: Run.
         phase_id: Phase.
-        video_id: Vidéo associée (None pour batch).
+        source_id: Source associée (None pour batch).
         final_status: ``SUCCEEDED``, ``FAILED``, ``SKIPPED``.
         cost_usd: Coût cumulé sur cette phase.
         error: ``ErrorInfo`` si échec, ``None`` sinon.
@@ -96,7 +96,7 @@ class PhaseFinished:
     timestamp: datetime
     run_id: RunId
     phase_id: PhaseId
-    video_id: VideoId | None
+    source_id: SourceId | None
     final_status: PhaseStatus
     cost_usd: float
     error: ErrorInfo | None
@@ -110,7 +110,7 @@ class RetryAttempt:
         timestamp: Horodatage.
         run_id: Run.
         phase_id: Phase.
-        video_id: Vidéo associée (None pour batch).
+        source_id: Source associée (None pour batch).
         attempt: Numéro de tentative (1-indexed).
         delay_seconds: Délai d'attente avant la prochaine tentative.
         error: ``ErrorInfo`` de l'échec qui a déclenché le retry.
@@ -119,7 +119,7 @@ class RetryAttempt:
     timestamp: datetime
     run_id: RunId
     phase_id: PhaseId
-    video_id: VideoId | None
+    source_id: SourceId | None
     attempt: int
     delay_seconds: float
     error: ErrorInfo

@@ -26,7 +26,7 @@ def test_log_event_serializes_to_dict() -> None:
         message="…",
         run_id="01HABC",
         phase_id="phase_3_reformulation",
-        video_id="01VID",
+        source_id="01VID",
         extra={"tokens": 1234},
     )
     payload = ev.to_dict()
@@ -35,7 +35,7 @@ def test_log_event_serializes_to_dict() -> None:
     assert payload["code"] == "PHASE_STARTED"
     assert payload["run_id"] == "01HABC"
     assert payload["phase_id"] == "phase_3_reformulation"
-    assert payload["video_id"] == "01VID"
+    assert payload["source_id"] == "01VID"
     assert payload["extra"] == {"tokens": 1234}
 
 
@@ -45,4 +45,4 @@ def test_log_event_to_dict_keeps_none_optionals() -> None:
     payload = ev.to_dict()
     assert payload["run_id"] is None
     assert payload["phase_id"] is None
-    assert payload["video_id"] is None
+    assert payload["source_id"] is None

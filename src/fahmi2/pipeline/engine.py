@@ -4,7 +4,7 @@ Itère sur les phases enregistrées dans ``PhaseRegistry`` (dans l'ordre
 canonique), pour chaque phase :
 
 - Vérifie le checkpoint SQLite (``SUCCEEDED`` → ``SKIPPED``).
-- Pour les phases per-video, itère sur les vidéos du run ; pour les phases
+- Pour les phases per-video, itère sur les sources du run ; pour les phases
   batch, exécute une seule fois.
 - Invoque le handler avec retry policy (mapping erreur → décision).
 - Persiste l'exécution dans SQLite.
@@ -32,7 +32,7 @@ from fahmi2.core.retry.policy import RetryDecision, RetryPolicy
 from fahmi2.core.retry.runner import with_retry
 from fahmi2.domain.enums import PhaseStatus, RunStatus
 from fahmi2.domain.phase import PhaseExecution
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.source import SourceExecution
 from fahmi2.pipeline.events import (
     PhaseFinished,
     PhaseStarted,
@@ -92,7 +92,7 @@ class PipelineEngine:
         return final_status
 
     def _execute_phase(self, handler: PhaseHandler, ctx: PhaseContext) -> None:
-        """Exécute une phase complète (toutes ses vidéos si per-video).
+        """Exécute une phase complète (toutes ses sources si per-video).
 
         Args:
             handler: Handler de la phase.
@@ -101,31 +101,31 @@ class PipelineEngine:
         if handler.is_per_video:
             workers = handler.max_parallel_workers(ctx)
             map_bounded(
-                lambda video: self._execute_one(handler, ctx, video=video),
-                ctx.run.videos,
+                lambda source: self._execute_one(handler, ctx, source=source),
+                ctx.run.sources,
                 max_workers=workers,
                 pause_token=ctx.pause_token,
             )
         else:
-            self._execute_one(handler, ctx, video=None)
+            self._execute_one(handler, ctx, source=None)
 
     def _execute_one(
         self,
         handler: PhaseHandler,
         ctx: PhaseContext,
         *,
-        video: VideoExecution | None,
+        source: SourceExecution | None,
     ) -> None:
-        """Exécute une occurrence (vidéo ou batch) avec checkpoint + retry + events.
+        """Exécute une occurrence (source ou batch) avec checkpoint + retry + events.
 
         Args:
             handler: Handler.
             ctx: Contexte.
-            video: Vidéo associée (None pour batch).
+            source: Source associée (None pour batch).
         """
-        video_id = video.video_id if video is not None else None
+        source_id = source.source_id if source is not None else None
         current_status = ctx.state.get_phase_status(
-            ctx.run.id, handler.phase_id, video_id=video_id
+            ctx.run.id, handler.phase_id, source_id=source_id
         )
         if current_status is PhaseStatus.SUCCEEDED:
             skipped = PhaseExecution(
@@ -134,13 +134,13 @@ class PipelineEngine:
                 started_at=_now(),
                 finished_at=_now(),
             )
-            ctx.state.upsert_phase_execution(ctx.run.id, skipped, video_id=video_id)
+            ctx.state.upsert_phase_execution(ctx.run.id, skipped, source_id=source_id)
             ctx.event_bus.publish(
                 PhaseFinished(
                     timestamp=_now(),
                     run_id=ctx.run.id,
                     phase_id=handler.phase_id,
-                    video_id=video_id,
+                    source_id=source_id,
                     final_status=PhaseStatus.SKIPPED,
                     cost_usd=0.0,
                     error=None,
@@ -153,7 +153,7 @@ class PipelineEngine:
                 timestamp=_now(),
                 run_id=ctx.run.id,
                 phase_id=handler.phase_id,
-                video_id=video_id,
+                source_id=source_id,
             )
         )
 
@@ -162,14 +162,14 @@ class PipelineEngine:
             status=PhaseStatus.RUNNING,
             started_at=_now(),
         )
-        ctx.state.upsert_phase_execution(ctx.run.id, running, video_id=video_id)
+        ctx.state.upsert_phase_execution(ctx.run.id, running, source_id=source_id)
 
         attempts = {"n": 0}
 
         def _try_once() -> PhaseExecution:
             attempts["n"] += 1
             try:
-                return handler.execute(ctx, video=video)
+                return handler.execute(ctx, source=source)
             except Fahmi2Error as exc:
                 if default_classify(exc) is RetryDecision.RETRY:
                     ctx.event_bus.publish(
@@ -177,7 +177,7 @@ class PipelineEngine:
                             timestamp=_now(),
                             run_id=ctx.run.id,
                             phase_id=handler.phase_id,
-                            video_id=video_id,
+                            source_id=source_id,
                             attempt=attempts["n"],
                             delay_seconds=self._retry_policy.compute_delay(
                                 attempt=attempts["n"]
@@ -203,13 +203,13 @@ class PipelineEngine:
                 retry_count=attempts["n"] - 1,
                 error=error_info,
             )
-            ctx.state.upsert_phase_execution(ctx.run.id, failed, video_id=video_id)
+            ctx.state.upsert_phase_execution(ctx.run.id, failed, source_id=source_id)
             ctx.event_bus.publish(
                 PhaseFinished(
                     timestamp=_now(),
                     run_id=ctx.run.id,
                     phase_id=handler.phase_id,
-                    video_id=video_id,
+                    source_id=source_id,
                     final_status=PhaseStatus.FAILED,
                     cost_usd=0.0,
                     error=error_info,
@@ -227,13 +227,13 @@ class PipelineEngine:
             cost_usd=result.cost_usd,
             error=result.error,
         )
-        ctx.state.upsert_phase_execution(ctx.run.id, finalized, video_id=video_id)
+        ctx.state.upsert_phase_execution(ctx.run.id, finalized, source_id=source_id)
         ctx.event_bus.publish(
             PhaseFinished(
                 timestamp=_now(),
                 run_id=ctx.run.id,
                 phase_id=handler.phase_id,
-                video_id=video_id,
+                source_id=source_id,
                 final_status=finalized.status,
                 cost_usd=finalized.cost_usd,
                 error=finalized.error,

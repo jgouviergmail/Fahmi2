@@ -13,12 +13,12 @@ from fahmi2.core.errors.exceptions import (
 from fahmi2.core.errors.severity import Severity
 from fahmi2.core.retrieval.interface import PassthroughRetriever
 from fahmi2.core.retry.policy import RetryPolicy
-from fahmi2.domain.enums import PhaseId, PhaseStatus, RunStatus
-from fahmi2.domain.ids import ProjectId, RunId, VideoId
+from fahmi2.domain.enums import PhaseId, PhaseStatus, RunStatus, SourceKind
+from fahmi2.domain.ids import ProjectId, RunId, SourceId
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.source import InputSource, SourceExecution
 from fahmi2.infra.audio.ffmpeg_extractor import FFmpegExtractor
 from fahmi2.infra.llm._fakes import FakeLLMProvider
 from fahmi2.infra.prompts.loader import PromptLoader
@@ -56,7 +56,7 @@ class _CountingHandler(PhaseHandler):
     ) -> None:
         self._phase_id = phase_id
         self._per_video = is_per_video
-        self.calls: list[VideoId | None] = []
+        self.calls: list[SourceId | None] = []
         self._fail_until_attempt = fail_until_attempt
         self._permanent_failure = permanent_failure
         self._raise_on_call = raise_on_call
@@ -77,12 +77,12 @@ class _CountingHandler(PhaseHandler):
         return self._parallel_workers
 
     def execute(
-        self, ctx: PhaseContext, *, video: VideoExecution | None
+        self, ctx: PhaseContext, *, source: SourceExecution | None
     ) -> PhaseExecution:
         del ctx
-        key = video.video_id.value if video else "_batch"
+        key = source.source_id.value if source else "_batch"
         self._attempts[key] = self._attempts.get(key, 0) + 1
-        self.calls.append(video.video_id if video else None)
+        self.calls.append(source.source_id if source else None)
 
         if self._raise_on_call is not None:
             raise self._raise_on_call
@@ -123,7 +123,10 @@ def _make_ctx(
     )
     state.upsert_project(project)
     videos = tuple(
-        VideoExecution(video_id=VideoId.new(), source_path=tmp_path / f"v{i}.mp4")
+        SourceExecution(
+            source_id=SourceId.new(),
+            source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / f"v{i}.mp4")),
+        )
         for i in range(n_videos)
     )
     run = Run(
@@ -132,7 +135,7 @@ def _make_ctx(
         started_at=datetime.now(tz=UTC),
         status=RunStatus.RUNNING,
         settings_snapshot=settings,
-        videos=videos,
+        sources=videos,
     )
     state.upsert_run(run)
     return PhaseContext(
@@ -195,7 +198,7 @@ def test_engine_skips_already_succeeded(tmp_path: Path, make_generation_settings
     # Pré-marquer la 1re vidéo comme SUCCEEDED
     pe = PhaseExecution(phase_id=PhaseId.STT, status=PhaseStatus.SUCCEEDED)
     ctx.state.upsert_phase_execution(
-        ctx.run.id, pe, video_id=ctx.run.videos[0].video_id
+        ctx.run.id, pe, source_id=ctx.run.sources[0].source_id
     )
     handler = _CountingHandler(PhaseId.STT, is_per_video=True)
     engine = _make_engine(handler)
@@ -301,8 +304,8 @@ def test_engine_persists_phase_status_succeeded(
     handler = _CountingHandler(PhaseId.STT, is_per_video=True)
     engine = _make_engine(handler)
     engine.execute(ctx)
-    video_id = ctx.run.videos[0].video_id
-    status = ctx.state.get_phase_status(ctx.run.id, PhaseId.STT, video_id=video_id)
+    source_id = ctx.run.sources[0].source_id
+    status = ctx.state.get_phase_status(ctx.run.id, PhaseId.STT, source_id=source_id)
     assert status is PhaseStatus.SUCCEEDED
 
 
@@ -313,8 +316,8 @@ def test_engine_persists_phase_status_failed(
     handler = _CountingHandler(PhaseId.STT, is_per_video=True, permanent_failure=True)
     engine = _make_engine(handler)
     engine.execute(ctx)
-    video_id = ctx.run.videos[0].video_id
-    status = ctx.state.get_phase_status(ctx.run.id, PhaseId.STT, video_id=video_id)
+    source_id = ctx.run.sources[0].source_id
+    status = ctx.state.get_phase_status(ctx.run.id, PhaseId.STT, source_id=source_id)
     assert status is PhaseStatus.FAILED
 
 
@@ -327,9 +330,9 @@ def test_engine_parallel_per_video_processes_all_videos(
     final = engine.execute(ctx)
     assert final is RunStatus.COMPLETED
     assert len(handler.calls) == 6
-    assert set(handler.calls) == {v.video_id for v in ctx.run.videos}
-    for video in ctx.run.videos:
+    assert set(handler.calls) == {v.source_id for v in ctx.run.sources}
+    for video in ctx.run.sources:
         assert (
-            ctx.state.get_phase_status(ctx.run.id, PhaseId.STT, video_id=video.video_id)
+            ctx.state.get_phase_status(ctx.run.id, PhaseId.STT, source_id=video.source_id)
             is PhaseStatus.SUCCEEDED
         )

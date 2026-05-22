@@ -15,7 +15,7 @@ from fahmi2.domain.enums import PhaseId, PhaseStatus, RunStatus
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.source import SourceExecution
 from fahmi2.infra.audio.ffmpeg_extractor import FFmpegExtractor
 from fahmi2.infra.llm._fakes import FakeLLMProvider
 from fahmi2.infra.prompts.loader import PromptLoader
@@ -41,9 +41,9 @@ class _NoOpHandler(PhaseHandler):
         return True
 
     def execute(
-        self, ctx: PhaseContext, *, video: VideoExecution | None
+        self, ctx: PhaseContext, *, source: SourceExecution | None
     ) -> PhaseExecution:
-        del ctx, video
+        del ctx, source
         return PhaseExecution(phase_id=PhaseId.STT, status=PhaseStatus.SUCCEEDED)
 
 
@@ -97,7 +97,7 @@ def test_create_run_scans_videos(tmp_path: Path, make_generation_settings: Any) 
         name="Test", workspace_folder=tmp_path / "ws", generation=settings
     )
     run = orchestrator.create_run(project)
-    assert len(run.videos) == 2
+    assert len(run.sources) == 2
     assert run.status is RunStatus.CREATED
 
 
@@ -302,12 +302,12 @@ def test_execute_can_resume_failed_run_skipping_succeeded_phases(
     state.upsert_phase_execution(
         run.id,
         PhaseExecution(phase_id=PhaseId.STT, status=PhaseStatus.SUCCEEDED),
-        video_id=run.videos[0].video_id,
+        source_id=run.sources[0].source_id,
     )
     state.upsert_phase_execution(
         run.id,
         PhaseExecution(phase_id=PhaseId.STT, status=PhaseStatus.FAILED),
-        video_id=run.videos[1].video_id,
+        source_id=run.sources[1].source_id,
     )
     state.upsert_run(run.with_status(RunStatus.FAILED))
 
@@ -320,10 +320,10 @@ def test_execute_can_resume_failed_run_skipping_succeeded_phases(
     # La phase video[0] doit etre passee a SKIPPED (deja SUCCEEDED) ; la
     # phase video[1] doit etre repassee a SUCCEEDED apres reexecution.
     s0 = state.get_phase_status(
-        resumed_run.id, PhaseId.STT, video_id=run.videos[0].video_id
+        resumed_run.id, PhaseId.STT, source_id=run.sources[0].source_id
     )
     s1 = state.get_phase_status(
-        resumed_run.id, PhaseId.STT, video_id=run.videos[1].video_id
+        resumed_run.id, PhaseId.STT, source_id=run.sources[1].source_id
     )
     assert s0 is PhaseStatus.SKIPPED
     assert s1 is PhaseStatus.SUCCEEDED

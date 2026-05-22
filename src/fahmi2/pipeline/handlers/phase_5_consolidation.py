@@ -34,7 +34,7 @@ from fahmi2.core.errors.severity import Severity
 from fahmi2.core.slugify import slugify_anchor
 from fahmi2.domain.enums import PhaseId
 from fahmi2.domain.phase import PhaseExecution
-from fahmi2.domain.video import VideoExecution
+from fahmi2.domain.source import SourceExecution
 from fahmi2.pipeline.handlers._base import (
     build_succeeded_phase,
     invoke_llm,
@@ -116,29 +116,29 @@ class Phase5ConsolidationHandler(PhaseHandler):
         self,
         ctx: PhaseContext,
         *,
-        video: VideoExecution | None,
+        source: SourceExecution | None,
     ) -> PhaseExecution:
         """Consolide le document final.
 
         Args:
             ctx: Contexte d'exécution.
-            video: Doit être ``None`` (phase batch).
+            source: Doit être ``None`` (phase batch).
 
         Returns:
             ``PhaseExecution`` ``SUCCEEDED`` pointant vers
             ``workspace/consolidated_master.md``.
 
         Raises:
-            ValueError: Si ``video`` est non-None.
+            ValueError: Si ``source`` est non-None.
             StorageError: Si un fichier structured manque.
             LLMError: Si une réponse LLM est invalide.
         """
-        if video is not None:
+        if source is not None:
             raise ValueError(
-                "Phase5ConsolidationHandler is batch (video must be None)"
+                "Phase5ConsolidationHandler is batch (source must be None)"
             )
         started_at = utc_now()
-        structured_by_video = _load_all_structured(ctx.workspace, ctx.run.videos)
+        structured_by_video = _load_all_structured(ctx.workspace, ctx.run.sources)
 
         # Les résumés par vidéo sont indépendants : exécution parallèle bornée
         # (ordre des résultats préservé → assemblage déterministe).
@@ -167,18 +167,18 @@ class Phase5ConsolidationHandler(PhaseHandler):
     def _summarize_one(
         self, ctx: PhaseContext, item: tuple[str, str]
     ) -> tuple[dict[str, Any], float]:
-        """Résume une vidéo (clé = ``video_id``), pour exécution parallèle.
+        """Résume une source (clé = ``source_id``), pour exécution parallèle.
 
         Args:
             ctx: Contexte.
-            item: Couple ``(video_id, structured_markdown)``.
+            item: Couple ``(source_id, structured_markdown)``.
 
         Returns:
-            ``(summary_avec_video_id, cost_usd)``.
+            ``(summary_avec_source_id, cost_usd)``.
         """
-        video_id, structured_md = item
+        source_id, structured_md = item
         summary, cost = self._summarize_video(ctx, structured_md)
-        summary["video_id"] = video_id
+        summary["source_id"] = source_id
         return summary, cost
 
     def _summarize_video(
@@ -231,7 +231,7 @@ class Phase5ConsolidationHandler(PhaseHandler):
 
 
 def _load_all_structured(
-    workspace: Path, videos: tuple[VideoExecution, ...]
+    workspace: Path, videos: tuple[SourceExecution, ...]
 ) -> dict[str, str]:
     """Charge tous les documents Markdown structurés (phase 4) en ordre.
 
@@ -240,25 +240,25 @@ def _load_all_structured(
         videos: Vidéos du run (ordre de l'input folder).
 
     Returns:
-        Mapping ``video_id -> structured_markdown`` préservant l'ordre.
+        Mapping ``source_id -> structured_markdown`` préservant l'ordre.
 
     Raises:
         StorageError: Si un fichier structuré manque.
     """
     result: dict[str, str] = {}
     for v in videos:
-        path = workspace / _STRUCTURED_SUBDIR / f"{v.video_id.value}.md"
+        path = workspace / _STRUCTURED_SUBDIR / f"{v.source_id.value}.md"
         if not path.exists():
             raise StorageError(
                 code="STORAGE.STRUCTURED_MISSING",
                 user_message=(
-                    f"Le document structuré pour {v.video_id.value} est introuvable. "
+                    f"Le document structuré pour {v.source_id.value} est introuvable. "
                     "Relance la phase de structuration."
                 ),
                 severity=Severity.ERROR,
                 technical_details={"path": str(path)},
             )
-        result[v.video_id.value] = path.read_text(encoding="utf-8")
+        result[v.source_id.value] = path.read_text(encoding="utf-8")
     return result
 
 
@@ -299,7 +299,7 @@ def _assemble_consolidated(
     summary = str(meta.get("summary_markdown", "")).strip()
     introduction = str(meta.get("introduction_markdown", "")).strip()
     conclusion = str(meta.get("conclusion_markdown", "")).strip()
-    titles_by_video = {s.get("video_id", ""): s.get("title", "") for s in summaries}
+    titles_by_video = {s.get("source_id", ""): s.get("title", "") for s in summaries}
 
     chapters = _build_chapters(structured_by_video, titles_by_video)
 
@@ -335,16 +335,16 @@ def _build_chapters(
 
     Args:
         structured_by_video: Markdown structuré par vidéo (ordre préservé).
-        titles_by_video: Titres extraits des résumés (clé = video_id).
+        titles_by_video: Titres extraits des résumés (clé = source_id).
 
     Returns:
         Liste de ``_Chapter`` prêts à être sérialisés.
     """
     chapters: list[_Chapter] = []
-    for index, (video_id, structured) in enumerate(
+    for index, (source_id, structured) in enumerate(
         structured_by_video.items(), start=1
     ):
-        raw_title = str(titles_by_video.get(video_id, "")).strip()
+        raw_title = str(titles_by_video.get(source_id, "")).strip()
         title = _strip_existing_numbering(raw_title) or f"Chapitre {index}"
         demoted = _demote_chapter_h1(structured)
         renumbered_body, subheadings = _renumber_subheadings(demoted, index)

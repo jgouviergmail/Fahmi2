@@ -23,8 +23,8 @@ class _FakeHandler(PhaseHandler):
     def is_per_video(self) -> bool:
         return self._per_video
 
-    def execute(self, ctx: PhaseContext, *, video: object | None) -> PhaseExecution:
-        del ctx, video
+    def execute(self, ctx: PhaseContext, *, source: object | None) -> PhaseExecution:
+        del ctx, source
         return PhaseExecution(
             phase_id=self._phase_id, status=PhaseStatus.SUCCEEDED
         )

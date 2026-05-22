@@ -43,3 +43,22 @@ def test_probe_duration_timeout_returns_zero(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setattr(subprocess, "run", _raise_timeout)
     downloader = YtDlpDownloader(ytdlp_binary="yt-dlp")
     assert downloader.probe_duration("https://youtu.be/x") == 0.0
+
+
+def test_download_ignores_partial_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Un résidu de téléchargement partiel (``.part``) est ignoré au profit du WAV/m4a."""
+
+    def _fake_run(
+        cmd: list[str], **_kwargs: object
+    ) -> subprocess.CompletedProcess[bytes]:
+        # Simule yt-dlp : laisse un .part résiduel + produit le fichier final.
+        (tmp_path / "01H.part").write_bytes(b"partial")
+        (tmp_path / "01H.m4a").write_bytes(b"audio")
+        return subprocess.CompletedProcess(cmd, 0, b"", b"")
+
+    monkeypatch.setattr(subprocess, "run", _fake_run)
+    downloader = YtDlpDownloader(ytdlp_binary="yt-dlp")
+    out = downloader.download_audio("https://youtu.be/x", tmp_path, "01H")
+    assert out == tmp_path / "01H.m4a"

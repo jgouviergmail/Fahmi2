@@ -3,8 +3,8 @@
 Pour chaque langue de ``settings.output_languages`` :
 
 - Si la langue est la langue source : on **copie** les artefacts master sans
-  appel LLM (per-video structurés + consolidated_master + glossaire master
-  rendu en Markdown).
+  appel LLM (documents structurés par source + consolidated_master + glossaire
+  master rendu en Markdown).
 - Sinon : on **traduit** chaque artefact via le LLM.
 
 Les artefacts produits vivent dans ``output_dir`` :
@@ -63,7 +63,7 @@ class Phase6TranslationHandler(PhaseHandler):
 
     @property
     def is_per_source(self) -> bool:
-        """Phase batch (traite toutes les vidéos et toutes les langues)."""
+        """Phase batch (traite toutes les sources et toutes les langues)."""
         return False
 
     def execute(
@@ -102,7 +102,7 @@ class Phase6TranslationHandler(PhaseHandler):
                 "Le glossaire master est introuvable.",
             )
         )
-        per_video_structured = _load_per_video_structured(
+        per_source_structured = _load_per_source_structured(
             ctx.workspace, ctx.run.sources
         )
 
@@ -116,7 +116,7 @@ class Phase6TranslationHandler(PhaseHandler):
                 target=target,
                 consolidated_master_md=consolidated_master,
                 glossary_master_payload=glossary_master,
-                per_video_structured=per_video_structured,
+                per_source_structured=per_source_structured,
                 tasks=tasks,
             )
         costs = map_bounded(
@@ -141,7 +141,7 @@ class Phase6TranslationHandler(PhaseHandler):
         target: Language,
         consolidated_master_md: str,
         glossary_master_payload: dict[str, Any],
-        per_video_structured: dict[str, str],
+        per_source_structured: dict[str, str],
         tasks: list[_TranslationTask],
     ) -> None:
         """Écrit les copies (langue source) et empile les traductions (sinon).
@@ -151,12 +151,12 @@ class Phase6TranslationHandler(PhaseHandler):
             target: Langue cible.
             consolidated_master_md: Document consolidé en langue source.
             glossary_master_payload: Glossaire JSON master.
-            per_video_structured: Mapping ``source_id -> markdown structuré``.
+            per_source_structured: Mapping ``source_id -> markdown structuré``.
             tasks: Liste de tâches de traduction à compléter (effet de bord).
         """
         is_source = target is ctx.settings.source_language
 
-        for source_id, structured_md in per_video_structured.items():
+        for source_id, structured_md in per_source_structured.items():
             target_path = (
                 ctx.output_dir
                 / _PER_VIDEO_OUTPUT_SUBDIR
@@ -266,14 +266,14 @@ def _load_required(path: Path, code: str, user_message: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def _load_per_video_structured(
-    workspace: Path, videos: tuple[SourceExecution, ...]
+def _load_per_source_structured(
+    workspace: Path, sources: tuple[SourceExecution, ...]
 ) -> dict[str, str]:
     """Charge tous les documents structurés indexés par ``source_id``.
 
     Args:
         workspace: Dossier de travail.
-        videos: Vidéos du run.
+        sources: Sources du run.
 
     Returns:
         Mapping ordonné ``source_id -> markdown``.
@@ -282,18 +282,18 @@ def _load_per_video_structured(
         StorageError: Si un fichier structuré manque.
     """
     result: dict[str, str] = {}
-    for v in videos:
-        path = workspace / _STRUCTURED_SUBDIR / f"{v.source_id.value}.md"
+    for source in sources:
+        path = workspace / _STRUCTURED_SUBDIR / f"{source.source_id.value}.md"
         if not path.exists():
             raise StorageError(
                 code="STORAGE.STRUCTURED_MISSING",
                 user_message=(
-                    f"Le document structuré pour {v.source_id.value} est introuvable."
+                    f"Le document structuré pour {source.source_id.value} est introuvable."
                 ),
                 severity=Severity.ERROR,
                 technical_details={"path": str(path)},
             )
-        result[v.source_id.value] = path.read_text(encoding="utf-8")
+        result[source.source_id.value] = path.read_text(encoding="utf-8")
     return result
 
 

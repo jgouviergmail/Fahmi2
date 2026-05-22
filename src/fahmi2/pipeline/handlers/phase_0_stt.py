@@ -1,8 +1,9 @@
 """Handler de la phase 0 : ingestion d'une source → transcription JSON.
 
 Le handler délègue à l'``IngestionDispatcher`` (injecté dans le ``PhaseContext``),
-qui choisit l'ingesteur adapté au type de source (vidéo/audio via ffmpeg + STT ;
-documents et YouTube aux lots ultérieurs) et renvoie une ``Transcription``. Le
+qui choisit l'ingesteur adapté au type de source (vidéo/audio via ffmpeg + STT,
+document via extraction de texte, lien YouTube via téléchargement puis STT) et
+renvoie une ``Transcription``. Le
 handler persiste cette transcription en JSON dans
 ``workspace/transcripts/{source_id}.json`` et calcule le coût STT à partir de la
 durée transcrite.

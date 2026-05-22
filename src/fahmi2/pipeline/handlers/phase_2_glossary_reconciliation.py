@@ -1,6 +1,6 @@
-"""Handler Phase 2 — réconciliation du glossaire à partir des candidats par vidéo.
+"""Handler Phase 2 — réconciliation du glossaire à partir des candidats par source.
 
-Charge tous les artefacts ``candidates/{vid}.json`` produits par la phase 1,
+Charge tous les artefacts ``candidates/{source_id}.json`` produits par la phase 1,
 les agrège dans un format ``{source_id: payload}``, appelle le LLM avec le
 prompt de réconciliation, et persiste le glossaire master dans
 ``workspace/glossary_master.json``.
@@ -94,25 +94,25 @@ class Phase2GlossaryReconciliationHandler(PhaseHandler):
 
 
 def _load_all_candidates(
-    workspace: Path, videos: tuple[SourceExecution, ...]
+    workspace: Path, sources: tuple[SourceExecution, ...]
 ) -> dict[str, Any]:
     """Charge tous les fichiers candidates et les agrège par ``source_id``.
 
     Args:
         workspace: Dossier de travail.
-        videos: Vidéos du run à itérer.
+        sources: Sources du run à itérer.
 
     Returns:
         Dictionnaire ``{source_id: payload_candidates}``.
 
     Raises:
-        StorageError: Si aucun candidat n'a été trouvé pour aucune vidéo.
+        StorageError: Si aucun candidat n'a été trouvé pour aucune source.
     """
     aggregated: dict[str, Any] = {}
-    for v in videos:
-        path = workspace / _CANDIDATES_SUBDIR / f"{v.source_id.value}.json"
+    for source in sources:
+        path = workspace / _CANDIDATES_SUBDIR / f"{source.source_id.value}.json"
         if path.exists():
-            aggregated[v.source_id.value] = json.loads(path.read_text(encoding="utf-8"))
+            aggregated[source.source_id.value] = json.loads(path.read_text(encoding="utf-8"))
     if not aggregated:
         raise StorageError(
             code="STORAGE.NO_CANDIDATES",

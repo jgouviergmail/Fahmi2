@@ -17,8 +17,8 @@ class StatsSnapshot:
 
     Attributes:
         run_status: Statut global du Run.
-        videos_total: Nombre total de vidéos.
-        videos_completed: Vidéos dont toutes les phases per-video sont
+        sources_total: Nombre total de sources.
+        sources_completed: Sources dont toutes les phases par source sont
             ``SUCCEEDED`` ou ``SKIPPED``.
         phases_total: Nombre total de phases enregistrées.
         phases_completed: Nombre de phases ayant atteint ``SUCCEEDED`` ou
@@ -33,8 +33,8 @@ class StatsSnapshot:
     """
 
     run_status: RunStatus
-    videos_total: int
-    videos_completed: int
+    sources_total: int
+    sources_completed: int
     phases_total: int
     phases_completed: int
     cost_usd_so_far: float
@@ -70,8 +70,8 @@ class StatsStripViewModel:
         per_source_phase_ids = [
             h.phase_id for h in self._registry.ordered_handlers() if h.is_per_source
         ]
-        videos_total = len(run.sources)
-        videos_completed = 0
+        sources_total = len(run.sources)
+        sources_completed = 0
         # Une phase per-source est considérée comme terminée si elle est
         # SUCCEEDED ou SKIPPED (skip = succès d'un run précédent).
         completed_statuses = {PhaseStatus.SUCCEEDED, PhaseStatus.SKIPPED}
@@ -84,7 +84,7 @@ class StatsStripViewModel:
                 for phase_id in per_source_phase_ids
             )
             if done and per_source_phase_ids:
-                videos_completed += 1
+                sources_completed += 1
 
         executions = self._state.list_phase_executions(run.id)
         phases_total = len(executions)
@@ -98,8 +98,8 @@ class StatsStripViewModel:
 
         return StatsSnapshot(
             run_status=run.status,
-            videos_total=videos_total,
-            videos_completed=videos_completed,
+            sources_total=sources_total,
+            sources_completed=sources_completed,
             phases_total=phases_total,
             phases_completed=phases_completed,
             cost_usd_so_far=cost,

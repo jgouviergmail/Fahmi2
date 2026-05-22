@@ -11,7 +11,7 @@ _DEFAULT_SETTINGS_TOOLTIP = (
 )
 _DEFAULT_ESTIMATE_TOOLTIP = (
     "Estime à l'avance le coût total du Run en analysant la durée "
-    "des vidéos du dossier d'entrée (STT + LLM)."
+    "des sources du dossier d'entrée (STT + LLM)."
 )
 _DEFAULT_OPEN_OUTPUT_TOOLTIP = (
     "Ouvre dans l'explorateur le dossier contenant les fichiers Markdown "

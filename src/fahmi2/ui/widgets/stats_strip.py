@@ -1,6 +1,6 @@
 """Widget ``StatsStripWidget`` — bandeau d'indicateurs agrégés d'un Run.
 
-Présenté sous forme de 5 cartes côte-à-côte (Statut, Vidéos, Phases, Durée,
+Présenté sous forme de 5 cartes côte-à-côte (Statut, Sources, Phases, Durée,
 Coût). Chaque carte affiche une icône, un titre, une valeur principale en gros
 et une sous-information. Un ``QTimer`` interne incrémente l'affichage de la
 durée pendant que le Run est ``RUNNING`` ou ``PAUSED`` sans solliciter le
@@ -37,7 +37,7 @@ _LIVE_STATUSES: frozenset[RunStatus] = frozenset({RunStatus.RUNNING})
 
 
 class StatsStripWidget(QWidget):
-    """Bandeau d'indicateurs (Statut, Vidéos, Phases, Durée, Coût)."""
+    """Bandeau d'indicateurs (Statut, Sources, Phases, Durée, Coût)."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Construit le widget.
@@ -52,7 +52,7 @@ class StatsStripWidget(QWidget):
         layout.setSpacing(10)
 
         self._card_status = StatCard(icon="●", title="Statut", parent=self)
-        self._card_videos = StatCard(icon="🎬", title="Vidéos", parent=self)
+        self._card_sources = StatCard(icon="🗂", title="Sources", parent=self)
         self._card_phases = StatCard(icon="▤", title="Phases", parent=self)
         self._card_languages = StatCard(icon="🌐", title="Langues", parent=self)
         self._card_duration = StatCard(icon="⏱", title="Durée", parent=self)
@@ -60,7 +60,7 @@ class StatsStripWidget(QWidget):
 
         for card in (
             self._card_status,
-            self._card_videos,
+            self._card_sources,
             self._card_phases,
             self._card_languages,
             self._card_duration,
@@ -182,11 +182,11 @@ class StatsStripWidget(QWidget):
         self._card_status.set_value(f"{status_icon} {status_label}")
         self._card_status.set_accent(run_status_accent(snapshot.run_status))
 
-        self._card_videos.set_value(
-            f"{snapshot.videos_completed} / {snapshot.videos_total}",
-            "vidéos terminées",
+        self._card_sources.set_value(
+            f"{snapshot.sources_completed} / {snapshot.sources_total}",
+            "sources terminées",
         )
-        self._card_videos.set_accent("neutral")
+        self._card_sources.set_accent("neutral")
 
         self._card_phases.set_value(
             f"{snapshot.phases_completed} / {snapshot.phases_total}",

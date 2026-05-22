@@ -284,7 +284,7 @@ class GenerationController(QObject):
         Args:
             header_bar: Barre de titre + actions du cockpit.
             stats_strip: Bande de statistiques.
-            run_matrix: Matrice vidéos × phases.
+            run_matrix: Matrice sources × phases.
             logs_dock: Dock de logs partagé (alimenté par cet onglet quand actif).
             window: Fenêtre parente, utilisée comme parent des dialogues modaux.
             project_service: Service projets.
@@ -409,7 +409,7 @@ class GenerationController(QObject):
         """Rafraîchit matrice + stats avec le dernier run du projet courant.
 
         Si le projet ne contient aucun run, on affiche une **prévisualisation**
-        : liste des vidéos détectées dans le dossier d'entrée, toutes phases
+        : liste des sources détectées dans le dossier d'entrée, toutes phases
         en ``PENDING``. Cela permet à l'utilisateur de valider visuellement
         le périmètre avant le premier ``Lancer`` (sans avoir à créer un Run).
         Si le dossier d'entrée est inaccessible ou vide, on retombe sur des
@@ -429,7 +429,7 @@ class GenerationController(QObject):
         """Affiche une prévisualisation du Run à venir.
 
         Scanne le dossier d'entrée et construit un ``CostMatrixSnapshot`` de
-        prévisualisation (une ligne par vidéo détectée, toutes phases ``PENDING``)
+        prévisualisation (une ligne par source détectée, toutes phases ``PENDING``)
         via ``RunMatrixViewModel.preview_cost_matrix``. Échec silencieux du scan →
         vues vides.
 
@@ -454,8 +454,8 @@ class GenerationController(QObject):
         self._stats_strip.apply_snapshot(
             StatsSnapshot(
                 run_status=RunStatus.CREATED,
-                videos_total=len(sources),
-                videos_completed=0,
+                sources_total=len(sources),
+                sources_completed=0,
                 phases_total=0,
                 phases_completed=0,
                 cost_usd_so_far=0.0,
@@ -468,15 +468,15 @@ class GenerationController(QObject):
         )
 
     def _reset_views(self) -> None:
-        """Vide la matrice et la bande de stats (fallback si pas de vidéos)."""
+        """Vide la matrice et la bande de stats (fallback si pas de sources)."""
         from fahmi2.ui.viewmodels.stats_strip import StatsSnapshot  # noqa: PLC0415
 
         self._run_matrix.apply_snapshot(EMPTY_COST_MATRIX)
         now = datetime.now(tz=UTC)
         empty_stats = StatsSnapshot(
             run_status=RunStatus.CREATED,
-            videos_total=0,
-            videos_completed=0,
+            sources_total=0,
+            sources_completed=0,
             phases_total=0,
             phases_completed=0,
             cost_usd_so_far=0.0,
@@ -634,7 +634,7 @@ class GenerationController(QObject):
                 "Le dossier de sortie sera ensuite **supprimé** "
                 "(livrables Markdown générés jusqu'ici) et le cockpit "
                 "réinitialisé.\n\n"
-                "Cette action ne supprime pas les fichiers vidéo "
+                "Cette action ne supprime pas les fichiers source "
                 "originaux ni les artefacts intermédiaires de "
                 "« workspace »."
             ),
@@ -705,10 +705,10 @@ class GenerationController(QObject):
     def estimate_cost(self) -> None:
         """Slot : pré-estime le coût total du Run et affiche un rapport.
 
-        Scanne le dossier d'entrée du projet, lit la durée de chaque vidéo
+        Scanne le dossier d'entrée du projet, lit la durée de chaque source
         via ``ffprobe`` et délègue le calcul à :py:class:`CostEstimator`.
         Le probe est exécuté sur le thread UI avec un curseur d'attente :
-        pour 10 à 50 vidéos l'opération reste sous la dizaine de secondes.
+        pour 10 à 50 sources l'opération reste sous la dizaine de secondes.
         """
         if self._current_project is None:
             QMessageBox.warning(
@@ -762,7 +762,7 @@ class GenerationController(QObject):
         _show_cost_estimation_dialog(
             self._window,
             project_name=self._current_project.name,
-            n_videos=len(sources),
+            n_sources=len(sources),
             estimation=estimation,
             cost_ceiling_usd=settings.cost_ceiling_usd,
         )
@@ -1338,7 +1338,7 @@ def _show_cost_estimation_dialog(
     parent: QWidget,
     *,
     project_name: str,
-    n_videos: int,
+    n_sources: int,
     estimation: CostEstimation,
     cost_ceiling_usd: float | None,
 ) -> None:
@@ -1347,7 +1347,7 @@ def _show_cost_estimation_dialog(
     Args:
         parent: Fenêtre parente.
         project_name: Nom du projet.
-        n_videos: Nombre de vidéos détectées dans l'input.
+        n_sources: Nombre de sources détectées dans l'input.
         estimation: Résultat du ``CostEstimator``.
         cost_ceiling_usd: Plafond budget du projet, le cas échéant.
     """
@@ -1356,7 +1356,7 @@ def _show_cost_estimation_dialog(
     duration_label = _format_duration_label(estimation.total_audio_seconds)
     header = [
         f"<b>Projet :</b> {project_name}",
-        f"<b>Vidéos détectées :</b> {n_videos}",
+        f"<b>Sources détectées :</b> {n_sources}",
         f"<b>Durée totale audio :</b> {duration_label}",
     ]
     breakdown = [

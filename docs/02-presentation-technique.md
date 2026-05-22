@@ -72,12 +72,14 @@ Modules transverses, sans dépendance externe (ni Qt, ni HTTP, ni SQL) :
 Entités pures immuables + machines d'état :
 
 - Énumérations : `Language`, `StylePreset`, `PhaseId` (8 phases),
-  `RunStatus`, `PhaseStatus`, `SttProvider`, `LLMModel`, `ReasoningEffort`, et
+  `RunStatus`, `PhaseStatus`, `SourceKind` (vidéo/audio/document/YouTube),
+  `SttProvider`, `LLMModel`, `ReasoningEffort`, et
   pédagogie : `SupportType` (×8), `TargetAudience`, `BloomObjective`,
   `SupportDensity`, `ExportFormat`.
-- IDs typés : `ProjectId`, `RunId`, `VideoId` (via base `_UlidIdBase`).
-- Entités : `Term`, `Glossary`, `PhaseConfig`, `PhaseExecution`,
-  `VideoExecution`, `Run`, `Project` (identité minimale : nom + emplacement +
+- IDs typés : `ProjectId`, `RunId`, `SourceId` (via base `_UlidIdBase`).
+- Entités : `Term`, `Glossary`, `PhaseConfig`, `PhaseExecution`, `InputSource`
+  (source polymorphe : fichier local ou URL), `SourceExecution`,
+  `Run`, `Project` (identité minimale : nom + emplacement +
   réglages par fonctionnalité `generation`/`pedagogy`), `GenerationSettings`,
   `ParallelismConfig`, `PedagogySettings`, et entités de support
   (`Flashcard`, `QcmItem`, `TrueFalseItem`, `ClozeItem`, `OpenQuestion`,
@@ -144,6 +146,11 @@ Adapters externes (ports/adapters) :
   limite 25 Mo d'OpenAI Whisper. Injecté dans `OpenAIWhisperAdapter`.
 - `infra/stt/` — interface `STTProvider`, `FakeSTTProvider`,
   `FasterWhisperAdapter`, `OpenAIWhisperAdapter` (multi-segments + recollage).
+- `infra/ingestion/` — aiguillage polymorphe des entrants (phase 0) : dispatcher
+  `SourceKind → SourceIngestor` (calqué sur `PhaseRegistry`), `classify` (mapping
+  extension → type), `MediaIngestor` (vidéo/audio : ffmpeg + STT),
+  `DocumentIngestor` (pdf/docx/md/txt → transcription à segment unique via
+  `TextExtractor`), `YoutubeIngestor` + `YtDlpDownloader` (binaire yt-dlp).
 - `infra/llm/` — interface `LLMProvider`, `FakeLLMProvider`, `DeepSeekAdapter`,
   module `_pricing`, helpers généralisés `invocation.py` (`invoke_llm_chat`,
   `parse_llm_json`).
@@ -165,14 +172,16 @@ Adapters externes (ports/adapters) :
 Services applicatifs :
 
 - `ProjectService` — CRUD projets (+ `get_last_completed_run`).
-- `RunOrchestrator` — lifecycle Run (création + scan vidéos, exécution via
-  PipelineEngine, persistance, pause/cancel/resume).
+- `RunOrchestrator` — lifecycle Run (création + collecte des sources, exécution
+  via PipelineEngine, persistance, pause/cancel/resume).
 - `SupportsOrchestrator` — orchestrateur dédié des supports pédagogiques
   (inputs par langue, **parallélise les unités supports × langues** via
   `core/concurrency/map_bounded` borné par `PedagogySettings.llm_workers`,
   écriture JSON + Markdown, reprise *coarse* via manifeste sous verrou, events,
   plafond de coût *best-effort* en parallèle).
-- `VideoScanner` — détection des extensions vidéo supportées dans un dossier.
+- `input_sources.build_input_sources` — collecte les sources (fichiers
+  vidéo/audio/document du dossier + liens YouTube), applique l'ordre
+  (`source_order`) et l'exclusion (`excluded_sources`) via `reconcile_source_order`.
 - `CostEstimator` — heuristique pré-run STT + LLM par phase et langue.
   Accepte un `phases_config` optionnel et applique un multiplicateur
   empirique sur les `completion_tokens` selon `thinking_enabled` et
@@ -276,8 +285,9 @@ Qt PySide6 :
         │
         ▼
 RunOrchestrator.create_run(project)
-        │  ── scan dossier d'entrée (VideoScanner)
-        │  ── persistance Project + Run + VideoExecutions
+        │  ── collecte des sources (build_input_sources : dossier + URLs,
+        │     ordonnées/exclues) — fichiers vidéo/audio/document + liens YouTube
+        │  ── persistance Project + Run + SourceExecutions
         ▼
 RunOrchestrator.execute(run, ctx)
         │  ── delegate à PipelineEngine.execute(ctx)

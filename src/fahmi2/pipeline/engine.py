@@ -4,7 +4,7 @@ Itère sur les phases enregistrées dans ``PhaseRegistry`` (dans l'ordre
 canonique), pour chaque phase :
 
 - Vérifie le checkpoint SQLite (``SUCCEEDED`` → ``SKIPPED``).
-- Pour les phases per-video, itère sur les sources du run ; pour les phases
+- Pour les phases per-source, itère sur les sources du run ; pour les phases
   batch, exécute une seule fois.
 - Invoque le handler avec retry policy (mapping erreur → décision).
 - Persiste l'exécution dans SQLite.
@@ -92,7 +92,7 @@ class PipelineEngine:
         return final_status
 
     def _execute_phase(self, handler: PhaseHandler, ctx: PhaseContext) -> None:
-        """Exécute une phase complète (toutes ses sources si per-video).
+        """Exécute une phase complète (toutes ses sources si per-source).
 
         Args:
             handler: Handler de la phase.

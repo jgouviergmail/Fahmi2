@@ -83,7 +83,8 @@ _DIRECTIVES_PLACEHOLDER = (
 
 _KEEP_AUDIO_LABEL = "Conserver les fichiers audio extraits"
 _KEEP_AUDIO_TOOLTIP = (
-    "Si coché, les fichiers .wav extraits des vidéos ne sont pas supprimés "
+    "Si coché, les fichiers .wav extraits des médias (vidéo/audio/YouTube) ne "
+    "sont pas supprimés "
     "après la transcription (utile pour réécouter / déboguer)."
 )
 
@@ -489,8 +490,9 @@ class GenerationSettingsView(QDialog):
         if not input_folder_text:
             QMessageBox.warning(
                 self,
-                "Dossier des vidéos manquant",
-                "Veuillez sélectionner le dossier contenant les vidéos.",
+                "Dossier d'entrée manquant",
+                "Veuillez sélectionner le dossier d'entrée (vidéos, audios, "
+                "documents).",
             )
             return
         source_lang: Language = self._source_lang_combo.currentData()

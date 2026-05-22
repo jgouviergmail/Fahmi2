@@ -40,7 +40,7 @@ _VERSION_UNKNOWN = "dev"
 _ABOUT_TITLE = "À propos de Fahmi2"
 _ABOUT_TEXT = (
     "<b>Fahmi2</b> — version {version}<br><br>"
-    "Transforme un dossier de vidéos de cours en documents Markdown consolidés "
+    "Transforme un dossier de sources de cours en documents Markdown consolidés "
     "et en supports de révision (flashcards, QCM, examens blancs…)."
 )
 

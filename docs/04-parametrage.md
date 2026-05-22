@@ -47,8 +47,13 @@ master-detail) ; ils incluent le **dossier des vidéos**.
 | **Nom** | Libre, sert d'étiquette dans la sidebar. Ex: « Cours macroéconomie L3 ». |
 | **Emplacement** | Dossier de travail du projet (artefacts + livrables). Immuable après création. |
 
-> Le **dossier des vidéos** (source) est un réglage de génération : il se choisit
-> dans l'onglet **Génération → ⚙ Réglages → Entrée & langues**.
+> Le **dossier d'entrée** (sources) est un réglage de génération : il se choisit
+> dans l'onglet **Génération → ⚙ Réglages → Entrée & langues**. Il peut contenir
+> des **vidéos**, des **fichiers audio** et des **documents texte** (PDF, Word,
+> Markdown, txt) ; on peut aussi y ajouter des **liens YouTube** (un par ligne).
+> Un composant **double liste** permet d'**ordonner** les sources (l'ordre fixe
+> l'ordre des chapitres) et d'en **exclure** ; la case **« Reformuler les
+> documents texte »** (cochée par défaut) insère sinon les documents tels quels.
 
 ### 2.2 Langues
 

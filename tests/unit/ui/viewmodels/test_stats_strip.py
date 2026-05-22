@@ -23,7 +23,7 @@ from fahmi2.ui.viewmodels.stats_strip import StatsStripViewModel
 
 
 def _setup(
-    tmp_path: Path, make_generation_settings: Any, *, n_videos: int = 2
+    tmp_path: Path, make_generation_settings: Any, *, n_sources: int = 2
 ) -> tuple[SqliteState, Run, PhaseRegistry]:
     state = SqliteState(tmp_path / "t.db")
     settings = make_generation_settings()
@@ -40,7 +40,7 @@ def _setup(
             source_id=SourceId.new(),
             source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / f"v{i}.mp4")),
         )
-        for i in range(n_videos)
+        for i in range(n_sources)
     )
     run = Run(
         id=RunId.new(),
@@ -65,8 +65,8 @@ def test_snapshot_zero_when_run_starts(tmp_path: Path, make_generation_settings:
     state, run, registry = _setup(tmp_path, make_generation_settings)
     vm = StatsStripViewModel(state=state, registry=registry)
     snap = vm.snapshot(run)
-    assert snap.videos_total == 2
-    assert snap.videos_completed == 0
+    assert snap.sources_total == 2
+    assert snap.sources_completed == 0
     assert snap.cost_usd_so_far == 0.0
 
 
@@ -86,7 +86,7 @@ def test_snapshot_counts_completed_videos(
         )
     vm = StatsStripViewModel(state=state, registry=registry)
     snap = vm.snapshot(run)
-    assert snap.videos_completed == 1
+    assert snap.sources_completed == 1
 
 
 def test_snapshot_accumulates_cost(tmp_path: Path, make_generation_settings: Any) -> None:

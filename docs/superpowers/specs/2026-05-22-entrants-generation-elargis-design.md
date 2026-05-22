@@ -440,3 +440,9 @@ Migration de colonne **propre et idempotente** dans `_apply_soft_migrations`
   mixte audio-local + docs reste à 1 worker en phase 0 (§5).
 - **Ordre des chapitres** = `source_order` (consolidation actuelle). Les modes
   alternatifs (intelligent/thématique) relèvent de la spec séparée.
+- **Progression du téléchargement YouTube non implémentée** : la conception
+  initiale (§4.3/§10) prévoyait un `on_progress`/`ProgressCallback` parsé depuis
+  la sortie yt-dlp et remonté en `PhaseProgress`. Abandonné (YAGNI) pour rester
+  cohérent avec le reste du pipeline, qui n'émet pas de progression intra-phase
+  (ni le STT, ni les phases LLM) ; la matrice suit la granularité phase × source.
+  Le téléchargement reste borné par un timeout (cf. `youtube_downloader`).

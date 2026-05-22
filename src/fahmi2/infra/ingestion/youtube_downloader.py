@@ -18,6 +18,9 @@ from fahmi2.core.errors.severity import Severity
 _YTDLP_BINARY = "yt-dlp"
 _BESTAUDIO_FORMAT = "bestaudio/best"
 _NO_PLAYLIST = "--no-playlist"
+#: Suffixes des artefacts de téléchargement partiel/temporaire de yt-dlp, à
+#: ignorer lors de la sélection du fichier audio produit.
+_PARTIAL_DOWNLOAD_SUFFIXES = frozenset({".part", ".ytdl", ".temp"})
 #: Délai maximal du téléchargement audio (s). Généreux : une longue vidéo de
 #: cours peut produire un flux audio volumineux sur une connexion lente. Au-delà,
 #: le processus est tué pour éviter un blocage indéfini du worker.
@@ -127,7 +130,11 @@ class YtDlpDownloader:
                 severity=Severity.ERROR,
                 technical_details={"url": url, "stderr": stderr},
             ) from exc
-        produced = sorted(dest_dir.glob(f"{stem}.*"))
+        produced = sorted(
+            p
+            for p in dest_dir.glob(f"{stem}.*")
+            if p.suffix.lower() not in _PARTIAL_DOWNLOAD_SUFFIXES
+        )
         if not produced:
             raise IngestionError(
                 code="INGESTION.YOUTUBE_DOWNLOAD_FAILED",

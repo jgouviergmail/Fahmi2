@@ -1,6 +1,6 @@
-"""Onglet « Génération » — cockpit vidéos → document consolidé.
+"""Onglet « Génération » — cockpit sources → document consolidé.
 
-Construit le cockpit (barre de titre + bande de stats + matrice vidéos × phases) et
+Construit le cockpit (barre de titre + bande de stats + matrice sources × phases) et
 possède son ``GenerationController``. Le ``LogsDock`` partagé et la fenêtre parente
 lui sont injectés.
 """

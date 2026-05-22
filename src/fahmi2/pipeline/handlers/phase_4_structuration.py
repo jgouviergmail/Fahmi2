@@ -50,11 +50,11 @@ class Phase4StructurationHandler(PhaseHandler):
 
     @property
     def is_per_source(self) -> bool:
-        """Phase par vidéo."""
+        """Phase par source."""
         return True
 
     def max_parallel_workers(self, ctx: PhaseContext) -> int:
-        """Parallélise les vidéos via le pool LLM configuré."""
+        """Parallélise les sources via le pool LLM configuré."""
         return ctx.settings.parallelism.llm_workers
 
     def execute(
@@ -63,7 +63,7 @@ class Phase4StructurationHandler(PhaseHandler):
         *,
         source: SourceExecution | None,
     ) -> PhaseExecution:
-        """Structure le contenu reformulé d'une vidéo en Markdown.
+        """Structure le contenu reformulé d'une source en Markdown.
 
         Args:
             ctx: Contexte d'exécution.
@@ -111,11 +111,11 @@ class Phase4StructurationHandler(PhaseHandler):
 
 
 def _load_reformulated(workspace: Path, source_id: str) -> str:
-    """Charge le contenu reformulé d'une vidéo.
+    """Charge le contenu reformulé d'une source.
 
     Args:
         workspace: Dossier de travail.
-        source_id: ULID de la vidéo.
+        source_id: ULID de la source.
 
     Returns:
         Le contenu reformulé sous forme de chaîne.

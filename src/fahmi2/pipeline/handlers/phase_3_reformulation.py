@@ -1,4 +1,4 @@
-"""Handler Phase 3 — reformulation par vidéo (transcription -> texte écrit).
+"""Handler Phase 3 — reformulation par source (transcription -> texte écrit).
 
 Charge la transcription brute, sélectionne les termes du glossaire master
 pertinents (top-K via retriever), appelle le LLM, et persiste le texte
@@ -50,11 +50,11 @@ class Phase3ReformulationHandler(PhaseHandler):
 
     @property
     def is_per_source(self) -> bool:
-        """Phase par vidéo."""
+        """Phase par source."""
         return True
 
     def max_parallel_workers(self, ctx: PhaseContext) -> int:
-        """Parallélise les vidéos via le pool LLM configuré."""
+        """Parallélise les sources via le pool LLM configuré."""
         return ctx.settings.parallelism.llm_workers
 
     def execute(
@@ -63,7 +63,7 @@ class Phase3ReformulationHandler(PhaseHandler):
         *,
         source: SourceExecution | None,
     ) -> PhaseExecution:
-        """Reformule la transcription d'une vidéo.
+        """Reformule la transcription d'une source.
 
         Args:
             ctx: Contexte d'exécution.
@@ -133,7 +133,7 @@ def _load_transcription_text(workspace: Path, source_id: str) -> str:
 
     Args:
         workspace: Dossier de travail.
-        source_id: ULID de la vidéo.
+        source_id: ULID de la source.
 
     Returns:
         Texte concaténé.

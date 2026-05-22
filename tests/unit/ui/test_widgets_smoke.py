@@ -27,8 +27,8 @@ def test_stats_strip_renders_snapshot(qtbot: QtBot) -> None:
     started = datetime.now(tz=UTC)
     snapshot = StatsSnapshot(
         run_status=RunStatus.RUNNING,
-        videos_total=10,
-        videos_completed=3,
+        sources_total=10,
+        sources_completed=3,
         phases_total=5,
         phases_completed=1,
         cost_usd_so_far=0.42,
@@ -160,8 +160,8 @@ def _make_snapshot(
     """Helper : construit un ``StatsSnapshot`` minimal."""
     return StatsSnapshot(
         run_status=run_status,
-        videos_total=2,
-        videos_completed=0,
+        sources_total=2,
+        sources_completed=0,
         phases_total=10,
         phases_completed=0,
         cost_usd_so_far=0.0,

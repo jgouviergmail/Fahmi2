@@ -31,7 +31,7 @@ _TEMPLATE_NAME = "phase_1_term_extraction"
 
 
 class Phase1TermExtractionHandler(PhaseHandler):
-    """Phase 1 — extraction des termes candidats par vidéo."""
+    """Phase 1 — extraction des termes candidats par source."""
 
     @property
     def phase_id(self) -> PhaseId:
@@ -40,11 +40,11 @@ class Phase1TermExtractionHandler(PhaseHandler):
 
     @property
     def is_per_source(self) -> bool:
-        """Phase par vidéo."""
+        """Phase par source."""
         return True
 
     def max_parallel_workers(self, ctx: PhaseContext) -> int:
-        """Parallélise les vidéos via le pool LLM configuré."""
+        """Parallélise les sources via le pool LLM configuré."""
         return ctx.settings.parallelism.llm_workers
 
     def execute(
@@ -60,7 +60,8 @@ class Phase1TermExtractionHandler(PhaseHandler):
             source: Source à traiter (obligatoire).
 
         Returns:
-            ``PhaseExecution`` ``SUCCEEDED`` pointant vers ``candidates/{vid}.json``.
+            ``PhaseExecution`` ``SUCCEEDED`` pointant vers
+            ``candidates/{source_id}.json``.
 
         Raises:
             ValueError: Si ``source`` est ``None``.
@@ -103,7 +104,7 @@ def _load_transcription_text(workspace: Path, source_id: str) -> str:
 
     Args:
         workspace: Dossier de travail du run.
-        source_id: Identifiant ULID de la vidéo.
+        source_id: Identifiant ULID de la source.
 
     Returns:
         Texte concaténé de tous les segments.

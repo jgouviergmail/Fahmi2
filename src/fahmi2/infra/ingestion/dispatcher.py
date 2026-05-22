@@ -16,8 +16,8 @@ from fahmi2.domain.source import InputSource
 from fahmi2.infra.ingestion.document_ingestor import DocumentIngestor
 from fahmi2.infra.ingestion.interface import IngestionDeps, SourceIngestor
 from fahmi2.infra.ingestion.media_ingestor import MediaIngestor
-from fahmi2.infra.ingestion.text_extractor import DefaultTextExtractor
-from fahmi2.infra.ingestion.youtube_downloader import YtDlpDownloader
+from fahmi2.infra.ingestion.text_extractor import DefaultTextExtractor, TextExtractor
+from fahmi2.infra.ingestion.youtube_downloader import YoutubeDownloader, YtDlpDownloader
 from fahmi2.infra.ingestion.youtube_ingestor import YoutubeIngestor
 from fahmi2.infra.stt.interface import Transcription
 
@@ -91,19 +91,34 @@ class IngestionDispatcher:
         )
 
 
-def build_default_ingestion_dispatcher() -> IngestionDispatcher:
+def build_default_ingestion_dispatcher(
+    *,
+    youtube_downloader: YoutubeDownloader | None = None,
+    text_extractor: TextExtractor | None = None,
+) -> IngestionDispatcher:
     """Construit le dispatcher par défaut (vidéo + audio + documents + YouTube).
+
+    Les adapters externes sont injectables (DI / tests) ; à défaut, les
+    implémentations par défaut sont câblées (binaire yt-dlp résolu au runtime,
+    extracteur pypdf/python-docx).
+
+    Args:
+        youtube_downloader: Téléchargeur YouTube (défaut : ``YtDlpDownloader``
+            avec le binaire yt-dlp résolu au runtime).
+        text_extractor: Extracteur de texte des documents (défaut :
+            ``DefaultTextExtractor``).
 
     Returns:
         Un ``IngestionDispatcher`` avec ``MediaIngestor`` (``VIDEO``/``AUDIO``),
         ``DocumentIngestor`` (``DOCUMENT``) et ``YoutubeIngestor`` (``YOUTUBE``,
-        via le binaire yt-dlp résolu au runtime, déléguant au ``MediaIngestor``).
+        déléguant au ``MediaIngestor``).
     """
     media = MediaIngestor()
-    document = DocumentIngestor(DefaultTextExtractor())
-    youtube = YoutubeIngestor(
-        YtDlpDownloader(ytdlp_binary=resolve_ytdlp_binary_or_none()), media
+    document = DocumentIngestor(text_extractor or DefaultTextExtractor())
+    downloader = youtube_downloader or YtDlpDownloader(
+        ytdlp_binary=resolve_ytdlp_binary_or_none()
     )
+    youtube = YoutubeIngestor(downloader, media)
     return IngestionDispatcher(
         {
             SourceKind.VIDEO: media,

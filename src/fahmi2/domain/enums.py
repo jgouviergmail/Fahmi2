@@ -135,3 +135,18 @@ class ExportFormat(StrEnum):
     MARKDOWN = "markdown"
     PDF = "pdf"
     HTML = "html"
+
+
+class ChatGroundingMode(StrEnum):
+    """Posture de fidélité des réponses du chat de dialogue."""
+
+    STRICT = "strict"        # uniquement le corpus, citations, refus hors-corpus
+    AUGMENTED = "augmented"  # corpus prioritaire + complément balisé
+
+
+class RetrievalStrategy(StrEnum):
+    """Stratégie de récupération des passages du corpus."""
+
+    AUTO = "auto"            # défaut : sémantique si clé OpenAI dispo, sinon lexical
+    LEXICAL = "lexical"      # TF-IDF (+ query expansion), 100% offline
+    SEMANTIC = "semantic"    # embeddings OpenAI

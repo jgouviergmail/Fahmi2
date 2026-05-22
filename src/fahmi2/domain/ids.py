@@ -53,3 +53,8 @@ class RunId(_UlidIdBase):
 @dataclass(frozen=True)
 class SourceId(_UlidIdBase):
     """Identifiant stable d'une source d'entrée dans un Run."""
+
+
+@dataclass(frozen=True)
+class ConversationId(_UlidIdBase):
+    """Identifiant stable d'une conversation du chat de dialogue."""

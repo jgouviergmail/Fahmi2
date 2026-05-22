@@ -1,0 +1,22 @@
+"""Tests de ``YtDlpDownloader`` (mapping d'erreur ; pas de réseau)."""
+
+from pathlib import Path
+
+import pytest
+
+from fahmi2.core.errors.exceptions import IngestionError
+from fahmi2.infra.ingestion.youtube_downloader import YtDlpDownloader
+
+_MISSING_BINARY = "ytdlp-inexistant-xyz"
+
+
+def test_download_missing_binary_raises_not_found(tmp_path: Path) -> None:
+    downloader = YtDlpDownloader(ytdlp_binary=_MISSING_BINARY)
+    with pytest.raises(IngestionError) as exc:
+        downloader.download_audio("https://youtu.be/x", tmp_path, "01H")
+    assert exc.value.code == "INGESTION.YTDLP_NOT_FOUND"
+
+
+def test_probe_duration_missing_binary_returns_zero(tmp_path: Path) -> None:
+    downloader = YtDlpDownloader(ytdlp_binary=_MISSING_BINARY)
+    assert downloader.probe_duration("https://youtu.be/x") == 0.0

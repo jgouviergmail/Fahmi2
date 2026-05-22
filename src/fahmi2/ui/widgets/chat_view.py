@@ -156,7 +156,8 @@ class ChatView(QWidget):
             state: État UX courant.
         """
         self._banner.setVisible(state is ChatTabState.NO_CORPUS)
-        can_send = state is ChatTabState.READY
+        # READY ou ERROR : saisie active (après une erreur, l'utilisateur relance).
+        can_send = state in (ChatTabState.READY, ChatTabState.ERROR)
         self._input.setEnabled(can_send)
         self._send_button.setEnabled(can_send)
 

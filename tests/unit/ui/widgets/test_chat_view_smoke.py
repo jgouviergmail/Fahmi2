@@ -51,3 +51,12 @@ def test_no_corpus_disables_input(qtbot: QtBot) -> None:
     view.set_state(ChatTabState.NO_CORPUS)
     assert not view._input.isEnabled()  # noqa: SLF001 — smoke d'assemblage
     assert not view._banner.isHidden()  # noqa: SLF001 — visible (widget non monté)
+
+
+def test_error_state_keeps_input_active_for_retry(qtbot: QtBot) -> None:
+    view = ChatView()
+    qtbot.addWidget(view)
+    view.set_state(ChatTabState.ERROR)
+    assert view._input.isEnabled()  # noqa: SLF001 — relance possible après erreur
+    view.set_state(ChatTabState.ANSWERING)
+    assert not view._input.isEnabled()  # noqa: SLF001 — verrouillé pendant la réponse

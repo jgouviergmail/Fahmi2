@@ -14,8 +14,9 @@ Set-StrictMode -Version Latest
 $projectRoot = (Get-Item -Path $PSScriptRoot).Parent.FullName
 Set-Location $projectRoot
 
-Write-Host "==> Etape 1/4 : Recuperation de ffmpeg (idempotent)" -ForegroundColor Cyan
+Write-Host "==> Etape 1/4 : Recuperation de ffmpeg + yt-dlp (idempotent)" -ForegroundColor Cyan
 & (Join-Path $PSScriptRoot "fetch-ffmpeg.ps1")
+& (Join-Path $PSScriptRoot "fetch-ytdlp.ps1")
 
 Write-Host "==> Etape 2/4 : Nettoyage des anciens artefacts" -ForegroundColor Cyan
 if (Test-Path "build") { Remove-Item -Recurse -Force "build" }

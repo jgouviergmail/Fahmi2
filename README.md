@@ -133,11 +133,12 @@ pour le détail complet.
 
 ## Statut
 
-**v1.0.0** — pipeline complet fonctionnel, UI cockpit dense
-thème Clair Fluent, packaging Windows portable opérationnel, document
-consolidé navigable (numérotation hiérarchique + sommaire), glossaire
-en tableau avec colonne Signification, édition des prompts depuis l'UI,
-estimation de coût alignée sur l'usage réel (thinking pris en compte).
+**v1.1.0** — entrants de génération élargis : **vidéos, fichiers audio, liens
+YouTube et documents texte** (PDF/Word/Markdown/txt), avec **ordre et exclusion**
+des sources réglables. Socle v1.0.0 : pipeline complet, UI cockpit dense thème
+Clair Fluent, packaging Windows portable, document consolidé navigable
+(numérotation hiérarchique + sommaire), glossaire en tableau, édition des prompts
+depuis l'UI, estimation de coût alignée sur l'usage réel (thinking pris en compte).
 Cf. [CHANGELOG.md](CHANGELOG.md).
 
 Interface réorganisée en **onglets de fonctionnalité** (Génération + Supports

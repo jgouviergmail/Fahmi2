@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from fahmi2.core.retrieval.passages import PassageRetriever
 from fahmi2.domain.chat import ChatSettings, RetrievedPassage
-from fahmi2.domain.enums import Language
 from fahmi2.infra.llm.interface import LLMProvider, Message
 from fahmi2.infra.prompts.loader import PromptLoader
 
@@ -27,7 +26,6 @@ class QueryExpander:
         llm_provider: LLMProvider,
         prompt_loader: PromptLoader,
         settings: ChatSettings,
-        language: Language,
         weak_score_threshold: float = _WEAK_SCORE_THRESHOLD,
     ) -> None:
         """Construit le décorateur.
@@ -37,14 +35,12 @@ class QueryExpander:
             llm_provider: Provider LLM pour la reformulation.
             prompt_loader: Loader de prompts.
             settings: Réglages du chat (modèle, température).
-            language: Langue (réservée pour usage futur du prompt d'expansion).
             weak_score_threshold: Seuil sous lequel on déclenche l'expansion.
         """
         self._inner = inner
         self._llm = llm_provider
         self._prompts = prompt_loader
         self._settings = settings
-        self._language = language
         self._threshold = weak_score_threshold
 
     def retrieve(self, *, query: str, top_k: int) -> list[RetrievedPassage]:

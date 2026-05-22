@@ -34,6 +34,7 @@ def _datetime_or_none(value: Any) -> datetime | None:  # noqa: ANN401
 
 
 def _serialize_citation(citation: Citation) -> dict[str, Any]:
+    """Sérialise une ``Citation`` en dict JSON-compatible."""
     return {
         "chapter_title": citation.chapter_title,
         "section_title": citation.section_title,
@@ -43,6 +44,7 @@ def _serialize_citation(citation: Citation) -> dict[str, Any]:
 
 
 def _serialize_message(message: ChatMessage) -> dict[str, Any]:
+    """Sérialise un ``ChatMessage`` (rôle, contenu, citations, coût, tokens)."""
     return {
         "role": message.role,
         "content": message.content,
@@ -55,6 +57,7 @@ def _serialize_message(message: ChatMessage) -> dict[str, Any]:
 
 
 def _deserialize_message(payload: dict[str, Any]) -> ChatMessage:
+    """Reconstruit un ``ChatMessage`` depuis son dict (rôle tolérant)."""
     role: ChatRole = (
         _ROLE_ASSISTANT if payload["role"] == _ROLE_ASSISTANT else "user"
     )

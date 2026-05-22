@@ -5,7 +5,6 @@ from __future__ import annotations
 from fahmi2.chat.query_expander import QueryExpander
 from fahmi2.core.retrieval.passages import TfidfPassageRetriever
 from fahmi2.domain.chat import ChatSettings, CorpusChunk
-from fahmi2.domain.enums import Language
 from fahmi2.infra.llm._fakes import FakeLLMProvider
 from fahmi2.infra.llm.interface import LLMResponse
 from fahmi2.infra.prompts.loader import PromptLoader
@@ -38,7 +37,6 @@ def _expander(inner: TfidfPassageRetriever, *, expansion: str) -> QueryExpander:
         llm_provider=llm,
         prompt_loader=PromptLoader(),
         settings=ChatSettings(),
-        language=Language.FR,
     )
 
 

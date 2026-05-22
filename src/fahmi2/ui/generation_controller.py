@@ -30,7 +30,7 @@ from fahmi2.app.hardware_probe import HardwareInfo
 from fahmi2.app.project_service import ProjectService
 from fahmi2.app.run_orchestrator import RunOrchestrator
 from fahmi2.app.secrets_service import SecretsService
-from fahmi2.app.video_scanner import scan_input_folder
+from fahmi2.app.input_sources import build_input_sources
 from fahmi2.core.config.paths import AppPaths
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.exceptions import Fahmi2Error
@@ -400,7 +400,7 @@ class GenerationController(QObject):
             self._reset_views()
             return
         try:
-            sources = scan_input_folder(project.generation.input_folder)
+            sources = build_input_sources(project.generation)
         except Fahmi2Error:
             self._reset_views()
             return
@@ -684,7 +684,7 @@ class GenerationController(QObject):
             return
         settings = self._current_project.generation
         try:
-            sources = scan_input_folder(settings.input_folder)
+            sources = build_input_sources(settings)
         except Fahmi2Error as exc:
             QMessageBox.warning(
                 self._window,

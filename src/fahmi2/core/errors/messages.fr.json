@@ -49,9 +49,9 @@
     "body": "L'application ne peut pas lire le dossier d'entrée. Vérifie les permissions ou choisis un autre dossier.",
     "actions": []
   },
-  "CONFIG.INPUT_FOLDER_EMPTY": {
-    "title": "Dossier d'entrée vide",
-    "body": "Le dossier d'entrée ne contient aucune vidéo prise en charge (.mp4, .m4v, .mkv, .mov, .webm).",
+  "CONFIG.NO_INPUT_SOURCE": {
+    "title": "Aucune source d'entrée",
+    "body": "Le dossier d'entrée ne contient aucune source prise en charge (vidéos : .mp4, .m4v, .mkv, .mov, .webm ; audios : .wav, .mp3, .m4a, .flac, .ogg, .opus, .aac).",
     "actions": []
   },
   "BUDGET.EXCEEDED": {

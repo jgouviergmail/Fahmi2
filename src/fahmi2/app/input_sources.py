@@ -1,7 +1,8 @@
-"""Scanner de vidéos dans un dossier d'entrée.
+"""Construction de la liste des sources d'entrée d'un Run.
 
-Identifie les fichiers vidéo supportés (extensions configurées) et produit
-les ``SourceExecution`` initiaux pour un ``Run``.
+Scanne le dossier d'entrée des réglages de génération et produit les
+``SourceExecution`` initiaux. Les types de fichiers reconnus sont centralisés
+dans ``infra.ingestion.classify`` (vidéo + audio au Lot 1B ; documents au Lot 2).
 
 Le tri d'entrée est **naturel** : on extrait le premier token purement
 numérique du nom (après suppression de l'extension et découpage sur les
@@ -18,39 +19,32 @@ from pathlib import Path
 from fahmi2.core.errors.exceptions import ConfigError, StorageError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import SourceKind
+from fahmi2.domain.generation import GenerationSettings
 from fahmi2.domain.ids import SourceId
 from fahmi2.domain.source import InputSource, SourceExecution
-
-_SUPPORTED_EXTENSIONS: frozenset[str] = frozenset(
-    {".mp4", ".m4v", ".mkv", ".mov", ".webm"}
-)
+from fahmi2.infra.ingestion.classify import classify_file, supported_file_extensions
 
 _TOKEN_SPLIT_RE = re.compile(r"[\s\-_]+")
 
 
-def supported_extensions() -> frozenset[str]:
-    """Retourne le set des extensions vidéo supportées.
+def build_input_sources(settings: GenerationSettings) -> list[SourceExecution]:
+    """Construit la liste ordonnée des sources d'entrée d'un Run.
 
-    Returns:
-        Set immuable d'extensions (en minuscules, avec ``.`` initial).
-    """
-    return _SUPPORTED_EXTENSIONS
-
-
-def scan_input_folder(input_folder: Path) -> list[SourceExecution]:
-    """Liste les vidéos supportées dans ``input_folder``.
+    Scanne ``settings.input_folder`` pour les fichiers reconnus (vidéo + audio)
+    et les trie naturellement par numéro de séquence dans le nom.
 
     Args:
-        input_folder: Dossier à scanner.
+        settings: Réglages de génération (porteurs du dossier d'entrée).
 
     Returns:
         Liste des ``SourceExecution`` initiaux (status PENDING implicite),
         triés par nom de fichier.
 
     Raises:
-        StorageError: Si ``input_folder`` est inaccessible.
-        ConfigError: Si aucun fichier vidéo supporté n'est trouvé.
+        StorageError: Si le dossier d'entrée est inaccessible.
+        ConfigError: ``CONFIG.NO_INPUT_SOURCE`` si aucune source prise en charge.
     """
+    input_folder = settings.input_folder
     if not input_folder.exists() or not input_folder.is_dir():
         raise StorageError(
             code="STORAGE.READ_DENIED",
@@ -65,32 +59,47 @@ def scan_input_folder(input_folder: Path) -> list[SourceExecution]:
         (
             p
             for p in input_folder.iterdir()
-            if p.is_file() and p.suffix.lower() in _SUPPORTED_EXTENSIONS
+            if p.is_file() and classify_file(p) is not None
         ),
         key=_natural_sort_key,
     )
 
     if not candidates:
         raise ConfigError(
-            code="CONFIG.INPUT_FOLDER_EMPTY",
+            code="CONFIG.NO_INPUT_SOURCE",
             user_message=(
-                "Le dossier d'entrée ne contient aucune vidéo prise en charge "
-                f"({', '.join(sorted(_SUPPORTED_EXTENSIONS))})."
+                "Le dossier d'entrée ne contient aucune source prise en charge "
+                "(vidéos, audios)."
             ),
             severity=Severity.ERROR,
             technical_details={
                 "input_folder": str(input_folder),
-                "supported": sorted(_SUPPORTED_EXTENSIONS),
+                "supported": sorted(supported_file_extensions()),
             },
         )
 
     return [
         SourceExecution(
             source_id=SourceId.new(),
-            source=InputSource(kind=SourceKind.VIDEO, location=str(p)),
+            source=InputSource(kind=_kind_of(p), location=str(p)),
         )
         for p in candidates
     ]
+
+
+def _kind_of(path: Path) -> SourceKind:
+    """Retourne le ``SourceKind`` d'un fichier déjà filtré comme supporté.
+
+    Args:
+        path: Fichier supporté (``classify_file`` non ``None``, garanti par le
+            filtre amont).
+
+    Returns:
+        Le ``SourceKind`` du fichier.
+    """
+    kind = classify_file(path)
+    assert kind is not None  # garanti par le filtre de build_input_sources  # noqa: S101
+    return kind
 
 
 def _natural_sort_key(path: Path) -> tuple[float, str]:

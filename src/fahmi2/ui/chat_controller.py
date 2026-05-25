@@ -21,9 +21,9 @@ from fahmi2.app.project_service import ProjectService
 from fahmi2.app.secrets_service import SecretsService
 from fahmi2.chat.chat_service import ChatService
 from fahmi2.chat.corpus import load_corpus_chunks
-from fahmi2.chat.query_expander import QueryExpander
+from fahmi2.chat.retriever_factory import build_passage_retriever
 from fahmi2.core.config.paths import AppPaths
-from fahmi2.core.retrieval.passages import PassageRetriever, TfidfPassageRetriever
+from fahmi2.core.retrieval.passages import PassageRetriever
 from fahmi2.domain.chat import (
     CHAT_WORKSPACE_SUBDIR,
     ChatMessage,
@@ -38,11 +38,13 @@ from fahmi2.domain.generation import (
 )
 from fahmi2.domain.ids import ConversationId, ProjectId
 from fahmi2.domain.project import Project
+from fahmi2.infra.embeddings.interface import EmbeddingProvider
+from fahmi2.infra.embeddings.openai_adapter import OpenAIEmbeddingProvider
 from fahmi2.infra.llm.deepseek_adapter import DeepSeekAdapter
 from fahmi2.infra.llm.interface import LLMProvider
 from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
-from fahmi2.pedagogy.sources import resolve_content_language
+from fahmi2.pedagogy.sources import resolve_content_language, source_mtime_ns
 from fahmi2.ui.dialogs.chat_settings_view import ChatSettingsView
 from fahmi2.ui.viewmodels.chat_view_model import ChatViewModel
 from fahmi2.ui.widgets.chat_view import ChatView
@@ -368,16 +370,54 @@ class ChatController(QObject):
     def _build_retriever(
         self, chunks: tuple[CorpusChunk, ...], settings: ChatSettings, llm: LLMProvider
     ) -> PassageRetriever:
-        """Construit le retriever (lexical + query expansion si activée)."""
-        base = TfidfPassageRetriever(chunks)
-        if settings.query_expansion_enabled:
-            return QueryExpander(
-                inner=base,
-                llm_provider=llm,
-                prompt_loader=self._prompts,
-                settings=settings,
-            )
-        return base
+        """Construit le retriever via la fabrique (résolution AUTO + repli).
+
+        Args:
+            chunks: Passages du corpus.
+            settings: Réglages du chat.
+            llm: Provider LLM (query expansion).
+
+        Returns:
+            Le ``PassageRetriever`` adapté à la stratégie configurée.
+        """
+        assert self._project is not None and self._content_language is not None
+        embedding_provider, embedding_model = self._embedding_provider()
+        generation_output_dir = self._generation_output_dir(self._project)
+        return build_passage_retriever(
+            chunks=chunks,
+            settings=settings,
+            prompts=self._prompts,
+            llm=llm,
+            embedding_provider=embedding_provider,
+            embedding_model=embedding_model,
+            index_path=self._index_path(self._project, self._content_language),
+            source_mtime_ns=source_mtime_ns(
+                generation_output_dir, self._content_language
+            ),
+            language=self._content_language,
+            artifacts=FsArtifactStore(),
+        )
+
+    def _embedding_provider(self) -> tuple[EmbeddingProvider | None, str]:
+        """Fournit un ``EmbeddingProvider`` OpenAI si une clé est disponible.
+
+        Returns:
+            ``(provider, model)`` ; ``(None, "")`` sans clé OpenAI (repli lexical).
+        """
+        if not self._secrets_service.has_openai_key():
+            return None, ""
+        openai_key = self._secrets_service.get_openai_api_key()
+        assert openai_key is not None  # garanti par has_openai_key
+        provider = OpenAIEmbeddingProvider(api_key=openai_key)
+        return provider, provider.model
+
+    @staticmethod
+    def _index_path(project: Project, language: Language) -> Path:
+        return (
+            project.workspace_folder
+            / CHAT_WORKSPACE_SUBDIR
+            / f"index.{language.value}.npz"
+        )
 
     def _cleanup_thread(self) -> None:
         """Réinitialise les références au worker/thread après fin."""

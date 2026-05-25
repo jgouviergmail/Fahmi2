@@ -382,11 +382,17 @@ référentiels, conversations) — au-delà des composants techniques.
 
 ### 10.2 Cycle de vie du référentiel d'embeddings (mode sémantique)
 Politique retenue : **hybride** — lexical automatique (gratuit), **sémantique
-explicite**.
-- **Construction** : déclenchée **explicitement** (bouton « Construire / Réindexer
-  l'index ») ou à la **première bascule** en mode sémantique, **après confirmation**
-  affichant le **coût estimé** d'embedding. Un **index par langue**
-  (`chat/index.{lang}.npz`).
+explicite** (l'utilisateur choisit `SEMANTIC`/`AUTO` dans les réglages).
+
+> **Réalisation v1** : le sémantique est *opt-in par réglage* (`RetrievalStrategy`),
+> et l'index est construit **à la volée** au premier message en mode sémantique
+> (persisté, réutilisé tant que frais). Le coût d'embedding d'un cours étant
+> négligeable, les **contrôles UI explicites** (bouton « Réindexer », confirmation
+> modale du coût, état `INDEXING`) et la **journalisation du coût d'indexation** sont
+> **différés** (amélioration). La **purge** est disponible (`purge_index`).
+
+- **Construction** : à la volée au premier message en mode sémantique (ou via une
+  future commande « Réindexer »). Un **index par langue** (`chat/index.{lang}.npz`).
 - **Empreinte de validité** stockée avec l'index : `model` d'embedding + hash des
   réglages d'indexation + `mtime` du consolidé source.
 - **Péremption** (état `STALE`) si l'une change : (a) `mtime` du consolidé

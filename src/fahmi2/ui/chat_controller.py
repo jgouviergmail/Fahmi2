@@ -49,6 +49,7 @@ from fahmi2.ui.dialogs.chat_settings_view import ChatSettingsView
 from fahmi2.ui.viewmodels.chat_view_model import ChatViewModel
 from fahmi2.ui.widgets.chat_view import ChatView
 
+_INDEX_FILENAME_TEMPLATE = "index.{language}.npz"
 _NO_PROJECT_TITLE = "Aucun projet sélectionné"
 _NO_KEY_TITLE = "Clé DeepSeek manquante"
 _NO_KEY_MESSAGE = (
@@ -416,7 +417,7 @@ class ChatController(QObject):
         return (
             project.workspace_folder
             / CHAT_WORKSPACE_SUBDIR
-            / f"index.{language.value}.npz"
+            / _INDEX_FILENAME_TEMPLATE.format(language=language.value)
         )
 
     def _cleanup_thread(self) -> None:

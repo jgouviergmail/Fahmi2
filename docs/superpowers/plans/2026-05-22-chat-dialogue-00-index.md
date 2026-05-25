@@ -30,7 +30,7 @@ persistance fichiers sous `<workspace>/chat/`. Zéro nouvelle dépendance.
 | 3 ✅ | [lot3-streaming](2026-05-22-chat-dialogue-lot3-streaming.md) | `chat_stream` (port + `DeepSeekAdapter` + fake + usage/repli), `ChatService.stream_answer` | 2 | Réponses en flux |
 | 4 ✅ | [lot4-ui](2026-05-22-chat-dialogue-lot4-ui.md) | `FeatureId.CHAT`, `ChatTab`, `ChatController`, `ChatViewModel` (machine d'état), `ChatView`, `ChatSettingsView`, DI | 3 | **Chat lexical + streaming de bout en bout** (point de démonstration) |
 | 5 ✅ | [lot5-semantique](2026-05-22-chat-dialogue-lot5-semantique.md) | `EmbeddingProvider` + OpenAI + fake, `SemanticPassageRetriever` + index `.npz` + empreinte de validité, résolution `AUTO`, purge, repli | 4 | Retrieval sémantique + cycle de vie de l'index |
-| 6 | `lot6-eval-docs` *(à venir)* | Jalon d'évaluation qualité, `docs/`, `README`, `CHANGELOG`, catalogue `PromptsService`, `CLAUDE.md` | 5 | Feature documentée + harnais d'éval |
+| 6 ✅ | [lot6-eval-docs](2026-05-22-chat-dialogue-lot6-eval-docs.md) | Jalon d'évaluation qualité, `docs/`, `README`, `CHANGELOG`, catalogue `PromptsService`, `CLAUDE.md` | 5 | Feature documentée + harnais d'éval |
 
 > Les fichiers de plan des lots 2 à 6 sont rédigés **au fil de l'eau** (un à la fois),
 > après revue du lot précédent. Cet index est mis à jour à chaque ajout.

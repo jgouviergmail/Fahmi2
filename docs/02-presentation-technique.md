@@ -278,6 +278,34 @@ Qt PySide6 :
   fonctionnalité via `FeatureRegistry`, PromptsService, registre des 8 générateurs
   de supports).
 
+### 2.8 Fonctionnalité Dialogue (chat ancré sur le corpus)
+
+Transverse (moteur `chat/` + retrieval + embeddings + UI) : un 3ᵉ onglet
+(`FeatureId.CHAT`) où l'utilisateur dialogue avec le corpus produit par la
+Génération (consolidé + glossaire).
+
+- `core/retrieval/passages.py` — port `PassageRetriever` + `TfidfPassageRetriever`
+  (lexical, réutilise scikit-learn) ; distinct de `GlossaryRetriever`.
+- `chat/` (moteur) — `corpus.py` (chargement + chunking par section + glossaire),
+  `prompt_builder.py` (système/historique + passages numérotés + garde-fou
+  d'historique), `citations.py` (parsing `[§N]`), `query_expander.py` (reformulation
+  LLM à la demande si retrieval faible), `retriever_factory.py` (résolution `AUTO` +
+  repli), `chat_service.py` (`answer` + `stream_answer`).
+- `infra/embeddings/` — port `EmbeddingProvider` + `OpenAIEmbeddingProvider`
+  (`text-embedding-3-small`) + fake. `infra/retrieval/semantic.py` —
+  `SemanticPassageRetriever` (index `.npz` persisté + empreinte de validité, cosine
+  numpy).
+- `infra/llm` — extension **additive** `chat_stream` (port + DeepSeek + fake) ;
+  `stream_options.include_usage` → coût exact en streaming.
+- `app/chat_conversation_store.py` — persistance JSON des conversations
+  (`chat/conversations/*.json`) ; `ChatSettings` dans le blob projet v2 (clé `chat`).
+- `ui/` — `ChatTab`, `ChatController` (worker `QThread` qui streame via signaux),
+  `ChatViewModel` (machine d'état, sans Qt), `ChatView` (fil de bulles + citations
+  cliquables + coût), `ChatSettingsView`.
+
+Fidélité **configurable** (prompts `chat_strict`/`chat_augmented`) ; retrieval
+**lexical** (offline) ou **sémantique** (embeddings OpenAI), stratégie `AUTO`.
+
 ## 3. Flux principal d'un Run
 
 ```

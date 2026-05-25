@@ -143,14 +143,16 @@ Cf. [CHANGELOG.md](CHANGELOG.md).
 
 Interface réorganisée en **onglets de fonctionnalité** (Génération + Supports
 pédagogiques : 8 types de supports de révision générés à partir du document
-consolidé et du glossaire) ; identité projet réduite à nom + emplacement, réglages
+consolidé et du glossaire + **Dialogue** : chat conversationnel ancré sur le
+corpus, réponses citées et diffusées en streaming, retrieval lexical ou
+sémantique) ; identité projet réduite à nom + emplacement, réglages
 par fonctionnalité.
 
 Export des supports en **Anki `.apkg`** (flashcards / cloze / QCM, ré-import sans
 doublon), **Markdown**, **PDF** et **HTML** (documents autonomes, sujet / corrigé
 séparés).
 
-830 tests passants, `mypy --strict` et `ruff` propres sur 321 fichiers.
+897 tests passants, `mypy --strict` et `ruff` propres sur 364 fichiers.
 
 ## Licence
 

@@ -44,8 +44,11 @@ Une **application desktop locale** qui :
 Un **Projet** dans Fahmi2 = une **identité minimale** (nom + emplacement) à
 laquelle s'attachent des réglages **par fonctionnalité** + un historique de runs.
 L'application est organisée en **onglets de fonctionnalité** : **Génération**
-(vidéos → documents) et **Supports pédagogiques** (document consolidé + glossaire
-→ flashcards, QCM, fiches, examen blanc…). L'onglet Supports pédagogiques propose
+(vidéos → documents), **Supports pédagogiques** (document consolidé + glossaire
+→ flashcards, QCM, fiches, examen blanc…) et **Dialogue** (chat conversationnel
+ancré sur le corpus : questions en langage naturel, réponses **citées** et
+diffusées **en streaming**, fidélité configurable strict/augmenté, retrieval
+lexical ou sémantique, conversations persistées). L'onglet Supports pédagogiques propose
 des **réglages** (⚙ : supports, difficulté, langues, modèle & coût), un bouton
 **Générer** et **Estimer le coût**, une **table de progression** (support × langue)
 et un **bandeau d'état** (« génération requise » / « prêt » / « à jour » /

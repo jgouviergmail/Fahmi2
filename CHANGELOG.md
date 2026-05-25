@@ -5,6 +5,31 @@ Toutes les évolutions notables du projet Fahmi2.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Non publié]
+
+### Ajouté — Dialogue (chat ancré sur le corpus)
+
+- Nouvel onglet **Dialogue** : chat conversationnel ancré sur le corpus produit
+  par la Génération (document **consolidé** + **glossaire**). Réponses **citées**
+  (chapitre › section, cliquables) et **diffusées en streaming** (token par token).
+- **Fidélité configurable** : mode **strict** (réponse uniquement depuis le cours,
+  refus poli hors-corpus) ou **augmenté** (complément « Au-delà du cours » balisé).
+- **Retrieval en port extensible** : **lexical TF-IDF** (hors-ligne) ou
+  **sémantique** (embeddings OpenAI) ; stratégie **AUTO** (sémantique si une clé
+  OpenAI est présente, sinon lexical) avec **query expansion** LLM à la demande.
+  Index sémantique persisté (`chat/index.{lang}.npz`) avec empreinte de validité.
+- **Conversations multiples** persistées par projet ; **coût** par message et cumulé.
+- Réglages dédiés (⚙) ; prompts `chat_strict` / `chat_augmented` /
+  `chat_query_expansion` éditables depuis l'UI.
+
+### Technique
+
+- Nouveau package moteur `chat/` (corpus + chunking, `ChatService` streaming,
+  citations, query expansion). Port `PassageRetriever` (`core/retrieval`), port
+  `EmbeddingProvider` (`infra/embeddings`) + `SemanticPassageRetriever`
+  (`infra/retrieval`). Extension **additive** du port `LLMProvider` (`chat_stream`,
+  `stream_options.include_usage`) — pipeline et pédagogie **inchangés**.
+
 ## [1.1.0] — 2026-05-22
 
 ### Ajouté — Entrants de génération élargis

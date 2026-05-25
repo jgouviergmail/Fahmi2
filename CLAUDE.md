@@ -11,9 +11,11 @@ LLM DeepSeek. Application desktop Windows mono-utilisateur, PySide6, packagée e
 `.zip` portable (installation double-clic, ffmpeg bundlé).
 
 L'app est organisée en **onglets de fonctionnalité** (Génération ; Supports
-pédagogiques — 8 types de supports de révision avec exports Anki/Markdown/PDF/HTML) :
-un `Project` ne porte que son nom + son emplacement, les réglages métier vivant
-par fonctionnalité (`GenerationSettings`, `PedagogySettings`).
+pédagogiques — 8 types de supports de révision avec exports Anki/Markdown/PDF/HTML ;
+**Dialogue** — chat ancré sur le corpus, réponses citées + streaming, retrieval
+lexical/sémantique) : un `Project` ne porte que son nom + son emplacement, les
+réglages métier vivant par fonctionnalité (`GenerationSettings`, `PedagogySettings`,
+`ChatSettings`).
 
 ## Langue et conventions de travail
 
@@ -102,6 +104,15 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   `artifact_reader`, `generators/` (`_base` per-chapitre + mixin évaluatif + 8
   générateurs LLM : flashcards concepts, QCM, vrai/faux, cloze, questions
   ouvertes, fiche, points clés, examen blanc), `labels`.
+- `chat/` — moteur du **Dialogue** (chat RAG sur corpus) : `corpus` (chargement +
+  chunking par section + glossaire), `prompt_builder` (système/historique + passages
+  numérotés + garde-fou d'historique), `citations` (parsing `[§N]`), `query_expander`
+  (reformulation LLM à la demande), `retriever_factory` (résolution `AUTO` + repli),
+  `chat_service` (`answer`/`stream_answer`). Retrieval en ports : `PassageRetriever`
+  (`core/retrieval`, lexical TF-IDF) + `EmbeddingProvider` (`infra/embeddings`,
+  OpenAI) + `SemanticPassageRetriever` (`infra/retrieval`, index `.npz` + empreinte).
+  Streaming via `LLMProvider.chat_stream` (extension **additive**). Conversations
+  persistées (`app/chat_conversation_store`) ; `ChatSettings` dans le blob v2.
 - `infra/` — adapters (ports/adapters) : `stt/` (FasterWhisper local + OpenAI
   cloud + fakes), `llm/` (DeepSeek + `_pricing` + `invocation` + fakes),
   `audio/ffmpeg_extractor` + `cloud_audio_preparer` (compression Opus +

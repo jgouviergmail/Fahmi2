@@ -10,6 +10,7 @@ dans le ``ChatViewModel`` (sans Qt).
 from __future__ import annotations
 
 from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 from typing import cast
 
@@ -44,7 +45,12 @@ from fahmi2.infra.llm.deepseek_adapter import DeepSeekAdapter
 from fahmi2.infra.llm.interface import LLMProvider
 from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
-from fahmi2.pedagogy.sources import resolve_content_language, source_mtime_ns
+from fahmi2.pedagogy.labels import format_glossary_terms
+from fahmi2.pedagogy.sources import (
+    load_glossary_master_terms,
+    resolve_content_language,
+    source_mtime_ns,
+)
 from fahmi2.ui.dialogs.chat_settings_view import ChatSettingsView
 from fahmi2.ui.viewmodels.chat_view_model import ChatViewModel
 from fahmi2.ui.widgets.chat_view import ChatView
@@ -71,8 +77,9 @@ class _ChatWorker(QObject):
         self,
         *,
         service: ChatService,
-        retriever: PassageRetriever,
+        retriever_provider: Callable[[], PassageRetriever],
         question: str,
+        glossary_text: str,
         history: tuple[ChatMessage, ...],
         settings: ChatSettings,
         language: Language,
@@ -81,16 +88,19 @@ class _ChatWorker(QObject):
 
         Args:
             service: Moteur de chat.
-            retriever: Retriever de passages.
+            retriever_provider: Fabrique du retriever, **appelée dans le thread
+                worker** (l'indexation sémantique peut faire des appels réseau).
             question: Question de l'utilisateur.
+            glossary_text: Glossaire pertinent formaté (vide si aucun).
             history: Historique (hors question courante).
             settings: Réglages du chat.
             language: Langue de réponse.
         """
         super().__init__()
         self._service = service
-        self._retriever = retriever
+        self._retriever_provider = retriever_provider
         self._question = question
+        self._glossary_text = glossary_text
         self._history = history
         self._settings = settings
         self._language = language
@@ -98,10 +108,11 @@ class _ChatWorker(QObject):
     def run(self) -> None:
         """Itère le flux et émet les signaux (delta, completed, failed)."""
         try:
+            retriever = self._retriever_provider()
             for chunk in self._service.stream_answer(
                 question=self._question,
-                retriever=self._retriever,
-                glossary_text="",
+                retriever=retriever,
+                glossary_text=self._glossary_text,
                 history=self._history,
                 settings=self._settings,
                 language=self._language,
@@ -154,6 +165,7 @@ class ChatController(QObject):
         self._project: Project | None = None
         self._content_language: Language | None = None
         self._chunks: tuple[CorpusChunk, ...] = ()
+        self._glossary_text: str = ""
         self._conversation: Conversation | None = None
         self._store: ChatConversationStore | None = None
         self._thread: QThread | None = None
@@ -190,8 +202,12 @@ class ChatController(QObject):
                 generation_dir=self._generation_dir(project),
                 language=self._content_language,
             )
+            self._glossary_text = format_glossary_terms(
+                load_glossary_master_terms(self._generation_dir(project))
+            )
         else:
             self._chunks = ()
+            self._glossary_text = ""
         self._store = ChatConversationStore(
             artifacts=FsArtifactStore(), chat_dir=self._chat_dir(project)
         )
@@ -212,6 +228,7 @@ class ChatController(QObject):
         """Réinitialise le contrôleur (projet supprimé)."""
         self._project = None
         self._chunks = ()
+        self._glossary_text = ""
         self._conversation = None
         self._store = None
         self._view.set_conversations([])
@@ -240,7 +257,9 @@ class ChatController(QObject):
         settings = self._project.chat or ChatSettings()
         llm = self._llm_factory(api_key)
         service = ChatService(llm_provider=llm, prompt_loader=self._prompts)
-        retriever = self._build_retriever(self._chunks, settings, llm)
+        # Construction différée au thread worker : l'indexation sémantique peut
+        # appeler le réseau (embeddings) — ne pas geler l'UI ni laisser fuir l'erreur.
+        retriever_provider = partial(self._build_retriever, self._chunks, settings, llm)
 
         history = self._conversation.messages
         self._conversation = self._vm.append_user(self._conversation, text)
@@ -250,8 +269,9 @@ class ChatController(QObject):
 
         worker = _ChatWorker(
             service=service,
-            retriever=retriever,
+            retriever_provider=retriever_provider,
             question=text,
+            glossary_text=self._glossary_text,
             history=history,
             settings=settings,
             language=self._conversation.language,

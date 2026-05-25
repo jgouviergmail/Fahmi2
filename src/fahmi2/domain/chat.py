@@ -19,7 +19,6 @@ from fahmi2.domain.enums import (
     RetrievalStrategy,
 )
 from fahmi2.domain.ids import ConversationId
-from fahmi2.domain.phase import PhaseConfig
 
 ChatRole = Literal["user", "assistant"]
 
@@ -189,15 +188,3 @@ class ChatSettings:
             Nouvelle instance immuable.
         """
         return replace(self, retrieval_strategy=strategy)
-
-    def to_phase_config(self) -> PhaseConfig:
-        """Construit la ``PhaseConfig`` LLM correspondante (pour l'invocation).
-
-        Returns:
-            La ``PhaseConfig`` (thinking / reasoning_effort / température).
-        """
-        return PhaseConfig(
-            thinking_enabled=self.thinking_enabled,
-            reasoning_effort=self.reasoning_effort,
-            temperature=self.temperature,
-        )

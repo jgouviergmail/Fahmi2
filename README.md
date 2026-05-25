@@ -152,7 +152,7 @@ Export des supports en **Anki `.apkg`** (flashcards / cloze / QCM, ré-import sa
 doublon), **Markdown**, **PDF** et **HTML** (documents autonomes, sujet / corrigé
 séparés).
 
-897 tests passants, `mypy --strict` et `ruff` propres sur 364 fichiers.
+896 tests passants, `mypy --strict` et `ruff` propres sur 364 fichiers.
 
 ## Licence
 

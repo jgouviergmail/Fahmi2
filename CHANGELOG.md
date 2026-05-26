@@ -47,10 +47,12 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   (défaut), `text-embedding-3-large` ou `text-embedding-ada-002`, choisis dans les
   réglages comme le modèle LLM. Changer de modèle **réindexe** le corpus (le modèle
   fait partie de l'empreinte d'index).
-- **Conversations multiples** persistées par projet ; **coût** par message et
-  cumulé **exhaustif** : il agrège la réponse (DeepSeek), les **embeddings** du
-  retrieval sémantique (indexation initiale + chaque question) et la reformulation
-  de l'expansion de requête (grille tarifaire **par modèle d'embedding**, générique).
+- **Conversations multiples** persistées par projet, **supprimables** (clic droit
+  sur la liste → « Supprimer la conversation », avec confirmation) ; **coût** par
+  message et cumulé **exhaustif** : il agrège la réponse (DeepSeek), les
+  **embeddings** du retrieval sémantique (indexation initiale + chaque question) et
+  la reformulation de l'expansion de requête (grille tarifaire **par modèle
+  d'embedding**, générique).
 - Réglages dédiés (⚙) ; prompts `chat_strict` / `chat_augmented` /
   `chat_query_expansion` éditables depuis l'UI.
 

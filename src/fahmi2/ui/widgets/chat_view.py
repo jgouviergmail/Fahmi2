@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import html
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QPoint, Qt, Signal
 from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import (
     QDialog,
@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QMenu,
     QPushButton,
     QTextBrowser,
     QVBoxLayout,
@@ -33,6 +34,7 @@ from fahmi2.infra.export.markdown_pdf import render_markdown_fragment
 from fahmi2.ui._buttons import BUTTON_ROLE_PRIMARY, make_role_button
 
 _NEW_CONVERSATION_LABEL = "＋ Nouvelle conversation"
+_DELETE_CONVERSATION_LABEL = "Supprimer la conversation"
 _SEND_LABEL = "Envoyer"
 _INPUT_PLACEHOLDER = "Pose une question sur le cours…"
 _NO_CORPUS_BANNER = "Lance d'abord une génération pour dialoguer avec ce cours."
@@ -56,6 +58,7 @@ class ChatView(QWidget):
     question_submitted = Signal(str)
     new_conversation_requested = Signal()
     conversation_selected = Signal(str)
+    conversation_delete_requested = Signal(str)
     citation_clicked = Signal(str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -73,6 +76,12 @@ class ChatView(QWidget):
         self._conversations = QListWidget(self)
         self._conversations.setMaximumWidth(240)
         self._conversations.itemClicked.connect(self._on_conversation_clicked)
+        self._conversations.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
+        self._conversations.customContextMenuRequested.connect(
+            self._on_conversation_menu
+        )
         new_button = QPushButton(_NEW_CONVERSATION_LABEL, self)
         new_button.clicked.connect(self.new_conversation_requested)
         left = QVBoxLayout()
@@ -197,6 +206,20 @@ class ChatView(QWidget):
         conversation_id = item.data(_CONVERSATION_ID_ROLE)
         if isinstance(conversation_id, str):
             self.conversation_selected.emit(conversation_id)
+
+    def _on_conversation_menu(self, pos: QPoint) -> None:
+        """Menu contextuel (clic droit) d'une conversation : suppression."""
+        item = self._conversations.itemAt(pos)
+        if item is None:
+            return
+        conversation_id = item.data(_CONVERSATION_ID_ROLE)
+        if not isinstance(conversation_id, str):
+            return
+        menu = QMenu(self._conversations)
+        delete_action = menu.addAction(_DELETE_CONVERSATION_LABEL)
+        chosen = menu.exec(self._conversations.mapToGlobal(pos))
+        if chosen is delete_action:
+            self.conversation_delete_requested.emit(conversation_id)
 
     def _render(self) -> None:
         blocks = list(self._finalized_html)

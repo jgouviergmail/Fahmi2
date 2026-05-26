@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+from PySide6.QtWidgets import QMessageBox
 from pytestqt.qtbot import QtBot
 
 from fahmi2.app.project_service import ProjectService
@@ -77,3 +79,55 @@ def test_submit_question_streams_and_finalizes(qtbot: QtBot, tmp_path: Path) -> 
         controller.submit_question("Qu'est-ce que le PIB ?")
     plain = view._thread.toPlainText()  # noqa: SLF001 — smoke d'assemblage
     assert "Le PIB mesure la richesse" in plain
+
+
+def test_delete_conversation_removes_file(
+    qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    controller, _view, _pid = _make_controller(tmp_path, with_corpus=True, qtbot=qtbot)
+    monkeypatch.setattr(
+        "fahmi2.ui.chat_controller.QMessageBox.question",
+        lambda *a, **k: QMessageBox.StandardButton.Yes,
+    )
+    store = controller._store  # noqa: SLF001
+    assert store is not None
+    conv = controller._vm.start_conversation(Language.FR)  # noqa: SLF001
+    store.save(conv)
+    controller.delete_conversation(conv.conversation_id.value)
+    assert store.load(conv.conversation_id) is None
+
+
+def test_delete_conversation_cancelled_keeps_file(
+    qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    controller, _view, _pid = _make_controller(tmp_path, with_corpus=True, qtbot=qtbot)
+    monkeypatch.setattr(
+        "fahmi2.ui.chat_controller.QMessageBox.question",
+        lambda *a, **k: QMessageBox.StandardButton.No,
+    )
+    store = controller._store  # noqa: SLF001
+    assert store is not None
+    conv = controller._vm.start_conversation(Language.FR)  # noqa: SLF001
+    store.save(conv)
+    controller.delete_conversation(conv.conversation_id.value)
+    assert store.load(conv.conversation_id) is not None  # annulation → conservé
+
+
+def test_delete_current_conversation_resets_to_new(
+    qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    controller, _view, _pid = _make_controller(tmp_path, with_corpus=True, qtbot=qtbot)
+    monkeypatch.setattr(
+        "fahmi2.ui.chat_controller.QMessageBox.question",
+        lambda *a, **k: QMessageBox.StandardButton.Yes,
+    )
+    store = controller._store  # noqa: SLF001
+    assert store is not None
+    current = controller._conversation  # noqa: SLF001 — conversation affichée
+    assert current is not None
+    store.save(current)
+    controller.delete_conversation(current.conversation_id.value)
+    # La conversation supprimée n'est plus courante : une nouvelle l'a remplacée.
+    new_current = controller._conversation  # noqa: SLF001
+    assert new_current is not None
+    assert new_current.conversation_id.value != current.conversation_id.value

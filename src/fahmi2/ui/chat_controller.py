@@ -62,6 +62,10 @@ _NO_KEY_MESSAGE = (
     "Renseigne la clé DeepSeek dans « Édition → Paramètres globaux » pour dialoguer."
 )
 _FAILED_TITLE = "Le dialogue s'est terminé sur une erreur"
+_DELETE_CONFIRM_TITLE = "Supprimer la conversation"
+_DELETE_CONFIRM_MESSAGE = (
+    "Supprimer définitivement cette conversation ? Cette action est irréversible."
+)
 
 LlmProviderFactory = Callable[[str], LLMProvider]
 
@@ -174,6 +178,7 @@ class ChatController(QObject):
         view.question_submitted.connect(self.submit_question)
         view.new_conversation_requested.connect(self.new_conversation)
         view.conversation_selected.connect(self.select_conversation)
+        view.conversation_delete_requested.connect(self.delete_conversation)
         view.citation_clicked.connect(self._on_citation_clicked)
 
     # ------------------------------------------------------------------ project
@@ -316,6 +321,31 @@ class ChatController(QObject):
         self._view.show_conversation(conversation.messages)
         self._view.set_total_cost(conversation.total_cost_usd())
         self._apply_state()
+
+    def delete_conversation(self, conversation_id: str) -> None:
+        """Supprime une conversation après confirmation (ignorée si une réponse coule).
+
+        Si la conversation supprimée est celle affichée, repart sur une nouvelle
+        conversation vide ; la liste latérale est toujours rafraîchie.
+
+        Args:
+            conversation_id: Identifiant de la conversation à supprimer.
+        """
+        if self._store is None or self._thread is not None:
+            return
+        confirm = QMessageBox.question(
+            self._window, _DELETE_CONFIRM_TITLE, _DELETE_CONFIRM_MESSAGE
+        )
+        if confirm is not QMessageBox.StandardButton.Yes:
+            return
+        self._store.delete(ConversationId(value=conversation_id))
+        is_current = (
+            self._conversation is not None
+            and self._conversation.conversation_id.value == conversation_id
+        )
+        if is_current:
+            self.new_conversation()
+        self._refresh_conversations()
 
     def open_chat_settings(self) -> None:
         """Ouvre le dialogue de réglages et persiste ``Project.chat``."""

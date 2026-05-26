@@ -242,6 +242,8 @@ naturel.
 
 Vous pouvez ouvrir plusieurs **conversations** (bouton **＋ Nouvelle
 conversation**) ; elles sont conservées même après fermeture de l'application.
+Pour en **supprimer** une, faites un **clic droit** dessus dans la liste →
+*« Supprimer la conversation »* (confirmation demandée).
 
 Le bouton **⚙ Réglages** permet de choisir le mode de réponse (strict, ou
 « augmenté » qui complète avec des connaissances générales), la méthode de

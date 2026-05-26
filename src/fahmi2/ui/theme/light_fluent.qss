@@ -168,6 +168,51 @@ QListWidget::item:selected {
     background-color: #fbf5f5;
 }
 
+/* Boutons d'action génériques (hors header) — même propriété `role` partagée,
+ * pour une cohérence visuelle entre onglets. Les boutons du header gardent leurs
+ * règles propres (sélecteur #projectHeaderBar, spécificité supérieure). */
+QPushButton[role="default"] {
+    background-color: #ffffff;
+    color: #1f2328;
+    border: 1px solid #d6dae0;
+    border-radius: 6px;
+    padding: 6px 14px;
+    min-height: 22px;
+}
+QPushButton[role="default"]:hover {
+    background-color: #f0f4f9;
+    border-color: #b6bec8;
+}
+QPushButton[role="default"]:pressed {
+    background-color: #e3e8ee;
+}
+QPushButton[role="default"]:disabled {
+    color: #b6bec8;
+    background-color: #f8f9fb;
+    border-color: #e5e7eb;
+}
+QPushButton[role="primary"] {
+    background-color: #0078d4;
+    color: #ffffff;
+    border: 1px solid #0078d4;
+    border-radius: 6px;
+    padding: 6px 14px;
+    min-height: 22px;
+    font-weight: 600;
+}
+QPushButton[role="primary"]:hover {
+    background-color: #1086e8;
+    border-color: #1086e8;
+}
+QPushButton[role="primary"]:pressed {
+    background-color: #006abf;
+}
+QPushButton[role="primary"]:disabled {
+    background-color: #b9d5ee;
+    border-color: #b9d5ee;
+    color: #ffffff;
+}
+
 /* ===== Stats strip — cartes ===== */
 #statsStrip {
     background-color: transparent;

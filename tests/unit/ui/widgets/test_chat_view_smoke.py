@@ -45,6 +45,23 @@ def test_question_submitted_signal(qtbot: QtBot) -> None:
     assert blocker.args == ["Ma question"]
 
 
+def test_assistant_markdown_is_rendered(qtbot: QtBot) -> None:
+    view = ChatView()
+    qtbot.addWidget(view)
+    view.show_conversation(
+        (ChatMessage(role="assistant", content="Texte en **gras** ici."),)
+    )
+    plain = view._thread.toPlainText()  # noqa: SLF001 — smoke d'assemblage
+    assert "gras" in plain
+    assert "**" not in plain  # Markdown interprété, pas affiché brut
+
+
+def test_send_button_is_primary(qtbot: QtBot) -> None:
+    view = ChatView()
+    qtbot.addWidget(view)
+    assert view._send_button.property("role") == "primary"  # noqa: SLF001
+
+
 def test_no_corpus_disables_input(qtbot: QtBot) -> None:
     view = ChatView()
     qtbot.addWidget(view)

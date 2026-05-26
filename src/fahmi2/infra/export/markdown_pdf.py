@@ -46,6 +46,27 @@ EXTENSION_BY_FORMAT: dict[ExportFormat, str] = {
 #: (HTML et PDF). Mêmes extensions pour les deux formats.
 _MARKDOWN_EXTENSIONS: list[str] = ["tables", "toc"]
 
+#: Extensions pour un **fragment** HTML inline (réponse de chat, aperçu de passage) :
+#: tableaux GFM, sans sommaire (``toc``) ni enveloppe de document.
+_FRAGMENT_EXTENSIONS: list[str] = ["tables"]
+
+
+def render_markdown_fragment(markdown_text: str) -> str:
+    """Rend un fragment Markdown en HTML inline (sans document/CSS autour).
+
+    Destiné à l'affichage dans un widget (``QTextBrowser``) : réponses du chat,
+    aperçu d'un passage cité. Contrairement à :func:`render_markdown_to_html`, ne
+    produit ni enveloppe ``<html>`` ni sommaire — uniquement le corps converti.
+
+    Args:
+        markdown_text: Texte Markdown.
+
+    Returns:
+        Le fragment HTML correspondant.
+    """
+    html_body: str = markdown.markdown(markdown_text, extensions=_FRAGMENT_EXTENSIONS)
+    return html_body
+
 #: Famille de police enregistrée auprès de ReportLab (+ noms des 4 variantes).
 _PDF_FONT_FAMILY = "AppSans"
 _PDF_FONT_REGULAR = "AppSans"

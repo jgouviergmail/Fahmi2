@@ -14,6 +14,8 @@ import html
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import (
+    QDialog,
+    QDialogButtonBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -25,8 +27,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from fahmi2.domain.chat import ChatMessage
+from fahmi2.domain.chat import ChatMessage, Citation
 from fahmi2.domain.enums import ChatTabState
+from fahmi2.infra.export.markdown_pdf import render_markdown_fragment
+from fahmi2.ui._buttons import BUTTON_ROLE_PRIMARY, make_role_button
 
 _NEW_CONVERSATION_LABEL = "＋ Nouvelle conversation"
 _SEND_LABEL = "Envoyer"
@@ -34,7 +38,16 @@ _INPUT_PLACEHOLDER = "Pose une question sur le cours…"
 _NO_CORPUS_BANNER = "Lance d'abord une génération pour dialoguer avec ce cours."
 _COST_PREFIX = "Coût cumulé : "
 _ROLE_LABEL = {"user": "Vous", "assistant": "Assistant"}
+_ROLE_ASSISTANT = "assistant"
 _CONVERSATION_ID_ROLE = int(Qt.ItemDataRole.UserRole)
+#: Style du fil : liens lisibles (bleu foncé), code et tableaux discrets.
+_THREAD_STYLESHEET = (
+    "a { color: #0a4f93; }"
+    " code { background-color: #eef0f4; }"
+    " th, td { border: 1px solid #d6dae0; padding: 2px 6px; }"
+)
+_PASSAGE_DIALOG_WIDTH = 560
+_PASSAGE_DIALOG_HEIGHT = 420
 
 
 class ChatView(QWidget):
@@ -75,11 +88,14 @@ class ChatView(QWidget):
         self._thread.anchorClicked.connect(
             lambda url: self.citation_clicked.emit(url.toString())
         )
+        self._thread.document().setDefaultStyleSheet(_THREAD_STYLESHEET)
         self._cost_label = QLabel(f"{_COST_PREFIX}$0.0000", self)
         self._input = QLineEdit(self)
         self._input.setPlaceholderText(_INPUT_PLACEHOLDER)
         self._input.returnPressed.connect(self._on_send)
-        self._send_button = QPushButton(_SEND_LABEL, self)
+        self._send_button = make_role_button(
+            self, _SEND_LABEL, role=BUTTON_ROLE_PRIMARY
+        )
         self._send_button.clicked.connect(self._on_send)
         input_row = QHBoxLayout()
         input_row.addWidget(self._input, stretch=1)
@@ -121,7 +137,7 @@ class ChatView(QWidget):
             text: Texte de la question.
         """
         self._finalized_html.append(
-            _bubble_html(_ROLE_LABEL["user"], html.escape(text))
+            _message_html(ChatMessage(role="user", content=text))
         )
         self._render()
 
@@ -198,14 +214,59 @@ def _bubble_html(role_label: str, body_html: str) -> str:
 
 
 def _message_html(message: ChatMessage) -> str:
-    """Rend un message complet (corps + citations cliquables si assistant)."""
+    """Rend un message complet en HTML (Markdown rendu pour l'assistant).
+
+    Args:
+        message: Message à rendre.
+
+    Returns:
+        Le fragment HTML du message (en-tête de rôle + corps + sources).
+    """
     role_label = _ROLE_LABEL.get(message.role, message.role)
+    head = f"<p><b>{html.escape(role_label)} :</b></p>"
+    if message.role == _ROLE_ASSISTANT:
+        body = render_markdown_fragment(message.content)
+        return f"{head}{body}{_citations_html(message.citations)}"
     body = html.escape(message.content).replace("\n", "<br>")
-    if not message.citations:
-        return _bubble_html(role_label, body)
+    return f"{head}{body}"
+
+
+def _citations_html(citations: tuple[Citation, ...]) -> str:
+    """Rend la ligne « Sources » (liens cliquables), ou ``""`` si aucune.
+
+    Args:
+        citations: Citations du message assistant.
+
+    Returns:
+        Le fragment HTML des sources (vide si aucune citation).
+    """
+    if not citations:
+        return ""
     links = " ".join(
         f'<a href="{html.escape(c.anchor)}">[§ {html.escape(c.chapter_title)} › '
         f"{html.escape(c.section_title)}]</a>"
-        for c in message.citations
+        for c in citations
     )
-    return _bubble_html(role_label, f"{body}<br><small>Sources : {links}</small>")
+    return f"<p><small>Sources : {links}</small></p>"
+
+
+def show_passage_dialog(parent: QWidget, *, title: str, markdown_text: str) -> None:
+    """Affiche un passage source (Markdown rendu) dans un dialogue scrollable.
+
+    Args:
+        parent: Fenêtre parente.
+        title: Titre du dialogue (chapitre › section).
+        markdown_text: Contenu Markdown du passage cité.
+    """
+    dialog = QDialog(parent)
+    dialog.setWindowTitle(title)
+    dialog.resize(_PASSAGE_DIALOG_WIDTH, _PASSAGE_DIALOG_HEIGHT)
+    layout = QVBoxLayout(dialog)
+    browser = QTextBrowser(dialog)
+    browser.document().setDefaultStyleSheet(_THREAD_STYLESHEET)
+    browser.setHtml(render_markdown_fragment(markdown_text))
+    layout.addWidget(browser)
+    buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close, parent=dialog)
+    buttons.rejected.connect(dialog.reject)
+    layout.addWidget(buttons)
+    dialog.exec()

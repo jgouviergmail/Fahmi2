@@ -53,7 +53,7 @@ from fahmi2.pedagogy.sources import (
 )
 from fahmi2.ui.dialogs.chat_settings_view import ChatSettingsView
 from fahmi2.ui.viewmodels.chat_view_model import ChatViewModel
-from fahmi2.ui.widgets.chat_view import ChatView
+from fahmi2.ui.widgets.chat_view import ChatView, show_passage_dialog
 
 _INDEX_FILENAME_TEMPLATE = "index.{language}.npz"
 _NO_PROJECT_TITLE = "Aucun projet sélectionné"
@@ -357,13 +357,13 @@ class ChatController(QObject):
         self._apply_state(error=True)
 
     def _on_citation_clicked(self, anchor: str) -> None:
-        """Slot : clic sur une citation → affiche le passage source."""
+        """Slot : clic sur une citation → aperçu du passage (Markdown rendu)."""
         for chunk in self._chunks:
             if chunk.anchor == anchor:
-                QMessageBox.information(
+                show_passage_dialog(
                     self._window,
-                    f"{chunk.chapter_title} › {chunk.section_title}",
-                    chunk.text,
+                    title=f"{chunk.chapter_title} › {chunk.section_title}",
+                    markdown_text=chunk.text,
                 )
                 return
 

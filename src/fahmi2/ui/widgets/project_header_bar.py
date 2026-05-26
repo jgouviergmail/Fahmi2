@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QWidget
+
+from fahmi2.ui._buttons import make_role_button
 
 _DEFAULT_SETTINGS_TOOLTIP = (
     "Configurer les réglages de génération (entrée, langues, style, "
@@ -133,10 +135,7 @@ class ProjectHeaderBar(QWidget):
         Returns:
             Le bouton instancié, sans connexion (à brancher par l'appelant).
         """
-        btn = QPushButton(text, self)
-        btn.setProperty("role", role)
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        return btn
+        return make_role_button(self, text, role=role)
 
     def set_open_output_enabled(self, enabled: bool) -> None:
         """Active ou désactive le bouton « Dossier de sortie ».

@@ -6,18 +6,20 @@ son `ChatController`. Calqué sur `PedagogyTab` (abstraction `FeatureTab`).
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 
 from fahmi2.app.project_service import ProjectService
 from fahmi2.app.secrets_service import SecretsService
 from fahmi2.core.config.paths import AppPaths
 from fahmi2.domain.ids import ProjectId
+from fahmi2.ui._buttons import BUTTON_ROLE_DEFAULT, make_role_button
 from fahmi2.ui.chat_controller import ChatController, LlmProviderFactory
 from fahmi2.ui.features.feature import FeatureId, FeatureTab
 from fahmi2.ui.widgets.chat_view import ChatView
 
 _TAB_TITLE = "Dialogue"
-_SETTINGS_LABEL = "⚙ Réglages"
+_SETTINGS_LABEL = "⚙️  Réglages"
+_SETTINGS_TOOLTIP = "Configurer le dialogue (fidélité, retrieval, modèle, coût)."
 
 
 class ChatTab(FeatureTab):
@@ -44,9 +46,16 @@ class ChatTab(FeatureTab):
         self._widget = QWidget(window)
         layout = QVBoxLayout(self._widget)
         layout.setContentsMargins(0, 0, 0, 0)
-        settings_button = QPushButton(_SETTINGS_LABEL, self._widget)
+        settings_button = make_role_button(
+            self._widget, _SETTINGS_LABEL, role=BUTTON_ROLE_DEFAULT
+        )
+        settings_button.setToolTip(_SETTINGS_TOOLTIP)
+        settings_row = QHBoxLayout()
+        settings_row.setContentsMargins(16, 10, 16, 6)
+        settings_row.addWidget(settings_button)
+        settings_row.addStretch(1)
         self._view = ChatView(self._widget)
-        layout.addWidget(settings_button)
+        layout.addLayout(settings_row)
         layout.addWidget(self._view, stretch=1)
 
         self._controller = ChatController(

@@ -499,7 +499,7 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
 
 ### 6.2 Métriques actuelles
 
-- **945 tests** passants
+- **951 tests** passants
 - **ruff** + **mypy --strict** propres sur 375 fichiers
 
 ## 7. Packaging et distribution

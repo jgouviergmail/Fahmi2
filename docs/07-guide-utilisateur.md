@@ -236,7 +236,9 @@ naturel.
    Par défaut, l'assistant répond **uniquement d'après votre cours** et indique ses
    **sources** ; cliquez une source pour lire l'extrait. S'il ne trouve pas
    l'information, il répond « Ce point n'est pas couvert par le cours. »
-4. Le **coût** de l'échange s'affiche sous la réponse.
+4. Le **coût** de l'échange s'affiche sous la réponse (et le **cumul** de la
+   conversation). Il est complet : il comprend la réponse **et** les embeddings du
+   retrieval sémantique (le mode **lexical**, lui, est gratuit).
 
 Vous pouvez ouvrir plusieurs **conversations** (bouton **＋ Nouvelle
 conversation**) ; elles sont conservées même après fermeture de l'application.

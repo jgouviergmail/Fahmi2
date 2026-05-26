@@ -32,3 +32,11 @@ class EmbeddingProvider(Protocol):
         Returns:
             Le vecteur correspondant.
         """
+
+    def consumed_cost_usd(self) -> float:
+        """Coût cumulé (USD) des embeddings calculés depuis la construction.
+
+        Returns:
+            Le coût total des appels d'embedding effectués (0 pour un provider
+            local/factice).
+        """

@@ -32,6 +32,14 @@ class PassageRetriever(Protocol):
             Liste de ``RetrievedPassage`` (taille <= ``top_k``).
         """
 
+    def consumed_cost_usd(self) -> float:
+        """Coût (USD) consommé par le retrieval depuis la construction.
+
+        Returns:
+            Le coût (0 pour un retrieval purement local ; > 0 si embeddings ou
+            reformulation LLM).
+        """
+
 
 class TfidfPassageRetriever:
     """Retriever top-K par similarité TF-IDF (cosine) sur les chunks du corpus.
@@ -79,3 +87,11 @@ class TfidfPassageRetriever:
             RetrievedPassage(chunk=self._chunks[index], score=float(score))
             for index, score in ranked[:top_k]
         ]
+
+    def consumed_cost_usd(self) -> float:
+        """Retrieval lexical : entièrement local, coût nul.
+
+        Returns:
+            ``0.0``.
+        """
+        return 0.0

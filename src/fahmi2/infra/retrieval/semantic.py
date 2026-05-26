@@ -129,6 +129,14 @@ class SemanticPassageRetriever:
             for i in order
         ]
 
+    def consumed_cost_usd(self) -> float:
+        """Coût (USD) des embeddings consommés (indexation + requêtes).
+
+        Returns:
+            Le coût cumulé du fournisseur d'embeddings.
+        """
+        return self._provider.consumed_cost_usd()
+
 
 def _cosine(query: Any, matrix: Any) -> Any:  # noqa: ANN401 — vecteurs numpy
     """Similarités cosine entre un vecteur requête et chaque ligne de la matrice."""

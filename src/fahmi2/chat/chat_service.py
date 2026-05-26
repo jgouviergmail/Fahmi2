@@ -87,7 +87,7 @@ class ChatService:
             reasoning_effort=self._reasoning_effort(settings),
             temperature=settings.temperature,
         )
-        return self._build_message(response, passages)
+        return self._build_message(response, passages, retriever.consumed_cost_usd())
 
     def stream_answer(
         self,
@@ -144,7 +144,10 @@ class ChatService:
             cost_usd=0.0,
         )
         yield ChatAnswerChunk(
-            content_delta="", message=self._build_message(response, passages)
+            content_delta="",
+            message=self._build_message(
+                response, passages, retriever.consumed_cost_usd()
+            ),
         )
 
     def _prepare(
@@ -183,13 +186,18 @@ class ChatService:
         return messages, passages
 
     def _build_message(
-        self, response: LLMResponse, passages: tuple[RetrievedPassage, ...]
+        self,
+        response: LLMResponse,
+        passages: tuple[RetrievedPassage, ...],
+        retrieval_cost_usd: float = 0.0,
     ) -> ChatMessage:
-        """Construit le ``ChatMessage`` assistant final (citations + coût).
+        """Construit le ``ChatMessage`` assistant final (citations + coût total).
 
         Args:
             response: Réponse LLM (complète).
             passages: Passages numérotés fournis au prompt.
+            retrieval_cost_usd: Coût du retrieval (embeddings + reformulation LLM
+                éventuelle), ajouté au coût de la réponse pour un total exhaustif.
 
         Returns:
             Le ``ChatMessage`` assistant.
@@ -198,7 +206,7 @@ class ChatService:
             role="assistant",
             content=response.content,
             citations=parse_citations(response.content, passages),
-            cost_usd=response.cost_usd,
+            cost_usd=response.cost_usd + retrieval_cost_usd,
             prompt_tokens=response.prompt_tokens,
             completion_tokens=response.completion_tokens,
             created_at=datetime.now(tz=UTC),

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from fahmi2.domain.chat import CorpusChunk
 from fahmi2.domain.enums import Language
 from fahmi2.infra.embeddings._fakes import FakeEmbeddingProvider
@@ -94,6 +96,19 @@ def test_index_rebuilt_when_fingerprint_changes(tmp_path: Path) -> None:
         artifacts=FsArtifactStore(),
     )
     assert provider.document_calls == 2
+
+
+def test_consumed_cost_usd_tracks_embeddings(tmp_path: Path) -> None:
+    provider = FakeEmbeddingProvider(cost_per_call=0.01)
+    retriever = SemanticPassageRetriever(
+        chunks=_CHUNKS,
+        embedding_provider=provider,
+        index_path=tmp_path / "index.npz",
+        fingerprint=_fingerprint(1),
+        artifacts=FsArtifactStore(),
+    )  # indexation : 1 appel embed_documents
+    retriever.retrieve(query="produit intérieur brut", top_k=2)  # +1 embed_query
+    assert retriever.consumed_cost_usd() == pytest.approx(0.02)
 
 
 def test_purge_index_removes_file(tmp_path: Path) -> None:

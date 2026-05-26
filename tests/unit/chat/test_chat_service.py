@@ -2,13 +2,29 @@
 
 from __future__ import annotations
 
+import pytest
+
 from fahmi2.chat.chat_service import ChatService
 from fahmi2.core.retrieval.passages import TfidfPassageRetriever
-from fahmi2.domain.chat import ChatSettings, CorpusChunk
+from fahmi2.domain.chat import ChatSettings, CorpusChunk, RetrievedPassage
 from fahmi2.domain.enums import Language
 from fahmi2.infra.llm._fakes import FakeLLMProvider
 from fahmi2.infra.llm.interface import LLMResponse
 from fahmi2.infra.prompts.loader import PromptLoader
+
+
+class _CostlyRetriever:
+    """Retriever qui délègue à un Tfidf mais déclare un coût de retrieval fixe."""
+
+    def __init__(self, inner: TfidfPassageRetriever, *, cost_usd: float) -> None:
+        self._inner = inner
+        self._cost_usd = cost_usd
+
+    def retrieve(self, *, query: str, top_k: int) -> list[RetrievedPassage]:
+        return self._inner.retrieve(query=query, top_k=top_k)
+
+    def consumed_cost_usd(self) -> float:
+        return self._cost_usd
 
 
 def _chunk(cid: str, text: str) -> CorpusChunk:
@@ -79,6 +95,24 @@ def test_stream_answer_yields_deltas_then_final_message() -> None:
     assert final.message.role == "assistant"
     assert final.message.citations[0].anchor == "pib"
     assert final.message.cost_usd == 0.01
+
+
+def test_answer_includes_retrieval_cost_in_total() -> None:
+    inner = TfidfPassageRetriever(
+        (_chunk("1", "Le produit intérieur brut mesure la richesse."),)
+    )
+    retriever = _CostlyRetriever(inner, cost_usd=0.003)
+    service = _service("Le PIB mesure la richesse [§1].")
+    message = service.answer(
+        question="Qu'est-ce que le PIB ?",
+        retriever=retriever,
+        glossary_text="",
+        history=(),
+        settings=ChatSettings(),
+        language=Language.FR,
+    )
+    # 0.01 (LLM) + 0.003 (embeddings/expansion) → coût exhaustif.
+    assert message.cost_usd == pytest.approx(0.013)
 
 
 def test_answer_no_citation_when_empty_corpus() -> None:

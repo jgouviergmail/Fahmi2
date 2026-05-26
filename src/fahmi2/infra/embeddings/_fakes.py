@@ -16,13 +16,19 @@ _DEFAULT_DIMENSION = 32
 class FakeEmbeddingProvider:
     """Fournisseur d'embeddings factice (sac de mots haché)."""
 
-    def __init__(self, *, dimension: int = _DEFAULT_DIMENSION) -> None:
+    def __init__(
+        self, *, dimension: int = _DEFAULT_DIMENSION, cost_per_call: float = 0.0
+    ) -> None:
         """Construit le fake.
 
         Args:
             dimension: Dimension des vecteurs produits.
+            cost_per_call: Coût simulé ajouté à chaque appel d'embedding (0 par
+                défaut ; > 0 pour exercer la remontée de coût dans les tests).
         """
         self._dimension = dimension
+        self._cost_per_call = cost_per_call
+        self._consumed_cost_usd = 0.0
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         """Encode une liste de textes.
@@ -33,6 +39,7 @@ class FakeEmbeddingProvider:
         Returns:
             Un vecteur par texte.
         """
+        self._consumed_cost_usd += self._cost_per_call
         return [self._embed(text) for text in texts]
 
     def embed_query(self, text: str) -> list[float]:
@@ -44,7 +51,16 @@ class FakeEmbeddingProvider:
         Returns:
             Le vecteur.
         """
+        self._consumed_cost_usd += self._cost_per_call
         return self._embed(text)
+
+    def consumed_cost_usd(self) -> float:
+        """Coût simulé cumulé.
+
+        Returns:
+            La somme des coûts simulés des appels d'embedding.
+        """
+        return self._consumed_cost_usd
 
     def _embed(self, text: str) -> list[float]:
         vector = [0.0] * self._dimension

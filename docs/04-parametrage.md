@@ -272,6 +272,15 @@ Le corpus interrogé = document **consolidé** + **glossaire** de la génératio
 changé (empreinte : modèle d'embedding + horodatage du consolidé + langue). Les
 **conversations** sont persistées sous `<emplacement>/chat/conversations/`.
 
+> **Coût exhaustif.** Le coût affiché par échange (et le cumul de la conversation)
+> intègre **toutes** les dépenses : génération de la réponse (DeepSeek), embeddings
+> du retrieval sémantique (**indexation initiale** du corpus à la première question,
+> puis embedding de **chaque question**) et reformulation éventuelle de l'expansion
+> de requête. Le coût des embeddings suit une grille tarifaire **par modèle**
+> (générique : changer ou ajouter un modèle d'embedding ne touche qu'une table de
+> prix). En mode **lexical**, le retrieval est gratuit (local) : seul le coût
+> DeepSeek est compté.
+
 > **Confidentialité** : le retrieval **sémantique** envoie le corpus et les
 > questions à **OpenAI** (calcul des embeddings). En mode **lexical**, le
 > retrieval reste **100 % local** (seule la génération de la réponse appelle

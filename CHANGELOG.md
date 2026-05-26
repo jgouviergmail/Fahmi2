@@ -18,7 +18,10 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   **sémantique** (embeddings OpenAI) ; stratégie **AUTO** (sémantique si une clé
   OpenAI est présente, sinon lexical) avec **query expansion** LLM à la demande.
   Index sémantique persisté (`chat/index.{lang}.npz`) avec empreinte de validité.
-- **Conversations multiples** persistées par projet ; **coût** par message et cumulé.
+- **Conversations multiples** persistées par projet ; **coût** par message et
+  cumulé **exhaustif** : il agrège la réponse (DeepSeek), les **embeddings** du
+  retrieval sémantique (indexation initiale + chaque question) et la reformulation
+  de l'expansion de requête (grille tarifaire **par modèle d'embedding**, générique).
 - Réglages dédiés (⚙) ; prompts `chat_strict` / `chat_augmented` /
   `chat_query_expansion` éditables depuis l'UI.
 
@@ -29,6 +32,11 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `EmbeddingProvider` (`infra/embeddings`) + `SemanticPassageRetriever`
   (`infra/retrieval`). Extension **additive** du port `LLMProvider` (`chat_stream`,
   `stream_options.include_usage`) — pipeline et pédagogie **inchangés**.
+- **Comptabilité de coût des embeddings** : `consumed_cost_usd()` ajouté aux ports
+  `EmbeddingProvider` et `PassageRetriever` (lexical → 0 ; sémantique → coût des
+  embeddings ; query expander → coût des reformulations). Grille tarifaire générique
+  `infra/embeddings/_pricing` (USD/Mtok par modèle, repli par défaut). `ChatService`
+  agrège ce coût dans `ChatMessage.cost_usd` pour un total exhaustif.
 
 ## [1.1.0] — 2026-05-22
 

@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from openai import OpenAI
 
+from fahmi2.infra.embeddings._pricing import embedding_cost_usd
+
 _MODEL = "text-embedding-3-small"
 
 
@@ -30,6 +32,7 @@ class OpenAIEmbeddingProvider:
         """
         self._client = client or OpenAI(api_key=api_key)
         self._model = model
+        self._consumed_cost_usd = 0.0
 
     @property
     def model(self) -> str:
@@ -48,6 +51,9 @@ class OpenAIEmbeddingProvider:
         if not texts:
             return []
         response = self._client.embeddings.create(model=self._model, input=texts)
+        self._consumed_cost_usd += embedding_cost_usd(
+            model=self._model, total_tokens=response.usage.total_tokens
+        )
         return [list(item.embedding) for item in response.data]
 
     def embed_query(self, text: str) -> list[float]:
@@ -60,3 +66,12 @@ class OpenAIEmbeddingProvider:
             Le vecteur.
         """
         return self.embed_documents([text])[0]
+
+    def consumed_cost_usd(self) -> float:
+        """Coût cumulé (USD) des embeddings calculés depuis la construction.
+
+        Returns:
+            La somme des coûts (selon ``usage`` renvoyé par l'API et la grille
+            tarifaire du modèle).
+        """
+        return self._consumed_cost_usd

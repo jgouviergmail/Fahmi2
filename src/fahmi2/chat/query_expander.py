@@ -42,6 +42,7 @@ class QueryExpander:
         self._prompts = prompt_loader
         self._settings = settings
         self._threshold = weak_score_threshold
+        self._expansion_cost_usd = 0.0
 
     def retrieve(self, *, query: str, top_k: int) -> list[RetrievedPassage]:
         """Récupère les passages, avec expansion si le retrieval direct est faible.
@@ -80,7 +81,16 @@ class QueryExpander:
             thinking=False,
             temperature=self._settings.temperature,
         )
+        self._expansion_cost_usd += response.cost_usd
         return response.content.strip()
+
+    def consumed_cost_usd(self) -> float:
+        """Coût (USD) du retrieval interne + des reformulations LLM déclenchées.
+
+        Returns:
+            La somme du coût du retriever enveloppé et des appels d'expansion.
+        """
+        return self._inner.consumed_cost_usd() + self._expansion_cost_usd
 
     @staticmethod
     def _merge(

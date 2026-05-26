@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from fahmi2.chat.query_expander import QueryExpander
 from fahmi2.core.retrieval.passages import TfidfPassageRetriever
 from fahmi2.domain.chat import ChatSettings, CorpusChunk
@@ -54,3 +56,27 @@ def test_weak_match_triggers_expansion_and_merges() -> None:
     expander = _expander(inner, expansion="produit intérieur brut richesse")
     results = expander.retrieve(query="économie agrégée ?", top_k=3)
     assert any(r.chunk.chunk_id == "1" for r in results)
+
+
+def test_consumed_cost_includes_expansion() -> None:
+    inner = TfidfPassageRetriever(
+        (_chunk("1", "produit intérieur brut richesse nationale"),)
+    )
+    llm = FakeLLMProvider(
+        default_response=LLMResponse(
+            content="produit intérieur brut richesse",
+            thinking_content=None,
+            prompt_tokens=10,
+            completion_tokens=5,
+            cached_prompt_tokens=0,
+            cost_usd=0.002,
+        )
+    )
+    expander = QueryExpander(
+        inner=inner,
+        llm_provider=llm,
+        prompt_loader=PromptLoader(),
+        settings=ChatSettings(),
+    )
+    expander.retrieve(query="économie agrégée ?", top_k=3)  # déclenche l'expansion
+    assert expander.consumed_cost_usd() == pytest.approx(0.002)

@@ -112,6 +112,15 @@ Moteur d'exécution pur :
 - 8 handlers dans `pipeline/handlers/` (un fichier par phase).
 - `pipeline/handlers/_base.py` — helpers communs (invoke LLM, parse JSON,
   build PhaseExecution succeeded, sélection top-K glossaire).
+- **Phase 5 = dispatcher de stratégies de consolidation** (`pipeline/handlers/
+  _consolidation/`) selon `GenerationSettings.consolidation_mode` :
+  `_base.py` (ABC `ConsolidationStrategy` + `ConsolidationResult` + helpers
+  déterministes partagés : renumérotation, sommaire, assemblage), `ordered.py`
+  (1 source = 1 chapitre, contenu recopié — comportement historique), `thematic.py`
+  (refonte thématique transversale en **map-reduce à provenance** : relevé factuel
+  par source → plan thématique → rédaction par chapitre → méta ; double contrôle
+  déterministe de couverture ; aucun identifiant technique dans le livrable ;
+  reprise intra-phase par hash de cohérence ; artefacts `consolidation/`).
 
 ### 2.4 Couche `pedagogy`
 
@@ -164,7 +173,8 @@ Adapters externes (ports/adapters) :
 - `infra/secrets/` — Protocol `SecretsStore`, `InMemorySecretsStore`,
   `DPAPISecretsStore` (Windows).
 - `infra/prompts/` — `PromptLoader` avec override `%APPDATA%/Fahmi2/prompts/`
-  + **8 + 8 templates Jinja2 bundlés** (phases de génération + `pedagogy_*`).
+  + **templates Jinja2 bundlés** : 8 phases de génération + **3 `phase_5_*` du
+  mode thématique** + 8 `pedagogy_*` + 3 `chat_*`.
 - `infra/anki/genanki_exporter.py` — export `.apkg` (genanki : Basic/Cloze/QCM,
   GUID stables, sous-decks par support, tags).
 - `infra/export/markdown_pdf.py` — assemblage Markdown + rendu PDF
@@ -174,7 +184,10 @@ Adapters externes (ports/adapters) :
 
 Services applicatifs :
 
-- `ProjectService` — CRUD projets (+ `get_last_completed_run`).
+- `ProjectService` — CRUD projets (+ `get_last_completed_run`). La suppression
+  efface l'entrée + ses runs en base **et** le dossier workspace du projet sur
+  disque (best-effort) ; le dossier d'entrée (sources) et la base globale
+  (`%APPDATA%/Fahmi2/projects.db`) ne sont pas touchés.
 - `RunOrchestrator` — lifecycle Run (création + collecte des sources, exécution
   via PipelineEngine, persistance, pause/cancel/resume).
 - `SupportsOrchestrator` — orchestrateur dédié des supports pédagogiques
@@ -299,14 +312,18 @@ Génération (consolidé + glossaire).
   `_pricing` (USD/Mtok par modèle) + fake. Le port expose `consumed_cost_usd()`
   (coût agrégé dans le total du Dialogue). `infra/retrieval/semantic.py` —
   `SemanticPassageRetriever` (index `.npz` persisté + empreinte de validité incluant
-  le modèle, cosine numpy).
+  le modèle **+ mtime du consolidé ET du glossaire**, cosine numpy).
 - `infra/llm` — extension **additive** `chat_stream` (port + DeepSeek + fake) ;
   `stream_options.include_usage` → coût exact en streaming.
 - `app/chat_conversation_store.py` — persistance JSON des conversations
   (`chat/conversations/*.json`) ; `ChatSettings` dans le blob projet v2 (clé `chat`).
 - `ui/` — `ChatTab`, `ChatController` (worker `QThread` qui streame via signaux),
   `ChatViewModel` (machine d'état, sans Qt), `ChatView` (fil de bulles + citations
-  cliquables + coût), `ChatSettingsView`.
+  cliquables + coût), `ChatSettingsView`. **Fraîcheur du corpus** :
+  `ChatController.refresh_corpus_if_stale()` re-dérive le corpus quand le consolidé
+  ou le glossaire a changé sur disque (clé = langue + mtime consolidé + mtime
+  glossaire), appelé avant chaque réponse **et** au signal `run_state_changed` de
+  la génération → le Dialogue ne cite jamais un document périmé.
 
 Fidélité **configurable** (prompts `chat_strict`/`chat_augmented`) ; retrieval
 **lexical** (offline) ou **sémantique** (embeddings OpenAI), stratégie `AUTO`.

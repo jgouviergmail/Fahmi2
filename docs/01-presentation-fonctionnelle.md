@@ -77,7 +77,7 @@ documents :
 | 2. Glossaire | Réconciliation cross-vidéos pour produire un glossaire master |
 | 3. Reformulation | Reformulation écrite fidèle, par vidéo, en langue source |
 | 4. Structuration | Mise en forme Markdown avec titres, intro, conclusion, admonitions sémantiques (remarques, exemples, définitions, exercices) |
-| 5. Consolidation | Production des méta-éléments (titre global, résumé exécutif, introduction générale, plan, conclusion générale) pour un document consolidé |
+| 5. Consolidation | Assemblage du document consolidé selon le **mode choisi** (cf. §4.3) : **ordonné** (1 source = 1 chapitre, contenu recopié) ou **refonte thématique** (le LLM agrège/restructure transversalement par thème) |
 | 6. Traduction | Production des artefacts dans toutes les langues de sortie demandées |
 | 7. Cohérence | Passe finale de relecture des méta-éléments |
 
@@ -95,11 +95,17 @@ L'utilisateur configure **via l'interface** (et **uniquement** via l'interface) 
 - **Langues du document** (FR / EN en v1) : langues produites + **langue
   principale** (l'originale, rédigée directement ; les autres en sont traduites).
 - **Style de rendu** : décontracté / standard / professionnel / académique.
+- **Mode de consolidation** : **ordonné** (1 source = 1 chapitre, contenu recopié
+  dans l'ordre choisi) ou **refonte thématique** (le LLM agrège et restructure
+  transversalement les contenus de toutes les sources par thème — synthèse
+  journalistique, rigueur sur le fond / souplesse sur la forme ; en ce mode,
+  l'ordre des sources est sans effet).
 - **Directives stylistiques libres** en texte.
 - **Plafond budget** optionnel avec arrêt automatique propre.
 - **Surcouche utilisateur des prompts** via éditeur intégré
   (menu **Édition → Modifier les prompts…**) : tous les templates des 7
-  phases LLM **et des 8 supports pédagogiques** peuvent être personnalisés sans
+  phases LLM (dont les **3 prompts du mode thématique**), des **8 supports
+  pédagogiques** et des **3 prompts du Dialogue** peuvent être personnalisés sans
   toucher au code, avec validation Jinja2 et retour au défaut bundlé d'un clic.
 
 ### 4.4 Pilotage d'un run
@@ -195,11 +201,17 @@ document consolidé et le glossaire, **citées** (chapitre › section, cliquabl
 
 ### 5.1 Fidélité au discours
 
-- Le pipeline **ne réécrit jamais** le contenu détaillé des vidéos lors de
-  la consolidation. Les chapitres sont les sorties textuelles structurées
-  des vidéos individuelles, recopiées telles quelles.
-- Le LLM est explicitement instruit de **ne pas inventer** de contenu non
-  présent dans la transcription.
+- En mode de consolidation **ordonné** (défaut), le pipeline **ne réécrit
+  jamais** le contenu détaillé : les chapitres sont les sorties structurées des
+  sources individuelles, recopiées telles quelles (1 source = 1 chapitre).
+- En mode **refonte thématique**, le LLM **réorganise et reformule** les contenus
+  par thème, mais sous une règle stricte de **rigueur sur le fond** : interdiction
+  d'inventer ou d'ajouter des faits, préservation des chiffres/données/raisonnements
+  (garantie par un relevé factuel tracé + un double contrôle de couverture), et
+  **conflits entre sources présentés** au lecteur sans arbitrage. La souplesse ne
+  porte que sur la **forme** (fusion, déduplication, transitions, structure).
+- Dans les deux modes, le LLM est explicitement instruit de **ne pas inventer**
+  de contenu absent des sources.
 
 ### 5.2 Cohérence terminologique
 

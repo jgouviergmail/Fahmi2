@@ -75,6 +75,7 @@ propose que les langues produites.
 | Paramètre | Description |
 |-----------|-------------|
 | **Style** | `décontracté`, `standard`, `professionnel`, ou `académique`. Affecte le ton, le vocabulaire et le niveau de formalisme. |
+| **Mode de consolidation** | `Ordonné` (défaut : 1 source = 1 chapitre, contenu recopié dans l'ordre choisi) ou `Refonte thématique` (le LLM agrège et restructure transversalement les contenus de toutes les sources par thème — rigueur sur le fond, souplesse sur la forme). En mode thématique, l'ordre des sources est **sans effet** (note affichée sur la page « Entrée & langues ») et le coût de la phase 5 est sensiblement plus élevé. Artefacts conservés sous `<workspace>/generation/consolidation/` (dont `facts.md`, relevé factuel lisible). |
 | **Directives stylistiques** | Texte libre qui sera concaténé aux prompts. Ex: « voix professorale, ton chaleureux mais rigoureux, éviter le jargon ». |
 
 ### 2.4 Providers
@@ -197,7 +198,9 @@ fichiers :
    - `phase_3_reformulation.j2`
    - `phase_4_structuration.j2`
    - `phase_5_consolidation.j2`
-   - `phase_5_video_summary.j2`
+   - `phase_5_video_summary.j2` (mode ordonné)
+   - `phase_5_fact_ledger.j2`, `phase_5_thematic_plan.j2`,
+     `phase_5_thematic_chapter.j2` (mode **refonte thématique**)
    - `phase_6_translation.j2`
    - `phase_7_coherence.j2`
    - les 8 templates `pedagogy_*.j2` (supports de révision)
@@ -215,6 +218,9 @@ fichiers :
 | `phase_4_structuration` | `output_language_label`, `style_label`, `style_directives`, `glossary_terms`, `reformulated_text` |
 | `phase_5_video_summary` | `output_language_label`, `structured_markdown` |
 | `phase_5_consolidation` | `output_language_label`, `style_label`, `style_directives`, `summaries_json` |
+| `phase_5_fact_ledger` | `output_language_label`, `structured_markdown` |
+| `phase_5_thematic_plan` | `output_language_label`, `elements_listing` |
+| `phase_5_thematic_chapter` | `output_language_label`, `style_label`, `style_directives`, `chapter_title`, `elements_json` |
 | `phase_6_translation` | `source_language_label`, `target_language_label`, `style_label`, `style_directives`, `glossary_terms`, `source_markdown` |
 | `phase_7_coherence` | `output_language_label`, `style_label`, `style_directives`, `glossary_terms`, `consolidated_markdown` |
 | `pedagogy_flashcards_concepts` | `output_language_label`, `audience_label`, `bloom_label`, `density_label`, `pedagogy_directives`, `glossary_terms`, `chapter_title`, `chapter_markdown` |
@@ -283,8 +289,11 @@ Onglet **Dialogue → ⚙ Réglages** :
 Le corpus interrogé = document **consolidé** + **glossaire** de la génération
 (découpé par section). Le retrieval **sémantique** construit un index local
 (`<emplacement>/chat/index.{langue}.npz`) réutilisé tant que le cours n'a pas
-changé (empreinte : modèle d'embedding + horodatage du consolidé + langue). Les
-**conversations** sont persistées sous `<emplacement>/chat/conversations/`.
+changé (empreinte : modèle d'embedding + horodatage du consolidé **et du
+glossaire** + langue). Le Dialogue **recharge automatiquement** son corpus dès que
+le consolidé ou le glossaire est régénéré (avant chaque réponse et à la fin d'une
+génération) : inutile de recharger le projet pour repartir sur le document à jour.
+Les **conversations** sont persistées sous `<emplacement>/chat/conversations/`.
 
 > **Coût exhaustif.** Le coût affiché par échange (et le cumul de la conversation)
 > intègre **toutes** les dépenses : génération de la réponse (DeepSeek), embeddings

@@ -2,7 +2,7 @@
 
 > Transformez vos cours — **vidéos, fichiers audio, liens YouTube ou documents
 > texte** — en documents Markdown structurés, glossaire compris, multilingue, en
-> quelques heures et sans intervention manuelle.
+> quelques minutes et sans intervention manuelle.
 
 Application desktop Windows, mono-utilisateur, **installation en double-clic**
 (aucune dépendance système à installer, ffmpeg bundlé). Pipeline en 8 phases

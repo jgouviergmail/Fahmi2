@@ -142,7 +142,9 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   `fs_artifacts` (writes atomiques), `secrets/` (DPAPI Windows),
   `prompts/loader` + `defaults/*.j2` (8 phases + 3 `phase_5_*` thématiques +
   8 `pedagogy_*` + 3 `chat_*`).
-- `app/` — use-cases : `ProjectService` (+ `get_last_completed_run`),
+- `app/` — use-cases : `ProjectService` (+ `get_last_completed_run` ; la
+  suppression d'un projet efface aussi son **dossier workspace** sur disque,
+  best-effort, hors dossier d'entrée et base globale),
   `RunOrchestrator`, `SupportsOrchestrator`, `CostEstimator`,
   `PedagogyCostEstimator`, `pedagogy_export` (Anki/MD/PDF/HTML) + `generation_export`
   (consolidé + glossaire MD/PDF/HTML) sur le cœur partagé `document_export`, `_cost_common`,

@@ -8,6 +8,7 @@ import pytest
 
 from fahmi2.domain.enums import (
     CloudSttModel,
+    ConsolidationMode,
     ExportFormat,
     Language,
     LLMModel,
@@ -76,6 +77,15 @@ def test_negative_ceiling_rejected() -> None:
 
 def test_cost_ceiling_zero_is_valid() -> None:
     assert _make(cost_ceiling_usd=0.0).cost_ceiling_usd == 0.0
+
+
+def test_consolidation_mode_defaults_to_ordered() -> None:
+    assert _make().consolidation_mode is ConsolidationMode.ORDERED
+
+
+def test_consolidation_mode_can_be_thematic() -> None:
+    settings = _make(consolidation_mode=ConsolidationMode.THEMATIC)
+    assert settings.consolidation_mode is ConsolidationMode.THEMATIC
 
 
 def test_glossary_doc_filename() -> None:

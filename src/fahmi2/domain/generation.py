@@ -12,6 +12,7 @@ from pathlib import Path
 
 from fahmi2.domain.enums import (
     CloudSttModel,
+    ConsolidationMode,
     ExportFormat,
     Language,
     LLMModel,
@@ -129,6 +130,11 @@ class GenerationSettings:
             ou URL) des sources **incluses**, dans l'ordre de traitement souhaité.
         excluded_sources: Clés stables des sources **exclues** (présentes mais
             non traitées).
+        consolidation_mode: Mode d'assemblage du consolidé (phase 5).
+            ``ORDERED`` (défaut) : 1 source = 1 chapitre dans l'ordre choisi.
+            ``THEMATIC`` : refonte thématique transversale par le LLM (en ce mode,
+            ``source_order`` n'a pas d'effet et ``reformulate_documents`` est
+            ignoré — tout entrant est matière première).
     """
 
     input_folder: Path
@@ -149,6 +155,7 @@ class GenerationSettings:
     youtube_urls: tuple[str, ...] = ()
     source_order: tuple[str, ...] = ()
     excluded_sources: tuple[str, ...] = ()
+    consolidation_mode: ConsolidationMode = ConsolidationMode.ORDERED
 
     def __post_init__(self) -> None:
         if not self.output_languages:

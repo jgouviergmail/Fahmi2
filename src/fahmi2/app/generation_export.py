@@ -83,7 +83,7 @@ def export_generation_documents(
         project: Projet.
         output_dir: Dossier de destination choisi par l'utilisateur (distinct du
             dossier de sortie de génération).
-        fmt: Format documentaire (``MARKDOWN`` / ``PDF`` / ``HTML``).
+        fmt: Format documentaire (``MARKDOWN`` / ``PDF`` / ``HTML`` / ``DOCX``).
 
     Returns:
         ``DocumentExportResult``.

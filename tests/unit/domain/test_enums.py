@@ -4,6 +4,7 @@ import pytest
 
 from fahmi2.domain.enums import (
     ConsolidationMode,
+    ExportFormat,
     Language,
     LLMModel,
     PhaseId,
@@ -14,6 +15,16 @@ from fahmi2.domain.enums import (
     SttProvider,
     StylePreset,
 )
+
+
+def test_export_format_values() -> None:
+    assert {f.value for f in ExportFormat} == {
+        "apkg",
+        "markdown",
+        "pdf",
+        "html",
+        "docx",
+    }
 
 
 def test_language_values() -> None:

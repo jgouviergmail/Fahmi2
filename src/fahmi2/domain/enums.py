@@ -194,6 +194,7 @@ class ExportFormat(StrEnum):
     MARKDOWN = "markdown"
     PDF = "pdf"
     HTML = "html"
+    DOCX = "docx"
 
 
 class ChatGroundingMode(StrEnum):

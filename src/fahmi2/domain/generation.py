@@ -68,7 +68,7 @@ def glossary_doc_filename(language: Language) -> str:
 
 #: Formats d'export documentaire autorisés en génération (pas d'APKG : pas de cartes).
 GENERATION_EXPORT_FORMATS: frozenset[ExportFormat] = frozenset(
-    {ExportFormat.MARKDOWN, ExportFormat.PDF, ExportFormat.HTML}
+    {ExportFormat.MARKDOWN, ExportFormat.PDF, ExportFormat.HTML, ExportFormat.DOCX}
 )
 
 #: Formats cochés par défaut pour un nouveau projet (vide = opt-in).

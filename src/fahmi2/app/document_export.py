@@ -15,6 +15,7 @@ from pathlib import Path
 
 from fahmi2.domain.enums import ExportFormat
 from fahmi2.domain.project import Project
+from fahmi2.infra.export.markdown_docx import render_markdown_to_docx
 from fahmi2.infra.export.markdown_pdf import (
     EXTENSION_BY_FORMAT,
     render_markdown_to_html,
@@ -80,7 +81,7 @@ def write_documents(
     Args:
         documents: Documents à écrire (nom + Markdown + options PDF).
         output_dir: Dossier de destination.
-        fmt: Format documentaire (``MARKDOWN``, ``PDF`` ou ``HTML``).
+        fmt: Format documentaire (``MARKDOWN``, ``PDF``, ``HTML`` ou ``DOCX``).
 
     Returns:
         ``DocumentExportResult`` (chemins écrits, ordre d'entrée préservé).
@@ -105,6 +106,8 @@ def write_documents(
                 landscape=document.pdf_landscape,
                 table_column_widths=document.pdf_column_widths,
             )
+        elif fmt is ExportFormat.DOCX:
+            render_markdown_to_docx(document.markdown, path)
         else:  # HTML (seul format documentaire restant après la garde)
             render_markdown_to_html(document.markdown, path)
         paths.append(path)

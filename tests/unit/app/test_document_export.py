@@ -16,8 +16,18 @@ def test_extension_by_format_doc_formats_only() -> None:
         ExportFormat.MARKDOWN: ".md",
         ExportFormat.PDF: ".pdf",
         ExportFormat.HTML: ".html",
+        ExportFormat.DOCX: ".docx",
     }
     assert ExportFormat.APKG not in EXTENSION_BY_FORMAT
+
+
+def test_write_documents_dispatches_docx(tmp_path: Path) -> None:
+    docs = [ExportDocument(stem="support.fr", markdown="# Titre\n\nTexte.\n")]
+    result = write_documents(docs, output_dir=tmp_path, fmt=ExportFormat.DOCX)
+    out = tmp_path / "support.fr.docx"
+    assert out in result.output_paths
+    # Un .docx est un zip OOXML : signature "PK".
+    assert out.read_bytes()[:2] == b"PK"
 
 
 def test_write_markdown_copies_content_and_preserves_order(tmp_path: Path) -> None:

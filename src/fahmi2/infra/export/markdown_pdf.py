@@ -38,6 +38,7 @@ EXTENSION_BY_FORMAT: dict[ExportFormat, str] = {
     ExportFormat.MARKDOWN: ".md",
     ExportFormat.PDF: ".pdf",
     ExportFormat.HTML: ".html",
+    ExportFormat.DOCX: ".docx",
 }
 
 #: Extensions Python-Markdown : ``tables`` rend les tableaux pipe GFM (sinon texte
@@ -227,6 +228,28 @@ def _toc_slugify(value: str, separator: str) -> str:
     return slugify_anchor(value)
 
 
+def render_markdown_body(markdown_text: str) -> str:
+    """Convertit un Markdown en corps HTML (tableaux GFM + sommaire ancré).
+
+    Rendu de base **partagé** par les exports HTML, PDF et DOCX : extensions
+    ``tables`` (tableaux pipe) et ``toc`` (ids de titres slugifiés via
+    ``slugify_anchor``, alignés sur les ancres du sommaire). Ne produit que le
+    corps (pas d'enveloppe ``<html>``).
+
+    Args:
+        markdown_text: Texte Markdown.
+
+    Returns:
+        Le corps HTML correspondant.
+    """
+    html_body: str = markdown.markdown(
+        markdown_text,
+        extensions=_MARKDOWN_EXTENSIONS,
+        extension_configs={"toc": {"slugify": _toc_slugify}},
+    )
+    return html_body
+
+
 def render_markdown_to_html(markdown_text: str, output_path: Path) -> None:
     """Rend un Markdown en document HTML autonome (UTF-8, style intégré).
 
@@ -238,11 +261,7 @@ def render_markdown_to_html(markdown_text: str, output_path: Path) -> None:
         markdown_text: Texte Markdown (commençant idéalement par un titre H1).
         output_path: Chemin du fichier ``.html`` à écrire.
     """
-    body = markdown.markdown(
-        markdown_text,
-        extensions=_MARKDOWN_EXTENSIONS,
-        extension_configs={"toc": {"slugify": _toc_slugify}},
-    )
+    body = render_markdown_body(markdown_text)
     document = _HTML_DOCUMENT_TEMPLATE.format(
         title=escape(_extract_title(markdown_text)), body=body
     )
@@ -328,11 +347,7 @@ def render_markdown_to_pdf(
             severity=Severity.ERROR,
         )
     _ensure_pdf_fonts_registered()
-    body = markdown.markdown(
-        _normalize_for_pdf(markdown_text),
-        extensions=_MARKDOWN_EXTENSIONS,
-        extension_configs={"toc": {"slugify": _toc_slugify}},
-    )
+    body = render_markdown_body(_normalize_for_pdf(markdown_text))
     body = _layout_table_cells(body, table_column_widths)
     document = _PDF_HTML_TEMPLATE.format(
         orientation="landscape" if landscape else "portrait", body=body

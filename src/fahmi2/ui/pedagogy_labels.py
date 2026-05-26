@@ -25,6 +25,7 @@ EXPORT_LABELS: dict[ExportFormat, str] = {
     ExportFormat.MARKDOWN: "Markdown",
     ExportFormat.PDF: "PDF",
     ExportFormat.HTML: "HTML",
+    ExportFormat.DOCX: "Word (.docx)",
 }
 
 #: Libellés FR des statuts d'un support dans la table de progression.

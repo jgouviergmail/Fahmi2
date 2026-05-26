@@ -128,7 +128,7 @@ def export_pedagogy_documents(
     Args:
         project: Projet.
         output_dir: Dossier de destination.
-        fmt: Format documentaire (``MARKDOWN`` / ``PDF`` / ``HTML``).
+        fmt: Format documentaire (``MARKDOWN`` / ``PDF`` / ``HTML`` / ``DOCX``).
 
     Returns:
         ``DocumentExportResult``.

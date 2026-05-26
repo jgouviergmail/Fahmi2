@@ -18,6 +18,7 @@ from fahmi2.domain.enums import (
     StylePreset,
 )
 from fahmi2.domain.generation import (
+    GENERATION_EXPORT_FORMATS,
     GENERATION_WORKSPACE_SUBDIR,
     MAX_LLM_WORKERS,
     MAX_STT_CLOUD_WORKERS,
@@ -26,6 +27,18 @@ from fahmi2.domain.generation import (
     glossary_doc_filename,
 )
 from fahmi2.domain.phase import PhaseConfig
+
+
+def test_generation_export_formats_are_documentary_including_docx() -> None:
+    assert ExportFormat.DOCX in GENERATION_EXPORT_FORMATS
+    assert GENERATION_EXPORT_FORMATS == {
+        ExportFormat.MARKDOWN,
+        ExportFormat.PDF,
+        ExportFormat.HTML,
+        ExportFormat.DOCX,
+    }
+    # Pas d'APKG en génération (pas de cartes).
+    assert ExportFormat.APKG not in GENERATION_EXPORT_FORMATS
 
 
 def _valid_phases() -> dict[PhaseId, PhaseConfig]:

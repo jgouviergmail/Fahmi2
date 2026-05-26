@@ -27,6 +27,7 @@ def test_extension_by_format() -> None:
     assert EXTENSION_BY_FORMAT[ExportFormat.MARKDOWN] == ".md"
     assert EXTENSION_BY_FORMAT[ExportFormat.PDF] == ".pdf"
     assert EXTENSION_BY_FORMAT[ExportFormat.HTML] == ".html"
+    assert EXTENSION_BY_FORMAT[ExportFormat.DOCX] == ".docx"
     assert ExportFormat.APKG not in EXTENSION_BY_FORMAT
 
 

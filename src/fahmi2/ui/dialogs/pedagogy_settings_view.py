@@ -41,6 +41,7 @@ from fahmi2.domain.pedagogy import (
 )
 from fahmi2.domain.phase import PhaseConfig
 from fahmi2.pedagogy.labels import audience_label, bloom_label, density_label
+from fahmi2.ui._model_labels import LLM_MODEL_LABELS, labeled_enum_combo
 from fahmi2.ui.pedagogy_labels import EXPORT_LABELS, SUPPORT_LABELS
 from fahmi2.ui.widgets.settings_view import SettingsView
 
@@ -252,9 +253,7 @@ class PedagogySettingsView(QDialog):
         for lang in self._available_languages:
             self._language_checks[lang] = QCheckBox(lang.value, self)
 
-        self._llm_combo = QComboBox(self)
-        for model in LLMModel:
-            self._llm_combo.addItem(model.value, model)
+        self._llm_combo = labeled_enum_combo(self, LLM_MODEL_LABELS)
         self._thinking_check = QCheckBox("Mode raisonnement (thinking)", self)
         self._reasoning_combo = QComboBox(self)
         self._reasoning_combo.addItem(_REASONING_DEFAULT_LABEL, None)

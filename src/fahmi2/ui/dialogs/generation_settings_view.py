@@ -8,9 +8,7 @@ relèvent du ``Project``).
 
 from __future__ import annotations
 
-from enum import StrEnum
 from pathlib import Path
-from typing import TypeVar
 
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -54,6 +52,12 @@ from fahmi2.domain.generation import (
     ParallelismConfig,
 )
 from fahmi2.domain.source import InputSource
+from fahmi2.ui._model_labels import (
+    CLOUD_STT_MODEL_LABELS,
+    LLM_MODEL_LABELS,
+    LOCAL_STT_MODEL_LABELS,
+    labeled_enum_combo,
+)
 from fahmi2.ui.pedagogy_labels import EXPORT_LABELS
 from fahmi2.ui.widgets.phase_configs_widget import PhaseConfigsWidget
 from fahmi2.ui.widgets.settings_view import SettingsView
@@ -63,27 +67,6 @@ _DIALOG_WIDTH_PX = 760
 _DIALOG_HEIGHT_PX = 620
 _DIRECTIVES_HEIGHT_PX = 90
 _COST_CEILING_MAX_USD = 10_000.0
-
-_EnumT = TypeVar("_EnumT", bound=StrEnum)
-
-
-def _build_enum_combo(parent: QWidget, enum_cls: type[_EnumT]) -> QComboBox:
-    """Construit un ``QComboBox`` peuplé des membres d'un ``StrEnum``.
-
-    Chaque membre est ajouté avec sa ``value`` en libellé et le membre lui-même
-    en donnée (``currentData()`` renvoie donc l'enum).
-
-    Args:
-        parent: Parent Qt.
-        enum_cls: Classe d'énumération à lister.
-
-    Returns:
-        Le combo peuplé.
-    """
-    combo = QComboBox(parent)
-    for member in enum_cls:
-        combo.addItem(member.value, member)
-    return combo
 
 _TITLE_CREATE = "Configurer la génération"
 _TITLE_EDIT = "Réglages de la génération"
@@ -228,8 +211,8 @@ class GenerationSettingsView(QDialog):
             self._stt_combo.addItem(provider.value, provider)
         self._stt_combo.currentIndexChanged.connect(self._on_stt_changed)
 
-        self._stt_local_model_combo = _build_enum_combo(self, LocalSttModel)
-        self._stt_cloud_model_combo = _build_enum_combo(self, CloudSttModel)
+        self._stt_local_model_combo = labeled_enum_combo(self, LOCAL_STT_MODEL_LABELS)
+        self._stt_cloud_model_combo = labeled_enum_combo(self, CLOUD_STT_MODEL_LABELS)
 
         self._keep_audio_checkbox = QCheckBox(_KEEP_AUDIO_LABEL, self)
         self._keep_audio_checkbox.setToolTip(_KEEP_AUDIO_TOOLTIP)
@@ -238,9 +221,7 @@ class GenerationSettingsView(QDialog):
         self._reformulate_documents_checkbox.setToolTip(_REFORMULATE_DOCS_TOOLTIP)
         self._reformulate_documents_checkbox.setChecked(True)
 
-        self._llm_combo = QComboBox(self)
-        for model in LLMModel:
-            self._llm_combo.addItem(model.value, model)
+        self._llm_combo = labeled_enum_combo(self, LLM_MODEL_LABELS)
 
         self._cost_ceiling_input = QDoubleSpinBox(self)
         self._cost_ceiling_input.setRange(0.0, _COST_CEILING_MAX_USD)
@@ -569,7 +550,7 @@ class GenerationSettingsView(QDialog):
             stt_provider=self._stt_combo.currentData(),
             stt_local_model=LocalSttModel(self._stt_local_model_combo.currentData()),
             stt_cloud_model=CloudSttModel(self._stt_cloud_model_combo.currentData()),
-            llm_model=self._llm_combo.currentData(),
+            llm_model=LLMModel(self._llm_combo.currentData()),
             phases_config=self._phase_configs_widget.get_phase_configs(),
             cost_ceiling_usd=cost_ceiling,
             parallelism=ParallelismConfig(

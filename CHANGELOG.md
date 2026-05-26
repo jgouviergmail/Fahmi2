@@ -7,6 +7,14 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+### Modifié — Libellés de modèles uniformisés
+
+- Les combos de **modèles** (LLM, embeddings, STT) affichent partout un **libellé
+  descriptif** cohérent (« DeepSeek V4 Flash (économique) », « gpt-4o-mini-transcribe
+  (2× moins cher) », …), dans **Génération**, **Supports pédagogiques** et
+  **Dialogue**. Libellés centralisés dans `ui/_model_labels` (source unique) avec
+  un garde-fou de complétude (tout modèle a un libellé).
+
 ### Ajouté — Choix du modèle STT (génération)
 
 - **Modèle de transcription configurable**, par provider, comme le modèle LLM

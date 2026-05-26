@@ -142,12 +142,14 @@ pour le détail complet.
 
 ## Statut
 
-**v1.1.0** — entrants de génération élargis : **vidéos, fichiers audio, liens
-YouTube et documents texte** (PDF/Word/Markdown/txt), avec **ordre et exclusion**
-des sources réglables. Socle v1.0.0 : pipeline complet, UI cockpit dense thème
-Clair Fluent, packaging Windows portable, document consolidé navigable
-(numérotation hiérarchique + sommaire), glossaire en tableau, édition des prompts
-depuis l'UI, estimation de coût alignée sur l'usage réel (thinking pris en compte).
+**v1.2.0** — nouvel onglet **Dialogue** (chat ancré sur le corpus : réponses
+citées + streaming, retrieval lexical/sémantique, coût exhaustif, conversations
+persistées/supprimables) ; **modèles configurables** (LLM, embeddings, STT) ;
+plafond de sortie au maximum du modèle (anti-troncature) sur **tous** les appels
+DeepSeek. v1.1.0 : entrants élargis (**vidéos, audio, YouTube, documents texte**)
+avec ordre/exclusion des sources. Socle v1.0.0 : pipeline complet, UI cockpit
+thème Clair Fluent, packaging Windows portable, document consolidé navigable,
+glossaire en tableau, édition des prompts, estimation de coût alignée sur l'usage.
 Cf. [CHANGELOG.md](CHANGELOG.md).
 
 Interface réorganisée en **onglets de fonctionnalité** (Génération + Supports

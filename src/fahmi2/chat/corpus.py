@@ -27,7 +27,11 @@ _ORIGIN_GLOSSARY = "glossary"
 _GLOSSARY_CHAPTER_TITLE = "Glossaire"
 _CHUNK_ID_SEPARATOR = "::"  # namespace::clé (consolidé : ancre::ordinal ; glossaire)
 _FENCE = "```"
-_RE_SUBHEADING = re.compile(r"^#{2,}\s+(.+?)\s*$")
+# Le corpus est découpé et cité aux **mêmes niveaux que le plan** du consolidé
+# (sommaire en profondeur 3 : ``##`` et ``###``). Les titres plus profonds
+# (``####``+) restent du **contenu** rattaché à leur section parente : on ne cite
+# jamais une sous-sous-section absente du plan (évite des références « fantômes »).
+_RE_SUBHEADING = re.compile(r"^#{2,3}\s+(.+?)\s*$")
 
 
 def _match_subheading(line: str) -> str | None:

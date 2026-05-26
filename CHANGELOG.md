@@ -9,6 +9,14 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Corrigé
 
+- **Dialogue : citations alignées sur le plan du document.** Le corpus était
+  découpé/cité sur **tous** les niveaux de titre (`####`+ compris), si bien que des
+  sous-sous-sections **absentes du plan** (titres profonds à numérotation héritée,
+  ex. « 5.2.1 ») apparaissaient en sources. Le découpage se fait désormais aux
+  **mêmes niveaux que le plan** (`##`/`###`, profondeur 3) ; les `####`+ restent du
+  contenu indexé rattaché à leur section parente. Les citations ne référencent donc
+  que des sections **réellement présentes dans le document final**. *(Effet immédiat,
+  sans régénération.)*
 - **Consolidation : numérotation incohérente des titres profonds.** La
   renumérotation ne traitait que les titres `##`/`###` ; les titres `####`+ (au-delà
   de la profondeur du sommaire) **conservaient la numérotation héritée de la source**

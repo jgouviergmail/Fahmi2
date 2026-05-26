@@ -51,6 +51,22 @@ def test_large_section_splits_into_multiple_chunks() -> None:
     assert len(chunks) >= 2
 
 
+def test_deep_headings_not_cited_as_sections() -> None:
+    # Les titres ####+ (au-delà du plan, profondeur > 3) ne deviennent pas des
+    # sections citables : leur contenu est rattaché à la section ### parente.
+    doc = (
+        "# T\n\n# 1. Chapitre\n\n## 1.1 Section\n\n### 1.1.1 Sous-section\n\n"
+        "Texte de la sous-section.\n\n#### 5.2.1 Titre profond hérité\n\n"
+        "Contenu profond à retrouver.\n"
+    )
+    chunks = chunk_consolidated(doc)
+    titles = {c.section_title for c in chunks}
+    assert "1.1.1 Sous-section" in titles
+    assert "5.2.1 Titre profond hérité" not in titles  # ####+ jamais cité
+    # …mais son contenu reste indexé (rattaché à la section parente).
+    assert any("Contenu profond à retrouver" in c.text for c in chunks)
+
+
 def test_code_fence_kept_intact_in_single_chunk() -> None:
     doc = "# T\n\n# 1. Code\n\nIntro.\n\n```python\na = 1\n\nb = 2\n```\n"
     code_chunks = [c for c in chunk_consolidated(doc) if "```" in c.text]

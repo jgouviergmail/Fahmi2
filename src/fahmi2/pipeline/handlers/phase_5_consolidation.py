@@ -61,6 +61,10 @@ _RE_CODE_FENCE = re.compile(r"^\s*```")
 _RE_H1 = re.compile(r"^#\s+(.+?)\s*$")
 _RE_H2 = re.compile(r"^##\s+(.+?)\s*$")
 _RE_H3 = re.compile(r"^###\s+(.+?)\s*$")
+# Titres au-delà de la profondeur numérotée (####+) : non renumérotés, mais on
+# retire toute numérotation héritée de la source pour éviter un mélange incohérent
+# (ex. « #### 5.2.1 » à côté de « ### 1.6.1 »). Groupe 1 = dièses, groupe 2 = titre.
+_RE_H4_PLUS = re.compile(r"^(#{4,})\s+(.+?)\s*$")
 # Préfixe numérotation déjà présent (ex: "1. ", "1.2 ", "1.2.3 - ", "1) ").
 # La numérotation est suivie d'au moins un séparateur (point, tiret,
 # parenthèse fermante ou whitespace), répété autant que nécessaire.
@@ -389,8 +393,12 @@ def _renumber_subheadings(
     """Renumérote les ``##`` et ``###`` d'un chapitre selon ``chapter_index``.
 
     Les numérotations préexistantes en tête de titre sont supprimées avant
-    écriture de la nouvelle. Les blocs ``fence`` (``\\`\\`\\``) sont laissés
-    intacts pour éviter de réécrire du code qui contiendrait ``##``.
+    écriture de la nouvelle. Les titres plus profonds (``####``+) ne sont **pas**
+    numérotés (cf. ``_TOC_MAX_DEPTH``) mais sont eux aussi débarrassés de toute
+    numérotation héritée de la source, pour éviter un mélange incohérent (ex. un
+    ``#### 5.2.1`` de la source à côté d'un ``### 1.6.1`` renuméroté). Les blocs
+    ``fence`` (``\\`\\`\\``) sont laissés intacts pour éviter de réécrire du code
+    qui contiendrait ``##``.
 
     Args:
         body: Corps du chapitre (sans son H1, déjà ``_demote_chapter_h1``).
@@ -414,6 +422,7 @@ def _renumber_subheadings(
             continue
         m_h3 = _RE_H3.match(line)
         m_h2 = _RE_H2.match(line) if not m_h3 else None
+        m_deep = _RE_H4_PLUS.match(line) if not (m_h2 or m_h3) else None
         if m_h2 is not None:
             h2_counter += 1
             h3_counter = 0
@@ -432,6 +441,11 @@ def _renumber_subheadings(
             number = f"{chapter_index}.{parent}.{h3_counter}"
             out_lines.append(f"### {number} {clean_title}")
             subheadings.append(_Subheading(level=3, number=number, title=clean_title))
+        elif m_deep is not None:
+            # ####+ : non numéroté, mais débarrassé de toute numérotation héritée.
+            out_lines.append(
+                f"{m_deep.group(1)} {_strip_existing_numbering(m_deep.group(2))}"
+            )
         else:
             out_lines.append(line)
     return "\n".join(out_lines), subheadings

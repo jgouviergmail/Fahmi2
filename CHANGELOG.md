@@ -9,6 +9,13 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Corrigé
 
+- **Consolidation : numérotation incohérente des titres profonds.** La
+  renumérotation ne traitait que les titres `##`/`###` ; les titres `####`+ (au-delà
+  de la profondeur du sommaire) **conservaient la numérotation héritée de la source**
+  (ex. `#### 5.2.1` à côté d'un `### 1.6.1` renuméroté), donnant l'impression de deux
+  documents mélangés dans le consolidé. Ces titres profonds sont désormais
+  **débarrassés de leur numérotation héritée** (ils restent non numérotés, par
+  conception). *(Régénérer la génération pour rafraîchir un consolidé existant.)*
 - **Dialogue : sources d'une réponse sur des lignes distinctes.** Les sources
   citées (`§ Chapitre › Section`) étaient affichées côte à côte sur une seule
   ligne (peu lisible quand il y en a plusieurs) ; elles sont désormais listées

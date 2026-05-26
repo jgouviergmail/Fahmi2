@@ -219,6 +219,24 @@ def test_renumber_subheadings_strips_llm_existing_numbering() -> None:
     assert [s.title for s in subs] == ["Section LLM", "Autre section", "Detail"]
 
 
+def test_renumber_subheadings_strips_stale_numbering_on_deep_headings() -> None:
+    # Les ####+ ne sont pas numérotés mais leur numérotation héritée est retirée,
+    # pour éviter un mélange « #### 5.2.1 » (source) ↔ « ### 1.6.1 » (pipeline).
+    body = (
+        "## Section\n"
+        "### Sous-section\n"
+        "#### 5.2.1 Son idée : un restaurant\n"
+        "##### 5.2.1.2 Détail profond\n"
+    )
+    renumbered, subs = _renumber_subheadings(body, chapter_index=1)
+    assert "### 1.1.1 Sous-section" in renumbered
+    assert "#### Son idée : un restaurant" in renumbered  # numéro hérité retiré
+    assert "##### Détail profond" in renumbered
+    assert "5.2.1" not in renumbered  # plus aucune numérotation héritée
+    # Les ####+ ne sont pas listés comme sous-titres numérotés.
+    assert [s.number for s in subs] == ["1.1", "1.1.1"]
+
+
 def test_renumber_subheadings_skips_code_blocks() -> None:
     body = (
         "## Vraie section\n"

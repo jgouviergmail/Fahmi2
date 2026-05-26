@@ -7,6 +7,13 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+### Corrigé
+
+- **Génération → Réglages → Entrée & langues** : les listes « Sources à traiter »
+  et « Exclues » étaient bornées en hauteur. La liste « Sources à traiter » suit
+  désormais la hauteur de la fenêtre (extensible verticalement, priorité sur les
+  « Exclues »), utile quand il y a beaucoup de sources à ordonner.
+
 ### Modifié — Bandeau d'état des Supports pédagogiques
 
 - Le bandeau de fraîcheur devient une **pastille de statut colorée** (icône +

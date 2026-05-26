@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -45,6 +46,9 @@ _REINCLUDE_LABEL = "Réinclure ▲"
 _REFRESH_LABEL = "↻ Rafraîchir"
 _REINCLUDE_ALL_LABEL = "Tout réinclure"
 _LIST_MIN_HEIGHT_PX = 110
+#: Poids vertical : la liste « à traiter » grandit davantage que les « exclues ».
+_INCLUDED_STRETCH = 3
+_EXCLUDED_STRETCH = 1
 
 
 class SourceOrderView(QWidget):
@@ -59,6 +63,8 @@ class SourceOrderView(QWidget):
             parent: Parent Qt optionnel.
         """
         super().__init__(parent)
+        # Vertical extensible : suit la hauteur de la fenêtre (beaucoup de sources).
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
         self._known: set[str] = set()
         self._kinds: dict[str, SourceKind] = {}
         self._included = QListWidget(self)
@@ -211,7 +217,7 @@ class SourceOrderView(QWidget):
             included_buttons.addWidget(btn)
         included_buttons.addStretch(1)
         included_row.addLayout(included_buttons)
-        outer.addLayout(included_row)
+        outer.addLayout(included_row, stretch=_INCLUDED_STRETCH)
 
         outer.addWidget(QLabel(_EXCLUDED_TITLE, self))
         excluded_row = QHBoxLayout()
@@ -222,7 +228,7 @@ class SourceOrderView(QWidget):
         excluded_buttons.addWidget(reinclude_btn)
         excluded_buttons.addStretch(1)
         excluded_row.addLayout(excluded_buttons)
-        outer.addLayout(excluded_row)
+        outer.addLayout(excluded_row, stretch=_EXCLUDED_STRETCH)
 
         actions_row = QHBoxLayout()
         refresh_btn = QPushButton(_REFRESH_LABEL, self)

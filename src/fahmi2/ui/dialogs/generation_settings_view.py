@@ -271,21 +271,25 @@ class GenerationSettingsView(QDialog):
         """
         page = QWidget(self)
         outer = QVBoxLayout(page)
-        form = QFormLayout()
+        top_form = QFormLayout()
         folder_row = QHBoxLayout()
         folder_row.addWidget(self._input_folder_input)
         folder_row.addWidget(self._browse_btn)
-        form.addRow(_FOLDER_LABEL, folder_row)
-        form.addRow(_YOUTUBE_URLS_LABEL, self._youtube_urls_input)
-        form.addRow(self._source_order_view)
-        form.addRow("Langue source :", self._source_lang_combo)
+        top_form.addRow(_FOLDER_LABEL, folder_row)
+        top_form.addRow(_YOUTUBE_URLS_LABEL, self._youtube_urls_input)
+        outer.addLayout(top_form)
+        # La double liste (ordre/exclusion) prend tout l'espace vertical restant :
+        # ajoutée directement au QVBoxLayout avec stretch (un QFormLayout n'étire
+        # pas verticalement une ligne).
+        outer.addWidget(self._source_order_view, stretch=1)
+        bottom_form = QFormLayout()
+        bottom_form.addRow("Langue source :", self._source_lang_combo)
         langs_row = QHBoxLayout()
         for cb in self._output_langs.values():
             langs_row.addWidget(cb)
         langs_row.addStretch(1)
-        form.addRow("Langues de sortie :", langs_row)
-        outer.addLayout(form)
-        outer.addStretch(1)
+        bottom_form.addRow("Langues de sortie :", langs_row)
+        outer.addLayout(bottom_form)
         return page
 
     def _build_style_page(self) -> QWidget:

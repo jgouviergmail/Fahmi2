@@ -155,8 +155,8 @@ class GenerationSettingsView(QDialog):
         self._build_fields()
         settings_view = SettingsView(
             [
-                (_CAT_INPUT, self._build_input_page()),
                 (_CAT_STYLE, self._build_style_page()),
+                (_CAT_INPUT, self._build_input_page()),
                 (_CAT_STT, self._build_stt_page()),
                 (_CAT_MODEL, self._build_model_page()),
                 (_CAT_PHASES, self._build_phases_page()),

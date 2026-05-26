@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from fahmi2.domain.enums import Language, PhaseId, PhaseStatus, StylePreset
+from fahmi2.domain.languages import language_label as _language_label
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.infra.llm.interface import LLMResponse
 from fahmi2.infra.llm.invocation import invoke_llm_chat, parse_llm_json
@@ -26,11 +27,6 @@ _STYLE_LABELS_FR: dict[StylePreset, str] = {
     StylePreset.STANDARD: "standard",
     StylePreset.PROFESSIONNEL: "professionnel",
     StylePreset.ACADEMIQUE: "académique",
-}
-
-_LANGUAGE_LABELS_FR: dict[Language, str] = {
-    Language.FR: "français",
-    Language.EN: "anglais",
 }
 
 
@@ -47,7 +43,10 @@ def style_label(style: StylePreset) -> str:
 
 
 def language_label(language: Language) -> str:
-    """Libellé humain (FR) d'une ``Language``.
+    """Libellé humain (FR, minuscule) d'une ``Language``.
+
+    Délègue à la source unique ``domain.languages`` (ré-export pour compat des
+    handlers qui importent ``language_label`` depuis ce module).
 
     Args:
         language: Langue.
@@ -55,7 +54,7 @@ def language_label(language: Language) -> str:
     Returns:
         Le libellé (ex: ``"français"``).
     """
-    return _LANGUAGE_LABELS_FR[language]
+    return _language_label(language)
 
 
 def invoke_llm(

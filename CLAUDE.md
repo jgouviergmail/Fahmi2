@@ -135,7 +135,8 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   `MediaIngestor`]), `anki/genanki_exporter` (`.apkg`),
   `export/markdown_pdf` (Markdown + PDF), `storage/sqlite_state` (WAL) +
   `fs_artifacts` (writes atomiques), `secrets/` (DPAPI Windows),
-  `prompts/loader` + `defaults/*.j2` (8 phases + 8 `pedagogy_*` + 3 `chat_*`).
+  `prompts/loader` + `defaults/*.j2` (8 phases + 3 `phase_5_*` thématiques +
+  8 `pedagogy_*` + 3 `chat_*`).
 - `app/` — use-cases : `ProjectService` (+ `get_last_completed_run`),
   `RunOrchestrator`, `SupportsOrchestrator`, `CostEstimator`,
   `PedagogyCostEstimator`, `pedagogy_export` (Anki/MD/PDF/HTML) + `generation_export`
@@ -165,7 +166,7 @@ Ordre canonique dans `phase_registry.py`. Chaque handler déclare `is_per_source
 | 2 Réconciliation glossaire | `phase_2_glossary_reconciliation` | batch |
 | 3 Reformulation | `phase_3_reformulation` | **par source** |
 | 4 Structuration | `phase_4_structuration` | **par source** |
-| 5 Consolidation | `phase_5_consolidation` | batch |
+| 5 Consolidation | `phase_5_consolidation` (dispatcher `ORDERED`/`THEMATIC`) | batch |
 | 6 Traduction | `phase_6_translation` | batch (boucle sources × langues) |
 | 7 Cohérence | `phase_7_coherence` | batch (boucle langues) |
 
@@ -185,6 +186,24 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
 
 ## Mécanismes transverses (à connaître avant de modifier)
 
+- **Modes de consolidation (phase 5)** : `GenerationSettings.consolidation_mode`
+  (`ConsolidationMode`, défaut `ORDERED`, migration *lenient*) sélectionne une
+  **stratégie** (`pipeline/handlers/_consolidation/` : ABC `ConsolidationStrategy`
+  + helpers déterministes partagés dans `_base.py` ; `ordered.py` = comportement
+  historique ; `thematic.py` = nouveau). `phase_5_consolidation.py` n'est plus
+  qu'un **dispatcher** (+ ré-exports de compat pour les tests historiques).
+  `ORDERED` : 1 source = 1 chapitre, contenu recopié. `THEMATIC` : **refonte
+  thématique transversale** par le LLM (rigueur sur le fond / souplesse sur la
+  forme) en map-reduce à provenance — T1 relevé factuel par source (ids tracés
+  `source#n` + extrait verbatim, artefacts `consolidation/facts_master.json` +
+  `facts.md`), T2 plan thématique (couverture déterministe #1 → chapitre filet
+  « Éléments complémentaires »), T3 rédaction par chapitre (couverture #2,
+  conflits présentés par source), T4 méta + assemblage déterministe réutilisé.
+  Reprise intra-phase via *hash de cohérence* (sans toucher `PipelineEngine`).
+  Coût : facteur dédié dans `CostEstimator` (pas d'enforcement runtime en
+  génération). UI : sélecteur dans `GenerationSettingsView` + note « ordre sans
+  effet » sur `SourceOrderView`. 3 prompts `phase_5_fact_ledger`/`_thematic_plan`/
+  `_thematic_chapter`. Spec : `docs/superpowers/specs/2026-05-26-modes-consolidation-thematique-design.md`.
 - **Coquille multi-fonctionnalités** : la zone projet est une `QTabWidget` peuplée
   par un `FeatureRegistry` (calqué sur `PhaseRegistry`). Un `Project` ne porte que
   nom + emplacement (immuable après création) ; les réglages métier sont par
@@ -238,7 +257,8 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
   le défaut bundlé dans `infra/prompts/defaults/`. `PromptsService` +
   `PromptsEditorDialog` exposent ça dans l'UI. Modifier un `.j2` de `defaults/`
   change la base pour tous, mais un override `%APPDATA%` le masque. Le catalogue
-  couvre les 8 phases **et** les 8 templates `pedagogy_*` (tous éditables pareil).
+  couvre les 8 phases, les **3 templates `phase_5_*` du mode thématique** **et**
+  les 8 templates `pedagogy_*` (tous éditables pareil).
 - **Supports pédagogiques** : 8 types, tous LLM, générés par un **orchestrateur
   dédié léger** (`SupportsOrchestrator`, **pas** le `PipelineEngine`) qui
   **parallélise les unités (langue × support)** via `core/concurrency/map_bounded`

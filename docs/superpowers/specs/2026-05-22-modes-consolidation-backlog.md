@@ -1,7 +1,11 @@
 # Modes de consolidation (ordre intelligent / refonte thématique) — backlog à brainstormer (Spec B)
 
 - **Date** : 2026-05-22
-- **Statut** : **backlog — à brainstormer** (pas encore une spec validée)
+- **Statut** : **partiellement réalisé** — le mode `THEMATIC_MERGE` a été conçu et
+  implémenté (renommé `THEMATIC`) ; voir la spec
+  `2026-05-26-modes-consolidation-thematique-design.md` et le plan
+  `docs/superpowers/plans/2026-05-26-consolidation-thematique-00-index.md`.
+  Le mode **`SMART_ORDER` reste parqué** (à brainstormer).
 - **Origine** : extrait de la discussion sur l'élargissement des entrants. Sorti
   de la Spec A (`2026-05-22-entrants-generation-elargis-design.md`) pour ne pas
   noyer une fonctionnalité ambitieuse dans une spec d'ingestion.

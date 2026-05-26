@@ -19,6 +19,11 @@ Application desktop Windows, mono-utilisateur, **installation en double-clic**
 - **Ordre & exclusion des sources** : l'ordre de traitement (donc l'ordre des
   chapitres du document final) est réglable par glisser-déposer ; toute source
   peut être exclue puis réincluse.
+- **Mode de consolidation** : **ordonné** (1 source = 1 chapitre, contenu recopié
+  dans l'ordre choisi) ou **refonte thématique** — le LLM agrège et restructure
+  transversalement les contenus de tous les entrants par thème, à la manière d'une
+  synthèse journalistique (rigueur sur le fond : aucun fait inventé, conflits entre
+  sources présentés ; souplesse sur la forme : fusion, déduplication, transitions).
 - 2 langues de sortie : **français** et **anglais**.
 - 2 providers STT (**modèle configurable par provider**) : **faster-whisper**
   local (GPU NVIDIA ; `large-v3-turbo` par défaut, ou `large-v3`/`medium`/`small`,

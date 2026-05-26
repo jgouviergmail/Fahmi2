@@ -22,6 +22,8 @@ _PROVIDER_BASE_URL = "https://api.deepseek.com"
 _PROVIDER_NAME = "deepseek"
 _REASONING_FIELD = "reasoning_content"
 _CACHED_TOKENS_FIELD = "prompt_cache_hit_tokens"
+#: ``finish_reason`` signalant une sortie coupée car la limite de tokens est atteinte.
+_FINISH_REASON_LENGTH = "length"
 
 # DeepSeek garde la connexion ouverte (keep-alive) et ne la ferme qu'après ~10
 # minutes sans démarrage d'inférence : timeout client large pour absorber les
@@ -296,6 +298,24 @@ def _parse_chat_response(payload: dict[str, Any], model: str) -> LLMResponse:
     prompt_tokens = int(usage.get("prompt_tokens", 0))
     completion_tokens = int(usage.get("completion_tokens", 0))
     cached_prompt_tokens = int(usage.get(_CACHED_TOKENS_FIELD, 0) or 0)
+
+    # Troncature à la limite de tokens : ne JAMAIS accepter un contenu coupé en
+    # silence (perte de données). On lève une erreur explicite et actionnable.
+    if choice.get("finish_reason") == _FINISH_REASON_LENGTH:
+        raise LLMError(
+            code="LLM.OUTPUT_TRUNCATED",
+            user_message=(
+                "La réponse du modèle a été tronquée (limite de tokens de sortie "
+                "atteinte). La source est probablement trop volumineuse pour un "
+                "seul traitement : réduis-la ou découpe-la en plusieurs entrées."
+            ),
+            severity=Severity.ERROR,
+            technical_details={
+                "provider": _PROVIDER_NAME,
+                "model": model,
+                "completion_tokens": completion_tokens,
+            },
+        )
 
     pricing = get_pricing(model)
     cost = pricing.cost_for(

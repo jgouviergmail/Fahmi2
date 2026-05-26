@@ -23,12 +23,16 @@ def _chat_payload(
     prompt_tokens: int = 100,
     completion_tokens: int = 30,
     cached: int = 0,
+    finish_reason: str | None = None,
 ) -> dict[str, Any]:
     message: dict[str, Any] = {"content": content}
     if reasoning is not None:
         message["reasoning_content"] = reasoning
+    choice: dict[str, Any] = {"message": message}
+    if finish_reason is not None:
+        choice["finish_reason"] = finish_reason
     return {
-        "choices": [{"message": message}],
+        "choices": [choice],
         "usage": {
             "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
@@ -56,6 +60,23 @@ def test_parse_chat_response_with_reasoning() -> None:
         "deepseek-v4-flash",
     )
     assert response.thinking_content == "step1\nstep2"
+
+
+def test_parse_chat_response_raises_on_length_truncation() -> None:
+    # finish_reason="length" = sortie coupée → erreur explicite (jamais silencieuse).
+    with pytest.raises(LLMError) as exc_info:
+        _parse_chat_response(
+            _chat_payload(content="texte coupé", finish_reason="length"),
+            "deepseek-v4-flash",
+        )
+    assert exc_info.value.code == "LLM.OUTPUT_TRUNCATED"
+
+
+def test_parse_chat_response_ok_when_finish_reason_stop() -> None:
+    response = _parse_chat_response(
+        _chat_payload(content="complet", finish_reason="stop"), "deepseek-v4-flash"
+    )
+    assert response.content == "complet"
 
 
 def test_parse_chat_response_with_cached_tokens() -> None:

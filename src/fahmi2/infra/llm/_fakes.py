@@ -97,7 +97,7 @@ class FakeLLMProvider:
             reasoning_effort: Niveau d'effort de raisonnement (enregistré
                 dans ``calls`` pour les assertions des tests).
             temperature: Température.
-            max_tokens: Ignoré (présent pour respecter l'interface).
+            max_tokens: Plafond de tokens de sortie (enregistré dans ``calls``).
 
         Returns:
             ``LLMResponse``.
@@ -105,7 +105,6 @@ class FakeLLMProvider:
         Raises:
             Fahmi2Error: Si un scénario d'échec match la clé.
         """
-        del max_tokens
         key = make_request_key(
             messages=messages,
             model=model,
@@ -120,6 +119,7 @@ class FakeLLMProvider:
                 "thinking": thinking,
                 "reasoning_effort": reasoning_effort,
                 "temperature": temperature,
+                "max_tokens": max_tokens,
             }
         )
         if key in self._failures:

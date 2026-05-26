@@ -12,6 +12,7 @@ from fahmi2.domain.generation import ParallelismConfig
 from fahmi2.domain.ids import SourceId
 from fahmi2.domain.source import InputSource, SourceExecution
 from fahmi2.infra.llm.interface import LLMResponse
+from fahmi2.pipeline.handlers._base import _MAX_OUTPUT_TOKENS
 from fahmi2.pipeline.handlers.phase_3_reformulation import Phase3ReformulationHandler
 from tests.unit.pipeline.handlers._helpers import (
     build_phase_context,
@@ -91,6 +92,25 @@ def test_execute_includes_top_k_glossary_terms_in_prompt(
     last_messages = fake_llm.calls[-1]["messages"]
     user_content = next(m.content for m in last_messages if m.role == "user")
     assert "PIB" in user_content
+
+
+def test_execute_sets_generous_max_tokens(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    # Anti-troncature : un max_tokens large est transmis au LLM (pas le petit
+    # défaut DeepSeek qui couperait une source volumineuse).
+    video = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / "v.mp4")),
+    )
+    ctx, _ = build_phase_context(
+        tmp_path, make_generation_settings, llm_response=_llm("ok"), sources=(video,)
+    )
+    write_transcription_fixture(ctx.workspace, video.source_id.value)
+    Phase3ReformulationHandler().execute(ctx, source=video)
+    fake_llm = ctx.llm_provider
+    assert hasattr(fake_llm, "calls")
+    assert fake_llm.calls[-1]["max_tokens"] == _MAX_OUTPUT_TOKENS
 
 
 def test_execute_raises_when_transcription_missing(

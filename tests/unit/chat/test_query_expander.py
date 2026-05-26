@@ -8,7 +8,7 @@ from fahmi2.chat.query_expander import QueryExpander
 from fahmi2.core.retrieval.passages import TfidfPassageRetriever
 from fahmi2.domain.chat import ChatSettings, CorpusChunk
 from fahmi2.infra.llm._fakes import FakeLLMProvider
-from fahmi2.infra.llm.interface import LLMResponse
+from fahmi2.infra.llm.interface import DEFAULT_MAX_OUTPUT_TOKENS, LLMResponse
 from fahmi2.infra.prompts.loader import PromptLoader
 
 
@@ -80,3 +80,27 @@ def test_consumed_cost_includes_expansion() -> None:
     )
     expander.retrieve(query="économie agrégée ?", top_k=3)  # déclenche l'expansion
     assert expander.consumed_cost_usd() == pytest.approx(0.002)
+
+
+def test_expansion_requests_generous_max_tokens() -> None:
+    inner = TfidfPassageRetriever(
+        (_chunk("1", "produit intérieur brut richesse nationale"),)
+    )
+    llm = FakeLLMProvider(
+        default_response=LLMResponse(
+            content="produit intérieur brut richesse",
+            thinking_content=None,
+            prompt_tokens=10,
+            completion_tokens=5,
+            cached_prompt_tokens=0,
+            cost_usd=0.0,
+        )
+    )
+    expander = QueryExpander(
+        inner=inner,
+        llm_provider=llm,
+        prompt_loader=PromptLoader(),
+        settings=ChatSettings(),
+    )
+    expander.retrieve(query="économie agrégée ?", top_k=3)  # déclenche l'expansion
+    assert llm.calls[-1]["max_tokens"] == DEFAULT_MAX_OUTPUT_TOKENS

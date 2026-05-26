@@ -9,7 +9,7 @@ import pytest
 from fahmi2.core.errors.exceptions import LLMError
 from fahmi2.domain.phase import PhaseConfig
 from fahmi2.infra.llm._fakes import FakeLLMProvider
-from fahmi2.infra.llm.interface import Message
+from fahmi2.infra.llm.interface import DEFAULT_MAX_OUTPUT_TOKENS, Message
 from fahmi2.infra.llm.invocation import invoke_llm_chat, parse_llm_json
 
 
@@ -43,6 +43,20 @@ def test_invoke_llm_chat_builds_messages_and_calls_provider() -> None:
     sent = cast("list[Message]", last_call["messages"])
     assert [m.role for m in sent] == ["system", "user"]
     assert last_call["model"] == "deepseek-v4-flash"
+
+
+def test_invoke_llm_chat_defaults_to_generous_max_tokens() -> None:
+    # Source unique du plafond anti-troncature : pipeline ET supports pédagogiques
+    # passent par ce helper, qui demande par défaut le plafond du modèle.
+    provider = FakeLLMProvider()
+    invoke_llm_chat(
+        provider,
+        model="deepseek-v4-flash",
+        config=PhaseConfig(),
+        system_prompt=None,
+        user_prompt="user",
+    )
+    assert provider.calls[-1]["max_tokens"] == DEFAULT_MAX_OUTPUT_TOKENS
 
 
 def test_invoke_llm_chat_without_system_prompt() -> None:

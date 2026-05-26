@@ -14,7 +14,12 @@ from typing import Any
 from fahmi2.core.errors.exceptions import LLMError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.phase import PhaseConfig
-from fahmi2.infra.llm.interface import LLMProvider, LLMResponse, Message
+from fahmi2.infra.llm.interface import (
+    DEFAULT_MAX_OUTPUT_TOKENS,
+    LLMProvider,
+    LLMResponse,
+    Message,
+)
 
 _RAW_CONTENT_MAX_CHARS = 500
 
@@ -26,7 +31,7 @@ def invoke_llm_chat(
     config: PhaseConfig,
     system_prompt: str | None,
     user_prompt: str,
-    max_tokens: int | None = None,
+    max_tokens: int | None = DEFAULT_MAX_OUTPUT_TOKENS,
 ) -> LLMResponse:
     """Appelle ``llm_provider.chat`` avec une ``PhaseConfig``.
 
@@ -36,7 +41,10 @@ def invoke_llm_chat(
         config: Config LLM (thinking / reasoning_effort / température).
         system_prompt: Prompt système optionnel.
         user_prompt: Prompt utilisateur (corps de la requête).
-        max_tokens: Borne supérieure de tokens en sortie (``None`` = défaut modèle).
+        max_tokens: Borne supérieure de tokens en sortie. **Défaut** :
+            ``DEFAULT_MAX_OUTPUT_TOKENS`` (plafond du modèle), pour éviter une
+            troncature silencieuse au petit défaut du provider — vaut pour le
+            pipeline **et** les supports pédagogiques (gros supports possibles).
 
     Returns:
         La ``LLMResponse``.

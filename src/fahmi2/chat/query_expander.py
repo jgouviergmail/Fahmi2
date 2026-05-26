@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from fahmi2.core.retrieval.passages import PassageRetriever
 from fahmi2.domain.chat import ChatSettings, RetrievedPassage
-from fahmi2.infra.llm.interface import LLMProvider, Message
+from fahmi2.infra.llm.interface import DEFAULT_MAX_OUTPUT_TOKENS, LLMProvider, Message
 from fahmi2.infra.prompts.loader import PromptLoader
 
 _PROMPT_QUERY_EXPANSION = "chat_query_expansion"
@@ -80,6 +80,7 @@ class QueryExpander:
             model=str(self._settings.model),
             thinking=False,
             temperature=self._settings.temperature,
+            max_tokens=DEFAULT_MAX_OUTPUT_TOKENS,
         )
         self._expansion_cost_usd += response.cost_usd
         return response.content.strip()

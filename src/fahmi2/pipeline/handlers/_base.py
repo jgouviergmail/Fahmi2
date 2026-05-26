@@ -17,7 +17,7 @@ from typing import Any
 
 from fahmi2.domain.enums import Language, PhaseId, PhaseStatus, StylePreset
 from fahmi2.domain.phase import PhaseExecution
-from fahmi2.infra.llm.interface import DEFAULT_MAX_OUTPUT_TOKENS, LLMResponse
+from fahmi2.infra.llm.interface import LLMResponse
 from fahmi2.infra.llm.invocation import invoke_llm_chat, parse_llm_json
 from fahmi2.pipeline.phase_handler import PhaseContext
 
@@ -64,17 +64,17 @@ def invoke_llm(
     phase_id: PhaseId,
     system_prompt: str | None,
     user_prompt: str,
-    max_tokens: int | None = DEFAULT_MAX_OUTPUT_TOKENS,
 ) -> LLMResponse:
     """Appelle le ``LLMProvider`` avec la ``PhaseConfig`` propre à ``phase_id``.
+
+    Le plafond de tokens de sortie (anti-troncature) est celui de ``invoke_llm_chat``
+    (``DEFAULT_MAX_OUTPUT_TOKENS``) — source unique partagée avec la pédagogie.
 
     Args:
         ctx: Contexte d'exécution.
         phase_id: Phase courante (sert à lire ``phases_config[phase_id]``).
         system_prompt: Prompt système optionnel.
         user_prompt: Prompt utilisateur (corps de la requête).
-        max_tokens: Tokens max de sortie (défaut ``DEFAULT_MAX_OUTPUT_TOKENS`` :
-            évite la troncature silencieuse du petit défaut du provider).
 
     Returns:
         ``LLMResponse``.
@@ -85,7 +85,6 @@ def invoke_llm(
         config=ctx.settings.phases_config[phase_id],
         system_prompt=system_prompt,
         user_prompt=user_prompt,
-        max_tokens=max_tokens,
     )
 
 

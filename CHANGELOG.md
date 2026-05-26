@@ -36,8 +36,10 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   fixé au **maximum du modèle** (`DEFAULT_MAX_OUTPUT_TOKENS = 384 000`, plafond de
   sortie partagé par les deux modèles DeepSeek V4) **et** détection d'une troncature
   résiduelle (`finish_reason="length"` → erreur explicite `LLM.OUTPUT_TRUNCATED` au
-  lieu d'une perte silencieuse). Le **Dialogue** demande désormais le **même
-  plafond** pour ses réponses (plus de coupure d'une réponse longue).
+  lieu d'une perte silencieuse). Ce plafond est désormais **le défaut de tous les
+  appels DeepSeek** (source unique `invoke_llm_chat`) : génération, **supports
+  pédagogiques** (gros supports comme l'examen blanc), **Dialogue** (réponses +
+  expansion de requête) — plus aucune sortie longue coupée.
 - **Génération → Réglages → Entrée & langues** : les listes « Sources à traiter »
   et « Exclues » étaient bornées en hauteur. La liste « Sources à traiter » suit
   désormais la hauteur de la fenêtre (extensible verticalement, priorité sur les

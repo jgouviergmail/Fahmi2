@@ -6,10 +6,15 @@ from enum import StrEnum
 
 
 class Language(StrEnum):
-    """Langues supportées en v1 (entrée et sortie)."""
+    """Langues supportées (entrée et sortie)."""
 
     FR = "fr"
     EN = "en"
+    DE = "de"
+    ES = "es"
+    IT = "it"
+    ZH = "zh"
+    AR = "ar"
 
 
 class StylePreset(StrEnum):

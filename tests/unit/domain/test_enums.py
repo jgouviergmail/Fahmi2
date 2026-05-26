@@ -17,7 +17,17 @@ from fahmi2.domain.enums import (
 
 
 def test_language_values() -> None:
-    assert {lang.value for lang in Language} == {"fr", "en"}
+    assert {lang.value for lang in Language} == {
+        "fr",
+        "en",
+        "de",
+        "es",
+        "it",
+        "zh",
+        "ar",
+    }
+    # FR reste en première position (défaut d'affichage et d'ordre).
+    assert next(iter(Language)) is Language.FR
 
 
 def test_style_preset_values() -> None:
@@ -91,4 +101,4 @@ def test_enum_from_str() -> None:
 
 def test_enum_rejects_unknown() -> None:
     with pytest.raises(ValueError):
-        Language("de")
+        Language("xx")

@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from fahmi2.domain.enums import ConsolidationMode, SourceKind
+from fahmi2.domain.enums import ConsolidationMode, PhaseStatus, SourceKind
 from fahmi2.domain.generation import ParallelismConfig
 from fahmi2.domain.ids import SourceId
 from fahmi2.domain.source import InputSource, SourceExecution
@@ -24,6 +24,7 @@ from fahmi2.pipeline.handlers._consolidation.thematic import (
     _reconcile_coverage,
     _render_facts_md,
 )
+from fahmi2.pipeline.handlers.phase_5_consolidation import Phase5ConsolidationHandler
 from tests.unit.pipeline.handlers._helpers import build_phase_context
 
 # --------------------------------------------------------------------------- #
@@ -231,6 +232,34 @@ def test_thematic_consolidate_end_to_end(
     assert (base / "thematic_plan.json").exists()
     assert (base / "coverage.json").exists()
     assert (base / "chapters" / "1.md").exists()
+
+
+def test_phase5_handler_dispatches_to_thematic(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    # Vérifie le câblage du dispatcher : le handler en mode THEMATIC produit
+    # bien le consolidé via la stratégie thématique.
+    sources = _two_sources(tmp_path)
+    fake = _sequential(_full_responses(sources))
+    ctx, _ = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        sources=sources,
+        settings_overrides={
+            "consolidation_mode": ConsolidationMode.THEMATIC,
+            "parallelism": ParallelismConfig(llm_workers=1),
+        },
+    )
+    ctx = _with_llm(ctx, fake)
+    _write_structured(ctx.workspace, sources[0].source_id.value, "# A\nContenu A")
+    _write_structured(ctx.workspace, sources[1].source_id.value, "# B\nContenu B")
+
+    result = Phase5ConsolidationHandler().execute(ctx, source=None)
+    assert result.status is PhaseStatus.SUCCEEDED
+    assert result.artifact_path == ctx.workspace / "consolidated_master.md"
+    assert result.artifact_path is not None
+    assert result.artifact_path.read_text(encoding="utf-8").startswith("# GT")
+    assert result.cost_usd > 0
 
 
 def test_thematic_reuses_fresh_artifacts_on_resume(

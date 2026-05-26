@@ -366,7 +366,9 @@ def _write_chapter_body(
         source_labels: Libellés lisibles par ``source_id``.
 
     Returns:
-        ``(corps Markdown assaini, ids utilisés, cost_usd)``.
+        ``(corps Markdown brut, ids utilisés, cost_usd)``. L'assainissement des
+        identifiants techniques est fait par ``_resolve_chapter`` (couvre aussi
+        la relecture d'un chapitre en cache).
     """
     elements_payload = _elements_payload_for_chapter(
         chapter.element_ids, by_id, source_labels
@@ -383,11 +385,7 @@ def _write_chapter_body(
         ctx, phase_id=PhaseId.CONSOLIDATION, system_prompt=None, user_prompt=prompt
     )
     payload = dict(parse_json_response(response.content, phase_id=PhaseId.CONSOLIDATION))
-    body = _strip_provenance_ids(
-        str(payload.get("body_markdown", "")).strip(),
-        by_id=by_id,
-        source_labels=source_labels,
-    )
+    body = str(payload.get("body_markdown", "")).strip()
     used = [str(x) for x in payload.get("used_element_ids", [])]
     return body, used, response.cost_usd
 
@@ -444,10 +442,16 @@ def _resolve_chapter(
     else:
         body, used, cost = _write_chapter_body(ctx, chapter, by_id, source_labels)
         renumbered, _ = renumber_subheadings(body, index)
-        ctx.artifacts.write_text_atomic(chapter_path, renumbered)
         gaps = _chapter_coverage_gaps(
             assigned=chapter.element_ids, used=tuple(used)
         )
+    # Assainissement systématique : aucun identifiant technique dans le livrable,
+    # y compris pour un chapitre relu depuis un cache écrit par une version
+    # antérieure (auto-cicatrisant). L'artefact est réécrit assaini.
+    renumbered = _strip_provenance_ids(
+        renumbered, by_id=by_id, source_labels=source_labels
+    )
+    ctx.artifacts.write_text_atomic(chapter_path, renumbered)
     chapter_obj = _Chapter(
         index=index,
         title=strip_existing_numbering(chapter.title) or f"Chapitre {index}",

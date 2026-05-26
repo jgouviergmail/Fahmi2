@@ -13,6 +13,7 @@ from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import (
     CloudSttModel,
+    ConsolidationMode,
     ExportFormat,
     LocalSttModel,
     PhaseId,
@@ -160,6 +161,27 @@ def test_generation_deserialize_lenient_without_stt_models(
     gen = _deserialize_generation_settings(payload)
     assert gen.stt_local_model is LocalSttModel.LARGE_V3_TURBO
     assert gen.stt_cloud_model is CloudSttModel.WHISPER_1
+
+
+def test_generation_consolidation_mode_round_trip(
+    make_generation_settings: Any,
+) -> None:
+    payload = _serialize_generation_settings(
+        make_generation_settings(consolidation_mode=ConsolidationMode.THEMATIC)
+    )
+    assert payload["consolidation_mode"] == "thematic"
+    gen = _deserialize_generation_settings(payload)
+    assert gen.consolidation_mode is ConsolidationMode.THEMATIC
+
+
+def test_generation_deserialize_lenient_without_consolidation_mode(
+    make_generation_settings: Any,
+) -> None:
+    # Un blob antérieur (sans le mode) retombe sur ORDERED.
+    payload = _serialize_generation_settings(make_generation_settings())
+    del payload["consolidation_mode"]
+    gen = _deserialize_generation_settings(payload)
+    assert gen.consolidation_mode is ConsolidationMode.ORDERED
 
 
 def test_get_unknown_project_returns_none(tmp_path: Path) -> None:

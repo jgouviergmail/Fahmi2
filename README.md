@@ -2,10 +2,11 @@
 
 > Transformez vos cours — **vidéos, fichiers audio, liens YouTube ou documents
 > texte** (PDF, Word, Markdown, txt) — en un **document Markdown consolidé et
-> structuré** (reformulé, chapitré, **glossaire**, **multilingue** FR/EN),
+> structuré** (reformulé, chapitré, **glossaire**, **multilingue** : français,
+> anglais, allemand, espagnol, italien, chinois, arabe),
 > assemblé **dans l'ordre** des sources ou par **refonte thématique** transversale.
 > Puis exploitez ce corpus sans effort : **supports de révision** (flashcards,
-> QCM, fiches, examen blanc…, exports Anki/PDF/HTML) et **Dialogue** (chat ancré
+> QCM, fiches, examen blanc…, exports Anki/PDF/HTML/Word) et **Dialogue** (chat ancré
 > sur le cours, réponses **citées**). Le tout en **quelques minutes** et **sans
 > intervention manuelle**.
 
@@ -31,7 +32,10 @@ DeepSeek v4), entièrement paramétrable via l'interface graphique.
   transversalement les contenus de tous les entrants par thème, à la manière d'une
   synthèse journalistique (rigueur sur le fond : aucun fait inventé, conflits entre
   sources présentés ; souplesse sur la forme : fusion, déduplication, transitions).
-- 2 langues de sortie : **français** et **anglais**.
+- 7 langues de sortie : **français**, **anglais**, **allemand**, **espagnol**,
+  **italien**, **chinois**, **arabe** (STT, glossaire, supports et Dialogue
+  inclus). Note : pour le chinois, le Dialogue privilégie le retrieval **sémantique**
+  (la recherche lexicale est peu adaptée aux langues sans espaces).
 - 2 providers STT (**modèle configurable par provider**) : **faster-whisper**
   local (GPU NVIDIA ; `large-v3-turbo` par défaut, ou `large-v3`/`medium`/`small`,
   téléchargés à la demande) ou **OpenAI** cloud (`whisper-1` par défaut, ou
@@ -177,10 +181,11 @@ sémantique) ; identité projet réduite à nom + emplacement, réglages
 par fonctionnalité.
 
 Export des supports en **Anki `.apkg`** (flashcards / cloze / QCM, ré-import sans
-doublon), **Markdown**, **PDF** et **HTML** (documents autonomes, sujet / corrigé
-séparés).
+doublon), **Markdown**, **PDF**, **HTML** et **Word (`.docx`)** (documents
+autonomes, sujet / corrigé séparés). Le rendu PDF gère le **chinois** (police
+Microsoft YaHei système) et l'**arabe** (droite-à-gauche + liaison contextuelle).
 
-951 tests passants, `mypy --strict` et `ruff` propres sur 375 fichiers.
+1017 tests passants, `mypy --strict` et `ruff` propres sur 389 fichiers.
 
 ## Licence
 

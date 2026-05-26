@@ -114,6 +114,13 @@ def test_elements_from_payload_prefixes_source() -> None:
     assert elements[1].donnees == "42"
 
 
+def test_elements_from_payload_assigns_sequential_ids_without_n() -> None:
+    # Robustesse : le LLM peut omettre "n" → ids attribués par position (uniques).
+    payload = {"elements": [{"enonce": "A"}, {"enonce": "B"}, {"enonce": "C"}]}
+    elements = _elements_from_payload(payload, source_id="s1")
+    assert [e.id for e in elements] == ["s1#1", "s1#2", "s1#3"]
+
+
 def test_render_facts_md_uses_readable_labels_not_ulids() -> None:
     els = [
         _FactElement("01ULIDA#1", "01ULIDA", "fait", "E1", "", "v1"),
@@ -306,6 +313,49 @@ def test_final_document_contains_no_raw_provenance_ids(
     assert sources[0].source_id.value not in result.consolidated_markdown
     assert ids[0] not in result.consolidated_markdown
     assert "Source 1" in result.consolidated_markdown
+
+
+def test_raw_id_in_chapter_title_is_stripped(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    # Un id technique glissé dans un TITRE de chapitre (plan T2) ne doit pas
+    # fuiter dans le sommaire / l'en-tête / les méta-éléments.
+    sources = _two_sources(tmp_path)
+    ids = [f"{s.source_id.value}#1" for s in sources]
+    plan = {
+        "global_title": "GT",
+        "chapters": [{"title": f"Thème {ids[0]}", "order": 1, "element_ids": ids}],
+    }
+    chapter = {"body_markdown": "## Sous\nTexte.", "used_element_ids": ids}
+    meta = {"global_title": "GT", "introduction_markdown": "Intro."}
+    fake = _sequential(
+        [
+            _resp(_ledger("E0")),
+            _resp(_ledger("E1")),
+            _resp(json.dumps(plan)),
+            _resp(json.dumps(chapter)),
+            _resp(json.dumps(meta), 0.005),
+        ]
+    )
+    ctx, _ = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        sources=sources,
+        settings_overrides={
+            "consolidation_mode": ConsolidationMode.THEMATIC,
+            "parallelism": ParallelismConfig(llm_workers=1),
+        },
+    )
+    ctx = _with_llm(ctx, fake)
+    _write_structured(ctx.workspace, sources[0].source_id.value, "# A\nContenu A")
+    _write_structured(ctx.workspace, sources[1].source_id.value, "# B\nContenu B")
+
+    structured = load_all_structured(ctx.workspace, ctx.run.sources)
+    result = ThematicConsolidationStrategy().consolidate(ctx, structured)
+
+    assert ids[0] not in result.consolidated_markdown
+    assert sources[0].source_id.value not in result.consolidated_markdown
+    assert "Thème Source 1" in result.consolidated_markdown
 
 
 def test_phase5_handler_dispatches_to_thematic(

@@ -115,11 +115,12 @@ def _elements_from_payload(
         source_id: Source d'origine.
 
     Returns:
-        Les éléments, dans l'ordre du relevé.
+        Les éléments, dans l'ordre du relevé. L'identifiant ``n`` est attribué par
+        **énumération** (1-based), pas lu du LLM : ids uniques garantis et aucune
+        dépendance à un champ que le modèle pourrait omettre.
     """
     out: list[_FactElement] = []
-    for raw in payload.get("elements", []):
-        n = int(raw["n"])
+    for n, raw in enumerate(payload.get("elements", []), start=1):
         out.append(
             _FactElement(
                 id=f"{source_id}#{n}",
@@ -452,9 +453,16 @@ def _resolve_chapter(
         renumbered, by_id=by_id, source_labels=source_labels
     )
     ctx.artifacts.write_text_atomic(chapter_path, renumbered)
+    # Le titre vient du plan (qui voit les ids) : on l'assainit aussi, sinon un id
+    # glissé dans un titre fuiterait dans le sommaire et les méta-éléments (T4).
+    title = _strip_provenance_ids(
+        strip_existing_numbering(chapter.title),
+        by_id=by_id,
+        source_labels=source_labels,
+    )
     chapter_obj = _Chapter(
         index=index,
-        title=strip_existing_numbering(chapter.title) or f"Chapitre {index}",
+        title=title or f"Chapitre {index}",
         body=renumbered,
         subheadings=subheadings_of(renumbered),
     )

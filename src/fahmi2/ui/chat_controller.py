@@ -237,25 +237,35 @@ class ChatController(QObject):
             self._load_corpus(self._project)
             self._apply_state()
 
+    def _resolve_content_language(self, project: Project) -> Language | None:
+        """Résout la langue de contenu du corpus (doc consolidé disponible).
+
+        Args:
+            project: Projet concerné.
+
+        Returns:
+            La langue de contenu, ou ``None`` si aucun consolidé n'existe.
+        """
+        source_language = (
+            project.generation.source_language
+            if project.generation is not None
+            else Language.FR
+        )
+        return resolve_content_language(
+            self._generation_output_dir(project), source_language, source_language
+        )
+
     def _load_corpus(self, project: Project) -> None:
         """(Re)dérive le corpus (chunks + glossaire + langue) et l'empreinte.
 
         Args:
             project: Projet dont on charge le corpus.
         """
-        generation_output_dir = self._generation_output_dir(project)
         generation_dir = self._generation_dir(project)
-        source_language = (
-            project.generation.source_language
-            if project.generation is not None
-            else Language.FR
-        )
-        self._content_language = resolve_content_language(
-            generation_output_dir, source_language, source_language
-        )
+        self._content_language = self._resolve_content_language(project)
         if self._content_language is not None:
             self._chunks = load_corpus_chunks(
-                generation_output_dir=generation_output_dir,
+                generation_output_dir=self._generation_output_dir(project),
                 generation_dir=generation_dir,
                 language=self._content_language,
             )
@@ -276,17 +286,9 @@ class ChatController(QObject):
         Returns:
             ``(langue de contenu, mtime du consolidé, mtime du glossaire)``.
         """
-        generation_output_dir = self._generation_output_dir(project)
-        source_language = (
-            project.generation.source_language
-            if project.generation is not None
-            else Language.FR
-        )
-        content_language = resolve_content_language(
-            generation_output_dir, source_language, source_language
-        )
+        content_language = self._resolve_content_language(project)
         consolidated_mtime = (
-            source_mtime_ns(generation_output_dir, content_language)
+            source_mtime_ns(self._generation_output_dir(project), content_language)
             if content_language is not None
             else None
         )

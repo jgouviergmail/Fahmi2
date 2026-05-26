@@ -266,11 +266,24 @@ def _citations_html(citations: tuple[Citation, ...]) -> str:
     if not citations:
         return ""
     items = "".join(
-        f'<li><a href="{html.escape(c.anchor)}">§ {html.escape(c.chapter_title)} › '
+        f'<li><a href="{html.escape(c.anchor)}" '
+        f'title="{_tooltip(c.snippet)}">§ {html.escape(c.chapter_title)} › '
         f"{html.escape(c.section_title)}</a></li>"
         for c in citations
     )
     return f"<p><small>Sources :</small></p><ul>{items}</ul>"
+
+
+def _tooltip(snippet: str) -> str:
+    """Aperçu (échappé, sur une ligne) du passage cité, pour l'attribut ``title``.
+
+    Args:
+        snippet: Extrait du passage (déjà tronqué côté domaine).
+
+    Returns:
+        Le texte d'infobulle, échappé HTML et aplati sur une seule ligne.
+    """
+    return html.escape(" ".join(snippet.split()))
 
 
 def show_passage_dialog(parent: QWidget, *, title: str, markdown_text: str) -> None:

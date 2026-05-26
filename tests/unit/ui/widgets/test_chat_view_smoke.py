@@ -6,7 +6,7 @@ from pytestqt.qtbot import QtBot
 
 from fahmi2.domain.chat import ChatMessage, Citation
 from fahmi2.domain.enums import ChatTabState
-from fahmi2.ui.widgets.chat_view import ChatView
+from fahmi2.ui.widgets.chat_view import ChatView, _citations_html
 
 
 def test_streaming_then_finalize(qtbot: QtBot) -> None:
@@ -33,6 +33,22 @@ def test_streaming_then_finalize(qtbot: QtBot) -> None:
     plain = view._thread.toPlainText()  # noqa: SLF001 — smoke d'assemblage
     assert "Le PIB mesure la richesse." in plain
     assert "Sources" in plain
+
+
+def test_citation_link_carries_snippet_tooltip() -> None:
+    # L'extrait (snippet) du passage cité devient l'infobulle (title) du lien source,
+    # aplati sur une ligne.
+    citations = (
+        Citation(
+            chapter_title="Éco",
+            section_title="PIB",
+            anchor="pib",
+            snippet="Le produit intérieur brut\nmesure la richesse produite.",
+        ),
+    )
+    html_out = _citations_html(citations)
+    assert 'title="Le produit intérieur brut mesure la richesse produite."' in html_out
+    assert 'href="pib"' in html_out
 
 
 def test_question_submitted_signal(qtbot: QtBot) -> None:

@@ -36,7 +36,8 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   fixé au **maximum du modèle** (`DEFAULT_MAX_OUTPUT_TOKENS = 384 000`, plafond de
   sortie partagé par les deux modèles DeepSeek V4) **et** détection d'une troncature
   résiduelle (`finish_reason="length"` → erreur explicite `LLM.OUTPUT_TRUNCATED` au
-  lieu d'une perte silencieuse).
+  lieu d'une perte silencieuse). Le **Dialogue** demande désormais le **même
+  plafond** pour ses réponses (plus de coupure d'une réponse longue).
 - **Génération → Réglages → Entrée & langues** : les listes « Sources à traiter »
   et « Exclues » étaient bornées en hauteur. La liste « Sources à traiter » suit
   désormais la hauteur de la fenêtre (extensible verticalement, priorité sur les
@@ -91,7 +92,8 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - Nouvel onglet **Dialogue** : chat conversationnel ancré sur le corpus produit
   par la Génération (document **consolidé** + **glossaire**). Réponses **citées**
-  (chapitre › section, cliquables) et **diffusées en streaming** (token par token).
+  (chapitre › section, cliquables, **aperçu du passage en infobulle au survol**) et
+  **diffusées en streaming** (token par token).
 - **Fidélité configurable** : mode **strict** (réponse uniquement depuis le cours,
   refus poli hors-corpus) ou **augmenté** (complément « Au-delà du cours » balisé).
 - **Retrieval en port extensible** : **lexical TF-IDF** (hors-ligne) ou

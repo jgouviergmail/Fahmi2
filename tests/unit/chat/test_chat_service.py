@@ -9,7 +9,7 @@ from fahmi2.core.retrieval.passages import TfidfPassageRetriever
 from fahmi2.domain.chat import ChatSettings, CorpusChunk, RetrievedPassage
 from fahmi2.domain.enums import Language
 from fahmi2.infra.llm._fakes import FakeLLMProvider
-from fahmi2.infra.llm.interface import LLMResponse
+from fahmi2.infra.llm.interface import DEFAULT_MAX_OUTPUT_TOKENS, LLMResponse
 from fahmi2.infra.prompts.loader import PromptLoader
 
 
@@ -113,6 +113,33 @@ def test_answer_includes_retrieval_cost_in_total() -> None:
     )
     # 0.01 (LLM) + 0.003 (embeddings/expansion) → coût exhaustif.
     assert message.cost_usd == pytest.approx(0.013)
+
+
+def test_answer_and_stream_request_generous_max_tokens() -> None:
+    # Le Dialogue demande le même plafond de sortie que la génération (anti-troncature).
+    retriever = TfidfPassageRetriever((_chunk("1", "Le PIB mesure la richesse."),))
+    response = LLMResponse(
+        content="Le PIB [§1].",
+        thinking_content=None,
+        prompt_tokens=10,
+        completion_tokens=5,
+        cached_prompt_tokens=0,
+        cost_usd=0.01,
+    )
+    fake = FakeLLMProvider(default_response=response)
+    service = ChatService(llm_provider=fake, prompt_loader=PromptLoader())
+    kwargs = {
+        "question": "Qu'est-ce que le PIB ?",
+        "retriever": retriever,
+        "glossary_text": "",
+        "history": (),
+        "settings": ChatSettings(),
+        "language": Language.FR,
+    }
+    service.answer(**kwargs)  # type: ignore[arg-type]
+    assert fake.calls[-1]["max_tokens"] == DEFAULT_MAX_OUTPUT_TOKENS
+    list(service.stream_answer(**kwargs))  # type: ignore[arg-type]  # consomme le flux
+    assert fake.calls[-1]["max_tokens"] == DEFAULT_MAX_OUTPUT_TOKENS
 
 
 def test_answer_no_citation_when_empty_corpus() -> None:

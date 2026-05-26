@@ -17,7 +17,12 @@ from fahmi2.chat.prompt_builder import build_chat_messages
 from fahmi2.core.retrieval.passages import PassageRetriever
 from fahmi2.domain.chat import ChatMessage, ChatSettings, RetrievedPassage
 from fahmi2.domain.enums import Language
-from fahmi2.infra.llm.interface import LLMProvider, LLMResponse, Message
+from fahmi2.infra.llm.interface import (
+    DEFAULT_MAX_OUTPUT_TOKENS,
+    LLMProvider,
+    LLMResponse,
+    Message,
+)
 from fahmi2.infra.prompts.loader import PromptLoader
 
 
@@ -86,6 +91,7 @@ class ChatService:
             thinking=settings.thinking_enabled,
             reasoning_effort=self._reasoning_effort(settings),
             temperature=settings.temperature,
+            max_tokens=DEFAULT_MAX_OUTPUT_TOKENS,
         )
         return self._build_message(response, passages, retriever.consumed_cost_usd())
 
@@ -129,6 +135,7 @@ class ChatService:
             thinking=settings.thinking_enabled,
             reasoning_effort=self._reasoning_effort(settings),
             temperature=settings.temperature,
+            max_tokens=DEFAULT_MAX_OUTPUT_TOKENS,
         ):
             if chunk.is_final and chunk.response is not None:
                 final_response = chunk.response

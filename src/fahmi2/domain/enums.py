@@ -78,6 +78,19 @@ class LLMModel(StrEnum):
     DEEPSEEK_V4_PRO = "deepseek-v4-pro"
 
 
+class EmbeddingModel(StrEnum):
+    """Modèles d'embedding OpenAI supportés (retrieval sémantique du Dialogue).
+
+    Le retrieval **lexical** n'en consomme aucun ; en mode cloud (``AUTO`` ou
+    ``SEMANTIC``), l'utilisateur choisit le compromis coût/précision. Changer de
+    modèle modifie l'empreinte de l'index, ce qui force une **réindexation**.
+    """
+
+    TEXT_EMBEDDING_3_SMALL = "text-embedding-3-small"  # défaut : économique
+    TEXT_EMBEDDING_3_LARGE = "text-embedding-3-large"  # précision supérieure
+    TEXT_EMBEDDING_ADA_002 = "text-embedding-ada-002"  # génération précédente
+
+
 class ReasoningEffort(StrEnum):
     """Niveau d'effort de raisonnement (DeepSeek ``reasoning_effort``).
 

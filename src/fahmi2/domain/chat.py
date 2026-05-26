@@ -13,6 +13,7 @@ from typing import Literal
 
 from fahmi2.domain.enums import (
     ChatGroundingMode,
+    EmbeddingModel,
     Language,
     LLMModel,
     ReasoningEffort,
@@ -152,6 +153,8 @@ class ChatSettings:
         retrieval_strategy: Stratégie de retrieval (``AUTO`` par défaut).
         query_expansion_enabled: Active la reformulation LLM si retrieval faible.
         model: Modèle LLM pour les réponses.
+        embedding_model: Modèle d'embedding (retrieval sémantique ; ignoré en
+            lexical). Changer ce modèle force une réindexation du corpus.
         thinking_enabled: Active le mode raisonnement DeepSeek.
         reasoning_effort: Niveau de raisonnement (si ``thinking_enabled``).
         temperature: Température LLM.
@@ -162,6 +165,7 @@ class ChatSettings:
     retrieval_strategy: RetrievalStrategy = RetrievalStrategy.AUTO
     query_expansion_enabled: bool = True
     model: LLMModel = LLMModel.DEEPSEEK_V4_FLASH
+    embedding_model: EmbeddingModel = EmbeddingModel.TEXT_EMBEDDING_3_SMALL
     thinking_enabled: bool = False
     reasoning_effort: ReasoningEffort | None = None
     temperature: float = _DEFAULT_CHAT_TEMPERATURE

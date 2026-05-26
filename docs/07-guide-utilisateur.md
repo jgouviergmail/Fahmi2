@@ -245,8 +245,8 @@ conversation**) ; elles sont conservées même après fermeture de l'application
 
 Le bouton **⚙ Réglages** permet de choisir le mode de réponse (strict, ou
 « augmenté » qui complète avec des connaissances générales), la méthode de
-recherche dans le cours et le modèle — voir [04-parametrage.md](04-parametrage.md)
-§3ter.
+recherche dans le cours, le modèle LLM **et** le modèle d'embedding (recherche
+sémantique) — voir [04-parametrage.md](04-parametrage.md) §3ter.
 
 ## 10. Dépannage
 

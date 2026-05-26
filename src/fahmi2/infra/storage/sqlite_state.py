@@ -34,6 +34,7 @@ from fahmi2.domain.chat import ChatSettings
 from fahmi2.domain.enums import (
     BloomObjective,
     ChatGroundingMode,
+    EmbeddingModel,
     ExportFormat,
     Language,
     LLMModel,
@@ -311,6 +312,7 @@ def _serialize_chat_settings(chat: ChatSettings) -> dict[str, Any]:
         "retrieval_strategy": str(chat.retrieval_strategy),
         "query_expansion_enabled": chat.query_expansion_enabled,
         "model": str(chat.model),
+        "embedding_model": str(chat.embedding_model),
         "thinking_enabled": chat.thinking_enabled,
         "reasoning_effort": (
             str(chat.reasoning_effort) if chat.reasoning_effort is not None else None
@@ -338,6 +340,9 @@ def _deserialize_chat_settings(payload: dict[str, Any]) -> ChatSettings:
         retrieval_strategy=RetrievalStrategy(payload["retrieval_strategy"]),
         query_expansion_enabled=bool(payload.get("query_expansion_enabled", True)),
         model=LLMModel(payload["model"]),
+        embedding_model=EmbeddingModel(
+            payload.get("embedding_model", EmbeddingModel.TEXT_EMBEDDING_3_SMALL)
+        ),
         thinking_enabled=bool(payload.get("thinking_enabled", False)),
         reasoning_effort=(
             ReasoningEffort(payload["reasoning_effort"])

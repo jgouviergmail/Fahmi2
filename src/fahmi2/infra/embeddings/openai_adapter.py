@@ -1,6 +1,7 @@
 """``OpenAIEmbeddingProvider`` — embeddings via l'API OpenAI.
 
-Utilise le SDK ``openai`` (déjà présent pour Whisper cloud) avec le modèle
+Utilise le SDK ``openai`` (déjà présent pour Whisper cloud). Le modèle est
+configurable (cf. :class:`fahmi2.domain.enums.EmbeddingModel`), défaut
 ``text-embedding-3-small``. Réutilise la clé OpenAI gérée par ``SecretsService``.
 """
 
@@ -8,9 +9,10 @@ from __future__ import annotations
 
 from openai import OpenAI
 
+from fahmi2.domain.enums import EmbeddingModel
 from fahmi2.infra.embeddings._pricing import embedding_cost_usd
 
-_MODEL = "text-embedding-3-small"
+_MODEL = str(EmbeddingModel.TEXT_EMBEDDING_3_SMALL)
 
 
 class OpenAIEmbeddingProvider:

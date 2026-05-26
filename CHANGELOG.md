@@ -18,6 +18,10 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   **sémantique** (embeddings OpenAI) ; stratégie **AUTO** (sémantique si une clé
   OpenAI est présente, sinon lexical) avec **query expansion** LLM à la demande.
   Index sémantique persisté (`chat/index.{lang}.npz`) avec empreinte de validité.
+- **Modèle d'embedding configurable** (mode cloud) : `text-embedding-3-small`
+  (défaut), `text-embedding-3-large` ou `text-embedding-ada-002`, choisis dans les
+  réglages comme le modèle LLM. Changer de modèle **réindexe** le corpus (le modèle
+  fait partie de l'empreinte d'index).
 - **Conversations multiples** persistées par projet ; **coût** par message et
   cumulé **exhaustif** : il agrège la réponse (DeepSeek), les **embeddings** du
   retrieval sémantique (indexation initiale + chaque question) et la reformulation

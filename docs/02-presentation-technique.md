@@ -292,9 +292,11 @@ Génération (consolidé + glossaire).
   LLM à la demande si retrieval faible), `retriever_factory.py` (résolution `AUTO` +
   repli), `chat_service.py` (`answer` + `stream_answer`).
 - `infra/embeddings/` — port `EmbeddingProvider` + `OpenAIEmbeddingProvider`
-  (`text-embedding-3-small`) + fake. `infra/retrieval/semantic.py` —
-  `SemanticPassageRetriever` (index `.npz` persisté + empreinte de validité, cosine
-  numpy).
+  (modèle **configurable** via `EmbeddingModel`, défaut `text-embedding-3-small`) +
+  `_pricing` (USD/Mtok par modèle) + fake. Le port expose `consumed_cost_usd()`
+  (coût agrégé dans le total du Dialogue). `infra/retrieval/semantic.py` —
+  `SemanticPassageRetriever` (index `.npz` persisté + empreinte de validité incluant
+  le modèle, cosine numpy).
 - `infra/llm` — extension **additive** `chat_stream` (port + DeepSeek + fake) ;
   `stream_options.include_usage` → coût exact en streaming.
 - `app/chat_conversation_store.py` — persistance JSON des conversations

@@ -12,6 +12,7 @@ from fahmi2.domain.chat import (
 )
 from fahmi2.domain.enums import (
     ChatGroundingMode,
+    EmbeddingModel,
     Language,
     LLMModel,
     RetrievalStrategy,
@@ -84,8 +85,15 @@ def test_chat_settings_defaults() -> None:
     assert settings.retrieval_strategy is RetrievalStrategy.AUTO
     assert settings.query_expansion_enabled is True
     assert settings.model is LLMModel.DEEPSEEK_V4_FLASH
+    assert settings.embedding_model is EmbeddingModel.TEXT_EMBEDDING_3_SMALL
     assert settings.thinking_enabled is False
     assert settings.top_k == 6
+
+
+def test_embedding_model_values() -> None:
+    assert EmbeddingModel.TEXT_EMBEDDING_3_SMALL.value == "text-embedding-3-small"
+    assert EmbeddingModel.TEXT_EMBEDDING_3_LARGE.value == "text-embedding-3-large"
+    assert EmbeddingModel.TEXT_EMBEDDING_ADA_002.value == "text-embedding-ada-002"
 
 
 def test_chat_settings_with_helpers() -> None:

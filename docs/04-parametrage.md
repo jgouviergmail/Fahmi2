@@ -262,6 +262,7 @@ Onglet **Dialogue → ⚙ Réglages** :
 |---------|-------------|
 | **Fidélité** | `strict` (défaut : répond uniquement à partir du cours, cite ses sources `[§N]`, refuse poliment hors-corpus) ou `augmenté` (peut compléter avec ses connaissances générales dans une section « Au-delà du cours » balisée). |
 | **Retrieval** | `auto` (défaut : sémantique si une clé OpenAI est présente, sinon lexical), `lexical` (TF-IDF, 100 % hors-ligne) ou `sémantique` (embeddings OpenAI). |
+| **Modèle d'embedding** | Modèle OpenAI du retrieval **cloud** (auto/sémantique) : `text-embedding-3-small` (défaut, économique), `text-embedding-3-large` (précision supérieure) ou `text-embedding-ada-002` (génération précédente). Sans effet en lexical (combo grisé). **Changer de modèle force une réindexation** du corpus à la prochaine question (l'empreinte d'index inclut le modèle). |
 | **Expansion de requête** | Activée par défaut : reformule la question en mots-clés via le LLM quand le retrieval lexical est faible (améliore le rappel). |
 | **Modèle & raisonnement** | Modèle LLM (`deepseek-v4-flash`/`pro`), mode raisonnement + effort, température. |
 | **Passages (top-K)** | Nombre d'extraits du cours injectés en contexte (défaut 6). |

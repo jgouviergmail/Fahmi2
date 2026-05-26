@@ -111,6 +111,17 @@ def test_consumed_cost_usd_tracks_embeddings(tmp_path: Path) -> None:
     assert retriever.consumed_cost_usd() == pytest.approx(0.02)
 
 
+def test_fingerprint_changes_with_model() -> None:
+    # Changer le modèle d'embedding modifie l'empreinte → force la réindexation.
+    small = build_index_fingerprint(
+        model="text-embedding-3-small", source_mtime_ns=1, language=Language.FR
+    )
+    large = build_index_fingerprint(
+        model="text-embedding-3-large", source_mtime_ns=1, language=Language.FR
+    )
+    assert small != large
+
+
 def test_purge_index_removes_file(tmp_path: Path) -> None:
     index_path = tmp_path / "index.npz"
     SemanticPassageRetriever(

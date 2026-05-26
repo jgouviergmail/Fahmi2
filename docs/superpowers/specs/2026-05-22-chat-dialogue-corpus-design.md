@@ -210,8 +210,10 @@ class EmbeddingProvider(Protocol):
     def embed_query(self, text: str) -> list[float]: ...
 ```
 - `OpenAIEmbeddingProvider` (`infra/embeddings/openai_adapter.py`) : SDK `openai`
-  (déjà présent), modèle `text-embedding-3-small` (constante), clé via
-  `SecretsService`. Coût d'embedding négligeable (cours entier ≈ quelques centimes).
+  (déjà présent), modèle **configurable** (`EmbeddingModel`, défaut
+  `text-embedding-3-small`), clé via `SecretsService`. Coût d'embedding agrégé
+  (`consumed_cost_usd()`, grille `_pricing` par modèle) au total du Dialogue —
+  négligeable en pratique (cours entier ≈ quelques centimes).
   > **Pourquoi OpenAI et non DeepSeek** : DeepSeek **n'expose pas** d'API
   > d'embeddings (vérifié, cf. §6.0). OpenAI est le choix naturel (clé déjà gérée
   > pour Whisper cloud). Le port `EmbeddingProvider` laisse la porte ouverte à un

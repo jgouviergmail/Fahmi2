@@ -1,8 +1,10 @@
 """Dialogue de réglages de l'onglet Dialogue (chat).
 
 Formulaire simple (peu de réglages → un master-detail serait surdimensionné) :
-fidélité, stratégie de retrieval, query expansion, modèle, raisonnement,
-température, top-K. ``get_chat_settings`` reconstruit un ``ChatSettings`` immuable.
+fidélité, stratégie de retrieval, query expansion, modèle LLM, modèle d'embedding,
+raisonnement, température, top-K. ``get_chat_settings`` reconstruit un
+``ChatSettings`` immuable. Le combo modèle d'embedding n'est actif qu'en mode cloud
+(retrieval ``AUTO``/``SEMANTIC``) : il est sans effet en lexical (100 % local).
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ from PySide6.QtWidgets import (
 from fahmi2.domain.chat import ChatSettings
 from fahmi2.domain.enums import (
     ChatGroundingMode,
+    EmbeddingModel,
     LLMModel,
     ReasoningEffort,
     RetrievalStrategy,
@@ -51,6 +54,11 @@ _STRATEGY_LABELS = {
 _MODEL_LABELS = {
     LLMModel.DEEPSEEK_V4_FLASH: "DeepSeek V4 Flash (économique)",
     LLMModel.DEEPSEEK_V4_PRO: "DeepSeek V4 Pro (capacité supérieure)",
+}
+_EMBEDDING_MODEL_LABELS = {
+    EmbeddingModel.TEXT_EMBEDDING_3_SMALL: "text-embedding-3-small (économique)",
+    EmbeddingModel.TEXT_EMBEDDING_3_LARGE: "text-embedding-3-large (précision +)",
+    EmbeddingModel.TEXT_EMBEDDING_ADA_002: "text-embedding-ada-002 (génération précédente)",
 }
 _REASONING_LABELS = {
     ReasoningEffort.HIGH: "Élevé (high)",
@@ -82,6 +90,9 @@ class ChatSettingsView(QDialog):
         self._query_expansion = QCheckBox(self)
         self._query_expansion.setChecked(settings.query_expansion_enabled)
         self._model = _enum_combo(self, _MODEL_LABELS, settings.model)
+        self._embedding_model = _enum_combo(
+            self, _EMBEDDING_MODEL_LABELS, settings.embedding_model
+        )
         self._thinking = QCheckBox(self)
         self._thinking.setChecked(settings.thinking_enabled)
         self._reasoning = self._build_reasoning_combo(settings.reasoning_effort)
@@ -97,10 +108,15 @@ class ChatSettingsView(QDialog):
         form.addRow("Retrieval", self._strategy)
         form.addRow("Expansion de requête", self._query_expansion)
         form.addRow("Modèle LLM", self._model)
+        form.addRow("Modèle d'embedding", self._embedding_model)
         form.addRow("Mode raisonnement", self._thinking)
         form.addRow("Effort de raisonnement", self._reasoning)
         form.addRow("Température", self._temperature)
         form.addRow("Passages (top-K)", self._top_k)
+
+        # Le modèle d'embedding n'a d'effet qu'en retrieval cloud (AUTO/SEMANTIC).
+        self._strategy.currentIndexChanged.connect(self._sync_embedding_enabled)
+        self._sync_embedding_enabled()
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
@@ -121,11 +137,17 @@ class ChatSettingsView(QDialog):
             retrieval_strategy=RetrievalStrategy(self._strategy.currentData()),
             query_expansion_enabled=self._query_expansion.isChecked(),
             model=LLMModel(self._model.currentData()),
+            embedding_model=EmbeddingModel(self._embedding_model.currentData()),
             thinking_enabled=self._thinking.isChecked(),
             reasoning_effort=self._selected_reasoning(),
             temperature=self._temperature.value(),
             top_k=self._top_k.value(),
         )
+
+    def _sync_embedding_enabled(self) -> None:
+        """Active le combo d'embedding hors mode lexical (cloud uniquement)."""
+        is_cloud = self._strategy.currentData() != str(RetrievalStrategy.LEXICAL)
+        self._embedding_model.setEnabled(is_cloud)
 
     def _build_reasoning_combo(self, initial: ReasoningEffort | None) -> QComboBox:
         combo = QComboBox(self)

@@ -402,7 +402,7 @@ class ChatController(QObject):
             Le ``PassageRetriever`` adapté à la stratégie configurée.
         """
         assert self._project is not None and self._content_language is not None
-        embedding_provider, embedding_model = self._embedding_provider()
+        embedding_provider, embedding_model = self._embedding_provider(settings)
         generation_output_dir = self._generation_output_dir(self._project)
         return build_passage_retriever(
             chunks=chunks,
@@ -419,8 +419,13 @@ class ChatController(QObject):
             artifacts=FsArtifactStore(),
         )
 
-    def _embedding_provider(self) -> tuple[EmbeddingProvider | None, str]:
+    def _embedding_provider(
+        self, settings: ChatSettings
+    ) -> tuple[EmbeddingProvider | None, str]:
         """Fournit un ``EmbeddingProvider`` OpenAI si une clé est disponible.
+
+        Args:
+            settings: Réglages du chat (modèle d'embedding choisi).
 
         Returns:
             ``(provider, model)`` ; ``(None, "")`` sans clé OpenAI (repli lexical).
@@ -429,7 +434,9 @@ class ChatController(QObject):
             return None, ""
         openai_key = self._secrets_service.get_openai_api_key()
         assert openai_key is not None  # garanti par has_openai_key
-        provider = OpenAIEmbeddingProvider(api_key=openai_key)
+        provider = OpenAIEmbeddingProvider(
+            api_key=openai_key, model=str(settings.embedding_model)
+        )
         return provider, provider.model
 
     @staticmethod

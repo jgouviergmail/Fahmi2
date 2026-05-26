@@ -275,9 +275,9 @@ class GenerationSettingsView(QDialog):
         # ajoutée directement au QVBoxLayout avec stretch (un QFormLayout n'étire
         # pas verticalement une ligne).
         outer.addWidget(self._source_order_view, stretch=1)
-        bottom_form = QFormLayout()
-        bottom_form.addRow("Langues du document :", self._languages_view)
-        outer.addLayout(bottom_form)
+        # Titre au-dessus du bloc langues (et non en libellé de colonne à gauche).
+        outer.addWidget(QLabel("Langues du document", page))
+        outer.addWidget(self._languages_view)
         return page
 
     def _build_style_page(self) -> QWidget:

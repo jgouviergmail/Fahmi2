@@ -11,6 +11,7 @@ from pytestqt.qtbot import QtBot
 from fahmi2.app.hardware_probe import HardwareInfo
 from fahmi2.domain.enums import (
     CloudSttModel,
+    ConsolidationMode,
     ExportFormat,
     Language,
     LocalSttModel,
@@ -173,6 +174,50 @@ def test_stt_model_combo_enabled_by_provider(
     qtbot.addWidget(local_view)
     assert local_view._stt_local_model_combo.isEnabled()  # noqa: SLF001
     assert not local_view._stt_cloud_model_combo.isEnabled()  # noqa: SLF001
+
+
+def test_consolidation_mode_defaults_ordered_and_note_hidden(qtbot: QtBot) -> None:
+    view = GenerationSettingsView(_HW, initial=None)
+    qtbot.addWidget(view)
+    view._input_folder_input.setText("D:/Cours")  # noqa: SLF001
+    view._on_accept()  # noqa: SLF001
+    result = view.get_generation_settings()
+    assert result is not None
+    assert result.consolidation_mode is ConsolidationMode.ORDERED
+    # Mode ordonné → la note « ordre sans effet » reste masquée.
+    assert view._source_order_view._order_note.isHidden() is True  # noqa: SLF001
+
+
+def test_consolidation_mode_thematic_round_trip_and_note(
+    qtbot: QtBot, make_generation_settings: Any
+) -> None:
+    gen = make_generation_settings(
+        input_folder=Path("D:/Cours"),
+        consolidation_mode=ConsolidationMode.THEMATIC,
+    )
+    view = GenerationSettingsView(_HW, initial=gen)
+    qtbot.addWidget(view)
+    # Le combo reflète le réglage, et la note d'ordre est affichée.
+    combo = view._consolidation_mode_combo  # noqa: SLF001
+    assert ConsolidationMode(combo.currentData()) is ConsolidationMode.THEMATIC
+    assert view._source_order_view._order_note.isHidden() is False  # noqa: SLF001
+    # …et to_settings le relit.
+    view._on_accept()  # noqa: SLF001
+    out = view.get_generation_settings()
+    assert out is not None
+    assert out.consolidation_mode is ConsolidationMode.THEMATIC
+
+
+def test_consolidation_mode_built_is_enum_not_str(
+    qtbot: QtBot, make_generation_settings: Any
+) -> None:
+    gen = make_generation_settings(input_folder=Path("D:/Cours"))
+    view = GenerationSettingsView(_HW, initial=gen)
+    qtbot.addWidget(view)
+    view._on_accept()  # noqa: SLF001
+    result = view.get_generation_settings()
+    assert result is not None
+    assert isinstance(result.consolidation_mode, ConsolidationMode)
 
 
 def test_parallelism_round_trips(

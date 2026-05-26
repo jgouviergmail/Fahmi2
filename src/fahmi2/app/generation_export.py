@@ -59,6 +59,7 @@ def collect_generation_documents(project: Project) -> list[ExportDocument]:
                 ExportDocument(
                     stem=consolidated.stem,
                     markdown=consolidated.read_text(encoding=_ENCODING_UTF8),
+                    language=language,
                 )
             )
         glossary = output_dir / glossary_doc_filename(language)
@@ -69,6 +70,7 @@ def collect_generation_documents(project: Project) -> list[ExportDocument]:
                     markdown=glossary.read_text(encoding=_ENCODING_UTF8),
                     pdf_landscape=True,
                     pdf_column_widths=_GLOSSARY_PDF_COLUMN_WIDTHS,
+                    language=language,
                 )
             )
     return documents

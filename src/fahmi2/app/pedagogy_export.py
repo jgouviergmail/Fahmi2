@@ -105,6 +105,7 @@ def collect_pedagogy_documents(project: Project) -> list[ExportDocument]:
                     ExportDocument(
                         stem=f"{support.value}.{language.value}",
                         markdown=subject_path.read_text(encoding=_ENCODING_UTF8),
+                        language=language,
                     )
                 )
             correction_path = artifact_correction_markdown_path(
@@ -115,6 +116,7 @@ def collect_pedagogy_documents(project: Project) -> list[ExportDocument]:
                     ExportDocument(
                         stem=f"{support.value}.{language.value}{_CORRECTION_SUFFIX}",
                         markdown=correction_path.read_text(encoding=_ENCODING_UTF8),
+                        language=language,
                     )
                 )
     return documents

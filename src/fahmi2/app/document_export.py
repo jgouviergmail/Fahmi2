@@ -13,7 +13,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-from fahmi2.domain.enums import ExportFormat
+from fahmi2.domain.enums import ExportFormat, Language
 from fahmi2.domain.project import Project
 from fahmi2.infra.export.markdown_docx import render_markdown_to_docx
 from fahmi2.infra.export.markdown_pdf import (
@@ -26,7 +26,7 @@ from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 
 @dataclass(frozen=True)
 class ExportDocument:
-    """Un document à exporter : nom de fichier + Markdown + options de rendu PDF.
+    """Un document à exporter : nom de fichier + Markdown + options de rendu.
 
     Les options PDF n'affectent que le rendu PDF (ignorées en Markdown/HTML).
 
@@ -36,12 +36,15 @@ class ExportDocument:
         pdf_landscape: Orientation paysage du PDF (ex: glossaire large).
         pdf_column_widths: Largeurs CSS par colonne pour les tableaux PDF
             (ex: glossaire) ; ``None`` = largeurs automatiques.
+        language: Langue du contenu ; pilote la police et la direction du rendu
+            PDF/HTML (chinois → police CJK, arabe → RTL). Défaut ``FR``.
     """
 
     stem: str
     markdown: str
     pdf_landscape: bool = False
     pdf_column_widths: tuple[str, ...] | None = None
+    language: Language = Language.FR
 
 
 #: Signature d'un collecteur : ``(project) -> [ExportDocument, …]``. Contrat

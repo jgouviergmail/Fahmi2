@@ -7,8 +7,15 @@ from pathlib import Path
 import pytest
 
 from fahmi2.app.document_export import ExportDocument, write_documents
-from fahmi2.domain.enums import ExportFormat
+from fahmi2.domain.enums import ExportFormat, Language
 from fahmi2.infra.export.markdown_pdf import EXTENSION_BY_FORMAT, pdf_fonts_available
+
+
+def test_export_document_carries_language() -> None:
+    doc = ExportDocument(stem="x", markdown="# x", language=Language.AR)
+    assert doc.language is Language.AR
+    # Défaut rétro-compatible : FR si non précisé.
+    assert ExportDocument(stem="y", markdown="# y").language is Language.FR
 
 
 def test_extension_by_format_doc_formats_only() -> None:

@@ -30,18 +30,10 @@ from PySide6.QtWidgets import (
 )
 
 from fahmi2.domain.enums import Language
+from fahmi2.domain.languages import language_display_label
 
 _PRODUCED_LABEL = "Produites :"
 _PRIMARY_LABEL = "Principale (originale) :"
-_LANGUAGE_LABELS: dict[Language, str] = {
-    Language.FR: "Français",
-    Language.EN: "Anglais",
-}
-
-
-def _language_label(language: Language) -> str:
-    """Libellé humain d'une langue (valeur brute en repli)."""
-    return _LANGUAGE_LABELS.get(language, language.value)
 
 
 class LanguageSelectionView(QWidget):
@@ -66,7 +58,7 @@ class LanguageSelectionView(QWidget):
         produced_row = QHBoxLayout()
         produced_row.addWidget(QLabel(_PRODUCED_LABEL, self))
         for lang in self._languages:
-            check = QCheckBox(_language_label(lang), self)
+            check = QCheckBox(language_display_label(lang), self)
             check.toggled.connect(partial(self._on_check_toggled, lang))
             self._checks[lang] = check
             produced_row.addWidget(check)
@@ -143,7 +135,7 @@ class LanguageSelectionView(QWidget):
         with QSignalBlocker(self._primary_combo):
             self._primary_combo.clear()
             for lang in produced:
-                self._primary_combo.addItem(_language_label(lang), lang.value)
+                self._primary_combo.addItem(language_display_label(lang), lang.value)
             target = preferred if preferred in produced else (
                 produced[0] if produced else None
             )

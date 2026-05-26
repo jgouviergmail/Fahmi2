@@ -363,18 +363,75 @@ def _chapter_coverage_gaps(
     """Contrôle #2 : ids assignés mais non rendus (assigned - used)."""
     used_set = set(used)
     return [eid for eid in assigned if eid not in used_set]
+
+
+def _resolve_chapter(
+    ctx: PhaseContext,
+    base_dir: Path,
+    index: int,
+    chapter: _PlannedChapter,
+    by_id: dict[str, _FactElement],
+    *,
+    fresh: bool,
+) -> tuple[_Chapter, list[str], float]:
+    """Rédige (ou recharge si frais) un chapitre. -> (_Chapter, gaps, coût).
+
+    L'écriture du fichier ``chapters/<index>.md`` est faite ICI (et non après le
+    pool), pour une **reprise par chapitre** : un chapitre déjà frais est relu sans
+    appel LLM.
+    """
+    chapter_path = base_dir / CHAPTERS_SUBDIR / f"{index}.md"
+    if fresh and chapter_path.exists():
+        renumbered = chapter_path.read_text(encoding="utf-8")
+        gaps: list[str] = []  # couverture #2 déjà journalisée au run initial
+        cost = 0.0
+    else:
+        body, used, cost = _write_chapter_body(ctx, chapter, by_id)
+        renumbered, _ = renumber_subheadings(body, index)
+        ctx.artifacts.write_text_atomic(chapter_path, renumbered)
+        gaps = _chapter_coverage_gaps(assigned=chapter.element_ids, used=tuple(used))
+    chapter_obj = _Chapter(
+        index=index,
+        title=strip_existing_numbering(chapter.title) or f"Chapitre {index}",
+        body=renumbered,
+        subheadings=subheadings_of(renumbered),
+    )
+    return chapter_obj, gaps, cost
 ```
 
-- [ ] **Step 4 : Lancer → succès**
+> **Ajout dans `_base.py`** (déplacement/dérivation déterministe des sous-titres
+> pour le sommaire, source unique pour chapitres neufs ET rechargés) :
+> `subheadings_of(body: str) -> tuple[_Subheading, ...]` qui parse les lignes
+> `## N.M …` / `### N.M.P …` (hors blocs ```` ``` ````) et renvoie les `_Subheading`
+> avec `number`/`title`. Importer `subheadings_of`, `renumber_subheadings`,
+> `strip_existing_numbering`, `_Chapter` depuis `_consolidation._base`.
 
-Run: `.venv\Scripts\python.exe -m pytest tests/unit/pipeline/handlers/_consolidation/test_thematic.py -k coverage_gaps -v`
+- [ ] **Step 4 : Tests — `subheadings_of` (dans `test_base.py`) + gaps**
+
+Ajouter dans `tests/unit/pipeline/handlers/_consolidation/test_base.py` :
+
+```python
+def test_subheadings_of_parses_numbered_headings() -> None:
+    from fahmi2.pipeline.handlers._consolidation._base import subheadings_of
+
+    subs = subheadings_of("## 1.1 Alpha\ntexte\n### 1.1.1 Beta\n")
+    assert [(s.level, s.number, s.title) for s in subs] == [
+        (2, "1.1", "Alpha"),
+        (3, "1.1.1", "Beta"),
+    ]
+```
+
+Run: `.venv\Scripts\python.exe -m pytest tests/unit/pipeline/handlers/_consolidation/test_base.py -k subheadings_of tests/unit/pipeline/handlers/_consolidation/test_thematic.py -k coverage_gaps -v`
 Expected: PASS.
 
 - [ ] **Step 5 : Commit**
 
 ```powershell
-git add src/fahmi2/pipeline/handlers/_consolidation/thematic.py tests/unit/pipeline/handlers/_consolidation/test_thematic.py
-git commit -m "feat(consolidation): T3 redaction par chapitre + controle de couverture #2"
+git add src/fahmi2/pipeline/handlers/_consolidation/thematic.py
+git add src/fahmi2/pipeline/handlers/_consolidation/_base.py
+git add tests/unit/pipeline/handlers/_consolidation/test_thematic.py
+git add tests/unit/pipeline/handlers/_consolidation/test_base.py
+git commit -m "feat(consolidation): T3 + reprise par chapitre (_resolve_chapter, subheadings_of)"
 ```
 
 ---
@@ -423,9 +480,14 @@ def test_thematic_consolidate_end_to_end(tmp_path, make_generation_settings):
 def _produce_meta(
     ctx: PhaseContext, global_title: str, chapters: list[_PlannedChapter]
 ) -> tuple[dict[str, Any], float]:
-    """T4 : méta-éléments (réutilise le prompt phase_5_consolidation)."""
+    """T4 : méta-éléments (réutilise le prompt phase_5_consolidation).
+
+    On nourrit le prompt méta avec les **titres** de chapitres (le plan lisible du
+    document), PAS les ids bruts d'éléments : sinon le LLM rédige titre/intro/
+    conclusion à partir de jetons illisibles (« s1#3 ») et la qualité s'effondre.
+    """
     summaries = [
-        {"source_id": "", "title": c.title, "outline": list(c.element_ids)}
+        {"source_id": "", "title": c.title, "outline": [], "key_ideas": []}
         for c in chapters
     ]
     prompt = ctx.prompts.render(
@@ -468,7 +530,7 @@ class ThematicConsolidationStrategy(ConsolidationStrategy):
             total_cost += cost
         ctx.artifacts.write_json_atomic(
             base_dir / FACTS_MASTER_FILENAME,
-            {"elements": [el.__dict__ for el in elements]},
+            {"elements": [asdict(el) for el in elements]},
         )
         ctx.artifacts.write_text_atomic(
             base_dir / FACTS_READABLE_FILENAME, _render_facts_md(elements)
@@ -492,37 +554,27 @@ class ThematicConsolidationStrategy(ConsolidationStrategy):
         )
 
         # T3 — rédaction par chapitre (parallélisée) + couverture #2.
+        # L'écriture/skip par chapitre est dans _resolve_chapter (reprise fine).
+        # `fresh` est False ici ; la Task 4.5 le remplace par le test de hash.
+        fresh = False
         by_id = {el.id: el for el in elements}
-        write_results = map_bounded(
-            lambda c: _write_chapter_body(ctx, c, by_id),
-            chapters_plan,
+        resolved = map_bounded(
+            lambda ic: _resolve_chapter(
+                ctx, base_dir, ic[0], ic[1], by_id, fresh=fresh
+            ),
+            list(enumerate(chapters_plan, start=1)),
             max_workers=ctx.settings.parallelism.llm_workers,
             pause_token=ctx.pause_token,
         )
         chapter_gaps: dict[str, list[str]] = {}
         chapters: list[_Chapter] = []
-        for index, (planned_chapter, (body, used, cost)) in enumerate(
-            zip(chapters_plan, write_results, strict=True), start=1
+        for (chapter_obj, gaps, cost), planned_chapter in zip(
+            resolved, chapters_plan, strict=True
         ):
             total_cost += cost
-            gaps = _chapter_coverage_gaps(
-                assigned=planned_chapter.element_ids, used=tuple(used)
-            )
             if gaps:
                 chapter_gaps[planned_chapter.title] = gaps
-            renumbered, subheadings = renumber_subheadings(body, index)
-            ctx.artifacts.write_text_atomic(
-                base_dir / CHAPTERS_SUBDIR / f"{index}.md", renumbered
-            )
-            chapters.append(
-                _Chapter(
-                    index=index,
-                    title=strip_existing_numbering(planned_chapter.title)
-                    or f"Chapitre {index}",
-                    body=renumbered,
-                    subheadings=tuple(subheadings),
-                )
-            )
+            chapters.append(chapter_obj)
         ctx.artifacts.write_json_atomic(
             base_dir / COVERAGE_FILENAME,
             {"orphans": orphans, "chapter_gaps": chapter_gaps},
@@ -537,9 +589,13 @@ class ThematicConsolidationStrategy(ConsolidationStrategy):
         )
 ```
 
-> Imports requis depuis `_base` (de `_consolidation`) : `_Chapter`,
-> `assemble_document`, `renumber_subheadings`, `strip_existing_numbering`,
-> `ConsolidationResult`, `ConsolidationStrategy`.
+> Imports requis : `dataclasses.asdict` ; depuis `_consolidation._base` :
+> `_Chapter`, `assemble_document`, `renumber_subheadings`, `strip_existing_numbering`,
+> `subheadings_of`, `ConsolidationResult`, `ConsolidationStrategy`.
+
+> **Note (test bout en bout)** : avec `fresh = False`, le test de Task 4.4 ne dépend
+> pas encore de la logique de hash (ajoutée en Task 4.5) — les chapitres sont
+> toujours rédigés par le fake LLM. Le test reste donc valable tel quel après 4.5.
 
 - [ ] **Step 4 : Lancer → succès**
 
@@ -613,21 +669,39 @@ Au début de `consolidate`, après `base_dir = ...` :
         ctx.artifacts.write_json_atomic(manifest_path, {"hash": current_hash})
 ```
 
-Puis encapsuler chaque étape coûteuse par une réutilisation *skip-if-exists* :
-- T1 : si `FACTS_MASTER_FILENAME` existe (et hash frais), **charger** les éléments
-  via `_elements_from_payload`-équivalent au lieu d'appeler le LLM.
-- T2 : si `THEMATIC_PLAN_FILENAME` existe, charger `chapters_plan`/`global_title`.
-- T3 : si `chapters/<index>.md` existe, le **relire** (et reconstruire le `_Chapter`
-  via `renumber_subheadings` n'est plus nécessaire — le fichier est déjà renuméroté ;
-  reconstruire `subheadings` en re-parsant n'est pas requis pour l'assemblage si on
-  conserve le body tel quel et qu'on régénère les sous-titres via une relecture
-  légère). **Décision** : pour le sommaire, re-dériver les `subheadings` du body relu
-  via une fonction `subheadings_of(body)` (à ajouter dans `_base`, parse des `##`/`###`
-  déjà numérotés). Cela garde l'assemblage déterministe à partir des fichiers.
+Remplacer la ligne `fresh = False` (Task 4.4) par `fresh = not stale` : le flag
+pilote la réutilisation **par chapitre** (déjà gérée dans `_resolve_chapter`).
 
-> Ajouter dans `_base` : `subheadings_of(body: str) -> tuple[_Subheading, ...]`
-> (parse des lignes `## N.M …` / `### N.M.P …`, hors blocs ```` ``` ````), avec son
-> test unitaire dans `test_base.py`.
+Encapsuler aussi T1 et T2 par un *skip-if-fresh* :
+
+```python
+        facts_path = base_dir / FACTS_MASTER_FILENAME
+        if not stale and facts_path.exists():
+            payload = json.loads(facts_path.read_text("utf-8"))
+            elements = [_FactElement(**raw) for raw in payload.get("elements", [])]
+        else:
+            # ... T1 (map_bounded) + écriture facts_master.json / facts.md ...
+
+        plan_path = base_dir / THEMATIC_PLAN_FILENAME
+        if not stale and plan_path.exists():
+            plan_payload = json.loads(plan_path.read_text("utf-8"))
+            global_title = str(plan_payload.get("global_title", "Document consolidé"))
+            chapters_plan = [
+                _PlannedChapter(
+                    title=str(c["title"]), order=int(c["order"]),
+                    element_ids=tuple(c["element_ids"]),
+                )
+                for c in plan_payload.get("chapters", [])
+            ]
+            orphans = []  # déjà réconcilié au run initial (filet présent dans le plan)
+        else:
+            # ... T2 (_plan_thematic + _reconcile_coverage) + écriture thematic_plan.json ...
+```
+
+> T3 : aucune logique supplémentaire ici — `_resolve_chapter(..., fresh=not stale)`
+> relit déjà `chapters/<index>.md` s'il est présent et frais (introduit en Task 4.3).
+> Les sous-titres du sommaire sont re-dérivés uniformément via `subheadings_of`
+> (chapitres neufs **et** rechargés), garantissant un assemblage déterministe.
 
 Importer `shutil` et `hashlib` en tête de `thematic.py`.
 
@@ -640,9 +714,7 @@ Expected: PASS.
 
 ```powershell
 git add src/fahmi2/pipeline/handlers/_consolidation/thematic.py
-git add src/fahmi2/pipeline/handlers/_consolidation/_base.py
 git add tests/unit/pipeline/handlers/_consolidation/test_thematic.py
-git add tests/unit/pipeline/handlers/_consolidation/test_base.py
 git commit -m "feat(consolidation): reprise intra-phase thematique (hash de coherence)"
 ```
 

@@ -265,7 +265,8 @@ git commit -m "refactor(pipeline): OrderedConsolidationStrategy (comportement ac
 
 **Files:**
 - Modify (réécriture): `src/fahmi2/pipeline/handlers/phase_5_consolidation.py`
-- Modify: `tests/unit/pipeline/handlers/test_phase_5_consolidation.py` (imports)
+- (Le test historique `test_phase_5_consolidation.py` reste **inchangé** grâce aux
+  ré-exports de compat — cf. Step 1bis.)
 
 - [ ] **Step 1 : Réécrire le handler en dispatcher**
 
@@ -362,37 +363,53 @@ class ThematicConsolidationStrategy(ConsolidationStrategy):
         raise NotImplementedError("ThematicConsolidationStrategy: Lot 4")
 ```
 
-- [ ] **Step 2 : Mettre à jour les imports du test existant**
+- [ ] **Step 1bis : Ré-exports de compat (non-régression sans toucher au test)**
 
-Dans `tests/unit/pipeline/handlers/test_phase_5_consolidation.py`, remplacer :
-
-```python
-from fahmi2.pipeline.handlers.phase_5_consolidation import (
-    Phase5ConsolidationHandler,
-    _assemble_consolidated,
-    _renumber_subheadings,
-    _strip_existing_numbering,
-)
-```
-
-par :
+Pour que `tests/unit/pipeline/handlers/test_phase_5_consolidation.py` reste
+**inchangé** (il importe des symboles désormais déplacés), ajouter **en fin** de
+`phase_5_consolidation.py` un bloc de compat :
 
 ```python
-from fahmi2.pipeline.handlers._consolidation._base import (
+# --- Compat rétro : symboles déplacés vers _consolidation (tests existants). ---
+from typing import Any  # noqa: E402
+
+from fahmi2.pipeline.handlers._consolidation._base import (  # noqa: E402,F401
+    assemble_document as _assemble_document,
     renumber_subheadings as _renumber_subheadings,
     strip_existing_numbering as _strip_existing_numbering,
 )
-from fahmi2.pipeline.handlers.phase_5_consolidation import Phase5ConsolidationHandler
+from fahmi2.pipeline.handlers._consolidation.ordered import (  # noqa: E402
+    build_chapters as _build_chapters,
+)
+
+
+def _assemble_consolidated(
+    meta: dict[str, Any],
+    structured_by_source: dict[str, str],
+    summaries: list[dict[str, Any]],
+) -> str:
+    """Shim rétro-compatible de l'ancien ``_assemble_consolidated``.
+
+    Reproduit l'assemblage ORDERED (build_chapters + assemble_document) pour que
+    les tests historiques continuent de passer sans modification.
+    """
+    titles_by_source = {
+        s.get("source_id", ""): s.get("title", "") for s in summaries
+    }
+    chapters = _build_chapters(structured_by_source, titles_by_source)
+    return _assemble_document(meta, chapters)
 ```
 
-Pour les tests qui appelaient `_assemble_consolidated(meta, structured_by_source,
-summaries)` directement : les déplacer vers `test_ordered.py` en passant par
-`OrderedConsolidationStrategy` (l'assemblage n'est plus une fonction unique). Si un
-test vérifiait le markdown assemblé, le réécrire en appelant
-`OrderedConsolidationStrategy().consolidate(ctx, structured)` avec un fake LLM
-fournissant les méta attendues. (Le test `test_execute_assembles_consolidated_markdown`
-qui passe par le handler reste valide tel quel — il s'appuie sur le mode `ORDERED`
-par défaut.)
+> **Pourquoi** : enumérer *tous* les symboles internes que le test historique
+> importe est fragile. Les ré-exports garantissent une vraie non-régression : le
+> fichier de test n'est **pas modifié**. (Si `ruff` se plaint d'imports inutilisés
+> malgré `F401`, regrouper sous `__all__`.)
+
+- [ ] **Step 2 : Vérifier que le test historique passe inchangé**
+
+Run: `.venv\Scripts\python.exe -m pytest tests/unit/pipeline/handlers/test_phase_5_consolidation.py -v`
+Expected: PASS **sans aucune modification** du fichier de test (grâce aux ré-exports).
+Ne **pas** ajouter ce fichier au `git add` du commit final de ce lot.
 
 - [ ] **Step 3 : Lancer la suite phase 5 complète → succès**
 
@@ -414,6 +431,5 @@ Expected : **tout vert** — c'est la preuve de non-régression du mode ORDERED.
 ```powershell
 git add src/fahmi2/pipeline/handlers/phase_5_consolidation.py
 git add src/fahmi2/pipeline/handlers/_consolidation/thematic.py
-git add tests/unit/pipeline/handlers/test_phase_5_consolidation.py
 git commit -m "refactor(pipeline): phase 5 = dispatcher de strategies (ORDERED inchange)"
 ```

@@ -100,6 +100,24 @@ def resolve_content_language(
     return None
 
 
+def glossary_master_mtime_ns(generation_dir: Path) -> int | None:
+    """mtime (ns) du glossaire master, ou ``None`` s'il est absent.
+
+    Sert d'élément de fraîcheur (corpus du Dialogue, empreinte d'index sémantique) :
+    une régénération du glossaire doit invalider tout cache qui en dépend.
+
+    Args:
+        generation_dir: Dossier de travail de la génération (contient le master).
+
+    Returns:
+        Le ``st_mtime_ns`` du ``glossary_master.json``, ou ``None``.
+    """
+    path = generation_dir / _GLOSSARY_MASTER_FILENAME
+    if not path.exists():
+        return None
+    return path.stat().st_mtime_ns
+
+
 def load_glossary_master_terms(generation_dir: Path) -> tuple[Term, ...]:
     """Charge le glossaire master (langue source) depuis le disque.
 

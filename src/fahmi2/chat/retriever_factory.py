@@ -41,6 +41,7 @@ def build_passage_retriever(
     source_mtime_ns: int | None,
     language: Language,
     artifacts: FsArtifactStore,
+    glossary_mtime_ns: int | None = None,
 ) -> PassageRetriever:
     """Construit le retriever adapté à la stratégie configurée.
 
@@ -68,6 +69,7 @@ def build_passage_retriever(
             fingerprint=build_index_fingerprint(
                 model=embedding_model,
                 source_mtime_ns=source_mtime_ns,
+                glossary_mtime_ns=glossary_mtime_ns,
                 language=language,
             ),
             artifacts=artifacts,

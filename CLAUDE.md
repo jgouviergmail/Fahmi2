@@ -111,8 +111,13 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   `chat_service` (`answer`/`stream_answer`). Retrieval en ports : `PassageRetriever`
   (`core/retrieval`, lexical TF-IDF) + `EmbeddingProvider` (`infra/embeddings`,
   OpenAI, **modèle configurable** `EmbeddingModel` + `_pricing`) +
-  `SemanticPassageRetriever` (`infra/retrieval`, index `.npz` + empreinte incluant le
-  modèle → réindexation si changement). Streaming via `LLMProvider.chat_stream`
+  `SemanticPassageRetriever` (`infra/retrieval`, index `.npz` + empreinte incluant
+  le modèle **+ mtime du consolidé ET du glossaire** → réindexation si changement).
+  **Fraîcheur du corpus** : `ChatController.refresh_corpus_if_stale()` re-dérive le
+  corpus quand le consolidé/glossaire a changé sur disque (clé = langue + 2 mtimes),
+  appelé avant chaque réponse **et** au signal `run_state_changed` de la génération
+  → le Dialogue ne cite jamais un document périmé après régénération (sans recharger
+  le projet). Streaming via `LLMProvider.chat_stream`
   (extension **additive**). **Coût exhaustif** : `consumed_cost_usd()` sur les ports
   retrieval/embedding agrégé dans `ChatMessage.cost_usd`. Conversations persistées et
   **supprimables** (`app/chat_conversation_store`) ; `ChatSettings` dans le blob v2.

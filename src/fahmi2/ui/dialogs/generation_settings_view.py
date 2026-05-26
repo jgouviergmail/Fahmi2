@@ -8,7 +8,9 @@ relèvent du ``Project``).
 
 from __future__ import annotations
 
+from enum import StrEnum
 from pathlib import Path
+from typing import TypeVar
 
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -36,9 +38,11 @@ from fahmi2.app.input_sources import (
 )
 from fahmi2.core.errors.exceptions import Fahmi2Error
 from fahmi2.domain.enums import (
+    CloudSttModel,
     ExportFormat,
     Language,
     LLMModel,
+    LocalSttModel,
     SttProvider,
     StylePreset,
 )
@@ -59,6 +63,27 @@ _DIALOG_WIDTH_PX = 760
 _DIALOG_HEIGHT_PX = 620
 _DIRECTIVES_HEIGHT_PX = 90
 _COST_CEILING_MAX_USD = 10_000.0
+
+_EnumT = TypeVar("_EnumT", bound=StrEnum)
+
+
+def _build_enum_combo(parent: QWidget, enum_cls: type[_EnumT]) -> QComboBox:
+    """Construit un ``QComboBox`` peuplé des membres d'un ``StrEnum``.
+
+    Chaque membre est ajouté avec sa ``value`` en libellé et le membre lui-même
+    en donnée (``currentData()`` renvoie donc l'enum).
+
+    Args:
+        parent: Parent Qt.
+        enum_cls: Classe d'énumération à lister.
+
+    Returns:
+        Le combo peuplé.
+    """
+    combo = QComboBox(parent)
+    for member in enum_cls:
+        combo.addItem(member.value, member)
+    return combo
 
 _TITLE_CREATE = "Configurer la génération"
 _TITLE_EDIT = "Réglages de la génération"
@@ -158,6 +183,7 @@ class GenerationSettingsView(QDialog):
 
         if initial is not None:
             self._populate(initial)
+        self._sync_stt_model_enabled()
 
     def get_generation_settings(self) -> GenerationSettings | None:
         """Retourne les réglages construits, ou ``None`` si annulation/invalide.
@@ -201,6 +227,9 @@ class GenerationSettingsView(QDialog):
         for provider in SttProvider:
             self._stt_combo.addItem(provider.value, provider)
         self._stt_combo.currentIndexChanged.connect(self._on_stt_changed)
+
+        self._stt_local_model_combo = _build_enum_combo(self, LocalSttModel)
+        self._stt_cloud_model_combo = _build_enum_combo(self, CloudSttModel)
 
         self._keep_audio_checkbox = QCheckBox(_KEEP_AUDIO_LABEL, self)
         self._keep_audio_checkbox.setToolTip(_KEEP_AUDIO_TOOLTIP)
@@ -304,6 +333,8 @@ class GenerationSettingsView(QDialog):
         outer = QVBoxLayout(page)
         form = QFormLayout()
         form.addRow("Provider STT :", self._stt_combo)
+        form.addRow("Modèle local :", self._stt_local_model_combo)
+        form.addRow("Modèle cloud :", self._stt_cloud_model_combo)
         form.addRow(self._keep_audio_checkbox)
         form.addRow("Transcriptions en parallèle :", self._stt_workers_input)
         outer.addLayout(form)
@@ -448,6 +479,19 @@ class GenerationSettingsView(QDialog):
             cloud_index = self._stt_combo.findData(SttProvider.OPENAI_CLOUD)
             if cloud_index >= 0:
                 self._stt_combo.setCurrentIndex(cloud_index)
+        self._sync_stt_model_enabled()
+
+    def _sync_stt_model_enabled(self) -> None:
+        """Active le combo modèle correspondant au provider STT sélectionné.
+
+        Compare par **valeur** (``==``) : ``QComboBox`` peut restituer un ``str``
+        plutôt que le membre ``StrEnum`` stocké en donnée.
+        """
+        provider = self._stt_combo.currentData()
+        self._stt_local_model_combo.setEnabled(
+            provider == SttProvider.FASTER_WHISPER_LOCAL
+        )
+        self._stt_cloud_model_combo.setEnabled(provider == SttProvider.OPENAI_CLOUD)
 
     def _populate(self, generation: GenerationSettings) -> None:
         """Pré-remplit les champs depuis des réglages existants.
@@ -470,6 +514,12 @@ class GenerationSettingsView(QDialog):
         stt_idx = self._stt_combo.findData(generation.stt_provider)
         if stt_idx >= 0:
             self._stt_combo.setCurrentIndex(stt_idx)
+        local_model_idx = self._stt_local_model_combo.findData(generation.stt_local_model)
+        if local_model_idx >= 0:
+            self._stt_local_model_combo.setCurrentIndex(local_model_idx)
+        cloud_model_idx = self._stt_cloud_model_combo.findData(generation.stt_cloud_model)
+        if cloud_model_idx >= 0:
+            self._stt_cloud_model_combo.setCurrentIndex(cloud_model_idx)
         self._keep_audio_checkbox.setChecked(not generation.delete_audio_after_stt)
         llm_idx = self._llm_combo.findData(generation.llm_model)
         if llm_idx >= 0:
@@ -517,6 +567,8 @@ class GenerationSettingsView(QDialog):
             style_preset=self._style_combo.currentData(),
             style_directives=self._style_directives_input.toPlainText().strip(),
             stt_provider=self._stt_combo.currentData(),
+            stt_local_model=LocalSttModel(self._stt_local_model_combo.currentData()),
+            stt_cloud_model=CloudSttModel(self._stt_cloud_model_combo.currentData()),
             llm_model=self._llm_combo.currentData(),
             phases_config=self._phase_configs_widget.get_phase_configs(),
             cost_ceiling_usd=cost_ceiling,

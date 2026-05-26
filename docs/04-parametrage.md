@@ -73,8 +73,12 @@ master-detail) ; ils incluent le **dossier des vidéos**.
 
 | Paramètre | Description | Coût indicatif |
 |-----------|-------------|----------------|
-| **Provider STT** | `faster_whisper_local` (GPU NVIDIA requis) ou `openai_cloud`. En mode cloud, l'audio est **compressé en Opus** (et découpé aux silences si > ~2 h) pour respecter la limite **25 Mo** d'OpenAI Whisper — transparent, toute durée, et l'upload est bien plus rapide. | Local : gratuit / Cloud : ~0,006 $/min |
+| **Provider STT** | `faster_whisper_local` (GPU NVIDIA requis) ou `openai_cloud`. En mode cloud, l'audio est **compressé en Opus** (et découpé aux silences si > ~2 h) pour respecter la limite **25 Mo** d'OpenAI Whisper — transparent, toute durée, et l'upload est bien plus rapide. | Local : gratuit / Cloud : ~0,003-0,006 $/min |
+| **Modèle local** | Modèle faster-whisper (actif en mode local) : `large-v3-turbo` (défaut, équilibré), `large-v3` (précision max), `medium` ou `small` (plus rapides, VRAM réduite). **Téléchargé au 1er usage** (mis en cache `%LOCALAPPDATA%/Fahmi2/models/`) — aucun poids n'est packagé. | gratuit |
+| **Modèle cloud** | Modèle de transcription OpenAI (actif en mode cloud) : `whisper-1` (défaut, timestamps fins), `gpt-4o-transcribe` (précision supérieure) ou `gpt-4o-mini-transcribe` (2× moins cher). Les modèles `gpt-4o-*` ne renvoient pas de timestamps de segments (le contenu transcrit reste identique). | whisper-1 / gpt-4o : 0,006 $/min ; gpt-4o-mini : 0,003 $/min |
 | **Modèle LLM** | `deepseek-v4-flash` (rapide/économique) ou `deepseek-v4-pro` (capacité supérieure). | Flash : ~0,14-0,28 $/Mt / Pro : ~0,435-0,87 $/Mt |
+
+Le combo modèle non pertinent (local en mode cloud, ou inverse) est **grisé**.
 
 **Blocage automatique** : si vous sélectionnez `faster_whisper_local` sans
 GPU CUDA détecté, l'application affichera un avertissement et basculera
@@ -114,8 +118,9 @@ d'en-tête (bouton **💵 Estimer le coût**). Le dialogue présente une
 peut dépasser le plafond. Le calcul intègre :
 
 - La durée audio totale des vidéos détectées (probe `ffprobe`).
-- Le provider STT (`faster_whisper_local` = gratuit, `openai_cloud` =
-  $0.006/min).
+- Le provider STT (`faster_whisper_local` = gratuit, `openai_cloud` = tarif du
+  modèle choisi : 0,006 $/min pour `whisper-1`/`gpt-4o-transcribe`, 0,003 $/min
+  pour `gpt-4o-mini-transcribe`).
 - Le modèle LLM (grille tarifaire Flash vs Pro).
 - Le nombre de langues de sortie + de traductions nécessaires.
 - **La configuration par phase** : `thinking_enabled` et

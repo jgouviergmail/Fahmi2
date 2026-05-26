@@ -7,9 +7,11 @@ from pathlib import Path
 import pytest
 
 from fahmi2.domain.enums import (
+    CloudSttModel,
     ExportFormat,
     Language,
     LLMModel,
+    LocalSttModel,
     PhaseId,
     SttProvider,
     StylePreset,
@@ -133,6 +135,21 @@ def test_youtube_urls_default_empty() -> None:
     assert _make().youtube_urls == ()
     urls = ("https://youtu.be/x", "https://youtu.be/y")
     assert _make(youtube_urls=urls).youtube_urls == urls
+
+
+def test_stt_models_default_to_current_behaviour() -> None:
+    settings = _make()
+    assert settings.stt_local_model is LocalSttModel.LARGE_V3_TURBO
+    assert settings.stt_cloud_model is CloudSttModel.WHISPER_1
+
+
+def test_stt_models_overridable() -> None:
+    settings = _make(
+        stt_local_model=LocalSttModel.MEDIUM,
+        stt_cloud_model=CloudSttModel.GPT_4O_TRANSCRIBE,
+    )
+    assert settings.stt_local_model is LocalSttModel.MEDIUM
+    assert settings.stt_cloud_model is CloudSttModel.GPT_4O_TRANSCRIBE
 
 
 def test_source_order_and_excluded_default_empty() -> None:

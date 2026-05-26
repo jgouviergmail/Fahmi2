@@ -34,10 +34,12 @@ from fahmi2.domain.chat import ChatSettings
 from fahmi2.domain.enums import (
     BloomObjective,
     ChatGroundingMode,
+    CloudSttModel,
     EmbeddingModel,
     ExportFormat,
     Language,
     LLMModel,
+    LocalSttModel,
     PhaseId,
     PhaseStatus,
     ReasoningEffort,
@@ -125,6 +127,8 @@ def _serialize_generation_settings(gen: GenerationSettings) -> dict[str, Any]:
         "style_preset": str(gen.style_preset),
         "style_directives": gen.style_directives,
         "stt_provider": str(gen.stt_provider),
+        "stt_local_model": str(gen.stt_local_model),
+        "stt_cloud_model": str(gen.stt_cloud_model),
         "llm_model": str(gen.llm_model),
         "phases_config": {
             str(pid): {
@@ -191,6 +195,12 @@ def _deserialize_generation_settings(payload: dict[str, Any]) -> GenerationSetti
         style_preset=StylePreset(payload["style_preset"]),
         style_directives=payload["style_directives"],
         stt_provider=SttProvider(payload["stt_provider"]),
+        stt_local_model=LocalSttModel(
+            payload.get("stt_local_model", LocalSttModel.LARGE_V3_TURBO)
+        ),
+        stt_cloud_model=CloudSttModel(
+            payload.get("stt_cloud_model", CloudSttModel.WHISPER_1)
+        ),
         llm_model=LLMModel(payload["llm_model"]),
         phases_config=phases_config,
         cost_ceiling_usd=payload["cost_ceiling_usd"],

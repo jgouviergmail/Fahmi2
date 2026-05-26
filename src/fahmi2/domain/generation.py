@@ -11,9 +11,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from fahmi2.domain.enums import (
+    CloudSttModel,
     ExportFormat,
     Language,
     LLMModel,
+    LocalSttModel,
     PhaseId,
     SttProvider,
     StylePreset,
@@ -109,6 +111,8 @@ class GenerationSettings:
         style_preset: Style de rendu.
         style_directives: Directives stylistiques libres (peuvent être vides).
         stt_provider: Provider STT (local ou cloud).
+        stt_local_model: Modèle faster-whisper utilisé en STT local.
+        stt_cloud_model: Modèle de transcription OpenAI utilisé en STT cloud.
         llm_model: Modèle DeepSeek utilisé.
         phases_config: Configuration des phases LLM 1..7.
         cost_ceiling_usd: Plafond de coût (``None`` = pas de plafond).
@@ -138,6 +142,8 @@ class GenerationSettings:
     cost_ceiling_usd: float | None
     parallelism: ParallelismConfig
     delete_audio_after_stt: bool
+    stt_local_model: LocalSttModel = LocalSttModel.LARGE_V3_TURBO
+    stt_cloud_model: CloudSttModel = CloudSttModel.WHISPER_1
     export_formats: frozenset[ExportFormat] = DEFAULT_GENERATION_EXPORT_FORMATS
     reformulate_documents: bool = True
     youtube_urls: tuple[str, ...] = ()

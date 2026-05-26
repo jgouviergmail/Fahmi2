@@ -1,6 +1,11 @@
-"""Adaptateur ``STTProvider`` qui appelle l'endpoint OpenAI Whisper.
+"""Adaptateur ``STTProvider`` qui appelle l'endpoint de transcription OpenAI.
 
-Modèle utilisé : ``whisper-1``. Tarification : 0.006 USD par minute audio.
+Modèle **configurable** (cf. :class:`fahmi2.domain.enums.CloudSttModel`), défaut
+``whisper-1``. ``whisper-1`` renvoie des segments horodatés (``verbose_json``) ;
+les modèles ``gpt-4o-*-transcribe`` ne supportent que ``json`` (texte sans
+timestamps) — l'adapter produit alors **un segment unique par tranche audio**
+(texte + offset/durée fournis par le ``CloudAudioPreparer``), le contenu transcrit
+restant identique. Tarifs : cf. ``infra/stt/_pricing``.
 """
 
 from __future__ import annotations
@@ -14,8 +19,9 @@ from openai import APIError, APIStatusError, AuthenticationError, OpenAI, RateLi
 
 from fahmi2.core.errors.exceptions import LLMError, STTError
 from fahmi2.core.errors.severity import Severity
-from fahmi2.domain.enums import Language
-from fahmi2.infra.audio.cloud_audio_preparer import AudioPreparer
+from fahmi2.domain.enums import CloudSttModel, Language
+from fahmi2.infra.audio.cloud_audio_preparer import AudioChunk, AudioPreparer
+from fahmi2.infra.stt._pricing import stt_cost_usd
 from fahmi2.infra.stt.interface import (
     ProgressCallback,
     Transcription,
@@ -23,9 +29,11 @@ from fahmi2.infra.stt.interface import (
 )
 
 _PROVIDER_NAME = "openai-whisper"
-_MODEL_NAME = "whisper-1"
-_USD_PER_MINUTE = 0.006
-_SECONDS_PER_MINUTE = 60.0
+_DEFAULT_CLOUD_MODEL = str(CloudSttModel.WHISPER_1)
+#: Modèles renvoyant des segments horodatés via ``verbose_json`` (sinon ``json``).
+_VERBOSE_JSON_MODELS: frozenset[str] = frozenset({CloudSttModel.WHISPER_1.value})
+_RESPONSE_FORMAT_VERBOSE = "verbose_json"
+_RESPONSE_FORMAT_JSON = "json"
 # OpenAI garde la connexion ouverte sous charge : timeout client large.
 _REQUEST_TIMEOUT_SECONDS = 600.0
 
@@ -78,6 +86,7 @@ class OpenAIWhisperAdapter:
         api_key: str,
         client: OpenAI | None = None,
         preparer: AudioPreparer | None = None,
+        model: str = _DEFAULT_CLOUD_MODEL,
         timeout: float = _REQUEST_TIMEOUT_SECONDS,
     ) -> None:
         """Construit l'adaptateur.
@@ -88,10 +97,12 @@ class OpenAIWhisperAdapter:
             preparer: Préparateur d'audio cloud (compression + découpage). En
                 production il est **obligatoire** (injecté par le contrôleur) ;
                 ``None`` = transcription directe d'un seul fichier (tests).
+            model: Modèle de transcription cloud (cf. ``CloudSttModel``).
             timeout: Timeout des requêtes en secondes.
         """
         self._client = client or OpenAI(api_key=api_key, timeout=timeout)
         self._preparer = preparer
+        self._model = model
 
     @property
     def name(self) -> str:
@@ -123,7 +134,8 @@ class OpenAIWhisperAdapter:
             on_progress(0.0)
         if self._preparer is None:
             result = self._transcribe_one(
-                audio_path, offset_seconds=0.0, language_hint=language_hint
+                AudioChunk(path=audio_path, offset_seconds=0.0),
+                language_hint=language_hint,
             )
             if on_progress is not None:
                 on_progress(1.0)
@@ -134,11 +146,7 @@ class OpenAIWhisperAdapter:
             parts: list[Transcription] = []
             for index, chunk in enumerate(chunks):
                 parts.append(
-                    self._transcribe_one(
-                        chunk.path,
-                        offset_seconds=chunk.offset_seconds,
-                        language_hint=language_hint,
-                    )
+                    self._transcribe_one(chunk, language_hint=language_hint)
                 )
                 if on_progress is not None:
                     on_progress((index + 1) / len(chunks))
@@ -146,30 +154,34 @@ class OpenAIWhisperAdapter:
 
     def _transcribe_one(
         self,
-        audio_path: Path,
+        chunk: AudioChunk,
         *,
-        offset_seconds: float,
         language_hint: Language | None,
     ) -> Transcription:
-        """Transcrit un seul fichier et décale ses segments de ``offset_seconds``.
+        """Transcrit une tranche audio, en absolu (timestamps décalés de l'offset).
+
+        Selon le modèle : ``verbose_json`` (segments horodatés, décalés de
+        l'offset) ou ``json`` (texte seul → un segment unique couvrant la tranche).
 
         Args:
-            audio_path: Fichier audio (un segment).
-            offset_seconds: Décalage temporel à appliquer aux timestamps.
+            chunk: Tranche audio (fichier + offset + durée).
             language_hint: Indice de langue.
 
         Returns:
-            ``Transcription`` du segment (timestamps décalés).
+            ``Transcription`` de la tranche (timestamps absolus).
 
         Raises:
             STTError: En cas d'erreur API.
         """
+        verbose = self._model in _VERBOSE_JSON_MODELS
         try:
-            with audio_path.open("rb") as fp:
+            with chunk.path.open("rb") as fp:
                 kwargs: dict[str, Any] = {
-                    "model": _MODEL_NAME,
+                    "model": self._model,
                     "file": fp,
-                    "response_format": "verbose_json",
+                    "response_format": (
+                        _RESPONSE_FORMAT_VERBOSE if verbose else _RESPONSE_FORMAT_JSON
+                    ),
                 }
                 if language_hint is not None:
                     kwargs["language"] = str(language_hint)
@@ -181,22 +193,12 @@ class OpenAIWhisperAdapter:
             RateLimitError,
         ) as exc:
             raise _map_status_code_to_stt_error(exc) from exc
-        base = _parse_verbose_response(response.model_dump(), fallback=language_hint)
-        if offset_seconds == 0.0:
-            return base
-        shifted = tuple(
-            TranscriptionSegment(
-                start_seconds=s.start_seconds + offset_seconds,
-                end_seconds=s.end_seconds + offset_seconds,
-                text=s.text,
+        if not verbose:
+            return _single_segment_transcription(
+                str(response.text), chunk=chunk, fallback=language_hint
             )
-            for s in base.segments
-        )
-        return Transcription(
-            segments=shifted,
-            detected_language=base.detected_language,
-            duration_seconds=base.duration_seconds + offset_seconds,
-        )
+        base = _parse_verbose_response(response.model_dump(), fallback=language_hint)
+        return _shift_transcription(base, offset_seconds=chunk.offset_seconds)
 
     def estimate_cost(self, duration_seconds: float) -> float:
         """Estime le coût en USD pour une durée audio donnée.
@@ -205,9 +207,9 @@ class OpenAIWhisperAdapter:
             duration_seconds: Durée de l'audio (secondes).
 
         Returns:
-            Coût USD.
+            Coût USD (tarif du modèle configuré).
         """
-        return (duration_seconds / _SECONDS_PER_MINUTE) * _USD_PER_MINUTE
+        return stt_cost_usd(model=self._model, duration_seconds=duration_seconds)
 
 
 def _resolve_language(raw: str, *, fallback: Language | None) -> Language:
@@ -256,6 +258,58 @@ def _parse_verbose_response(
         segments=segments,
         detected_language=detected,
         duration_seconds=duration,
+    )
+
+
+def _single_segment_transcription(
+    text: str, *, chunk: AudioChunk, fallback: Language | None
+) -> Transcription:
+    """Construit une transcription à **segment unique** (modèles sans timestamps).
+
+    Args:
+        text: Texte transcrit de la tranche.
+        chunk: Tranche source (offset + durée → timestamps absolus du segment).
+        fallback: Langue de repli (les modèles ``json`` ne renvoient pas la langue).
+
+    Returns:
+        ``Transcription`` couvrant ``[offset, offset + durée]``.
+    """
+    segment = TranscriptionSegment(
+        start_seconds=chunk.offset_seconds,
+        end_seconds=chunk.offset_seconds + chunk.duration_seconds,
+        text=text.strip(),
+    )
+    return Transcription(
+        segments=(segment,),
+        detected_language=fallback if fallback is not None else _DEFAULT_DETECTED_LANGUAGE,
+        duration_seconds=chunk.duration_seconds,
+    )
+
+
+def _shift_transcription(base: Transcription, *, offset_seconds: float) -> Transcription:
+    """Décale tous les timestamps d'une transcription de ``offset_seconds``.
+
+    Args:
+        base: Transcription d'une tranche (timestamps relatifs à la tranche).
+        offset_seconds: Décalage temporel de la tranche dans l'audio d'origine.
+
+    Returns:
+        La transcription aux timestamps absolus (inchangée si offset nul).
+    """
+    if offset_seconds == 0.0:
+        return base
+    shifted = tuple(
+        TranscriptionSegment(
+            start_seconds=s.start_seconds + offset_seconds,
+            end_seconds=s.end_seconds + offset_seconds,
+            text=s.text,
+        )
+        for s in base.segments
+    )
+    return Transcription(
+        segments=shifted,
+        detected_language=base.detected_language,
+        duration_seconds=base.duration_seconds + offset_seconds,
     )
 
 

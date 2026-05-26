@@ -177,8 +177,11 @@ def build_stt_provider(
                 ffmpeg_binary=resolve_ffmpeg_binary_or_none(),
                 ffprobe_binary=resolve_ffprobe_binary_or_none(),
             ),
+            model=str(settings.stt_cloud_model),
         )
-    return FasterWhisperAdapter(model_cache_dir=models_dir)
+    return FasterWhisperAdapter(
+        model_cache_dir=models_dir, model=str(settings.stt_local_model)
+    )
 
 
 def _source_weight(
@@ -755,6 +758,7 @@ class GenerationController(QObject):
             source_weights=weights,
             stt_provider=settings.stt_provider,
             llm_model=settings.llm_model,
+            stt_cloud_model=settings.stt_cloud_model,
             active_target_languages_count=len(settings.output_languages),
             translation_languages_count=translation_langs,
             phases_config=settings.phases_config,

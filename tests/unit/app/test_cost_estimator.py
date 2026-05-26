@@ -3,7 +3,13 @@
 import pytest
 
 from fahmi2.app.cost_estimator import CostEstimation, CostEstimator, SourceWeight
-from fahmi2.domain.enums import LLMModel, PhaseId, ReasoningEffort, SttProvider
+from fahmi2.domain.enums import (
+    CloudSttModel,
+    LLMModel,
+    PhaseId,
+    ReasoningEffort,
+    SttProvider,
+)
 from fahmi2.domain.phase import PhaseConfig
 
 
@@ -46,7 +52,18 @@ def test_stt_cloud_charges_per_minute() -> None:
         stt_provider=SttProvider.OPENAI_CLOUD,
         llm_model=LLMModel.DEEPSEEK_V4_FLASH,
     )
-    assert est.stt_usd == pytest.approx(0.006)
+    assert est.stt_usd == pytest.approx(0.006)  # whisper-1 par défaut
+
+
+def test_stt_cloud_cost_depends_on_model() -> None:
+    estimator = CostEstimator()
+    est = estimator.estimate(
+        source_weights=_audio_weights(60.0),
+        stt_provider=SttProvider.OPENAI_CLOUD,
+        stt_cloud_model=CloudSttModel.GPT_4O_MINI_TRANSCRIBE,
+        llm_model=LLMModel.DEEPSEEK_V4_FLASH,
+    )
+    assert est.stt_usd == pytest.approx(0.003)  # mini : 2× moins cher
 
 
 def test_total_combines_stt_and_llm() -> None:

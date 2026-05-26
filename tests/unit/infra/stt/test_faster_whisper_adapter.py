@@ -14,6 +14,30 @@ def test_name(tmp_path: Path) -> None:
     assert adapter.name == "faster-whisper-large-v3-turbo"
 
 
+def test_name_reflects_configured_model(tmp_path: Path) -> None:
+    adapter = FasterWhisperAdapter(
+        model_cache_dir=tmp_path, model="medium", cuda_check=lambda: True
+    )
+    assert adapter.name == "faster-whisper-medium"
+
+
+def test_configured_model_passed_to_whisper(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    captured: dict[str, object] = {}
+
+    def _capture(name: str, **kwargs: object) -> object:
+        captured["name"] = name
+        return object()
+
+    monkeypatch.setattr(faster_whisper, "WhisperModel", _capture)
+    adapter = FasterWhisperAdapter(
+        model_cache_dir=tmp_path, model="small", cuda_check=lambda: True
+    )
+    adapter._load_model_or_raise()  # noqa: SLF001 — vérifie le nom transmis
+    assert captured["name"] == "small"
+
+
 def test_estimate_cost_is_zero(tmp_path: Path) -> None:
     adapter = FasterWhisperAdapter(model_cache_dir=tmp_path, cuda_check=lambda: True)
     assert adapter.estimate_cost(duration_seconds=999.0) == 0.0

@@ -69,9 +69,63 @@ def test_estimate_cost_per_minute() -> None:
     assert adapter.estimate_cost(duration_seconds=600.0) == pytest.approx(0.06)
 
 
+def test_estimate_cost_uses_model_pricing() -> None:
+    # gpt-4o-mini-transcribe est 2× moins cher que whisper-1.
+    mini = OpenAIWhisperAdapter(
+        api_key="dummy", client=MagicMock(), model="gpt-4o-mini-transcribe"
+    )
+    assert mini.estimate_cost(duration_seconds=60.0) == pytest.approx(0.003)
+
+
 def test_name() -> None:
     adapter = OpenAIWhisperAdapter(api_key="dummy", client=MagicMock())
     assert adapter.name == "openai-whisper"
+
+
+def test_transcribe_gpt4o_uses_json_and_single_segment(tmp_path: Path) -> None:
+    # Les modèles gpt-4o-* ne supportent pas verbose_json : on bascule en json et
+    # produit un segment unique par tranche (offset + durée du préparateur).
+    audio = tmp_path / "audio.wav"
+    audio.write_bytes(b"x")
+
+    class _FakePreparer:
+        def prepare(self, wav_path: Path, work_dir: Path) -> list[AudioChunk]:
+            return [
+                AudioChunk(
+                    path=tmp_path / "a.ogg", offset_seconds=0.0, duration_seconds=30.0
+                ),
+                AudioChunk(
+                    path=tmp_path / "b.ogg", offset_seconds=30.0, duration_seconds=20.0
+                ),
+            ]
+
+    (tmp_path / "a.ogg").write_bytes(b"a")
+    (tmp_path / "b.ogg").write_bytes(b"b")
+
+    def _resp(text: str) -> object:
+        m = MagicMock()
+        m.text = text
+        return m
+
+    mock_client = MagicMock()
+    mock_client.audio.transcriptions.create.side_effect = [_resp("un"), _resp("deux")]
+    adapter = OpenAIWhisperAdapter(
+        api_key="dummy",
+        client=mock_client,
+        preparer=_FakePreparer(),
+        model="gpt-4o-transcribe",
+    )
+    result = adapter.transcribe(audio, language_hint=Language.FR)
+    assert result.full_text() == "un deux"
+    assert [(s.start_seconds, s.end_seconds, s.text) for s in result.segments] == [
+        (0.0, 30.0, "un"),
+        (30.0, 50.0, "deux"),
+    ]
+    assert result.duration_seconds == pytest.approx(50.0)
+    assert result.detected_language is Language.FR  # json ne renvoie pas la langue
+    call = mock_client.audio.transcriptions.create.call_args
+    assert call.kwargs["response_format"] == "json"
+    assert call.kwargs["model"] == "gpt-4o-transcribe"
 
 
 def test_transcribe_returns_transcription(tmp_path: Path) -> None:

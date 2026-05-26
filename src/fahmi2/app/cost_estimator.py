@@ -4,7 +4,8 @@ L'estimation s'appuie sur :
 
 - La durée audio totale des sources média (via ffprobe), ou les tokens texte
   estimés des documents.
-- Le provider STT choisi (gratuit en local, 0.006 USD/min en cloud).
+- Le provider STT choisi (gratuit en local, tarif du modèle cloud sinon — cf.
+  ``infra/stt/_pricing``).
 - Le modèle LLM choisi et la configuration par phase, incluant le mode
   ``thinking`` et le niveau ``reasoning_effort``.
 
@@ -34,11 +35,11 @@ from fahmi2.app._cost_common import (
     cost_range,
     thinking_output_multiplier,
 )
-from fahmi2.domain.enums import LLMModel, PhaseId, SttProvider
+from fahmi2.domain.enums import CloudSttModel, LLMModel, PhaseId, SttProvider
 from fahmi2.domain.phase import PhaseConfig
 from fahmi2.infra.llm._pricing import get_pricing
+from fahmi2.infra.stt._pricing import stt_cost_usd
 
-_USD_PER_MINUTE_OPENAI_WHISPER = 0.006
 _SECONDS_PER_MINUTE = 60.0
 
 
@@ -183,6 +184,7 @@ class CostEstimator:
         source_weights: list[SourceWeight],
         stt_provider: SttProvider,
         llm_model: LLMModel,
+        stt_cloud_model: CloudSttModel = CloudSttModel.WHISPER_1,
         active_target_languages_count: int = 1,
         translation_languages_count: int = 0,
         phases_config: dict[PhaseId, PhaseConfig] | None = None,
@@ -194,6 +196,8 @@ class CostEstimator:
                 + drapeau ``reformulated``).
             stt_provider: Provider STT choisi.
             llm_model: Modèle LLM choisi.
+            stt_cloud_model: Modèle de transcription cloud (tarif appliqué en
+                mode cloud ; ignoré en local).
             active_target_languages_count: Nombre total de langues de sortie.
             translation_languages_count: Nombre de langues nécessitant une
                 traduction (langues ≠ source).
@@ -211,7 +215,7 @@ class CostEstimator:
         reformulated_base_tokens = sum(
             _base_tokens(w) for w in source_weights if w.reformulated
         )
-        stt_cost = self._stt_cost(total_audio_seconds, stt_provider)
+        stt_cost = self._stt_cost(total_audio_seconds, stt_provider, stt_cloud_model)
         llm_per_phase = self._llm_cost_per_phase(
             total_base_tokens=total_base_tokens,
             reformulated_base_tokens=reformulated_base_tokens,
@@ -234,18 +238,25 @@ class CostEstimator:
         )
 
     @staticmethod
-    def _stt_cost(total_audio_seconds: float, provider: SttProvider) -> float:
+    def _stt_cost(
+        total_audio_seconds: float,
+        provider: SttProvider,
+        cloud_model: CloudSttModel,
+    ) -> float:
         """Calcule le coût STT pour la durée audio totale.
 
         Args:
             total_audio_seconds: Durée audio totale (secondes).
             provider: Provider STT.
+            cloud_model: Modèle de transcription cloud (tarif en mode cloud).
 
         Returns:
             Coût USD (0 pour le provider local).
         """
         if provider is SttProvider.OPENAI_CLOUD:
-            return (total_audio_seconds / _SECONDS_PER_MINUTE) * _USD_PER_MINUTE_OPENAI_WHISPER
+            return stt_cost_usd(
+                model=str(cloud_model), duration_seconds=total_audio_seconds
+            )
         return 0.0
 
     def _llm_cost_per_phase(

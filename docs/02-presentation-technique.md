@@ -7,8 +7,8 @@
 | **OS cible** | Windows 11 (10 minimum), mono-utilisateur |
 | **Langage** | Python 3.11 ou 3.12 |
 | **UI** | PySide6 (Qt 6) — application native fenêtrée |
-| **STT local** | faster-whisper 1.x (modèle `large-v3-turbo`, CUDA) |
-| **STT cloud** | OpenAI Whisper (`whisper-1`) via SDK officiel |
+| **STT local** | faster-whisper 1.x (modèle configurable, défaut `large-v3-turbo`, CUDA) |
+| **STT cloud** | OpenAI Transcribe (modèle configurable, défaut `whisper-1`) via SDK officiel |
 | **LLM** | DeepSeek v4 Flash / Pro via SDK OpenAI-compatible |
 | **Audio** | ffmpeg-python (wrapper) + binaire ffmpeg bundlé |
 | **Retrieval** | scikit-learn (TF-IDF + cosine similarity) |
@@ -145,7 +145,10 @@ Adapters externes (ports/adapters) :
   Opus + découpage aux silences) : prépare l'audio pour le STT cloud sous la
   limite 25 Mo d'OpenAI Whisper. Injecté dans `OpenAIWhisperAdapter`.
 - `infra/stt/` — interface `STTProvider`, `FakeSTTProvider`,
-  `FasterWhisperAdapter`, `OpenAIWhisperAdapter` (multi-segments + recollage).
+  `FasterWhisperAdapter` (modèle local configurable, téléchargé au 1er usage),
+  `OpenAIWhisperAdapter` (modèle cloud configurable ; `verbose_json` pour
+  `whisper-1`, sinon `json` → segment unique par tranche), `_pricing` (USD/min
+  par modèle cloud, partagé avec le `CostEstimator`).
 - `infra/ingestion/` — aiguillage polymorphe des entrants (phase 0) : dispatcher
   `SourceKind → SourceIngestor` (calqué sur `PhaseRegistry`), `classify` (mapping
   extension → type), `MediaIngestor` (vidéo/audio : ffmpeg + STT),

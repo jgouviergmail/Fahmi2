@@ -2,8 +2,10 @@
 
 Cet adapter requiert un GPU NVIDIA compatible CUDA : sans GPU, ``transcribe``
 lève ``STT.GPU_UNAVAILABLE`` (la spec impose un blocage strict côté UI, voir
-section 7.7 du design). Le modèle ``large-v3-turbo`` est téléchargé au premier
-usage et mis en cache dans ``%LOCALAPPDATA%/Fahmi2/models/``.
+section 7.7 du design). Le modèle est **configurable** (cf.
+:class:`fahmi2.domain.enums.LocalSttModel`, défaut ``large-v3-turbo``) ; aucun
+poids n'est packagé : le modèle sélectionné est téléchargé au premier usage et
+mis en cache dans ``%LOCALAPPDATA%/Fahmi2/models/``.
 """
 
 from __future__ import annotations
@@ -13,15 +15,15 @@ from pathlib import Path
 
 from fahmi2.core.errors.exceptions import STTError
 from fahmi2.core.errors.severity import Severity
-from fahmi2.domain.enums import Language
+from fahmi2.domain.enums import Language, LocalSttModel
 from fahmi2.infra.stt.interface import (
     ProgressCallback,
     Transcription,
     TranscriptionSegment,
 )
 
-_PROVIDER_NAME = "faster-whisper-large-v3-turbo"
-_MODEL_NAME = "large-v3-turbo"
+_PROVIDER_NAME_PREFIX = "faster-whisper-"
+_DEFAULT_LOCAL_MODEL = str(LocalSttModel.LARGE_V3_TURBO)
 _DEVICE_CUDA = "cuda"
 _COMPUTE_TYPE_CUDA = "int8_float16"
 _BEAM_SIZE = 5
@@ -56,22 +58,25 @@ class FasterWhisperAdapter:
         self,
         *,
         model_cache_dir: Path,
+        model: str = _DEFAULT_LOCAL_MODEL,
         cuda_check: Callable[[], bool] | None = None,
     ) -> None:
         """Construit l'adaptateur.
 
         Args:
             model_cache_dir: Dossier où télécharger / lire le modèle.
+            model: Modèle faster-whisper (cf. ``LocalSttModel``).
             cuda_check: Fonction de détection CUDA (injectable pour les tests).
         """
         self._model_cache_dir = model_cache_dir
+        self._model_name = model
         self._cuda_check = cuda_check or _default_cuda_check
         self._model: object | None = None  # lazy, type étoffé en chargement
 
     @property
     def name(self) -> str:
-        """Identifiant stable du provider."""
-        return _PROVIDER_NAME
+        """Identifiant du provider (inclut le modèle, utile aux logs)."""
+        return f"{_PROVIDER_NAME_PREFIX}{self._model_name}"
 
     def transcribe(
         self,
@@ -103,7 +108,7 @@ class FasterWhisperAdapter:
                     "Passe sur le mode OpenAI cloud."
                 ),
                 severity=Severity.ERROR,
-                technical_details={"provider": _PROVIDER_NAME},
+                technical_details={"provider": self.name},
             )
 
         model = self._load_model_or_raise()
@@ -165,7 +170,7 @@ class FasterWhisperAdapter:
 
             self._model_cache_dir.mkdir(parents=True, exist_ok=True)
             self._model = WhisperModel(
-                _MODEL_NAME,
+                self._model_name,
                 device=_DEVICE_CUDA,
                 compute_type=_COMPUTE_TYPE_CUDA,
                 download_root=str(self._model_cache_dir),

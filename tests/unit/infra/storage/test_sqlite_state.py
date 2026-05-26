@@ -11,7 +11,14 @@ import pytest
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.core.errors.severity import Severity
-from fahmi2.domain.enums import ExportFormat, PhaseId, PhaseStatus, RunStatus
+from fahmi2.domain.enums import (
+    CloudSttModel,
+    ExportFormat,
+    LocalSttModel,
+    PhaseId,
+    PhaseStatus,
+    RunStatus,
+)
 from fahmi2.domain.ids import ProjectId, RunId, SourceId
 from fahmi2.domain.pedagogy import DEFAULT_PEDAGOGY_LLM_WORKERS
 from fahmi2.domain.phase import PhaseExecution
@@ -129,6 +136,30 @@ def test_generation_deserialize_lenient_without_export_formats(
     del payload["export_formats"]
     gen = _deserialize_generation_settings(payload)
     assert gen.export_formats == frozenset()
+
+
+def test_generation_stt_models_round_trip(make_generation_settings: Any) -> None:
+    payload = _serialize_generation_settings(
+        make_generation_settings(
+            stt_local_model=LocalSttModel.SMALL,
+            stt_cloud_model=CloudSttModel.GPT_4O_MINI_TRANSCRIBE,
+        )
+    )
+    gen = _deserialize_generation_settings(payload)
+    assert gen.stt_local_model is LocalSttModel.SMALL
+    assert gen.stt_cloud_model is CloudSttModel.GPT_4O_MINI_TRANSCRIBE
+
+
+def test_generation_deserialize_lenient_without_stt_models(
+    make_generation_settings: Any,
+) -> None:
+    # Un blob antérieur (sans modèles STT) retombe sur les défauts.
+    payload = _serialize_generation_settings(make_generation_settings())
+    del payload["stt_local_model"]
+    del payload["stt_cloud_model"]
+    gen = _deserialize_generation_settings(payload)
+    assert gen.stt_local_model is LocalSttModel.LARGE_V3_TURBO
+    assert gen.stt_cloud_model is CloudSttModel.WHISPER_1
 
 
 def test_get_unknown_project_returns_none(tmp_path: Path) -> None:

@@ -7,6 +7,23 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+### Ajouté — Choix du modèle STT (génération)
+
+- **Modèle de transcription configurable**, par provider, comme le modèle LLM
+  (page **Transcription** des réglages) :
+  - **local** (faster-whisper) : `large-v3-turbo` (défaut), `large-v3`, `medium`,
+    `small` — téléchargés **au 1er usage** (cache `%LOCALAPPDATA%/Fahmi2/models/`,
+    aucun poids packagé) ;
+  - **cloud** (OpenAI) : `whisper-1` (défaut), `gpt-4o-transcribe` (précision +),
+    `gpt-4o-mini-transcribe` (2× moins cher). Les modèles `gpt-4o-*` ne renvoient
+    pas de timestamps de segments (`json`) → l'adapter produit un **segment unique
+    par tranche** (offset + durée du préparateur), le contenu transcrit restant
+    identique. `whisper-1` conserve `verbose_json` (inchangé).
+- **Coût STT par modèle** (grille `infra/stt/_pricing` partagée estimation/coût
+  réel) : l'estimation pré-run et le coût réel reflètent le modèle cloud choisi.
+- Le combo modèle non pertinent (selon le provider sélectionné) est **grisé** ;
+  réglages persistés dans le blob v2 (désérialisation *lenient* → défauts).
+
 ### Ajouté — Dialogue (chat ancré sur le corpus)
 
 - Nouvel onglet **Dialogue** : chat conversationnel ancré sur le corpus produit

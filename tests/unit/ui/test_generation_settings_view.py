@@ -9,11 +9,18 @@ import pytest
 from pytestqt.qtbot import QtBot
 
 from fahmi2.app.hardware_probe import HardwareInfo
-from fahmi2.domain.enums import ExportFormat, Language
+from fahmi2.domain.enums import (
+    CloudSttModel,
+    ExportFormat,
+    Language,
+    LocalSttModel,
+    SttProvider,
+)
 from fahmi2.domain.generation import ParallelismConfig
 from fahmi2.ui.dialogs.generation_settings_view import GenerationSettingsView
 
 _HW = HardwareInfo(cuda_available=False, gpu_name="", cuda_version="")
+_HW_CUDA = HardwareInfo(cuda_available=True, gpu_name="RTX", cuda_version="12.1")
 
 
 def test_create_mode_requires_input_folder(
@@ -93,6 +100,39 @@ def test_edit_mode_reflects_keep_audio(
     view = GenerationSettingsView(_HW, initial=gen)
     qtbot.addWidget(view)
     assert view._keep_audio_checkbox.isChecked() is True  # noqa: SLF001
+
+
+def test_stt_models_round_trip(
+    qtbot: QtBot, make_generation_settings: Any
+) -> None:
+    gen = make_generation_settings(
+        stt_local_model=LocalSttModel.SMALL,
+        stt_cloud_model=CloudSttModel.GPT_4O_MINI_TRANSCRIBE,
+    )
+    view = GenerationSettingsView(_HW, initial=gen)
+    qtbot.addWidget(view)
+    view._on_accept()  # noqa: SLF001
+    result = view.get_generation_settings()
+    assert result is not None
+    assert result.stt_local_model is LocalSttModel.SMALL
+    assert result.stt_cloud_model is CloudSttModel.GPT_4O_MINI_TRANSCRIBE
+
+
+def test_stt_model_combo_enabled_by_provider(
+    qtbot: QtBot, make_generation_settings: Any
+) -> None:
+    # Cloud sélectionné → combo cloud actif, combo local grisé.
+    cloud = make_generation_settings(stt_provider=SttProvider.OPENAI_CLOUD)
+    cloud_view = GenerationSettingsView(_HW, initial=cloud)
+    qtbot.addWidget(cloud_view)
+    assert cloud_view._stt_cloud_model_combo.isEnabled()  # noqa: SLF001
+    assert not cloud_view._stt_local_model_combo.isEnabled()  # noqa: SLF001
+    # Local sélectionné (GPU présent) → l'inverse.
+    local = make_generation_settings(stt_provider=SttProvider.FASTER_WHISPER_LOCAL)
+    local_view = GenerationSettingsView(_HW_CUDA, initial=local)
+    qtbot.addWidget(local_view)
+    assert local_view._stt_local_model_combo.isEnabled()  # noqa: SLF001
+    assert not local_view._stt_cloud_model_combo.isEnabled()  # noqa: SLF001
 
 
 def test_parallelism_round_trips(

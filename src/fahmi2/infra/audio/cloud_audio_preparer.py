@@ -41,10 +41,14 @@ class AudioChunk:
     Attributes:
         path: Fichier Opus (≤ ``max_chunk_bytes``).
         offset_seconds: Décalage temporel du segment dans l'audio d'origine.
+        duration_seconds: Durée du segment (s). Utilisée par l'adapter cloud pour
+            reconstruire la durée totale quand le modèle ne renvoie pas de
+            timestamps (modèles ``gpt-4o-*-transcribe``).
     """
 
     path: Path
     offset_seconds: float
+    duration_seconds: float = 0.0
 
 
 class AudioPreparer(Protocol):
@@ -114,7 +118,13 @@ class CloudAudioPreparer:
         full = work_dir / f"full{_OPUS_CONTAINER_SUFFIX}"
         self._encode_opus(wav_path, full, start=None, end=None)
         if full.stat().st_size <= self._max_chunk_bytes:
-            return [AudioChunk(path=full, offset_seconds=0.0)]
+            return [
+                AudioChunk(
+                    path=full,
+                    offset_seconds=0.0,
+                    duration_seconds=self._probe_duration(wav_path),
+                )
+            ]
         return self._split(wav_path, work_dir, full.stat().st_size)
 
     def _split(
@@ -141,7 +151,11 @@ class CloudAudioPreparer:
         for index, (start, end) in enumerate(bounds):
             seg = work_dir / f"seg_{index}{_OPUS_CONTAINER_SUFFIX}"
             self._encode_opus(wav_path, seg, start=start, end=end)
-            chunks.append(AudioChunk(path=seg, offset_seconds=start))
+            chunks.append(
+                AudioChunk(
+                    path=seg, offset_seconds=start, duration_seconds=end - start
+                )
+            )
         return chunks
 
     @staticmethod

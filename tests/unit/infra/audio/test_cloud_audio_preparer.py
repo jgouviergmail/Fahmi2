@@ -31,6 +31,7 @@ def test_prepare_single_chunk_when_small(speech_wav: Path, tmp_path: Path) -> No
     assert len(chunks) == 1
     assert isinstance(chunks[0], AudioChunk)
     assert chunks[0].offset_seconds == 0.0
+    assert chunks[0].duration_seconds > 0.0  # durée sondée (modèles sans timestamps)
     assert chunks[0].path.exists()
     assert chunks[0].path.suffix == ".ogg"
     # Opus bien plus petit que le WAV source.
@@ -61,3 +62,4 @@ def test_prepare_splits_when_over_limit(speech_wav: Path, tmp_path: Path) -> Non
     assert offsets == sorted(offsets)
     for c in chunks:
         assert c.path.exists()
+        assert c.duration_seconds > 0.0  # durée par tranche (= end - start)

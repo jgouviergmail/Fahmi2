@@ -71,6 +71,34 @@ class SttProvider(StrEnum):
     OPENAI_CLOUD = "openai_cloud"
 
 
+class LocalSttModel(StrEnum):
+    """Modèles faster-whisper locaux (téléchargés au 1er usage, mis en cache).
+
+    Identifiants reconnus par ``faster_whisper.WhisperModel`` (résolus vers les
+    dépôts Hugging Face). Aucun poids n'est packagé : le modèle sélectionné est
+    téléchargé à sa première utilisation dans ``%LOCALAPPDATA%/Fahmi2/models/``.
+    """
+
+    LARGE_V3_TURBO = "large-v3-turbo"  # défaut : équilibre vitesse/qualité
+    LARGE_V3 = "large-v3"              # précision maximale (plus lent, + VRAM)
+    MEDIUM = "medium"                  # plus léger/rapide, VRAM réduite
+    SMALL = "small"                    # le plus rapide, faible VRAM, qualité moindre
+
+
+class CloudSttModel(StrEnum):
+    """Modèles de transcription cloud OpenAI.
+
+    ``whisper-1`` renvoie des **segments horodatés** (``verbose_json``) ; les
+    modèles ``gpt-4o-*-transcribe`` ne renvoient que du texte (``json``), sans
+    timestamps de segments (l'adapter produit alors un segment unique par tranche
+    audio, le contenu transcrit restant identique).
+    """
+
+    WHISPER_1 = "whisper-1"                          # défaut : timestamps fins
+    GPT_4O_TRANSCRIBE = "gpt-4o-transcribe"          # précision supérieure
+    GPT_4O_MINI_TRANSCRIBE = "gpt-4o-mini-transcribe"  # 2× moins cher
+
+
 class LLMModel(StrEnum):
     """Modèles DeepSeek supportés."""
 

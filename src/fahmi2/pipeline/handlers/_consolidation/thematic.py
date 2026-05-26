@@ -158,11 +158,33 @@ def _extract_ledger_one(
     return _elements_from_payload(dict(payload), source_id=source_id), response.cost_usd
 
 
-def _render_facts_md(elements: list[_FactElement]) -> str:
+def _source_labels(structured_by_source: dict[str, str]) -> dict[str, str]:
+    """Libellés lisibles par source (« Source 1 », « Source 2 »…), dans l'ordre.
+
+    Les identifiants internes (ULID) ne doivent **jamais** apparaître dans le
+    document final : le LLM ne reçoit que ces libellés pour attribuer un contenu
+    à sa source.
+
+    Args:
+        structured_by_source: Markdown structuré par ``source_id`` (ordre du run).
+
+    Returns:
+        Mapping ``source_id -> libellé lisible``.
+    """
+    return {
+        source_id: f"Source {index}"
+        for index, source_id in enumerate(structured_by_source, start=1)
+    }
+
+
+def _render_facts_md(
+    elements: list[_FactElement], source_labels: dict[str, str]
+) -> str:
     """Rendu lisible du relevé factuel, groupé par source.
 
     Args:
         elements: Tous les éléments tracés.
+        source_labels: Libellés lisibles par ``source_id`` (pas d'ULID affiché).
 
     Returns:
         Markdown consultable (un bloc par source).
@@ -172,11 +194,11 @@ def _render_facts_md(elements: list[_FactElement]) -> str:
     for el in elements:
         by_source.setdefault(el.source_id, []).append(el)
     for source_id, els in by_source.items():
-        lines.append(f"## Source `{source_id}`")
+        lines.append(f"## {source_labels.get(source_id, source_id)}")
         lines.append("")
         for el in els:
             data = f" — _{el.donnees}_" if el.donnees else ""
-            lines.append(f"- **[{el.id}]** ({el.type}) {el.enonce}{data}")
+            lines.append(f"- ({el.type}) {el.enonce}{data}")
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
@@ -269,13 +291,21 @@ def _reconcile_coverage(
 
 
 def _elements_payload_for_chapter(
-    element_ids: tuple[str, ...], by_id: dict[str, _FactElement]
+    element_ids: tuple[str, ...],
+    by_id: dict[str, _FactElement],
+    source_labels: dict[str, str],
 ) -> list[dict[str, str]]:
     """Construit la charge JSON des éléments assignés à un chapitre.
+
+    Le champ ``source`` porte le **libellé lisible** (pas l'ULID) : c'est ce que
+    le LLM citera pour attribuer un contenu. ``id`` reste l'identifiant technique
+    (le LLM le ré-émet dans ``used_element_ids`` mais ne doit pas l'écrire dans
+    le texte).
 
     Args:
         element_ids: Ids assignés au chapitre.
         by_id: Index ``id -> élément``.
+        source_labels: Libellés lisibles par ``source_id``.
 
     Returns:
         Liste de dicts sérialisables (ordre des ids assignés).
@@ -283,7 +313,7 @@ def _elements_payload_for_chapter(
     return [
         {
             "id": by_id[eid].id,
-            "source": by_id[eid].source_id,
+            "source": source_labels.get(by_id[eid].source_id, by_id[eid].source_id),
             "type": by_id[eid].type,
             "enonce": by_id[eid].enonce,
             "donnees": by_id[eid].donnees,
@@ -294,10 +324,38 @@ def _elements_payload_for_chapter(
     ]
 
 
+def _strip_provenance_ids(
+    body: str, *, by_id: dict[str, _FactElement], source_labels: dict[str, str]
+) -> str:
+    """Filet déterministe : retire tout identifiant technique résiduel du corps.
+
+    Le prompt interdit déjà d'écrire les ``id``/ULID, mais on **garantit**
+    qu'aucun n'atteint le document final : chaque id d'élément (« ULID#n ») et
+    chaque ULID de source est remplacé par le libellé lisible de sa source.
+
+    Args:
+        body: Corps Markdown produit par le LLM.
+        by_id: Index ``id -> élément`` (tous les éléments connus).
+        source_labels: Libellés lisibles par ``source_id``.
+
+    Returns:
+        Le corps débarrassé des identifiants techniques.
+    """
+    out = body
+    # Les ids d'élément (« ULID#n ») d'abord : ils contiennent l'ULID de source.
+    for eid, el in by_id.items():
+        out = out.replace(eid, source_labels.get(el.source_id, el.source_id))
+    # Puis les ULID de source bruts éventuellement cités seuls.
+    for source_id, label in source_labels.items():
+        out = out.replace(source_id, label)
+    return out
+
+
 def _write_chapter_body(
     ctx: PhaseContext,
     chapter: _PlannedChapter,
     by_id: dict[str, _FactElement],
+    source_labels: dict[str, str],
 ) -> tuple[str, list[str], float]:
     """T3 pour un chapitre : ``→ (body_markdown, used_ids, coût)``.
 
@@ -305,11 +363,14 @@ def _write_chapter_body(
         ctx: Contexte d'exécution.
         chapter: Chapitre planifié.
         by_id: Index ``id -> élément``.
+        source_labels: Libellés lisibles par ``source_id``.
 
     Returns:
-        ``(corps Markdown, ids utilisés, cost_usd)``.
+        ``(corps Markdown assaini, ids utilisés, cost_usd)``.
     """
-    elements_payload = _elements_payload_for_chapter(chapter.element_ids, by_id)
+    elements_payload = _elements_payload_for_chapter(
+        chapter.element_ids, by_id, source_labels
+    )
     prompt = ctx.prompts.render(
         TEMPLATE_THEMATIC_CHAPTER,
         output_language_label=language_label(ctx.settings.source_language),
@@ -322,7 +383,11 @@ def _write_chapter_body(
         ctx, phase_id=PhaseId.CONSOLIDATION, system_prompt=None, user_prompt=prompt
     )
     payload = dict(parse_json_response(response.content, phase_id=PhaseId.CONSOLIDATION))
-    body = str(payload.get("body_markdown", "")).strip()
+    body = _strip_provenance_ids(
+        str(payload.get("body_markdown", "")).strip(),
+        by_id=by_id,
+        source_labels=source_labels,
+    )
     used = [str(x) for x in payload.get("used_element_ids", [])]
     return body, used, response.cost_usd
 
@@ -349,6 +414,7 @@ def _resolve_chapter(
     index: int,
     chapter: _PlannedChapter,
     by_id: dict[str, _FactElement],
+    source_labels: dict[str, str],
     *,
     fresh: bool,
 ) -> tuple[_Chapter, list[str], float]:
@@ -364,6 +430,7 @@ def _resolve_chapter(
         index: Numéro de chapitre (1-based).
         chapter: Chapitre planifié.
         by_id: Index ``id -> élément``.
+        source_labels: Libellés lisibles par ``source_id``.
         fresh: ``True`` si les artefacts existants sont réutilisables.
 
     Returns:
@@ -375,7 +442,7 @@ def _resolve_chapter(
         gaps: list[str] = []  # couverture #2 déjà journalisée au run initial
         cost = 0.0
     else:
-        body, used, cost = _write_chapter_body(ctx, chapter, by_id)
+        body, used, cost = _write_chapter_body(ctx, chapter, by_id, source_labels)
         renumbered, _ = renumber_subheadings(body, index)
         ctx.artifacts.write_text_atomic(chapter_path, renumbered)
         gaps = _chapter_coverage_gaps(
@@ -470,6 +537,8 @@ class ThematicConsolidationStrategy(ConsolidationStrategy):
         """
         base_dir = ctx.workspace / CONSOLIDATION_SUBDIR
         total_cost = 0.0
+        # Libellés lisibles : aucun ULID ne doit atteindre le document final.
+        source_labels = _source_labels(structured_by_source)
 
         # Reprise intra-phase : artefacts d'un run incompatible → on repart à neuf.
         current_hash = _consistency_hash(ctx, structured_by_source)
@@ -504,7 +573,8 @@ class ThematicConsolidationStrategy(ConsolidationStrategy):
                 facts_path, {"elements": [asdict(el) for el in elements]}
             )
             ctx.artifacts.write_text_atomic(
-                base_dir / FACTS_READABLE_FILENAME, _render_facts_md(elements)
+                base_dir / FACTS_READABLE_FILENAME,
+                _render_facts_md(elements, source_labels),
             )
 
         all_ids = [el.id for el in elements]
@@ -546,7 +616,7 @@ class ThematicConsolidationStrategy(ConsolidationStrategy):
         by_id = {el.id: el for el in elements}
         resolved = map_bounded(
             lambda ic: _resolve_chapter(
-                ctx, base_dir, ic[0], ic[1], by_id, fresh=fresh
+                ctx, base_dir, ic[0], ic[1], by_id, source_labels, fresh=fresh
             ),
             list(enumerate(chapters_plan, start=1)),
             max_workers=ctx.settings.parallelism.llm_workers,

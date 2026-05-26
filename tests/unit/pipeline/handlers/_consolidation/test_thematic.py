@@ -23,6 +23,8 @@ from fahmi2.pipeline.handlers._consolidation.thematic import (
     _PlannedChapter,
     _reconcile_coverage,
     _render_facts_md,
+    _source_labels,
+    _strip_provenance_ids,
 )
 from fahmi2.pipeline.handlers.phase_5_consolidation import Phase5ConsolidationHandler
 from tests.unit.pipeline.handlers._helpers import build_phase_context
@@ -112,13 +114,38 @@ def test_elements_from_payload_prefixes_source() -> None:
     assert elements[1].donnees == "42"
 
 
-def test_render_facts_md_groups_by_source() -> None:
+def test_render_facts_md_uses_readable_labels_not_ulids() -> None:
     els = [
-        _FactElement("s1#1", "s1", "fait", "E1", "", "v1"),
-        _FactElement("s2#1", "s2", "chiffre", "E2", "42", "v2"),
+        _FactElement("01ULIDA#1", "01ULIDA", "fait", "E1", "", "v1"),
+        _FactElement("01ULIDB#1", "01ULIDB", "chiffre", "E2", "42", "v2"),
     ]
-    md = _render_facts_md(els)
-    assert "s1" in md and "s2" in md and "E1" in md and "42" in md
+    labels = {"01ULIDA": "Source 1", "01ULIDB": "Source 2"}
+    md = _render_facts_md(els, labels)
+    assert "Source 1" in md and "Source 2" in md and "E1" in md and "42" in md
+    # Aucun ULID ni id technique ne doit apparaître dans le rendu lisible.
+    assert "01ULIDA" not in md
+    assert "#1" not in md
+
+
+def test_source_labels_are_ordinal_in_source_order() -> None:
+    labels = _source_labels({"01AAA": "...", "01BBB": "...", "01CCC": "..."})
+    assert labels == {"01AAA": "Source 1", "01BBB": "Source 2", "01CCC": "Source 3"}
+
+
+def test_strip_provenance_ids_replaces_ulids_and_element_ids() -> None:
+    by_id = {
+        "01ULIDA#198": _FactElement("01ULIDA#198", "01ULIDA", "fait", "E", "", "v"),
+    }
+    labels = {"01ULIDA": "Source 1"}
+    # Cas signalé : un id d'élément fuité dans la prose.
+    body = "La croissance est forte (source 01ULIDA#198) et durable."
+    cleaned = _strip_provenance_ids(body, by_id=by_id, source_labels=labels)
+    assert cleaned == "La croissance est forte (source Source 1) et durable."
+    assert "01ULIDA" not in cleaned
+    # Cas ULID de source cité seul.
+    assert "Source 1" in _strip_provenance_ids(
+        "selon 01ULIDA", by_id=by_id, source_labels=labels
+    )
 
 
 def test_reconcile_coverage_adds_complementary_for_orphans() -> None:
@@ -155,9 +182,11 @@ def test_conflicting_elements_reach_same_chapter_payload() -> None:
         "s1#1": _FactElement("s1#1", "s1", "chiffre", "La valeur est 10", "10", "…10…"),
         "s2#1": _FactElement("s2#1", "s2", "chiffre", "La valeur est 20", "20", "…20…"),
     }
-    payload = _elements_payload_for_chapter(("s1#1", "s2#1"), by_id)
+    labels = {"s1": "Source 1", "s2": "Source 2"}
+    payload = _elements_payload_for_chapter(("s1#1", "s2#1"), by_id, labels)
     assert {p["id"] for p in payload} == {"s1#1", "s2#1"}
-    assert {p["source"] for p in payload} == {"s1", "s2"}
+    # Le champ ``source`` exposé au LLM est le libellé lisible, pas l'ULID.
+    assert {p["source"] for p in payload} == {"Source 1", "Source 2"}
 
 
 # --------------------------------------------------------------------------- #
@@ -232,6 +261,51 @@ def test_thematic_consolidate_end_to_end(
     assert (base / "thematic_plan.json").exists()
     assert (base / "coverage.json").exists()
     assert (base / "chapters" / "1.md").exists()
+
+
+def test_final_document_contains_no_raw_provenance_ids(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    # Même si le LLM fait fuiter un id technique dans le corps, le filet
+    # déterministe garantit qu'aucun ULID/id n'atteint le document final.
+    sources = _two_sources(tmp_path)
+    ids = [f"{s.source_id.value}#1" for s in sources]
+    plan = {"global_title": "GT", "chapters": [{"title": "Thème", "order": 1, "element_ids": ids}]}
+    leaky_chapter = {
+        "body_markdown": f"## Sous\nLa valeur est X (source {ids[0]}).",
+        "used_element_ids": ids,
+    }
+    meta = {"global_title": "GT", "introduction_markdown": "Intro."}
+    fake = _sequential(
+        [
+            _resp(_ledger("E0")),
+            _resp(_ledger("E1")),
+            _resp(json.dumps(plan)),
+            _resp(json.dumps(leaky_chapter)),
+            _resp(json.dumps(meta), 0.005),
+        ]
+    )
+    ctx, _ = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        sources=sources,
+        settings_overrides={
+            "consolidation_mode": ConsolidationMode.THEMATIC,
+            "parallelism": ParallelismConfig(llm_workers=1),
+        },
+    )
+    ctx = _with_llm(ctx, fake)
+    _write_structured(ctx.workspace, sources[0].source_id.value, "# A\nContenu A")
+    _write_structured(ctx.workspace, sources[1].source_id.value, "# B\nContenu B")
+
+    structured = load_all_structured(ctx.workspace, ctx.run.sources)
+    result = ThematicConsolidationStrategy().consolidate(ctx, structured)
+
+    # Ni l'ULID de source, ni l'id d'élément complet ne doivent subsister
+    # (les ancres du sommaire « #1-theme » sont légitimes : on cible les ids).
+    assert sources[0].source_id.value not in result.consolidated_markdown
+    assert ids[0] not in result.consolidated_markdown
+    assert "Source 1" in result.consolidated_markdown
 
 
 def test_phase5_handler_dispatches_to_thematic(

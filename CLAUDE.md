@@ -199,6 +199,10 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
   `facts.md`), T2 plan thématique (couverture déterministe #1 → chapitre filet
   « Éléments complémentaires »), T3 rédaction par chapitre (couverture #2,
   conflits présentés par source), T4 méta + assemblage déterministe réutilisé.
+  **Les identifiants techniques (ULID, `source#n`) ne fuitent jamais dans le
+  livrable** : le LLM ne reçoit que des libellés lisibles « Source N » pour
+  l'attribution, et `_strip_provenance_ids` remplace tout id résiduel (filet
+  déterministe).
   Reprise intra-phase via *hash de cohérence* (sans toucher `PipelineEngine`).
   Coût : facteur dédié dans `CostEstimator` (pas d'enforcement runtime en
   génération). UI : sélecteur dans `GenerationSettingsView` + note « ordre sans

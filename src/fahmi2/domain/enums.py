@@ -21,6 +21,19 @@ class StylePreset(StrEnum):
     ACADEMIQUE = "academique"
 
 
+class ConsolidationMode(StrEnum):
+    """Mode d'assemblage du document consolidé (phase 5).
+
+    ``ORDERED`` (défaut) : 1 source = 1 chapitre, contenu recopié dans l'ordre
+    choisi. ``THEMATIC`` : refonte thématique transversale — le LLM agrège et
+    structure les contenus de tous les entrants (rigueur sur le fond, souplesse
+    sur la forme).
+    """
+
+    ORDERED = "ordered"
+    THEMATIC = "thematic"
+
+
 class PhaseId(StrEnum):
     """Identifiants stables des phases du pipeline."""
 

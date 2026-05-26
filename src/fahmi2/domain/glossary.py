@@ -12,7 +12,36 @@ from fahmi2.domain.ids import SourceId
 _HEADERS_BY_LANGUAGE: dict[Language, tuple[str, str, str, str]] = {
     Language.FR: ("Terme", "Acronyme", "Signification", "Définition"),
     Language.EN: ("Term", "Acronym", "Meaning", "Definition"),
+    Language.DE: ("Begriff", "Akronym", "Bedeutung", "Definition"),
+    Language.ES: ("Término", "Acrónimo", "Significado", "Definición"),
+    Language.IT: ("Termine", "Acronimo", "Significato", "Definizione"),
+    Language.ZH: ("术语", "缩写", "含义", "定义"),
+    Language.AR: ("المصطلح", "الاختصار", "المعنى", "التعريف"),
 }
+
+#: Titre H1 localisé du glossaire par langue (cohérent avec les en-têtes).
+_TITLE_BY_LANGUAGE: dict[Language, str] = {
+    Language.FR: "Glossaire",
+    Language.EN: "Glossary",
+    Language.DE: "Glossar",
+    Language.ES: "Glosario",
+    Language.IT: "Glossario",
+    Language.ZH: "术语表",
+    Language.AR: "مسرد المصطلحات",
+}
+
+
+def glossary_title(language: Language) -> str:
+    """Titre H1 localisé du glossaire pour une langue.
+
+    Args:
+        language: Langue cible.
+
+    Returns:
+        Le titre localisé (ex: ``"Glossaire"``) ; repli anglais si la langue est
+        hors périmètre.
+    """
+    return _TITLE_BY_LANGUAGE.get(language, _TITLE_BY_LANGUAGE[Language.EN])
 
 
 @dataclass(frozen=True)

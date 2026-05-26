@@ -335,9 +335,12 @@ def _render_glossary_md(payload: dict[str, Any], language: Language) -> str:
         Le glossaire au format tableau Markdown ``| Terme | Acronyme |
         Signification | Définition |``.
     """
-    from fahmi2.domain.glossary import Term, render_glossary_markdown_table  # noqa: PLC0415
+    from fahmi2.domain.glossary import (  # noqa: PLC0415
+        Term,
+        glossary_title,
+        render_glossary_markdown_table,
+    )
 
-    title_by_lang = {Language.FR: "Glossaire", Language.EN: "Glossary"}
     raw_terms = payload.get("terms", [])
     terms = [
         Term(
@@ -353,7 +356,7 @@ def _render_glossary_md(payload: dict[str, Any], language: Language) -> str:
         for raw in raw_terms
     ]
     return render_glossary_markdown_table(
-        title=title_by_lang.get(language, "Glossary"),
+        title=glossary_title(language),
         language=language,
         terms=terms,
     )

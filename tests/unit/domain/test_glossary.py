@@ -6,12 +6,33 @@ import pytest
 
 from fahmi2.domain.enums import Language
 from fahmi2.domain.glossary import (
+    _HEADERS_BY_LANGUAGE,
     Glossary,
     Term,
+    glossary_title,
     parse_glossary_master_terms,
     render_glossary_markdown_table,
 )
 from fahmi2.domain.ids import SourceId
+
+
+def test_glossary_headers_exist_for_all_languages() -> None:
+    for lang in Language:
+        headers = _HEADERS_BY_LANGUAGE[lang]
+        assert len(headers) == 4
+        assert all(h for h in headers)
+    assert _HEADERS_BY_LANGUAGE[Language.DE][0] == "Begriff"
+    assert _HEADERS_BY_LANGUAGE[Language.ZH][3] == "定义"
+
+
+def test_glossary_title_localized_for_all_languages() -> None:
+    for lang in Language:
+        assert glossary_title(lang)
+    assert glossary_title(Language.FR) == "Glossaire"
+    assert glossary_title(Language.EN) == "Glossary"
+    assert glossary_title(Language.DE) == "Glossar"
+    assert glossary_title(Language.ES) == "Glosario"
+    assert glossary_title(Language.IT) == "Glossario"
 
 
 def test_term_minimal() -> None:

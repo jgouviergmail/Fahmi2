@@ -17,7 +17,7 @@ from typing import Any
 
 from fahmi2.domain.enums import Language, PhaseId, PhaseStatus, StylePreset
 from fahmi2.domain.phase import PhaseExecution
-from fahmi2.infra.llm.interface import LLMResponse
+from fahmi2.infra.llm.interface import DEFAULT_MAX_OUTPUT_TOKENS, LLMResponse
 from fahmi2.infra.llm.invocation import invoke_llm_chat, parse_llm_json
 from fahmi2.pipeline.phase_handler import PhaseContext
 
@@ -32,14 +32,6 @@ _LANGUAGE_LABELS_FR: dict[Language, str] = {
     Language.FR: "français",
     Language.EN: "anglais",
 }
-
-#: Plafond de tokens de sortie des phases LLM. Sans ``max_tokens`` explicite,
-#: DeepSeek applique un **petit défaut** qui **tronque silencieusement** les
-#: sorties longues (reformulation/structuration/traduction d'une source
-#: volumineuse). Les modèles V4 acceptent jusqu'à 384 K tokens de sortie : on fixe
-#: une borne large couvrant toute source réaliste (la troncature résiduelle
-#: éventuelle est détectée et levée par l'adapter, jamais silencieuse).
-_MAX_OUTPUT_TOKENS = 65536
 
 
 def style_label(style: StylePreset) -> str:
@@ -72,7 +64,7 @@ def invoke_llm(
     phase_id: PhaseId,
     system_prompt: str | None,
     user_prompt: str,
-    max_tokens: int | None = _MAX_OUTPUT_TOKENS,
+    max_tokens: int | None = DEFAULT_MAX_OUTPUT_TOKENS,
 ) -> LLMResponse:
     """Appelle le ``LLMProvider`` avec la ``PhaseConfig`` propre à ``phase_id``.
 
@@ -81,8 +73,8 @@ def invoke_llm(
         phase_id: Phase courante (sert à lire ``phases_config[phase_id]``).
         system_prompt: Prompt système optionnel.
         user_prompt: Prompt utilisateur (corps de la requête).
-        max_tokens: Tokens max de sortie (défaut ``_MAX_OUTPUT_TOKENS`` : évite la
-            troncature silencieuse du petit défaut DeepSeek).
+        max_tokens: Tokens max de sortie (défaut ``DEFAULT_MAX_OUTPUT_TOKENS`` :
+            évite la troncature silencieuse du petit défaut du provider).
 
     Returns:
         ``LLMResponse``.

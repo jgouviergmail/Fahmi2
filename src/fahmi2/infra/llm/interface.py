@@ -12,6 +12,13 @@ from typing import Literal, Protocol
 
 Role = Literal["system", "user", "assistant"]
 
+#: Plafond de tokens de sortie demandé par défaut. Sans ``max_tokens`` explicite,
+#: le provider applique un **petit défaut** qui tronque silencieusement les sorties
+#: longues : on demande donc le **maximum du modèle**. Les deux modèles DeepSeek V4
+#: (flash et pro) partagent le même plafond de sortie de **384 K tokens** (contexte
+#: 1 M) ; à revisiter si un provider à plafond inférieur est ajouté.
+DEFAULT_MAX_OUTPUT_TOKENS = 384_000
+
 
 @dataclass(frozen=True)
 class Message:

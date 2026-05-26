@@ -14,9 +14,10 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   un appel et ne fixaient pas `max_tokens` → DeepSeek appliquait son **petit défaut**
   et **coupait silencieusement** les sorties longues (document/transcription
   volumineux), d'où un `consolidated.{lang}.md` incomplet. Désormais : `max_tokens`
-  large par défaut (les modèles V4 acceptent jusqu'à 384 K tokens de sortie) **et**
-  détection d'une troncature résiduelle (`finish_reason="length"` → erreur explicite
-  `LLM.OUTPUT_TRUNCATED` au lieu d'une perte silencieuse).
+  fixé au **maximum du modèle** (`DEFAULT_MAX_OUTPUT_TOKENS = 384 000`, plafond de
+  sortie partagé par les deux modèles DeepSeek V4) **et** détection d'une troncature
+  résiduelle (`finish_reason="length"` → erreur explicite `LLM.OUTPUT_TRUNCATED` au
+  lieu d'une perte silencieuse).
 - **Génération → Réglages → Entrée & langues** : les listes « Sources à traiter »
   et « Exclues » étaient bornées en hauteur. La liste « Sources à traiter » suit
   désormais la hauteur de la fenêtre (extensible verticalement, priorité sur les

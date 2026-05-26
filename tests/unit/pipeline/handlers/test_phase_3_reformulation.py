@@ -11,8 +11,7 @@ from fahmi2.domain.enums import PhaseStatus, SourceKind
 from fahmi2.domain.generation import ParallelismConfig
 from fahmi2.domain.ids import SourceId
 from fahmi2.domain.source import InputSource, SourceExecution
-from fahmi2.infra.llm.interface import LLMResponse
-from fahmi2.pipeline.handlers._base import _MAX_OUTPUT_TOKENS
+from fahmi2.infra.llm.interface import DEFAULT_MAX_OUTPUT_TOKENS, LLMResponse
 from fahmi2.pipeline.handlers.phase_3_reformulation import Phase3ReformulationHandler
 from tests.unit.pipeline.handlers._helpers import (
     build_phase_context,
@@ -110,7 +109,7 @@ def test_execute_sets_generous_max_tokens(
     Phase3ReformulationHandler().execute(ctx, source=video)
     fake_llm = ctx.llm_provider
     assert hasattr(fake_llm, "calls")
-    assert fake_llm.calls[-1]["max_tokens"] == _MAX_OUTPUT_TOKENS
+    assert fake_llm.calls[-1]["max_tokens"] == DEFAULT_MAX_OUTPUT_TOKENS
 
 
 def test_execute_raises_when_transcription_missing(

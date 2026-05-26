@@ -56,6 +56,12 @@ La phase 5 devient un dispatcher. Nouveau package
   `phase_5_consolidation.py` : renumérotation `1 / 1.1 / 1.1.1`, construction du
   sommaire (`_build_toc_lines`), ancres GFM (`slugify_anchor`), assemblage
   méta + chapitres. Le **contrat de chapitre** (corps en `##`/`###`) est partagé.
+  - `ConsolidationResult` (`@dataclass(frozen=True)`) : porte le **markdown
+    consolidé** (`consolidated_markdown: str`) et le **coût cumulé**
+    (`cost_usd: float`) de tous les appels LLM de la stratégie. Le dispatcher en
+    tire l'écriture de `consolidated_master.md` et le `cost_usd` du
+    `PhaseExecution` (le mode `ORDERED` somme ses 2 appels, le mode `THEMATIC`
+    somme T1×sources + T2 + T3×chapitres + T4).
 - `ordered.py` — `OrderedConsolidationStrategy` : comportement **actuel à
   l'identique** (résumé condensé par source via `phase_5_video_summary`, méta via
   `phase_5_consolidation`, contenu recopié, 1 source = 1 chapitre).
@@ -77,6 +83,14 @@ thème** → **rédiger** à partir des notes. La fidélité du fond circule via
 Pour chaque source (en parallèle, borné par `parallelism.llm_workers`), le LLM
 extrait la **liste exhaustive des éléments à préserver** — au sens large : faits,
 chiffres, données, **raisonnements/arguments**, affirmations.
+
+> **Limite de passage à l'échelle (assumée, à surveiller au plan)** : un relevé
+> *exhaustif + extraits verbatim* sur une source très longue peut approcher le
+> plafond de tokens de sortie du LLM. Décision : T1 traite la source **entière**
+> en un appel (le grand contexte DeepSeek couvre des cours typiques) ; si une
+> source dépasse un seuil, le plan d'implémentation pourra ajouter un **découpage
+> par section** (sur les `#`/`##` du structuré) avec concaténation du relevé —
+> non implémenté d'emblée (YAGNI).
 
 Chaque élément :
 
@@ -126,10 +140,12 @@ source) et produit le plan :
 - **Contrôle déterministe n°1 (couverture du plan)** : `union(element_ids assignés)`
   doit égaler `{tous les ids extraits}`. Tout `id` **orphelin** est :
   1. journalisé (log + détails) ;
-  2. **réinjecté** dans un chapitre de fin déterministe **« Éléments
-     complémentaires »** — on évite de le rattacher au chapitre « le plus
-     proche » (jugement non déterministe) ; ce filet garantit qu'**aucun élément
-     ne peut disparaître**.
+  2. **réinjecté** dans un chapitre de fin **« Éléments complémentaires »** — on
+     évite de le rattacher au chapitre « le plus proche » (jugement non
+     déterministe) ; ce filet garantit qu'**aucun élément ne peut disparaître**.
+     Seul l'**assignement** est déterministe : ce chapitre **passe lui aussi par
+     la rédaction T3** (prose synthétisée, comme les autres), il ne s'agit pas
+     d'un dépotoir d'éléments bruts.
 
 **Artefact conservé** : `thematic_plan.json`.
 
@@ -139,7 +155,10 @@ Pour chaque chapitre (en parallèle, borné par `parallelism.llm_workers`), le L
 reçoit :
 
 - ses **éléments assignés** (`enonce`, `donnees`, **`extrait_verbatim`**, `source_id`) ;
-- le **glossaire** (comme les phases 3/4) pour homogénéiser la terminologie ;
+- *(optionnel)* le **glossaire** : les `extrait_verbatim` portent **déjà** la
+  terminologie homogénéisée en phases 3/4, donc la réinjection n'a qu'un bénéfice
+  marginal pour un surcoût réel. Décision : **ne pas injecter le glossaire en T3**
+  par défaut (YAGNI) — réévaluable si la cohérence terminologique se dégrade ;
 - les directives : utiliser **uniquement** le contenu fourni, **ne rien
   inventer**, préserver chiffres/données, **présenter les conflits par source**
   (« selon la source A… / la source B indique au contraire… ») **sans arbitrer**,
@@ -170,7 +189,7 @@ Le chapitre renvoie : le **corps Markdown** (titres `##`/`###` selon le contrat)
 | Perte d'un élément **après** extraction | Contrôles déterministes d'ids n°1 (plan) et n°2 (rédaction) |
 | Perte de nuance **pendant** la rédaction | `extrait_verbatim` transmis comme vérité de terrain en T3 |
 | Élément orphelin (non planifié) | Chapitre déterministe « Éléments complémentaires » |
-| Conflit entre sources noyé | Co-localisation en T2 + présentation par source en T3 (sans arbitrage) |
+| Conflit entre sources noyé | Co-localisation en T2 + présentation par source en T3 (sans arbitrage) — *best-effort, dépend du prompt T2 ; risque résiduel assumé* |
 | Hallucination / ajout de faits | Directive stricte « uniquement le contenu fourni » en T3 |
 
 > Limite assumée : l'**exhaustivité de l'extraction T1** repose sur le LLM (le
@@ -191,14 +210,27 @@ empreinte des sources), sur le modèle du `pedagogy/manifest.json`. Un hash qui 
 correspond plus invalide les artefacts (recalcul). **Aucun changement de schéma
 SQLite ni du moteur.**
 
+> Limite assumée : le hash **ne couvre pas** une modification d'**override de
+> prompt** (`%APPDATA%/Fahmi2/prompts/*.j2`) entre deux runs — des artefacts
+> intermédiaires pourraient être réutilisés avec l'ancien prompt. Cas marginal
+> (reprise après échec, pas réédition de prompt) ; à documenter, non traité.
+
 ## 6. Coût
 
 `CostEstimator.estimate` reçoit `consolidation_mode`. En `THEMATIC`, le coût de la
 phase 5 est calculé avec un **jeu de facteurs dédié** (`_LOAD_FACTORS` ou branche
 spécifique) couvrant : T1 (par source) + T2 (plan, sur le volume des énoncés) + T3
 (somme par chapitre, fonction du nombre de chapitres et des extraits) + T4 (méta).
-Reste **heuristique** (ordre de grandeur). Le **plafond de coût**
-(`cost_ceiling_usd`) s'applique comme aujourd'hui (best-effort en parallèle).
+Reste **heuristique** (ordre de grandeur).
+
+> **Précision (vérifiée dans le code)** : le **pipeline de génération n'applique
+> aucun plafond de coût à l'exécution** — `cost_ceiling_usd` n'est utilisé que par
+> le `CostEstimator` **pré-run** et son affichage UI (aucune référence à
+> `cost_ceiling` dans `pipeline/`). L'enforcement runtime n'existe que pour la
+> **pédagogie** (`SupportsOrchestrator`). Le mode `THEMATIC` ne change donc
+> **que l'estimation** ; on **n'ajoute pas** d'enforcement runtime (hors
+> périmètre). Conséquence à assumer : le surcoût thématique réel n'est pas borné
+> en cours d'exécution, seulement estimé avant lancement.
 
 ## 7. Aval — phases 6/7 (vérifié, inchangé)
 

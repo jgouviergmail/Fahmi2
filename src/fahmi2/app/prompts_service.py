@@ -3,7 +3,8 @@
 Couche fine au-dessus du mécanisme d'override de :py:class:`PromptLoader`.
 Permet à l'UI de :
 
-- Lister les templates LLM disponibles (phases 1 à 7 + sous-prompt 5).
+- Lister les templates LLM disponibles (8 prompts de génération — phases 1 à 7
+  + sous-prompt 5a/5b — ; 8 supports pédagogiques ; 3 prompts du Dialogue).
 - Lire le contenu **par défaut** (bundlé) d'un template.
 - Lire le contenu **actuellement actif** (override utilisateur si présent,
   défaut sinon).

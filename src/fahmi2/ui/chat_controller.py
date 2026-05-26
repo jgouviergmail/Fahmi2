@@ -174,6 +174,13 @@ class ChatController(QObject):
         self._store: ChatConversationStore | None = None
         self._thread: QThread | None = None
         self._worker: _ChatWorker | None = None
+        # Contexte figé de la réponse en cours : permet de persister la réponse sur
+        # le BON projet/conversation même si l'utilisateur change de projet pendant
+        # le streaming (cf. _on_completed). Aligné sur le découplage
+        # affiché ↔ worker du GenerationController.
+        self._answering_conversation: Conversation | None = None
+        self._answering_store: ChatConversationStore | None = None
+        self._answering_project_id: ProjectId | None = None
 
         view.question_submitted.connect(self.submit_question)
         view.new_conversation_requested.connect(self.new_conversation)
@@ -268,6 +275,12 @@ class ChatController(QObject):
 
         history = self._conversation.messages
         self._conversation = self._vm.append_user(self._conversation, text)
+        # Fige le contexte de réponse (projet/conversation/store) au moment de la
+        # soumission : la finalisation persistera sur ce contexte, pas sur le projet
+        # éventuellement re-sélectionné entre-temps.
+        self._answering_conversation = self._conversation
+        self._answering_store = self._store
+        self._answering_project_id = self._project.id
         self._view.add_user_message(text)
         self._view.start_assistant_bubble()
         self._apply_state(answering=True)
@@ -366,16 +379,23 @@ class ChatController(QObject):
 
     # ------------------------------------------------------------------ slots
     def _on_completed(self, message: object) -> None:
-        """Slot : réponse finalisée (persiste + affiche citations + coût)."""
+        """Slot : réponse finalisée (persiste sur le projet répondu + affiche)."""
         chat_message = cast("ChatMessage", message)
-        if self._conversation is not None and self._store is not None:
-            self._conversation = self._vm.append_assistant(
-                self._conversation, chat_message
-            )
-            self._store.save(self._conversation)
-            self._view.finalize_message(chat_message)
-            self._view.set_total_cost(self._conversation.total_cost_usd())
-            self._refresh_conversations()
+        conversation = self._answering_conversation
+        store = self._answering_store
+        if conversation is not None and store is not None:
+            conversation = self._vm.append_assistant(conversation, chat_message)
+            store.save(conversation)  # persiste TOUJOURS sur le projet répondu
+            # N'actualise l'affichage que si le projet répondu est encore affiché
+            # (l'utilisateur peut avoir changé de projet pendant le streaming).
+            if (
+                self._project is not None
+                and self._project.id == self._answering_project_id
+            ):
+                self._conversation = conversation
+                self._view.finalize_message(chat_message)
+                self._view.set_total_cost(conversation.total_cost_usd())
+                self._refresh_conversations()
         self._cleanup_thread()
         self._apply_state()
         self.answer_completed.emit()
@@ -478,9 +498,12 @@ class ChatController(QObject):
         )
 
     def _cleanup_thread(self) -> None:
-        """Réinitialise les références au worker/thread après fin."""
+        """Réinitialise les références au worker/thread + le contexte de réponse."""
         self._worker = None
         self._thread = None
+        self._answering_conversation = None
+        self._answering_store = None
+        self._answering_project_id = None
 
     @staticmethod
     def _generation_output_dir(project: Project) -> Path:

@@ -94,11 +94,3 @@ def test_embedding_model_values() -> None:
     assert EmbeddingModel.TEXT_EMBEDDING_3_SMALL.value == "text-embedding-3-small"
     assert EmbeddingModel.TEXT_EMBEDDING_3_LARGE.value == "text-embedding-3-large"
     assert EmbeddingModel.TEXT_EMBEDDING_ADA_002.value == "text-embedding-ada-002"
-
-
-def test_chat_settings_with_helpers() -> None:
-    settings = ChatSettings().with_grounding_mode(ChatGroundingMode.AUGMENTED)
-    assert settings.grounding_mode is ChatGroundingMode.AUGMENTED
-    other = settings.with_retrieval_strategy(RetrievalStrategy.LEXICAL)
-    assert other.retrieval_strategy is RetrievalStrategy.LEXICAL
-    assert settings.retrieval_strategy is RetrievalStrategy.AUTO  # original inchangé

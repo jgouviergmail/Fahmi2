@@ -170,25 +170,3 @@ class ChatSettings:
     reasoning_effort: ReasoningEffort | None = None
     temperature: float = _DEFAULT_CHAT_TEMPERATURE
     top_k: int = _DEFAULT_TOP_K
-
-    def with_grounding_mode(self, mode: ChatGroundingMode) -> ChatSettings:
-        """Retourne une copie avec un nouveau mode de fidélité.
-
-        Args:
-            mode: Nouveau mode de fidélité.
-
-        Returns:
-            Nouvelle instance immuable.
-        """
-        return replace(self, grounding_mode=mode)
-
-    def with_retrieval_strategy(self, strategy: RetrievalStrategy) -> ChatSettings:
-        """Retourne une copie avec une nouvelle stratégie de retrieval.
-
-        Args:
-            strategy: Nouvelle stratégie de retrieval.
-
-        Returns:
-            Nouvelle instance immuable.
-        """
-        return replace(self, retrieval_strategy=strategy)

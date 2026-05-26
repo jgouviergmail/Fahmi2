@@ -11,8 +11,9 @@ from pytestqt.qtbot import QtBot
 from fahmi2.app.project_service import ProjectService
 from fahmi2.app.secrets_service import SecretsService
 from fahmi2.core.config.paths import AppPaths
-from fahmi2.domain.chat import ChatSettings
+from fahmi2.domain.chat import ChatMessage, ChatSettings
 from fahmi2.domain.enums import ChatTabState, Language
+from fahmi2.domain.ids import ProjectId
 from fahmi2.infra.llm._fakes import FakeLLMProvider
 from fahmi2.infra.llm.interface import LLMResponse
 from fahmi2.infra.secrets.interface import InMemorySecretsStore
@@ -26,7 +27,7 @@ _DOC = "# Cours\n\n# 1. Bases\n\nLe produit intérieur brut mesure la richesse.\
 
 def _make_controller(
     tmp_path: Path, *, with_corpus: bool, qtbot: QtBot
-) -> tuple[ChatController, ChatView, object]:
+) -> tuple[ChatController, ChatView, ProjectId]:
     state = SqliteState(tmp_path / "state.db")
     project_service = ProjectService(state)
     secrets = SecretsService(InMemorySecretsStore())
@@ -79,6 +80,31 @@ def test_submit_question_streams_and_finalizes(qtbot: QtBot, tmp_path: Path) -> 
         controller.submit_question("Qu'est-ce que le PIB ?")
     plain = view._thread.toPlainText()  # noqa: SLF001 — smoke d'assemblage
     assert "Le PIB mesure la richesse" in plain
+
+
+def test_answer_persisted_to_answering_project_despite_display_change(
+    qtbot: QtBot, tmp_path: Path
+) -> None:
+    # Si l'utilisateur change de projet pendant le streaming, la réponse doit être
+    # persistée sur le projet RÉPONDU (contexte figé), pas sur l'affichage courant.
+    controller, _view, pid = _make_controller(tmp_path, with_corpus=True, qtbot=qtbot)
+    store = controller._store  # noqa: SLF001
+    assert store is not None and controller._conversation is not None  # noqa: SLF001
+    conv = controller._vm.append_user(  # noqa: SLF001
+        controller._conversation, "Question sur le projet A"  # noqa: SLF001
+    )
+    # Fige le contexte de réponse (comme submit_question).
+    controller._answering_conversation = conv  # noqa: SLF001
+    controller._answering_store = store  # noqa: SLF001
+    controller._answering_project_id = pid  # noqa: SLF001
+    # L'affichage a changé entre-temps (autre projet / aucun).
+    controller._project = None  # noqa: SLF001
+    controller._on_completed(  # noqa: SLF001
+        ChatMessage(role="assistant", content="Réponse A", cost_usd=0.01)
+    )
+    saved = store.load(conv.conversation_id)
+    assert saved is not None
+    assert any(m.content == "Réponse A" for m in saved.messages)
 
 
 def test_delete_conversation_removes_file(

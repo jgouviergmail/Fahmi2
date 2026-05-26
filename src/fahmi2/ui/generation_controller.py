@@ -762,6 +762,7 @@ class GenerationController(QObject):
             active_target_languages_count=len(settings.output_languages),
             translation_languages_count=translation_langs,
             phases_config=settings.phases_config,
+            consolidation_mode=settings.consolidation_mode,
         )
         _show_cost_estimation_dialog(
             self._window,

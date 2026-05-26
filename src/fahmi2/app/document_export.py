@@ -108,10 +108,11 @@ def write_documents(
                 path,
                 landscape=document.pdf_landscape,
                 table_column_widths=document.pdf_column_widths,
+                language=document.language,
             )
         elif fmt is ExportFormat.DOCX:
             render_markdown_to_docx(document.markdown, path)
         else:  # HTML (seul format documentaire restant après la garde)
-            render_markdown_to_html(document.markdown, path)
+            render_markdown_to_html(document.markdown, path, language=document.language)
         paths.append(path)
     return DocumentExportResult(output_paths=tuple(paths))

@@ -26,12 +26,13 @@ import markdown
 from reportlab.lib.fonts import addMapping
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from xhtml2pdf import default as xhtml2pdf_default
 from xhtml2pdf import pisa
 
 from fahmi2.core.errors.exceptions import ConfigError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.core.slugify import slugify_anchor
-from fahmi2.domain.enums import ExportFormat
+from fahmi2.domain.enums import ExportFormat, Language
 
 #: Extension de fichier par format documentaire (MD/PDF/HTML ; APKG non concerné).
 EXTENSION_BY_FORMAT: dict[ExportFormat, str] = {
@@ -81,6 +82,37 @@ _WINDOWS_FONT_FILES: dict[str, str] = {
     "BI": "arialbi.ttf",
 }
 
+#: Police CJK système Windows (TrueType Collection) — Microsoft YaHei (régulier +
+#: gras). Chargée via ``subfontIndex`` (ReportLab gère ainsi les TTC) puis injectée
+#: dans la table de résolution de xhtml2pdf pour rendre le chinois.
+_CJK_FONT_FILE_REGULAR = "msyh.ttc"
+_CJK_FONT_FILE_BOLD = "msyhbd.ttc"
+_CJK_FONT_NAME = "CJKFont"
+_CJK_FONT_NAME_BOLD = "CJKFont-Bold"
+#: Familles ``font-family`` injectées dans ``xhtml2pdf.default.DEFAULT_FONT``.
+_CJK_FAMILY = "cjk"
+_ARABIC_FAMILY = "arab"
+#: Tag xhtml2pdf déclenchant le reshaping + bidi de l'arabe (cf. xhtml2pdf/util.py).
+_PDF_LANGUAGE_TAG_ARABIC = '<pdf:language name="arabic"/>'
+
+#: Directions d'écriture CSS et langues écrites de droite à gauche (source unique
+#: partagée par les rendus PDF et HTML).
+_DIRECTION_LTR = "ltr"
+_DIRECTION_RTL = "rtl"
+_RTL_LANGUAGES: frozenset[Language] = frozenset({Language.AR})
+
+#: Famille par défaut (latin) : ``AppSans`` est résolu en Helvetica par xhtml2pdf,
+#: qui couvre le Latin-1 (fr/en/de/es/it). Pas de police à embarquer.
+_PDF_DEFAULT_FAMILY = _PDF_FONT_FAMILY
+
+#: Rendu PDF par langue spécifique : (famille ``font-family``, tag ``pdf:language``).
+#: Les langues absentes utilisent le défaut latin (Helvetica, sans tag). La
+#: direction d'écriture est dérivée séparément via :func:`_text_direction`.
+_PDF_LANG_RENDERING: dict[Language, tuple[str, str]] = {
+    Language.ZH: (_CJK_FAMILY, ""),
+    Language.AR: (_ARABIC_FAMILY, _PDF_LANGUAGE_TAG_ARABIC),
+}
+
 #: Caractères non rendus par ReportLab+Arial (affichés ``□``) → équivalents sûrs.
 #: Em-dash (—) et en-dash (–) sont conservés (ils, eux, sont rendus correctement).
 _PDF_CHAR_REPLACEMENTS = str.maketrans(
@@ -100,7 +132,7 @@ _HTML_DEFAULT_TITLE = "Supports de révision"
 
 #: Gabarit d'un document HTML autonome (UTF-8 + feuille de style intégrée).
 _HTML_DOCUMENT_TEMPLATE = """<!DOCTYPE html>
-<html lang="fr">
+<html lang="{lang}" dir="{direction}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -123,13 +155,16 @@ th {{ background: #f5f7fb; }}
 </html>
 """
 
-#: Gabarit d'un document PDF (xhtml2pdf) : ``@page`` (orientation), police Arial
-#: enregistrée, styles de titres/tableaux. ``{orientation}`` = ``portrait``/
-#: ``landscape`` ; ``{body}`` = corps HTML rendu depuis le Markdown.
+#: Gabarit d'un document PDF (xhtml2pdf) : ``@page`` (orientation), police +
+#: direction par langue, styles de titres/tableaux. ``{orientation}`` =
+#: ``portrait``/``landscape`` ; ``{font_family}`` = famille résolue (latin/CJK/
+#: arabe) ; ``{direction}`` = ``ltr``/``rtl`` ; ``{language_tag}`` = tag
+#: ``pdf:language`` (arabe) ou chaîne vide ; ``{body}`` = corps HTML du Markdown.
 _PDF_HTML_TEMPLATE = """<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
 @page {{ size: a4 {orientation}; margin: 1.8cm; }}
-body {{ font-family: "AppSans"; font-size: 10.5pt; line-height: 1.4; color: #1f2328; }}
+body {{ font-family: "{font_family}"; font-size: 10.5pt; line-height: 1.4;
+        color: #1f2328; direction: {direction}; }}
 h1 {{ font-size: 19pt; color: #0a4f93; }}
 h2 {{ font-size: 14pt; color: #0a4f93; }}
 h3 {{ font-size: 12pt; color: #0a4f93; }}
@@ -141,7 +176,7 @@ th, td {{ border: 0.5pt solid #d0d7de; padding: 3pt 5pt; text-align: left;
 th {{ background: #f5f7fb; }}
 a {{ color: #0a4f93; text-decoration: none; }}
 </style></head><body>
-{body}
+{language_tag}{body}
 </body></html>
 """
 
@@ -169,6 +204,36 @@ def pdf_fonts_available() -> bool:
     return (_fonts_dir() / _WINDOWS_FONT_FILES[""]).exists()
 
 
+def _cjk_font_path() -> Path:
+    """Chemin de la police CJK régulière système (Microsoft YaHei).
+
+    Returns:
+        ``%SystemRoot%/Fonts/msyh.ttc``.
+    """
+    return _fonts_dir() / _CJK_FONT_FILE_REGULAR
+
+
+def cjk_font_available() -> bool:
+    """Indique si la police CJK (Microsoft YaHei) est résolue.
+
+    Returns:
+        ``True`` si le rendu PDF du chinois est possible.
+    """
+    return _cjk_font_path().exists()
+
+
+def _text_direction(language: Language) -> str:
+    """Direction d'écriture CSS d'une langue.
+
+    Args:
+        language: Langue du contenu.
+
+    Returns:
+        ``"rtl"`` pour les langues de droite à gauche (arabe), ``"ltr"`` sinon.
+    """
+    return _DIRECTION_RTL if language in _RTL_LANGUAGES else _DIRECTION_LTR
+
+
 @functools.cache
 def _ensure_pdf_fonts_registered() -> None:
     """Enregistre Arial (4 variantes) auprès de ReportLab, une seule fois.
@@ -193,6 +258,54 @@ def _ensure_pdf_fonts_registered() -> None:
     addMapping(_PDF_FONT_FAMILY, 1, 0, _PDF_FONT_BOLD)
     addMapping(_PDF_FONT_FAMILY, 0, 1, _PDF_FONT_ITALIC)
     addMapping(_PDF_FONT_FAMILY, 1, 1, _PDF_FONT_BOLD_ITALIC)
+
+
+@functools.cache
+def _ensure_cjk_font_registered() -> None:
+    """Enregistre Microsoft YaHei (TTC, régulier + gras) et l'injecte dans xhtml2pdf.
+
+    Le TTC est chargé via ``subfontIndex`` (ReportLab le gère ainsi). La famille
+    ``cjk`` est injectée dans ``xhtml2pdf.default.DEFAULT_FONT`` (point d'injection
+    standard : ``pisa.CreatePDF`` n'expose pas de hook de registre). Idempotent et
+    mémoïsé. Appelée **seulement** pour le chinois.
+
+    Raises:
+        ConfigError: ``EXPORT.NO_CJK_FONT`` si Microsoft YaHei est introuvable.
+    """
+    if not _cjk_font_path().exists():
+        raise ConfigError(
+            code="EXPORT.NO_CJK_FONT",
+            user_message=(
+                "Police chinoise (Microsoft YaHei) introuvable pour l'export PDF. "
+                "Utilisez l'export Markdown, HTML ou Word."
+            ),
+            severity=Severity.ERROR,
+        )
+    fonts = _fonts_dir()
+    pdfmetrics.registerFont(
+        TTFont(_CJK_FONT_NAME, str(_cjk_font_path()), subfontIndex=0)
+    )
+    bold_path = fonts / _CJK_FONT_FILE_BOLD
+    bold_name = _CJK_FONT_NAME_BOLD if bold_path.exists() else _CJK_FONT_NAME
+    if bold_path.exists():
+        pdfmetrics.registerFont(TTFont(bold_name, str(bold_path), subfontIndex=0))
+    addMapping(_CJK_FONT_NAME, 0, 0, _CJK_FONT_NAME)
+    addMapping(_CJK_FONT_NAME, 1, 0, bold_name)
+    xhtml2pdf_default.DEFAULT_FONT[_CJK_FAMILY] = _CJK_FONT_NAME
+
+
+@functools.cache
+def _ensure_arabic_font_registered() -> None:
+    """Mappe la famille ``arab`` sur Arial (déjà enregistré comme ``AppSans``).
+
+    Arial contient les glyphes arabes (régulier + gras déjà enregistrés par
+    :func:`_ensure_pdf_fonts_registered`, appelé en amont) : on **réutilise** cet
+    enregistrement plutôt que de réenregistrer la police. Sans ce mapping,
+    ``font-family: arab`` serait rabattu par xhtml2pdf sur Helvetica (dépourvue de
+    glyphes arabes). Le reshaping contextuel + la bidi sont, eux, déclenchés par le
+    tag ``pdf:language``. Mémoïsé (injection idempotente).
+    """
+    xhtml2pdf_default.DEFAULT_FONT[_ARABIC_FAMILY] = _PDF_FONT_REGULAR
 
 
 def _extract_title(markdown_text: str) -> str:
@@ -250,20 +363,30 @@ def render_markdown_body(markdown_text: str) -> str:
     return html_body
 
 
-def render_markdown_to_html(markdown_text: str, output_path: Path) -> None:
+def render_markdown_to_html(
+    markdown_text: str,
+    output_path: Path,
+    *,
+    language: Language = Language.FR,
+) -> None:
     """Rend un Markdown en document HTML autonome (UTF-8, style intégré).
 
     Aucune police système n'est requise — le fichier est ouvrable dans n'importe
-    quel navigateur. Les titres reçoivent un ``id`` slugifié (extension ``toc``) →
-    le sommaire du consolidé est cliquable.
+    quel navigateur (qui substitue lui-même les polices CJK/arabe). Les titres
+    reçoivent un ``id`` slugifié (extension ``toc``) → le sommaire est cliquable.
 
     Args:
         markdown_text: Texte Markdown (commençant idéalement par un titre H1).
         output_path: Chemin du fichier ``.html`` à écrire.
+        language: Langue du contenu (pose ``lang`` et ``dir`` ; arabe → RTL).
     """
     body = render_markdown_body(markdown_text)
+    direction = _text_direction(language)
     document = _HTML_DOCUMENT_TEMPLATE.format(
-        title=escape(_extract_title(markdown_text)), body=body
+        title=escape(_extract_title(markdown_text)),
+        body=body,
+        lang=language.value,
+        direction=direction,
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(document, encoding="utf-8")
@@ -323,6 +446,7 @@ def render_markdown_to_pdf(
     *,
     landscape: bool = False,
     table_column_widths: tuple[str, ...] | None = None,
+    language: Language = Language.FR,
 ) -> None:
     """Rend un Markdown en PDF via ``xhtml2pdf`` (Markdown → HTML → PDF).
 
@@ -332,9 +456,13 @@ def render_markdown_to_pdf(
         landscape: Orientation paysage (ex: glossaire large) ; portrait sinon.
         table_column_widths: Largeurs CSS par colonne appliquées aux tableaux
             (ex: glossaire). ``None`` = largeurs automatiques.
+        language: Langue du contenu. Sélectionne la police et la direction :
+            latin (fr/en/de/es/it) → Helvetica/LTR ; chinois → police CJK
+            (Microsoft YaHei) ; arabe → Arial + RTL + reshaping/bidi.
 
     Raises:
-        ConfigError: ``EXPORT.NO_PDF_FONT`` si la police Arial est introuvable, ou
+        ConfigError: ``EXPORT.NO_PDF_FONT`` si la police Arial est introuvable,
+            ``EXPORT.NO_CJK_FONT`` si la police chinoise manque (langue ZH), ou
             ``EXPORT.PDF_RENDER_FAILED`` si le moteur de rendu échoue.
     """
     if not pdf_fonts_available():
@@ -342,22 +470,36 @@ def render_markdown_to_pdf(
             code="EXPORT.NO_PDF_FONT",
             user_message=(
                 "Aucune police Unicode trouvée pour l'export PDF. Utilisez "
-                "l'export Markdown ou HTML."
+                "l'export Markdown, HTML ou Word."
             ),
             severity=Severity.ERROR,
         )
     _ensure_pdf_fonts_registered()
+    font_family, language_tag = _PDF_LANG_RENDERING.get(
+        language, (_PDF_DEFAULT_FAMILY, "")
+    )
+    direction = _text_direction(language)
+    if language is Language.ZH:
+        _ensure_cjk_font_registered()
+    elif language is Language.AR:
+        _ensure_arabic_font_registered()
     body = render_markdown_body(_normalize_for_pdf(markdown_text))
     body = _layout_table_cells(body, table_column_widths)
     document = _PDF_HTML_TEMPLATE.format(
-        orientation="landscape" if landscape else "portrait", body=body
+        orientation="landscape" if landscape else "portrait",
+        font_family=font_family,
+        direction=direction,
+        language_tag=language_tag,
+        body=body,
     )
     buffer = io.BytesIO()
     status = pisa.CreatePDF(document, dest=buffer, encoding="utf-8")
     if status.err:
         raise ConfigError(
             code="EXPORT.PDF_RENDER_FAILED",
-            user_message="Le rendu du PDF a échoué. Utilisez l'export Markdown ou HTML.",
+            user_message=(
+                "Le rendu du PDF a échoué. Utilisez l'export Markdown, HTML ou Word."
+            ),
             severity=Severity.ERROR,
         )
     output_path.parent.mkdir(parents=True, exist_ok=True)

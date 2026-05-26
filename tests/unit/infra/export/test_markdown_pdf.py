@@ -2,19 +2,34 @@
 
 from __future__ import annotations
 
+import io
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
+from pypdf import PdfReader
 
+from fahmi2.core.errors.exceptions import ConfigError
 from fahmi2.core.slugify import slugify_anchor
-from fahmi2.domain.enums import ExportFormat
+from fahmi2.domain.enums import ExportFormat, Language
+from fahmi2.infra.export import markdown_pdf
 from fahmi2.infra.export.markdown_pdf import (
     EXTENSION_BY_FORMAT,
     _normalize_for_pdf,
+    cjk_font_available,
     pdf_fonts_available,
     render_markdown_to_html,
     render_markdown_to_pdf,
 )
+
+
+def _embedded_font_bases(pdf_bytes: bytes) -> list[str]:
+    """Noms de police (``/BaseFont``) référencés dans la 1ʳᵉ page d'un PDF."""
+    reader = PdfReader(io.BytesIO(pdf_bytes))
+    resources = cast("dict[str, Any]", reader.pages[0]["/Resources"])
+    fonts = cast("dict[str, Any]", resources["/Font"])
+    return [str(value.get_object().get("/BaseFont")) for value in fonts.values()]
+
 
 _TABLE_MD = "# Glossaire\n\n| Terme | Définition |\n|---|---|\n| ROI | Rentabilité |\n"
 _TOC_MD = (
@@ -109,3 +124,37 @@ def test_normalize_for_pdf_maps_unrendered_dashes() -> None:
     assert _normalize_for_pdf("mot­coupe") == "motcoupe"
     # Em-dash (—) et en-dash (–) sont conservés (rendus correctement).
     assert _normalize_for_pdf("a—b–c") == "a—b–c"
+
+
+@pytest.mark.skipif(not cjk_font_available(), reason="Police CJK indisponible")
+def test_render_pdf_chinese_embeds_cjk_font(tmp_path: Path) -> None:
+    out = tmp_path / "zh.pdf"
+    render_markdown_to_pdf(
+        "# 第一章 机器学习\n\n这是中文测试段落。\n", out, language=Language.ZH
+    )
+    pdf = out.read_bytes()
+    assert pdf[:5] == b"%PDF-"
+    # La police CJK (Microsoft YaHei) est embarquée (sous-ensemble).
+    assert any("YaHei" in base for base in _embedded_font_bases(pdf))
+
+
+@pytest.mark.skipif(not pdf_fonts_available(), reason="Police Unicode indisponible")
+def test_render_pdf_arabic_is_shaped(tmp_path: Path) -> None:
+    out = tmp_path / "ar.pdf"
+    render_markdown_to_pdf("مرحبا بالعالم هذا اختبار\n", out, language=Language.AR)
+    pdf = out.read_bytes()
+    assert pdf[:5] == b"%PDF-"
+    text = PdfReader(io.BytesIO(pdf)).pages[0].extract_text()
+    # Lettres arabes liées => formes de présentation U+FE70..U+FEFF (shaping).
+    assert any(0xFE70 <= ord(ch) <= 0xFEFF for ch in text)
+
+
+def test_render_pdf_chinese_raises_without_cjk_font(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(markdown_pdf, "_cjk_font_path", lambda: Path("nonexistent.ttc"))
+    markdown_pdf._ensure_cjk_font_registered.cache_clear()
+    with pytest.raises(ConfigError) as excinfo:
+        render_markdown_to_pdf("# 测试\n", tmp_path / "x.pdf", language=Language.ZH)
+    assert excinfo.value.code == "EXPORT.NO_CJK_FONT"
+    markdown_pdf._ensure_cjk_font_registered.cache_clear()

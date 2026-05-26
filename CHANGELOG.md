@@ -23,6 +23,16 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   désormais la hauteur de la fenêtre (extensible verticalement, priorité sur les
   « Exclues »), utile quand il y a beaucoup de sources à ordonner.
 
+### Modifié — Langues de génération : un contrôle unique
+
+- Les réglages **Entrée & langues** fusionnent « Langue source » et « Langues de
+  sortie » en **un seul contrôle** : par langue, une case **Incluse** + un radio
+  **Principale**. La principale est la version **originale** (rédigée directement,
+  pivot des traductions, indice STT) ; les autres langues incluses en sont des
+  traductions. Lève l'ambiguïté du couple précédent (notamment avec des entrées
+  multilingues). Comportement et modèle de données inchangés (`source_language`
+  = principale, `output_languages` = incluses ; la principale reste toujours incluse).
+
 ### Modifié — Bandeau d'état des Supports pédagogiques
 
 - Le bandeau de fraîcheur devient une **pastille de statut colorée** (icône +

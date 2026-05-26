@@ -59,6 +59,7 @@ from fahmi2.ui._model_labels import (
     labeled_enum_combo,
 )
 from fahmi2.ui.pedagogy_labels import EXPORT_LABELS
+from fahmi2.ui.widgets.language_selection_view import LanguageSelectionView
 from fahmi2.ui.widgets.phase_configs_widget import PhaseConfigsWidget
 from fahmi2.ui.widgets.settings_view import SettingsView
 from fahmi2.ui.widgets.source_order_view import SourceOrderView
@@ -187,15 +188,7 @@ class GenerationSettingsView(QDialog):
 
         self._build_source_fields()
 
-        self._source_lang_combo = QComboBox(self)
-        for lang in Language:
-            self._source_lang_combo.addItem(lang.value, lang)
-
-        self._output_langs: dict[Language, QCheckBox] = {}
-        for lang in Language:
-            cb = QCheckBox(lang.value, self)
-            cb.setChecked(lang is Language.FR)
-            self._output_langs[lang] = cb
+        self._languages_view = LanguageSelectionView(tuple(Language), self)
 
         self._style_combo = QComboBox(self)
         for style in StylePreset:
@@ -283,12 +276,7 @@ class GenerationSettingsView(QDialog):
         # pas verticalement une ligne).
         outer.addWidget(self._source_order_view, stretch=1)
         bottom_form = QFormLayout()
-        bottom_form.addRow("Langue source :", self._source_lang_combo)
-        langs_row = QHBoxLayout()
-        for cb in self._output_langs.values():
-            langs_row.addWidget(cb)
-        langs_row.addStretch(1)
-        bottom_form.addRow("Langues de sortie :", langs_row)
+        bottom_form.addRow("Langues du document :", self._languages_view)
         outer.addLayout(bottom_form)
         return page
 
@@ -486,11 +474,9 @@ class GenerationSettingsView(QDialog):
         """
         self._input_folder_input.setText(str(generation.input_folder))
         self._youtube_urls_input.setPlainText("\n".join(generation.youtube_urls))
-        src_idx = self._source_lang_combo.findData(generation.source_language)
-        if src_idx >= 0:
-            self._source_lang_combo.setCurrentIndex(src_idx)
-        for lang, cb in self._output_langs.items():
-            cb.setChecked(lang in generation.output_languages)
+        self._languages_view.set_selection(
+            primary=generation.source_language, outputs=generation.output_languages
+        )
         style_idx = self._style_combo.findData(generation.style_preset)
         if style_idx >= 0:
             self._style_combo.setCurrentIndex(style_idx)
@@ -530,12 +516,9 @@ class GenerationSettingsView(QDialog):
                 "documents).",
             )
             return
-        source_lang: Language = self._source_lang_combo.currentData()
-        output_langs = tuple(
-            lang for lang, cb in self._output_langs.items() if cb.isChecked()
-        )
-        if source_lang not in output_langs:
-            output_langs = (source_lang, *output_langs)
+        # Le widget garantit l'invariant du domaine : la principale ∈ langues incluses.
+        source_lang = self._languages_view.primary_language()
+        output_langs = self._languages_view.output_languages()
         cost_ceiling = (
             self._cost_ceiling_input.value()
             if self._cost_ceiling_input.value() > 0

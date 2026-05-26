@@ -60,7 +60,7 @@ configurer la génération (vue à 6 catégories) :
 
 | Catégorie | Champs |
 |-----------|--------|
-| **Entrée & langues** | Dossier d'entrée (vidéos/audios/documents) · Liens YouTube · Ordre & exclusion des sources · Langue source · Langues de sortie |
+| **Entrée & langues** | Dossier d'entrée (vidéos/audios/documents) · Liens YouTube · Ordre & exclusion des sources · Langues du document (langues produites + laquelle est la **principale**/originale) |
 | **Style** | Style (`décontracté`/`standard`/`professionnel`/`académique`) · Directives libres |
 | **Transcription** | Provider STT (`openai_cloud` sans GPU, sinon `faster_whisper_local`) · *Transcriptions en parallèle* (cloud) |
 | **Modèle & coût** | Modèle LLM (`deepseek-v4-flash` pour démarrer) · Plafond budget · *Appels LLM en parallèle* |

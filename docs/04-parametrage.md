@@ -57,10 +57,17 @@ master-detail) ; ils incluent le **dossier des vidéos**.
 
 ### 2.2 Langues
 
-| Paramètre | Description |
-|-----------|-------------|
-| **Langue source** | Langue parlée dans les vidéos. Le pipeline produit d'abord le document master dans cette langue puis traduit vers les autres langues de sortie. |
-| **Langues de sortie** | Cocher chaque langue désirée. La langue source est toujours incluse. Si vous cochez uniquement EN alors que la source est FR, FR sera automatiquement ajouté. |
+Un **contrôle unique** « Langues du document » : pour chaque langue, une case
+**Incluse** (versions produites) et un radio **Principale**.
+
+| Élément | Description |
+|---------|-------------|
+| **Principale** | La version **originale**, rédigée **directement** depuis les entrées (toute langue d'entrée y est unifiée) ; c'est aussi l'indice de langue donné au STT pour les médias, et le **pivot** des traductions. Une seule langue principale. |
+| **Incluse** | Chaque langue cochée produit un `consolidated.{lang}.md` : la principale est écrite directement, les autres en sont des **traductions**. La principale est **toujours incluse** (case verrouillée). |
+
+> Exemple : entrées EN + FR, **principale = FR**, **incluses = {FR, EN}** → un
+> `consolidated.fr.md` (rédigé directement, les passages EN unifiés en FR) **et** un
+> `consolidated.en.md` (traduit depuis le FR).
 
 ### 2.3 Style
 

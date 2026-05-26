@@ -12,7 +12,18 @@ from fahmi2.infra.audio.cloud_audio_preparer import AudioChunk
 from fahmi2.infra.stt.openai_whisper_adapter import (
     OpenAIWhisperAdapter,
     _parse_verbose_response,
+    _resolve_language,
 )
+
+
+def test_resolve_language_maps_new_languages() -> None:
+    assert _resolve_language("german", fallback=None) is Language.DE
+    assert _resolve_language("de", fallback=None) is Language.DE
+    assert _resolve_language("spanish", fallback=None) is Language.ES
+    assert _resolve_language("italian", fallback=None) is Language.IT
+    assert _resolve_language("chinese", fallback=None) is Language.ZH
+    assert _resolve_language("zh", fallback=None) is Language.ZH
+    assert _resolve_language("arabic", fallback=None) is Language.AR
 
 
 def _verbose_payload() -> dict[str, object]:
@@ -48,9 +59,9 @@ def test_parse_verbose_response_maps_full_language_name() -> None:
 
 
 def test_parse_verbose_response_unknown_language_uses_fallback() -> None:
-    # Langue détectée hors périmètre (FR/EN) : repli sur l'indice fourni.
+    # Langue détectée hors périmètre supporté (ex. japonais) : repli sur l'indice.
     t = _parse_verbose_response(
-        {"language": "spanish", "duration": 1.0, "segments": []},
+        {"language": "japanese", "duration": 1.0, "segments": []},
         fallback=Language.FR,
     )
     assert t.detected_language is Language.FR

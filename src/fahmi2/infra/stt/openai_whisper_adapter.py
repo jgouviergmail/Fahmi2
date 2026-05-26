@@ -46,6 +46,16 @@ _WHISPER_LANGUAGE_ALIASES: dict[str, Language] = {
     "fr": Language.FR,
     "english": Language.EN,
     "en": Language.EN,
+    "german": Language.DE,
+    "de": Language.DE,
+    "spanish": Language.ES,
+    "es": Language.ES,
+    "italian": Language.IT,
+    "it": Language.IT,
+    "chinese": Language.ZH,
+    "zh": Language.ZH,
+    "arabic": Language.AR,
+    "ar": Language.AR,
 }
 _DEFAULT_DETECTED_LANGUAGE = Language.EN
 
@@ -237,8 +247,8 @@ def _parse_verbose_response(
 
     Args:
         payload: Réponse Whisper au format verbose_json.
-        fallback: Langue de repli si la langue détectée est hors périmètre
-            (FR/EN) ou absente.
+        fallback: Langue de repli si la langue détectée est hors du périmètre
+            supporté ou absente.
 
     Returns:
         ``Transcription``.

@@ -92,7 +92,8 @@ L'utilisateur configure **via l'interface** (et **uniquement** via l'interface) 
 - **Mode raisonnement** (`thinking` activé / désactivé), **niveau de
   raisonnement** (`HIGH` / `MAX`) et **température**, configurables
   **par phase LLM** indépendamment.
-- **Langue source** + **langues de sortie** (FR / EN en v1).
+- **Langues du document** (FR / EN en v1) : langues produites + **langue
+  principale** (l'originale, rédigée directement ; les autres en sont traduites).
 - **Style de rendu** : décontracté / standard / professionnel / académique.
 - **Directives stylistiques libres** en texte.
 - **Plafond budget** optionnel avec arrêt automatique propre.
@@ -183,9 +184,12 @@ document consolidé et le glossaire, **citées** (chapitre › section, cliquabl
   refus poli hors-corpus) ou *augmenté* (complément de connaissances générales
   clairement balisé).
 - **Recherche de passages** : lexicale (hors-ligne) ou sémantique (embeddings
-  OpenAI), avec un mode **automatique** et une reformulation de requête à la demande.
-- **Conversations** multiples persistées par projet ; **coût** par message et cumulé.
-- Réglages (fidélité, retrieval, modèle) et **prompts éditables** comme le reste.
+  OpenAI, **modèle configurable**), avec un mode **automatique** et une
+  reformulation de requête à la demande.
+- **Conversations** multiples persistées par projet, **supprimables** ; **coût**
+  par message et cumulé **exhaustif** (réponse + embeddings + reformulation).
+- Réglages (fidélité, retrieval, modèles LLM/embedding) et **prompts éditables**
+  comme le reste.
 
 ## 5. Promesses de qualité
 

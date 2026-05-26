@@ -370,18 +370,50 @@ python -m memory_profiler script.py
 7. Écrire les tests : `tests/unit/pipeline/handlers/test_phase_N_xxx.py`.
 8. Lancer la suite complète + lint + types.
 
-## 12. Ajouter un nouveau provider LLM
+## 12. Ajouter un provider LLM
 
 1. Implémenter `LLMProvider` (Protocol) dans
    `src/fahmi2/infra/llm/<provider>_adapter.py`.
 2. Ajouter une grille de tarifs dans `src/fahmi2/infra/llm/_pricing.py`.
 3. Étendre l'enum `LLMModel` dans `src/fahmi2/domain/enums.py`.
-4. Exposer le modèle dans les vues de réglages (`GenerationSettingsView` /
-   `PedagogySettingsView`) — combos alimentés par l'enum `LLMModel` (le
-   `NewProjectDialog` ne porte plus que le nom + l'emplacement du projet).
+4. Ajouter un **libellé** dans `src/fahmi2/ui/_model_labels.py`
+   (`LLM_MODEL_LABELS`) — **obligatoire** : les combos de réglages sont peuplés
+   par ces dictionnaires de libellés (via `labeled_enum_combo`), pas par l'enum.
+   Un membre sans libellé **n'apparaîtra pas** dans le combo (un test de
+   complétude le détecte, cf. `tests/unit/ui/test_model_labels.py`).
 5. Écrire les tests (avec mock du SDK ou `responses`).
 
-## 13. Audit qualité
+## 13. Ajouter un modèle d'embedding (Dialogue) ou de transcription (STT)
+
+Même recette que les modèles LLM — l'app suit partout le triptyque
+**enum + grille tarifaire + libellé** :
+
+- **Embedding** (retrieval sémantique du Dialogue) : enum `EmbeddingModel`
+  (`domain/enums.py`) + tarif `infra/embeddings/_pricing.py` (USD/Mtok) + libellé
+  `EMBEDDING_MODEL_LABELS` (`ui/_model_labels.py`). Le modèle fait partie de
+  l'empreinte d'index → en changer **force la réindexation**.
+- **STT** : enum `LocalSttModel` / `CloudSttModel` + tarif cloud
+  `infra/stt/_pricing.py` (USD/min) + libellés `LOCAL_STT_MODEL_LABELS` /
+  `CLOUD_STT_MODEL_LABELS`. Un modèle cloud sans timestamps (`gpt-4o-*`) bascule
+  l'adapter en `json` (segment unique par tranche) — cf.
+  `OpenAIWhisperAdapter._VERBOSE_JSON_MODELS`.
+
+## 14. Le Dialogue (chat) — artefacts et index
+
+Artefacts par projet (sous `<emplacement>/chat/`) :
+
+- `conversations/<conversation_id>.json` — conversations persistées (relisibles
+  hors session ; supprimables depuis l'UI ou en effaçant le fichier).
+- `index.{lang}.npz` — **index sémantique** (embeddings du corpus + empreinte de
+  validité : modèle + mtime du consolidé + langue). Pour forcer une réindexation,
+  supprimer ce fichier (ou utiliser `infra.retrieval.semantic.purge_index`) ; il
+  est de toute façon reconstruit dès que l'empreinte change.
+
+Le corpus interrogé est le **document consolidé** (`generation/output/`) + le
+glossaire (`generation/glossary_master.json`), chunké à la volée à chaque session
+(aucune régénération nécessaire après modification du chunking).
+
+## 15. Audit qualité
 
 Avant chaque release, dérouler :
 

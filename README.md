@@ -20,13 +20,22 @@ Application desktop Windows, mono-utilisateur, **installation en double-clic**
   chapitres du document final) est réglable par glisser-déposer ; toute source
   peut être exclue puis réincluse.
 - 2 langues de sortie : **français** et **anglais**.
-- 2 providers STT : **faster-whisper-large-v3-turbo** local (GPU NVIDIA) ou
-  **OpenAI Whisper** cloud — ce dernier gère **toute durée de cours**
-  (compression Opus + découpage aux silences automatiques pour franchir la
+- 2 providers STT (**modèle configurable par provider**) : **faster-whisper**
+  local (GPU NVIDIA ; `large-v3-turbo` par défaut, ou `large-v3`/`medium`/`small`,
+  téléchargés à la demande) ou **OpenAI** cloud (`whisper-1` par défaut, ou
+  `gpt-4o-transcribe`/`gpt-4o-mini-transcribe`) — ce dernier gère **toute durée de
+  cours** (compression Opus + découpage aux silences automatiques pour franchir la
   limite des 25 Mo d'OpenAI, de façon transparente).
 - 2 modèles LLM : **DeepSeek v4 Flash** (économique) ou **Pro** (capacité
   supérieure). Mode raisonnement (`thinking` + `reasoning_effort`
   HIGH/MAX) et température configurables **par phase**.
+- **Dialogue (chat ancré sur le corpus)** : pose des questions en langage naturel
+  sur un cours généré. Réponses **citées** (chapitre › section, cliquables) et
+  **diffusées en streaming**, mode **strict** (corpus seul, refus hors-corpus) ou
+  **augmenté**. Retrieval **lexical** (TF-IDF, hors-ligne) ou **sémantique**
+  (embeddings OpenAI, **modèle configurable**) avec stratégie **AUTO** + expansion
+  de requête. Conversations multiples **persistées et supprimables** ; **coût
+  cumulé exhaustif** (réponse + embeddings + reformulation).
 - 4 styles de rendu : décontracté / standard / professionnel / académique +
   directives libres.
 - **Document consolidé navigable** : titres numérotés hiérarchiquement
@@ -152,7 +161,7 @@ Export des supports en **Anki `.apkg`** (flashcards / cloze / QCM, ré-import sa
 doublon), **Markdown**, **PDF** et **HTML** (documents autonomes, sujet / corrigé
 séparés).
 
-901 tests passants, `mypy --strict` et `ruff` propres sur 367 fichiers.
+945 tests passants, `mypy --strict` et `ruff` propres sur 375 fichiers.
 
 ## Licence
 

@@ -110,11 +110,20 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   (reformulation LLM à la demande), `retriever_factory` (résolution `AUTO` + repli),
   `chat_service` (`answer`/`stream_answer`). Retrieval en ports : `PassageRetriever`
   (`core/retrieval`, lexical TF-IDF) + `EmbeddingProvider` (`infra/embeddings`,
-  OpenAI) + `SemanticPassageRetriever` (`infra/retrieval`, index `.npz` + empreinte).
-  Streaming via `LLMProvider.chat_stream` (extension **additive**). Conversations
-  persistées (`app/chat_conversation_store`) ; `ChatSettings` dans le blob v2.
+  OpenAI, **modèle configurable** `EmbeddingModel` + `_pricing`) +
+  `SemanticPassageRetriever` (`infra/retrieval`, index `.npz` + empreinte incluant le
+  modèle → réindexation si changement). Streaming via `LLMProvider.chat_stream`
+  (extension **additive**). **Coût exhaustif** : `consumed_cost_usd()` sur les ports
+  retrieval/embedding agrégé dans `ChatMessage.cost_usd`. Conversations persistées et
+  **supprimables** (`app/chat_conversation_store`) ; `ChatSettings` dans le blob v2.
+  Citations/chunking bornés au plan du document (`##`/`###`).
 - `infra/` — adapters (ports/adapters) : `stt/` (FasterWhisper local + OpenAI
-  cloud + fakes), `llm/` (DeepSeek + `_pricing` + `invocation` + fakes),
+  cloud + fakes ; **modèle configurable par provider** `LocalSttModel`/`CloudSttModel`
+  + `_pricing` USD/min ; cloud `gpt-4o-*` sans timestamps → segment unique),
+  `embeddings/` (port `EmbeddingProvider` + OpenAI + `_pricing` + fakes),
+  `retrieval/` (`SemanticPassageRetriever`), `llm/` (DeepSeek + `_pricing` +
+  `invocation` + fakes ; `max_tokens` au plafond modèle + garde `finish_reason`
+  anti-troncature),
   `audio/ffmpeg_extractor` + `cloud_audio_preparer` (compression Opus +
   découpage aux silences : franchit la limite 25 Mo d'OpenAI Whisper, injecté
   dans l'adapter STT cloud), `ingestion/` (dispatcher `source → transcription`
@@ -126,7 +135,7 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   `MediaIngestor`]), `anki/genanki_exporter` (`.apkg`),
   `export/markdown_pdf` (Markdown + PDF), `storage/sqlite_state` (WAL) +
   `fs_artifacts` (writes atomiques), `secrets/` (DPAPI Windows),
-  `prompts/loader` + `defaults/*.j2` (8 phases + 8 `pedagogy_*`).
+  `prompts/loader` + `defaults/*.j2` (8 phases + 8 `pedagogy_*` + 3 `chat_*`).
 - `app/` — use-cases : `ProjectService` (+ `get_last_completed_run`),
   `RunOrchestrator`, `SupportsOrchestrator`, `CostEstimator`,
   `PedagogyCostEstimator`, `pedagogy_export` (Anki/MD/PDF/HTML) + `generation_export`

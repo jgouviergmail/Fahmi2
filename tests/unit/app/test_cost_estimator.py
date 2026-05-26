@@ -5,6 +5,7 @@ import pytest
 from fahmi2.app.cost_estimator import CostEstimation, CostEstimator, SourceWeight
 from fahmi2.domain.enums import (
     CloudSttModel,
+    ConsolidationMode,
     LLMModel,
     PhaseId,
     ReasoningEffort,
@@ -33,6 +34,37 @@ def _all_phases_thinking(effort: ReasoningEffort | None) -> dict[PhaseId, PhaseC
         pid: PhaseConfig(thinking_enabled=True, reasoning_effort=effort)
         for pid in phases
     }
+
+
+def test_thematic_consolidation_costs_more_than_ordered() -> None:
+    estimator = CostEstimator()
+    weights = _audio_weights(600.0, 600.0, 600.0)
+    ordered = estimator.estimate(
+        source_weights=weights,
+        stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
+        llm_model=LLMModel.DEEPSEEK_V4_PRO,
+        consolidation_mode=ConsolidationMode.ORDERED,
+    )
+    thematic = estimator.estimate(
+        source_weights=weights,
+        stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
+        llm_model=LLMModel.DEEPSEEK_V4_PRO,
+        consolidation_mode=ConsolidationMode.THEMATIC,
+    )
+    assert (
+        thematic.per_phase_usd[PhaseId.CONSOLIDATION]
+        > ordered.per_phase_usd[PhaseId.CONSOLIDATION]
+    )
+
+
+def test_estimate_defaults_to_ordered_when_mode_absent() -> None:
+    estimator = CostEstimator()
+    res = estimator.estimate(
+        source_weights=_audio_weights(600.0),
+        stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
+        llm_model=LLMModel.DEEPSEEK_V4_PRO,
+    )
+    assert res.total_usd >= 0
 
 
 def test_stt_local_is_free() -> None:

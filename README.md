@@ -1,13 +1,20 @@
 # Fahmi2
 
 > Transformez vos cours — **vidéos, fichiers audio, liens YouTube ou documents
-> texte** — en documents Markdown structurés, glossaire compris, multilingue, en
-> quelques minutes et sans intervention manuelle.
+> texte** (PDF, Word, Markdown, txt) — en un **document Markdown consolidé et
+> structuré** (reformulé, chapitré, **glossaire**, **multilingue** FR/EN),
+> assemblé **dans l'ordre** des sources ou par **refonte thématique** transversale.
+> Puis exploitez ce corpus sans effort : **supports de révision** (flashcards,
+> QCM, fiches, examen blanc…, exports Anki/PDF/HTML) et **Dialogue** (chat ancré
+> sur le cours, réponses **citées**). Le tout en **quelques minutes** et **sans
+> intervention manuelle**.
 
 Application desktop Windows, mono-utilisateur, **installation en double-clic**
-(aucune dépendance système à installer, ffmpeg bundlé). Pipeline en 8 phases
-(ingestion polymorphe — transcription Whisper ou extraction de texte — puis
-7 phases LLM DeepSeek v4), entièrement paramétrable via l'interface graphique.
+(aucune dépendance système à installer, ffmpeg bundlé). Interface organisée en
+**onglets de fonctionnalité** — **Génération** · **Supports pédagogiques** ·
+**Dialogue**. La génération repose sur un pipeline en 8 phases (ingestion
+polymorphe — transcription Whisper ou extraction de texte — puis 7 phases LLM
+DeepSeek v4), entièrement paramétrable via l'interface graphique.
 
 ## Capacités
 

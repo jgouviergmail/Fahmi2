@@ -154,11 +154,16 @@ pour le détail complet.
 
 ## Statut
 
-**v1.2.0** — nouvel onglet **Dialogue** (chat ancré sur le corpus : réponses
-citées + streaming, retrieval lexical/sémantique, coût exhaustif, conversations
-persistées/supprimables) ; **modèles configurables** (LLM, embeddings, STT) ;
-plafond de sortie au maximum du modèle (anti-troncature) sur **tous** les appels
-DeepSeek. v1.1.0 : entrants élargis (**vidéos, audio, YouTube, documents texte**)
+**v1.3.0** — **mode de consolidation « refonte thématique »** (le LLM agrège et
+restructure transversalement les contenus par thème, à côté du mode ordonné par
+défaut ; rigueur sur le fond / souplesse sur la forme) ; le **Dialogue recharge
+automatiquement** son corpus après régénération (plus de citations périmées) ; la
+**suppression d'un projet** efface aussi son dossier workspace sur disque. v1.2.0 :
+nouvel onglet **Dialogue** (chat ancré sur le corpus : réponses citées + streaming,
+retrieval lexical/sémantique, coût exhaustif, conversations persistées/supprimables) ;
+**modèles configurables** (LLM, embeddings, STT) ; plafond de sortie au maximum du
+modèle (anti-troncature) sur **tous** les appels DeepSeek. v1.1.0 : entrants élargis
+(**vidéos, audio, YouTube, documents texte**)
 avec ordre/exclusion des sources. Socle v1.0.0 : pipeline complet, UI cockpit
 thème Clair Fluent, packaging Windows portable, document consolidé navigable,
 glossaire en tableau, édition des prompts, estimation de coût alignée sur l'usage.

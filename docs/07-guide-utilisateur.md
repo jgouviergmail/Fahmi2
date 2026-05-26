@@ -92,7 +92,7 @@ La grille au centre commence à se remplir :
   - `·` gris : en attente
   - `▶` bleu : en cours
   - `✓` vert : terminé
-  - `✗` rouge : échec (rare, voir [Dépannage](#9-dépannage))
+  - `✗` rouge : échec (rare, voir [Dépannage](#10-dépannage))
   - `↷` indigo : sauté (déjà fait au précédent run)
 
 En haut, **5 cartes** affichent :
@@ -221,7 +221,32 @@ réglages (« ⚙ Réglages → Export → Formats d'export proposés ») :
 - **PDF** : mêmes documents, prêts à imprimer.
 - **HTML** : document autonome (ouvrable dans un navigateur, mise en forme incluse).
 
-## 9. Dépannage
+## 9. Dialoguer avec votre cours
+
+Une fois la Génération terminée, l'onglet **Dialogue** vous permet de **poser des
+questions** sur votre cours et d'obtenir des réponses **citées**, en langage
+naturel.
+
+> **Prérequis** : avoir lancé au moins une fois la **Génération** (un document
+> consolidé doit exister). Sinon, l'onglet vous invite à le faire.
+
+1. Sélectionnez le projet, ouvrez l'onglet **Dialogue**.
+2. Tapez votre question en bas, cliquez **Envoyer** (ou Entrée).
+3. La réponse s'écrit progressivement, **mise en forme** (gras, listes, tableaux).
+   Par défaut, l'assistant répond **uniquement d'après votre cours** et indique ses
+   **sources** ; cliquez une source pour lire l'extrait. S'il ne trouve pas
+   l'information, il répond « Ce point n'est pas couvert par le cours. »
+4. Le **coût** de l'échange s'affiche sous la réponse.
+
+Vous pouvez ouvrir plusieurs **conversations** (bouton **＋ Nouvelle
+conversation**) ; elles sont conservées même après fermeture de l'application.
+
+Le bouton **⚙ Réglages** permet de choisir le mode de réponse (strict, ou
+« augmenté » qui complète avec des connaissances générales), la méthode de
+recherche dans le cours et le modèle — voir [04-parametrage.md](04-parametrage.md)
+§3ter.
+
+## 10. Dépannage
 
 ### *« Windows a protégé votre PC »*
 
@@ -261,7 +286,7 @@ fenêtre de détail.
 Relancez `Fahmi2.exe`. L'état est sauvegardé : votre projet est intact,
 cliquez **▶ Reprendre** pour continuer.
 
-## 10. Mise à jour de l'application
+## 11. Mise à jour de l'application
 
 Quand une nouvelle version est disponible :
 
@@ -274,7 +299,7 @@ Vos projets et vos clés sont **automatiquement conservés**. Si une
 adaptation interne est nécessaire (mise à jour de la base), elle est
 appliquée automatiquement avec une sauvegarde préalable de sécurité.
 
-## 11. Désinstaller
+## 12. Désinstaller
 
 1. Supprimez le dossier où vous aviez décompressé Fahmi2.
 2. Si vous voulez aussi effacer **tous vos projets et clés** :
@@ -284,7 +309,7 @@ appliquée automatiquement avec une sauvegarde préalable de sécurité.
 
 Rien d'autre ne reste sur votre système.
 
-## 12. Astuces
+## 13. Astuces
 
 ### Tester avant un gros traitement
 
@@ -340,7 +365,7 @@ IFRS…) sont accompagnés de leur **signification d'origine** en plus de
 la définition — celle-ci reste dans la langue où l'acronyme a été forgé
 (*Return On Investment* pour ROI, même dans un glossaire FR).
 
-## 13. Confidentialité
+## 14. Confidentialité
 
 - **Aucune télémétrie** n'est envoyée par l'application.
 - **Vos contenus ne sortent jamais de votre poste** sauf vers les APIs que
@@ -349,7 +374,7 @@ la définition — celle-ci reste dans la langue où l'acronyme a été forgé
 - **Vos clés API sont chiffrées** sur disque par Windows DPAPI : seul
   votre compte Windows peut les lire.
 
-## 14. Besoin d'aide ?
+## 15. Besoin d'aide ?
 
 - Pour les questions fonctionnelles : voir
   [01-presentation-fonctionnelle.md](01-presentation-fonctionnelle.md).

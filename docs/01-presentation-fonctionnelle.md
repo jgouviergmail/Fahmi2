@@ -172,6 +172,21 @@ Tous les fichiers sont en **Markdown UTF-8**, ouvrables dans n'importe quel
 éditeur, dans VS Code, Obsidian, ou convertibles vers DOCX/PDF/HTML via
 pandoc.
 
+### 4.7 Dialogue (chat ancré sur le corpus)
+
+Un troisième onglet, **Dialogue**, permet d'**interroger le cours** en langage
+naturel une fois la génération produite. Les réponses sont **ancrées** sur le
+document consolidé et le glossaire, **citées** (chapitre › section, cliquables) et
+**diffusées en streaming**.
+
+- **Fidélité configurable** : *strict* (réponse uniquement à partir du cours,
+  refus poli hors-corpus) ou *augmenté* (complément de connaissances générales
+  clairement balisé).
+- **Recherche de passages** : lexicale (hors-ligne) ou sémantique (embeddings
+  OpenAI), avec un mode **automatique** et une reformulation de requête à la demande.
+- **Conversations** multiples persistées par projet ; **coût** par message et cumulé.
+- Réglages (fidélité, retrieval, modèle) et **prompts éditables** comme le reste.
+
 ## 5. Promesses de qualité
 
 ### 5.1 Fidélité au discours
@@ -231,6 +246,8 @@ pandoc.
 - 4 styles de rendu.
 - Formats de sortie : génération en **Markdown** ; supports pédagogiques
   exportables en **Anki `.apkg`**, **Markdown**, **PDF** et **HTML**.
+- **Dialogue** : chat ancré sur le corpus (citations + streaming), retrieval
+  lexical (hors-ligne) ou sémantique (embeddings OpenAI).
 - Plateforme : **Windows 11** (10 minimum).
 
 ### Hors v1

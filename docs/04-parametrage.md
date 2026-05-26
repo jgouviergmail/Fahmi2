@@ -11,7 +11,7 @@ Accès : menu **Édition → Paramètres globaux**.
 
 | Clé | Usage | Obtention |
 |-----|-------|-----------|
-| **Clé OpenAI** | Provider STT cloud (Whisper) | https://platform.openai.com/api-keys |
+| **Clé OpenAI** | Provider STT cloud (Whisper) **et** embeddings du retrieval sémantique du Dialogue | https://platform.openai.com/api-keys |
 | **Clé DeepSeek** | Toutes les phases LLM | https://platform.deepseek.com/api-keys |
 
 Les clés sont **chiffrées via Windows DPAPI** et stockées dans
@@ -187,7 +187,10 @@ fichiers :
    - `phase_5_video_summary.j2`
    - `phase_6_translation.j2`
    - `phase_7_coherence.j2`
-3. Le prompt sera utilisé automatiquement au prochain run.
+   - les 8 templates `pedagogy_*.j2` (supports de révision)
+   - `chat_strict.j2`, `chat_augmented.j2`, `chat_query_expansion.j2` (Dialogue)
+3. Le prompt sera utilisé automatiquement au prochain run (ou à la prochaine
+   réponse du Dialogue).
 
 ### 3.3 Variables disponibles dans chaque template
 
@@ -209,9 +212,13 @@ fichiers :
 | `pedagogy_revision_sheet` | *(idem flashcards concepts)* |
 | `pedagogy_key_points` | *(idem flashcards concepts)* |
 | `pedagogy_mock_exam` | `output_language_label`, `audience_label`, `bloom_label`, `density_label`, `pedagogy_directives`, `glossary_terms`, `consolidated_markdown` |
+| `chat_strict` | `output_language_label`, `glossary_terms`, `passages` |
+| `chat_augmented` | `output_language_label`, `glossary_terms`, `passages` |
+| `chat_query_expansion` | `question` |
 
-> Les 8 templates `pedagogy_*` (supports de révision) s'éditent dans le **même
-> éditeur** (Édition → Modifier les prompts) que les phases de génération.
+> Les 8 templates `pedagogy_*` (supports de révision) **et** les 3 templates
+> `chat_*` (Dialogue) s'éditent dans le **même éditeur** (Édition → Modifier les
+> prompts) que les phases de génération.
 
 ### 3.4 Validation et restauration
 
@@ -246,6 +253,29 @@ dossier** ouvre `<emplacement>/pedagogy/` ; **Exporter** propose 4 formats :
 - **Markdown**, **PDF** et **HTML** : **un fichier par support et par corrigé**,
   nommés `<support>.<langue>.<ext>` et `<support>.<langue>.corrige.<ext>`
   (le HTML est un document autonome avec feuille de style intégrée).
+
+## 3ter. Réglages du Dialogue (chat)
+
+Onglet **Dialogue → ⚙ Réglages** :
+
+| Réglage | Description |
+|---------|-------------|
+| **Fidélité** | `strict` (défaut : répond uniquement à partir du cours, cite ses sources `[§N]`, refuse poliment hors-corpus) ou `augmenté` (peut compléter avec ses connaissances générales dans une section « Au-delà du cours » balisée). |
+| **Retrieval** | `auto` (défaut : sémantique si une clé OpenAI est présente, sinon lexical), `lexical` (TF-IDF, 100 % hors-ligne) ou `sémantique` (embeddings OpenAI). |
+| **Expansion de requête** | Activée par défaut : reformule la question en mots-clés via le LLM quand le retrieval lexical est faible (améliore le rappel). |
+| **Modèle & raisonnement** | Modèle LLM (`deepseek-v4-flash`/`pro`), mode raisonnement + effort, température. |
+| **Passages (top-K)** | Nombre d'extraits du cours injectés en contexte (défaut 6). |
+
+Le corpus interrogé = document **consolidé** + **glossaire** de la génération
+(découpé par section). Le retrieval **sémantique** construit un index local
+(`<emplacement>/chat/index.{langue}.npz`) réutilisé tant que le cours n'a pas
+changé (empreinte : modèle d'embedding + horodatage du consolidé + langue). Les
+**conversations** sont persistées sous `<emplacement>/chat/conversations/`.
+
+> **Confidentialité** : le retrieval **sémantique** envoie le corpus et les
+> questions à **OpenAI** (calcul des embeddings). En mode **lexical**, le
+> retrieval reste **100 % local** (seule la génération de la réponse appelle
+> DeepSeek, comme tout le LLM de l'application).
 
 ## 4. Variables d'environnement (debug)
 

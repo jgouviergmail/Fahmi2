@@ -99,9 +99,9 @@ class ChatSettingsView(QDialog):
 
         form.addRow("Fidélité", self._grounding)
         form.addRow("Retrieval", self._strategy)
+        form.addRow("Modèle d'embedding", self._embedding_model)
         form.addRow("Expansion de requête", self._query_expansion)
         form.addRow("Modèle LLM", self._model)
-        form.addRow("Modèle d'embedding", self._embedding_model)
         form.addRow("Mode raisonnement", self._thinking)
         form.addRow("Effort de raisonnement", self._reasoning)
         form.addRow("Température", self._temperature)

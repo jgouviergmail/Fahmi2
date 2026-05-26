@@ -69,6 +69,10 @@ class LLMError(Fahmi2Error):
     """Erreur du sous-système LLM."""
 
 
+class EmbeddingError(Fahmi2Error):
+    """Erreur du sous-système d'embeddings (retrieval sémantique du Dialogue)."""
+
+
 class FFmpegError(Fahmi2Error):
     """Erreur d'extraction audio via ffmpeg."""
 

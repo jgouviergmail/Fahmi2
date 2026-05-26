@@ -9,6 +9,10 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Corrigé
 
+- **Dialogue : erreurs d'embeddings typées et localisées.** Un échec du calcul
+  d'embeddings OpenAI (clé refusée, limite de débit) remontait en exception brute,
+  contrairement aux adapters STT/LLM. Il est désormais converti en `EmbeddingError`
+  typée avec message FR et conseil (« bascule le retrieval en lexical »).
 - **Dialogue : citations alignées sur le plan du document.** Le corpus était
   découpé/cité sur **tous** les niveaux de titre (`####`+ compris), si bien que des
   sous-sous-sections **absentes du plan** (titres profonds à numérotation héritée,

@@ -6,7 +6,9 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+from openai import AuthenticationError
 
+from fahmi2.core.errors.exceptions import EmbeddingError
 from fahmi2.infra.embeddings.openai_adapter import OpenAIEmbeddingProvider
 
 
@@ -40,6 +42,21 @@ def test_embed_documents_empty_skips_api() -> None:
     provider = OpenAIEmbeddingProvider(api_key="dummy", client=client)
     assert provider.embed_documents([]) == []
     client.embeddings.create.assert_not_called()
+
+
+def test_embed_documents_maps_auth_error_to_typed_error() -> None:
+    # Homogénéité avec les adapters STT/LLM : une exception OpenAI devient une
+    # erreur typée FR (au lieu de remonter brute).
+    client = MagicMock()
+    response_mock = MagicMock()
+    response_mock.request = MagicMock()
+    client.embeddings.create.side_effect = AuthenticationError(
+        message="bad key", response=response_mock, body=None
+    )
+    provider = OpenAIEmbeddingProvider(api_key="dummy", client=client)
+    with pytest.raises(EmbeddingError) as exc_info:
+        provider.embed_documents(["x"])
+    assert exc_info.value.code == "EMBEDDING.AUTH_INVALID"
 
 
 def test_consumed_cost_usd_reflects_usage() -> None:

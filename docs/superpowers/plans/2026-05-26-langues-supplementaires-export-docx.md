@@ -492,6 +492,15 @@ Dans `pyproject.toml`, dans `dependencies`, ajouter sous `python-docx` :
   "beautifulsoup4>=4.7,<5",
 ```
 
+Dans le même `pyproject.toml`, dans le bloc `[[tool.mypy.overrides]]` (liste
+`module`), ajouter `htmldocx`/`bs4` (pas de stubs publiés) après `"docx.*"` :
+
+```toml
+  "docx.*",
+  "htmldocx.*",
+  "bs4.*",
+```
+
 Puis installer dans le venv :
 
 Run: `.venv\Scripts\python.exe -m pip install "htmldocx>=0.0.6,<0.1" "beautifulsoup4>=4.7,<5"`
@@ -801,16 +810,18 @@ def test_render_pdf_arabic_is_shaped(tmp_path: Path) -> None:
     assert any(0xFE70 <= ord(ch) <= 0xFEFF for ch in text)
 
 
-def test_render_pdf_chinese_raises_without_cjk_font(tmp_path: Path, monkeypatch) -> None:
+def test_render_pdf_chinese_raises_without_cjk_font(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from fahmi2.core.errors.exceptions import ConfigError
     from fahmi2.infra.export import markdown_pdf as mod
 
     monkeypatch.setattr(mod, "_cjk_font_path", lambda: Path("nonexistent.ttc"))
-    mod._ensure_language_fonts_registered.cache_clear()
+    mod._ensure_cjk_font_registered.cache_clear()
     with pytest.raises(ConfigError) as excinfo:
         render_markdown_to_pdf("# 测试\n", tmp_path / "x.pdf", language=Language.ZH)
     assert excinfo.value.code == "EXPORT.NO_CJK_FONT"
-    mod._ensure_language_fonts_registered.cache_clear()
+    mod._ensure_cjk_font_registered.cache_clear()
 ```
 
 - [ ] **Step 2: Lancer pour vérifier l'échec**
@@ -820,12 +831,17 @@ Expected: FAIL (`cjk_font_available` / `language` inconnus)
 
 - [ ] **Step 3: Implémenter — résolution et enregistrement des polices**
 
-Dans `src/fahmi2/infra/export/markdown_pdf.py`, ajouter les imports en tête :
+Dans `src/fahmi2/infra/export/markdown_pdf.py`, ajouter l'import xhtml2pdf (avec
+les autres imports `from xhtml2pdf import pisa`) et **compléter** la ligne
+existante `from fahmi2.domain.enums import ExportFormat` (ne pas la dupliquer) :
 
 ```python
 from xhtml2pdf import default as xhtml2pdf_default
+from xhtml2pdf import pisa
+```
 
-from fahmi2.domain.enums import ExportFormat, Language
+```python
+from fahmi2.domain.enums import ExportFormat, Language  # remplace l'import ExportFormat seul
 ```
 
 Ajouter après le bloc des constantes de police (`_WINDOWS_FONT_FILES`) :
@@ -870,15 +886,12 @@ Toujours dans `markdown_pdf.py`, ajouter une fonction mémoïsée d'enregistreme
 
 ```python
 @functools.cache
-def _ensure_language_fonts_registered() -> None:
-    """Enregistre les polices CJK et arabe et les injecte dans xhtml2pdf.
+def _ensure_cjk_font_registered() -> None:
+    """Enregistre Microsoft YaHei (TTC, regular + gras) et l'injecte dans xhtml2pdf.
 
-    - CJK : Microsoft YaHei (TTC) via ``subfontIndex`` (regular + gras).
-    - Arabe : Arial système (réutilise les fichiers déjà connus du module).
-
-    Injecte les familles ``cjk``/``arab`` dans ``xhtml2pdf.default.DEFAULT_FONT``
-    (point d'injection standard : ``pisa.CreatePDF`` n'expose pas de hook de
-    registre). Idempotent et mémoïsé : exécuté une fois.
+    Injecte la famille ``cjk`` dans ``xhtml2pdf.default.DEFAULT_FONT`` (point
+    d'injection standard : ``pisa.CreatePDF`` n'expose pas de hook de registre).
+    Idempotent et mémoïsé : exécuté une fois. Appelé **seulement** pour le chinois.
 
     Raises:
         ConfigError: ``EXPORT.NO_CJK_FONT`` si Microsoft YaHei est introuvable.
@@ -904,6 +917,15 @@ def _ensure_language_fonts_registered() -> None:
     addMapping(_CJK_FONT_NAME, 1, 0, bold_name)
     xhtml2pdf_default.DEFAULT_FONT[_CJK_FAMILY] = _CJK_FONT_NAME
 
+
+@functools.cache
+def _ensure_arabic_font_registered() -> None:
+    """Enregistre Arial (glyphes arabes, regular + gras) et l'injecte dans xhtml2pdf.
+
+    Appelée **seulement** pour l'arabe (n'exige donc pas la police chinoise). La
+    présence d'Arial est déjà garantie par ``pdf_fonts_available`` en amont.
+    """
+    fonts = _fonts_dir()
     pdfmetrics.registerFont(TTFont(_ARABIC_FONT_NAME, str(fonts / _WINDOWS_FONT_FILES[""])))
     pdfmetrics.registerFont(
         TTFont(_ARABIC_FONT_NAME + "-Bold", str(fonts / _WINDOWS_FONT_FILES["B"]))
@@ -992,8 +1014,10 @@ def render_markdown_to_pdf(
     family, direction, language_tag = _PDF_LANG_CONFIG.get(
         language, (_PDF_DEFAULT_FAMILY, "ltr", "")
     )
-    if language in _PDF_LANG_CONFIG:
-        _ensure_language_fonts_registered()
+    if language is Language.ZH:
+        _ensure_cjk_font_registered()
+    elif language is Language.AR:
+        _ensure_arabic_font_registered()
     body = markdown.markdown(
         _normalize_for_pdf(markdown_text),
         extensions=_MARKDOWN_EXTENSIONS,
@@ -1106,16 +1130,16 @@ git commit -m "feat(export): rendu PDF chinois (CJK) et arabe (RTL shape+bidi)"
 
 Ajouter dans `tests/unit/ui/test_language_selection_view.py` :
 
+Le fichier importe déjà `from pytestqt.qtbot import QtBot`. Ajouter :
+
 ```python
-def test_language_selection_uses_display_labels(qtbot) -> None:
+def test_language_selection_uses_display_labels(qtbot: QtBot) -> None:
     from fahmi2.domain.enums import Language
     from fahmi2.ui.widgets.language_selection_view import LanguageSelectionView
 
     view = LanguageSelectionView(tuple(Language))
     qtbot.addWidget(view)
-    labels = {
-        view._checks[lang].text() for lang in Language  # type: ignore[attr-defined]
-    }
+    labels = {view._checks[lang].text() for lang in Language}
     assert "Chinois" in labels
     assert "Arabe" in labels
     assert "fr" not in labels  # plus de code brut

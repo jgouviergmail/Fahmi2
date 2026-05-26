@@ -7,6 +7,14 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+### Modifié — Bandeau d'état des Supports pédagogiques
+
+- Le bandeau de fraîcheur devient une **pastille de statut colorée** (icône +
+  libellé court, palette success/warning/accent), au lieu d'une phrase verbeuse
+  mêlant état et instruction : *⚙ À configurer*, *⚠ Génération requise*,
+  *● Prêt à générer*, *✓ Supports à jour* (vert), *⟳ Supports à régénérer* (ambre).
+  Stylé via QSS (`#pedagogyStateBanner[state="…"]`), masqué hors sélection.
+
 ### Modifié — Libellés de modèles uniformisés
 
 - Les combos de **modèles** (LLM, embeddings, STT) affichent partout un **libellé

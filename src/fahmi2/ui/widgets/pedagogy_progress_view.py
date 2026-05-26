@@ -170,6 +170,7 @@ class PedagogyProgressView(QWidget):
             info: État + message.
         """
         self._banner.setText(info.message)
+        self._banner.setVisible(bool(info.message))
         self._set_banner_state(info.state.value)
 
     def clear(self) -> None:
@@ -180,6 +181,7 @@ class PedagogyProgressView(QWidget):
         self._matrix.apply_snapshot(_EMPTY_MATRIX)
         self._row_count = 0
         self._banner.setText("")
+        self._banner.setVisible(False)
         self._set_banner_state("")
         for card in (
             self._card_status,

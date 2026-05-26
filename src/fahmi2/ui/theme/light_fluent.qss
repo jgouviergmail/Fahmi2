@@ -266,6 +266,31 @@ QPushButton[role="primary"]:disabled {
     font-size: 11px;
 }
 
+/* ===== Bandeau d'état pédagogie (pastille de statut) =====
+ * QLabel#pedagogyStateBanner : fond doux + texte d'accent selon la propriété
+ * dynamique ``state`` (cf. PedagogyState). Réutilise la palette success/warning/
+ * accent des tuiles pour une présentation homogène. */
+#pedagogyStateBanner {
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    background-color: #eef0f4;
+    color: #57606a;
+}
+#pedagogyStateBanner[state="ready"] {
+    background-color: #e3f0fb;
+    color: #0a4f93;
+}
+#pedagogyStateBanner[state="up_to_date"] {
+    background-color: #e6f6ec;
+    color: #1a7f37;
+}
+#pedagogyStateBanner[state="stale"],
+#pedagogyStateBanner[state="generation_required"] {
+    background-color: #fef3c7;
+    color: #b45309;
+}
+
 /* ===== Cost matrix (générique, partagée par les dashboards) ===== */
 #costMatrix {
     background-color: #ffffff;

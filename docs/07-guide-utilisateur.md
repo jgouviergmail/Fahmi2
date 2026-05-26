@@ -197,8 +197,9 @@ sur **⚙ Réglages** (même vue à catégories que la Génération) :
 1. (Recommandé) **💵 Estimer le coût** : affiche le budget prévu (par support ×
    langue × chapitre, selon la densité et le mode raisonnement).
 2. **▶ Lancer** : la table de progression se remplit (une ligne par support ×
-   langue). Le **bandeau d'état** en haut indique la fraîcheur : *non configuré*
-   → *génération requise* → *prêt* → *à jour* → *périmé*.
+   langue). Une **pastille d'état** colorée en haut indique la fraîcheur d'un
+   coup d'œil : *⚙ À configurer* → *⚠ Génération requise* → *● Prêt à générer*
+   → *✓ Supports à jour* (vert) → *⟳ Supports à régénérer* (ambre).
 
 Si vous relancez la Génération plus tard, les supports existants sont marqués
 **périmés** : régénérez-les pour les réaligner sur le nouveau contenu. Les

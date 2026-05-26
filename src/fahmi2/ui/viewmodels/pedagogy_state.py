@@ -27,16 +27,13 @@ from fahmi2.pedagogy.sources import (
     source_mtime_ns,
 )
 
-_MSG_NOT_CONFIGURED = (
-    "Supports pédagogiques non configurés — cliquez sur « ⚙ Réglages »."
-)
-_MSG_GENERATION_REQUIRED = (
-    "Génération requise : lancez d'abord la Génération pour produire au moins un "
-    "document consolidé (toute langue) et le glossaire."
-)
-_MSG_READY = "Prêt à générer les supports."
-_MSG_UP_TO_DATE = "Supports à jour — « Générer » les régénère."
-_MSG_STALE = "Supports périmés (réglages ou source modifiés) — régénérez."
+# Libellés courts façon « pastille de statut » (icône + état), stylés par le QSS
+# via la propriété dynamique ``state`` (#pedagogyStateBanner[state="…"]).
+_MSG_NOT_CONFIGURED = "⚙ À configurer"
+_MSG_GENERATION_REQUIRED = "⚠ Génération requise"
+_MSG_READY = "● Prêt à générer"
+_MSG_UP_TO_DATE = "✓ Supports à jour"
+_MSG_STALE = "⟳ Supports à régénérer"
 
 
 class PedagogyState(StrEnum):

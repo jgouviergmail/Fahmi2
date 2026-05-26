@@ -66,6 +66,46 @@ def test_delete_project_removes_it(
     assert service.get_project(project.id) is None
 
 
+def test_delete_project_removes_workspace_folder(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    state = SqliteState(tmp_path / "t.db")
+    service = ProjectService(state)
+    workspace = tmp_path / "ws"
+    (workspace / "generation").mkdir(parents=True)
+    (workspace / "generation" / "consolidated_master.md").write_text(
+        "x", encoding="utf-8"
+    )
+    # Le dossier d'entrée (sources), SÉPARÉ du workspace, ne doit PAS être touché.
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "video.mp4").write_text("v", encoding="utf-8")
+    project = service.create_project(
+        name="X", workspace_folder=workspace, generation=make_generation_settings()
+    )
+
+    service.delete_project(project.id)
+
+    assert service.get_project(project.id) is None
+    assert not workspace.exists()  # workspace + contenu supprimés
+    assert (sources / "video.mp4").exists()  # sources intactes
+
+
+def test_delete_project_without_workspace_on_disk_is_safe(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    # Le dossier workspace n'existe pas sur disque : la suppression ne doit pas lever.
+    state = SqliteState(tmp_path / "t.db")
+    service = ProjectService(state)
+    project = service.create_project(
+        name="X",
+        workspace_folder=tmp_path / "ghost",
+        generation=make_generation_settings(),
+    )
+    service.delete_project(project.id)
+    assert service.get_project(project.id) is None
+
+
 def test_get_unknown_project_returns_none(tmp_path: Path) -> None:
     state = SqliteState(tmp_path / "t.db")
     service = ProjectService(state)

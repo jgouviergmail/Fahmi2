@@ -190,9 +190,10 @@ def main() -> int:  # noqa: PLR0915, C901
             "Supprimer le projet ?",
             (
                 f"Supprimer le projet « {project.name} » ?\n\n"
-                "Cette action supprime également TOUS ses runs et leurs "
-                "métadonnées en base de données. Les fichiers du dossier "
-                "d'entrée et du workspace ne sont PAS supprimés sur disque.\n\n"
+                "Cette action supprime ses runs et métadonnées en base, AINSI QUE "
+                "le dossier du projet et tout son contenu sur disque :\n"
+                f"{project.workspace_folder}\n\n"
+                "Le dossier d'entrée (vos fichiers sources) n'est PAS supprimé.\n\n"
                 "Cette action est irréversible."
             ),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,

@@ -47,6 +47,7 @@ from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.pedagogy.labels import format_glossary_terms
 from fahmi2.pedagogy.sources import (
+    glossary_master_mtime_ns,
     load_glossary_master_terms,
     resolve_content_language,
     source_mtime_ns,
@@ -68,6 +69,9 @@ _DELETE_CONFIRM_MESSAGE = (
 )
 
 LlmProviderFactory = Callable[[str], LLMProvider]
+
+#: Empreinte de fraîcheur du corpus : (langue de contenu, mtime consolidé, mtime glossaire).
+_CorpusKey = tuple[str | None, int | None, int | None]
 
 
 class _ChatWorker(QObject):
@@ -170,6 +174,10 @@ class ChatController(QObject):
         self._content_language: Language | None = None
         self._chunks: tuple[CorpusChunk, ...] = ()
         self._glossary_text: str = ""
+        # Clé de fraîcheur du corpus chargé (langue de contenu, mtime du consolidé,
+        # mtime du glossaire) : permet de re-dériver le corpus quand le document est
+        # régénéré, sans recharger tout le projet (cf. refresh_corpus_if_stale).
+        self._corpus_key: _CorpusKey = (None, None, None)
         self._conversation: Conversation | None = None
         self._store: ChatConversationStore | None = None
         self._thread: QThread | None = None
@@ -199,27 +207,7 @@ class ChatController(QObject):
         if project is None:
             return
         self._project = project
-        generation_output_dir = self._generation_output_dir(project)
-        source_language = (
-            project.generation.source_language
-            if project.generation is not None
-            else Language.FR
-        )
-        self._content_language = resolve_content_language(
-            generation_output_dir, source_language, source_language
-        )
-        if self._content_language is not None:
-            self._chunks = load_corpus_chunks(
-                generation_output_dir=generation_output_dir,
-                generation_dir=self._generation_dir(project),
-                language=self._content_language,
-            )
-            self._glossary_text = format_glossary_terms(
-                load_glossary_master_terms(self._generation_dir(project))
-            )
-        else:
-            self._chunks = ()
-            self._glossary_text = ""
+        self._load_corpus(project)
         self._store = ChatConversationStore(
             artifacts=FsArtifactStore(), chat_dir=self._chat_dir(project)
         )
@@ -230,6 +218,83 @@ class ChatController(QObject):
         self._view.show_conversation(())
         self._view.set_total_cost(0.0)
         self._apply_state()
+
+    def refresh_corpus_if_stale(self) -> None:
+        """Recharge le corpus si le consolidé/glossaire a changé sur disque.
+
+        Le corpus est chargé une fois à la sélection du projet ; une régénération
+        (consolidé ou glossaire) le rendrait périmé. On compare l'empreinte de
+        fraîcheur courante à celle chargée et on re-dérive le corpus au besoin —
+        **sans** réinitialiser la conversation affichée. Appelé avant chaque
+        réponse (``submit_question``) et au signal de fin de génération.
+
+        Ignoré pendant le streaming d'une réponse (``self._thread``) : la
+        prochaine soumission rafraîchira de toute façon.
+        """
+        if self._project is None or self._thread is not None:
+            return
+        if self._compute_corpus_key(self._project) != self._corpus_key:
+            self._load_corpus(self._project)
+            self._apply_state()
+
+    def _resolve_content_language(self, project: Project) -> Language | None:
+        """Résout la langue de contenu du corpus (doc consolidé disponible).
+
+        Args:
+            project: Projet concerné.
+
+        Returns:
+            La langue de contenu, ou ``None`` si aucun consolidé n'existe.
+        """
+        source_language = (
+            project.generation.source_language
+            if project.generation is not None
+            else Language.FR
+        )
+        return resolve_content_language(
+            self._generation_output_dir(project), source_language, source_language
+        )
+
+    def _load_corpus(self, project: Project) -> None:
+        """(Re)dérive le corpus (chunks + glossaire + langue) et l'empreinte.
+
+        Args:
+            project: Projet dont on charge le corpus.
+        """
+        generation_dir = self._generation_dir(project)
+        self._content_language = self._resolve_content_language(project)
+        if self._content_language is not None:
+            self._chunks = load_corpus_chunks(
+                generation_output_dir=self._generation_output_dir(project),
+                generation_dir=generation_dir,
+                language=self._content_language,
+            )
+            self._glossary_text = format_glossary_terms(
+                load_glossary_master_terms(generation_dir)
+            )
+        else:
+            self._chunks = ()
+            self._glossary_text = ""
+        self._corpus_key = self._compute_corpus_key(project)
+
+    def _compute_corpus_key(self, project: Project) -> _CorpusKey:
+        """Empreinte de fraîcheur courante du corpus (lue sur disque).
+
+        Args:
+            project: Projet concerné.
+
+        Returns:
+            ``(langue de contenu, mtime du consolidé, mtime du glossaire)``.
+        """
+        content_language = self._resolve_content_language(project)
+        consolidated_mtime = (
+            source_mtime_ns(self._generation_output_dir(project), content_language)
+            if content_language is not None
+            else None
+        )
+        glossary_mtime = glossary_master_mtime_ns(self._generation_dir(project))
+        language_key = str(content_language) if content_language is not None else None
+        return (language_key, consolidated_mtime, glossary_mtime)
 
     @property
     def current_project_id(self) -> ProjectId | None:
@@ -254,6 +319,10 @@ class ChatController(QObject):
         Args:
             text: Question de l'utilisateur.
         """
+        # Hors streaming : s'assurer que le corpus reflète le document courant
+        # (une régénération a pu le périmer depuis le chargement du projet).
+        if self._thread is None:
+            self.refresh_corpus_if_stale()
         if (
             self._project is None
             or not self._chunks
@@ -462,6 +531,9 @@ class ChatController(QObject):
             embedding_provider=embedding_provider,
             embedding_model=embedding_model,
             index_path=self._index_path(self._project, self._content_language),
+            glossary_mtime_ns=glossary_master_mtime_ns(
+                self._generation_dir(self._project)
+            ),
             source_mtime_ns=source_mtime_ns(
                 generation_output_dir, self._content_language
             ),

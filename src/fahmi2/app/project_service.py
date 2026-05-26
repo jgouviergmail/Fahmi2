@@ -6,6 +6,7 @@ projet (génération d'ID, horodatage), la persistance et la suppression.
 
 from __future__ import annotations
 
+import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -92,12 +93,21 @@ class ProjectService:
         return self._state.list_projects()
 
     def delete_project(self, project_id: ProjectId) -> None:
-        """Supprime un projet (avec cascade sur ses runs).
+        """Supprime un projet : base (cascade runs) **et** son dossier workspace.
+
+        Le dossier de travail du projet (``workspace_folder`` : sous-dossiers
+        ``generation``/``pedagogy``/``chat`` et leurs livrables) est effacé du
+        disque. Le **dossier d'entrée** (sources, hors workspace) n'est PAS touché.
+        La suppression disque est *best-effort* (ne lève pas si le dossier est
+        absent ou partiellement verrouillé).
 
         Args:
             project_id: Identifiant.
         """
+        project = self._state.get_project(project_id)
         self._state.delete_project(project_id)
+        if project is not None:
+            _delete_tree(project.workspace_folder)
 
     def list_runs(self, project_id: ProjectId) -> list[Run]:
         """Liste les runs d'un projet.
@@ -148,3 +158,13 @@ class ProjectService:
             Le ``Run`` ou ``None``.
         """
         return self._state.get_run(run_id)
+
+
+def _delete_tree(path: Path) -> None:
+    """Supprime récursivement un dossier (best-effort : ne lève jamais).
+
+    Args:
+        path: Dossier à supprimer (ignoré s'il est absent).
+    """
+    if path.exists():
+        shutil.rmtree(path, ignore_errors=True)

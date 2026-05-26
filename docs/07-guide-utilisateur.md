@@ -61,7 +61,7 @@ configurer la génération (vue à 6 catégories) :
 | Catégorie | Champs |
 |-----------|--------|
 | **Entrée & langues** | Dossier d'entrée (vidéos/audios/documents) · Liens YouTube · Ordre & exclusion des sources · Langues du document (langues produites + laquelle est la **principale**/originale) |
-| **Style** | Style (`décontracté`/`standard`/`professionnel`/`académique`) · Directives libres |
+| **Style** | Style (`décontracté`/`standard`/`professionnel`/`académique`) · **Mode de consolidation** (Ordonné : un chapitre par source, dans l'ordre ; ou Refonte thématique : l'IA réorganise et fusionne tout par thèmes, comme une synthèse — l'ordre des sources n'a alors plus d'effet) · Directives libres |
 | **Transcription** | Provider STT (`openai_cloud` sans GPU, sinon `faster_whisper_local`) · *Transcriptions en parallèle* (cloud) |
 | **Modèle & coût** | Modèle LLM (`deepseek-v4-flash` pour démarrer) · Plafond budget · *Appels LLM en parallèle* |
 | **Phases** | Thinking, effort, température, retries par phase LLM (avancé) |

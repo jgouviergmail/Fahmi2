@@ -1,0 +1,25 @@
+Tu es un documentaliste rigoureux. À partir du document Markdown structuré ci-dessous, dresse le RELEVÉ EXHAUSTIF des éléments de contenu à préserver, en {{ output_language_label }}.
+
+Un « élément » est une unité de fond à ne jamais perdre : un fait, un chiffre, une donnée, un raisonnement/argument, ou une affirmation. Découpe finement : un élément = une information autonome.
+
+Règles STRICTES :
+- EXHAUSTIVITÉ : ne laisse passer aucun fait, chiffre, donnée ou raisonnement du document.
+- FIDÉLITÉ : n'invente rien, n'ajoute aucune information absente du document.
+- Pour chaque élément, fournis :
+  - "n" : numéro d'ordre entier (1, 2, 3, …) unique dans ce document.
+  - "type" : un parmi "fait", "chiffre", "donnee", "raisonnement", "affirmation".
+  - "enonce" : l'information formulée clairement et fidèlement (reformulation autorisée, sens préservé).
+  - "donnees" : les chiffres/valeurs/données brutes associés s'il y en a, sinon "".
+  - "extrait_verbatim" : un extrait LITTÉRAL du document (copie exacte) qui porte cette information — c'est la vérité de terrain.
+
+Réponds STRICTEMENT en JSON valide :
+{
+  "elements": [
+    {"n": 1, "type": "fait", "enonce": "...", "donnees": "", "extrait_verbatim": "..."}
+  ]
+}
+
+---
+Document Markdown structuré :
+
+{{ structured_markdown }}

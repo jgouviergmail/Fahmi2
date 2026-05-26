@@ -24,6 +24,17 @@ def test_list_templates_covers_all_llm_phases(tmp_path: Path) -> None:
     assert expected <= names
 
 
+def test_list_templates_includes_thematic_prompts(tmp_path: Path) -> None:
+    service = PromptsService(override_dir=tmp_path)
+    names = {meta.name for meta in service.list_templates()}
+    expected = {
+        "phase_5_fact_ledger",
+        "phase_5_thematic_plan",
+        "phase_5_thematic_chapter",
+    }
+    assert expected <= names
+
+
 def test_list_templates_includes_pedagogy_supports(tmp_path: Path) -> None:
     service = PromptsService(override_dir=tmp_path)
     names = {meta.name for meta in service.list_templates()}

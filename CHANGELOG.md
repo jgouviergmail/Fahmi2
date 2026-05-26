@@ -5,6 +5,47 @@ Toutes les évolutions notables du projet Fahmi2.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Non publié]
+
+### Ajouté
+
+- **Mode de consolidation « refonte thématique » (phase 5).** Nouveau réglage
+  `GenerationSettings.consolidation_mode` (défaut `ORDERED`, inchangé) : en mode
+  `THEMATIC`, le LLM **agrège et restructure transversalement** les contenus de
+  toutes les sources par thème (synthèse à la manière d'un journaliste), au lieu
+  d'un chapitre recopié par source. **Rigueur sur le fond** (interdiction
+  d'inventer ou d'ajouter des faits ; chiffres/données/raisonnements préservés ;
+  conflits entre sources présentés sans arbitrage) et **souplesse sur la forme**
+  (fusion, déduplication, transitions). Implémenté en **map-reduce à provenance**
+  (relevé factuel par source → plan thématique → rédaction par chapitre → méta)
+  avec **double contrôle déterministe de couverture** (aucune perte de contenu) et
+  **aucun identifiant technique dans le livrable**. Artefacts conservés et
+  consultables sous `generation/consolidation/` (dont `facts.md`). Reprise
+  intra-phase par hash de cohérence. Phase 5 refactorée en **dispatcher de
+  stratégies** (`ORDERED` inchangé). 3 prompts éditables (`phase_5_fact_ledger`,
+  `phase_5_thematic_plan`, `phase_5_thematic_chapter`). Sélecteur dans les réglages
+  (page **Style**) ; en thématique, l'ordre des sources est sans effet (note UI).
+  L'estimation de coût intègre un facteur dédié.
+
+### Corrigé
+
+- **Dialogue : fraîcheur du corpus après régénération.** Le corpus du Dialogue
+  était chargé une seule fois à la sélection du projet ; après une régénération du
+  document, le Dialogue continuait de citer l'**ancien** corpus (chapitres/sections
+  périmés). Il **recharge désormais automatiquement** son corpus dès que le
+  consolidé ou le glossaire a changé sur disque (avant chaque réponse et au signal
+  de fin de génération), sans recharger le projet. L'empreinte de l'index
+  sémantique intègre en plus le **mtime du glossaire** (une édition de définition à
+  nombre de termes constant ne laisse plus d'embeddings périmés).
+
+### Modifié
+
+- **Suppression d'un projet : le dossier du projet est aussi effacé.** Supprimer un
+  projet efface désormais, en plus de ses runs/métadonnées en base, son **dossier
+  workspace et tout son contenu** sur disque (best-effort ; confirmation affichant
+  le chemin). Le **dossier d'entrée** (fichiers sources) et la base globale ne sont
+  pas touchés.
+
 ## [1.2.0] — 2026-05-26
 
 ### Corrigé

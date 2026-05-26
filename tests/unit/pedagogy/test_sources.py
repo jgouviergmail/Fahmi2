@@ -8,6 +8,7 @@ from fahmi2.domain.enums import Language
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.pedagogy.sources import (
     consolidated_doc_path,
+    glossary_master_mtime_ns,
     load_chapters,
     load_glossary_master_terms,
     resolve_content_language,
@@ -57,6 +58,18 @@ def test_load_glossary_master_terms_reads_disk(tmp_path: Path) -> None:
 
 def test_load_glossary_master_terms_absent_returns_empty(tmp_path: Path) -> None:
     assert load_glossary_master_terms(tmp_path / "generation") == ()
+
+
+def test_glossary_master_mtime_none_when_missing(tmp_path: Path) -> None:
+    assert glossary_master_mtime_ns(tmp_path / "generation") is None
+
+
+def test_glossary_master_mtime_set_when_present(tmp_path: Path) -> None:
+    gen_dir = tmp_path / "generation"
+    FsArtifactStore().write_json_atomic(
+        gen_dir / "glossary_master.json", {"terms": []}
+    )
+    assert glossary_master_mtime_ns(gen_dir) is not None
 
 
 def test_resolve_content_language_prefers_target(tmp_path: Path) -> None:

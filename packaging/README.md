@@ -104,7 +104,7 @@ dist/Fahmi2/
 ├── _internal/
 │   ├── fahmi2/
 │   │   ├── core/errors/messages.fr.json
-│   │   ├── infra/prompts/defaults/*.j2   ← 8 phases + 8 pedagogy_*
+│   │   ├── infra/prompts/defaults/*.j2   ← 8 phases + 3 phase_5_* thématiques + 8 pedagogy_* + 3 chat_*
 │   │   └── infra/storage/_schema.sql
 │   └── genanki/                          ← données collectées (apkg_schema.sql, apkg_col.anki2)
 └── …

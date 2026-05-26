@@ -35,6 +35,7 @@ from fahmi2.domain.enums import (
     BloomObjective,
     ChatGroundingMode,
     CloudSttModel,
+    ConsolidationMode,
     EmbeddingModel,
     ExportFormat,
     Language,
@@ -154,6 +155,7 @@ def _serialize_generation_settings(gen: GenerationSettings) -> dict[str, Any]:
         "youtube_urls": list(gen.youtube_urls),
         "source_order": list(gen.source_order),
         "excluded_sources": list(gen.excluded_sources),
+        "consolidation_mode": str(gen.consolidation_mode),
     }
 
 
@@ -216,6 +218,9 @@ def _deserialize_generation_settings(payload: dict[str, Any]) -> GenerationSetti
         youtube_urls=tuple(payload.get("youtube_urls", [])),
         source_order=tuple(payload.get("source_order", [])),
         excluded_sources=tuple(payload.get("excluded_sources", [])),
+        consolidation_mode=ConsolidationMode(
+            payload.get("consolidation_mode", ConsolidationMode.ORDERED)
+        ),
     )
 
 

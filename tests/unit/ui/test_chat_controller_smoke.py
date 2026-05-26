@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -65,6 +66,36 @@ def _make_controller(
     )
     controller.on_project_selected(project.id)
     return controller, view, project.id
+
+
+def test_refresh_corpus_if_stale_picks_up_regenerated_doc(
+    qtbot: QtBot, tmp_path: Path
+) -> None:
+    # Reproduit le bug constaté : après régénération du consolidé, le Dialogue
+    # doit citer le NOUVEAU document, pas celui chargé à la sélection du projet.
+    controller, _view, _pid = _make_controller(tmp_path, with_corpus=True, qtbot=qtbot)
+    assert {c.chapter_title for c in controller._chunks} == {"Bases"}  # noqa: SLF001
+
+    doc_path = (
+        tmp_path / "ws" / "generation" / "output" / "consolidated.fr.md"
+    )
+    doc_path.write_text(
+        "# Cours\n\n# 1. Avancé\n\nLa politique monétaire pilote l'inflation.\n",
+        encoding="utf-8",
+    )
+    # mtime strictement postérieur (déterministe, indépendant de la granularité FS).
+    future = doc_path.stat().st_mtime_ns + 1_000_000_000
+    os.utime(doc_path, ns=(future, future))
+
+    controller.refresh_corpus_if_stale()
+    assert {c.chapter_title for c in controller._chunks} == {"Avancé"}  # noqa: SLF001
+
+
+def test_refresh_corpus_noop_when_unchanged(qtbot: QtBot, tmp_path: Path) -> None:
+    controller, _view, _pid = _make_controller(tmp_path, with_corpus=True, qtbot=qtbot)
+    before = controller._chunks  # noqa: SLF001
+    controller.refresh_corpus_if_stale()  # rien n'a changé sur disque
+    assert controller._chunks is before  # noqa: SLF001 — pas de re-dérivation inutile
 
 
 def test_no_corpus_state(qtbot: QtBot, tmp_path: Path) -> None:

@@ -35,7 +35,13 @@ from fahmi2.app._cost_common import (
     cost_range,
     thinking_output_multiplier,
 )
-from fahmi2.domain.enums import CloudSttModel, LLMModel, PhaseId, SttProvider
+from fahmi2.domain.enums import (
+    CloudSttModel,
+    ConsolidationMode,
+    LLMModel,
+    PhaseId,
+    SttProvider,
+)
 from fahmi2.domain.phase import PhaseConfig
 from fahmi2.infra.llm._pricing import get_pricing
 from fahmi2.infra.stt._pricing import stt_cost_usd
@@ -151,6 +157,19 @@ _LOAD_FACTORS: dict[PhaseId, _PhaseLoadFactor] = {
     ),
 }
 
+#: Facteur dédié de la phase 5 en mode ``THEMATIC`` : relevé factuel par source
+#: (T1) + plan (T2) + rédaction par chapitre (T3) + méta (T4). Sensiblement plus
+#: coûteux que le mode ``ORDERED`` (relecture/synthèse transversale). Heuristique.
+_THEMATIC_CONSOLIDATION_FACTOR = _PhaseLoadFactor(
+    input_per_source=0.0,
+    output_per_source=0.0,
+    is_per_source=False,
+    batch_input_multiplier=1.2,  # plan + relecture des éléments par chapitre
+    batch_output_factor=1.2,  # document synthétisé
+    sub_loop_per_source=1.0,  # T1 relit chaque source en entier
+    sub_loop_output_factor=0.3,  # relevé factuel par source
+)
+
 
 @dataclass(frozen=True)
 class CostEstimation:
@@ -188,6 +207,7 @@ class CostEstimator:
         active_target_languages_count: int = 1,
         translation_languages_count: int = 0,
         phases_config: dict[PhaseId, PhaseConfig] | None = None,
+        consolidation_mode: ConsolidationMode = ConsolidationMode.ORDERED,
     ) -> CostEstimation:
         """Estime le coût total.
 
@@ -206,6 +226,8 @@ class CostEstimator:
                 l'estimation est faite **sans** thinking, ce qui sous-estime
                 significativement le coût quand le projet active le
                 raisonnement étendu.
+            consolidation_mode: Mode de consolidation (phase 5). En ``THEMATIC``,
+                un jeu de facteurs dédié (plus élevé) est appliqué à la phase 5.
 
         Returns:
             ``CostEstimation`` avec détails STT/LLM/total.
@@ -223,6 +245,7 @@ class CostEstimator:
             target_languages_count=active_target_languages_count,
             translation_languages_count=translation_languages_count,
             phases_config=phases_config or {},
+            consolidation_mode=consolidation_mode,
         )
         llm_cost = sum(llm_per_phase.values())
         total = stt_cost + llm_cost
@@ -268,6 +291,7 @@ class CostEstimator:
         target_languages_count: int,
         translation_languages_count: int,
         phases_config: dict[PhaseId, PhaseConfig],
+        consolidation_mode: ConsolidationMode,
     ) -> dict[PhaseId, float]:
         """Calcule le coût LLM estimé **par phase**.
 
@@ -280,14 +304,21 @@ class CostEstimator:
             target_languages_count: Nombre de langues de sortie.
             translation_languages_count: Nombre de langues nécessitant traduction.
             phases_config: Configuration des phases (mapping vide si non fourni).
+            consolidation_mode: Mode de consolidation (facteur dédié si THEMATIC).
 
         Returns:
             Coût USD estimé par ``PhaseId`` (phases LLM uniquement).
         """
         pricing = get_pricing(str(llm_model))
 
+        # Facteur dédié pour la phase 5 en mode thématique (sélectionné hors boucle
+        # pour ne pas réassigner la variable d'itération).
+        factors = dict(_LOAD_FACTORS)
+        if consolidation_mode is ConsolidationMode.THEMATIC:
+            factors[PhaseId.CONSOLIDATION] = _THEMATIC_CONSOLIDATION_FACTOR
+
         per_phase: dict[PhaseId, float] = {}
-        for phase_id, factor in _LOAD_FACTORS.items():
+        for phase_id, factor in factors.items():
             thinking_mult = thinking_output_multiplier(phases_config.get(phase_id))
             # La reformulation ne porte que sur les sources effectivement
             # reformulées (un document en pass-through y échappe).

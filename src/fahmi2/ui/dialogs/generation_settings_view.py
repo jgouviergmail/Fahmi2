@@ -37,6 +37,7 @@ from fahmi2.app.input_sources import (
 from fahmi2.core.errors.exceptions import Fahmi2Error
 from fahmi2.domain.enums import (
     CloudSttModel,
+    ConsolidationMode,
     ExportFormat,
     Language,
     LLMModel,
@@ -104,6 +105,20 @@ _REFORMULATE_DOCS_TOOLTIP = (
     "inséré tel quel (utile pour un cours déjà bien rédigé)."
 )
 
+_CONSOLIDATION_MODE_LABEL = "Mode de consolidation :"
+#: Libellés du mode de consolidation (spécifique à la Génération, d'où sa place
+#: ici plutôt que dans ``_model_labels`` qui regroupe les libellés partagés).
+_CONSOLIDATION_MODE_LABELS: dict[ConsolidationMode, str] = {
+    ConsolidationMode.ORDERED: "Ordonné (1 source = 1 chapitre)",
+    ConsolidationMode.THEMATIC: "Refonte thématique (synthèse transversale)",
+}
+_CONSOLIDATION_MODE_TOOLTIP = (
+    "Ordonné : assemble les sources dans l'ordre choisi (contenu recopié tel "
+    "quel). Refonte thématique : le LLM agrège et restructure les contenus de "
+    "tous les entrants par thème (fidélité du fond préservée, forme retravaillée ; "
+    "l'ordre des sources est alors sans effet)."
+)
+
 _FOLDER_LABEL = "Dossier d'entrée :"
 _YOUTUBE_URLS_LABEL = "Liens YouTube :"
 _YOUTUBE_URLS_HEIGHT_PX = 70
@@ -140,8 +155,8 @@ class GenerationSettingsView(QDialog):
         self._build_fields()
         settings_view = SettingsView(
             [
-                (_CAT_INPUT, self._build_input_page()),
                 (_CAT_STYLE, self._build_style_page()),
+                (_CAT_INPUT, self._build_input_page()),
                 (_CAT_STT, self._build_stt_page()),
                 (_CAT_MODEL, self._build_model_page()),
                 (_CAT_PHASES, self._build_phases_page()),
@@ -168,6 +183,7 @@ class GenerationSettingsView(QDialog):
         if initial is not None:
             self._populate(initial)
         self._sync_stt_model_enabled()
+        self._sync_order_irrelevant()
 
     def get_generation_settings(self) -> GenerationSettings | None:
         """Retourne les réglages construits, ou ``None`` si annulation/invalide.
@@ -193,6 +209,14 @@ class GenerationSettingsView(QDialog):
         self._style_combo = QComboBox(self)
         for style in StylePreset:
             self._style_combo.addItem(style.value, style)
+
+        self._consolidation_mode_combo = labeled_enum_combo(
+            self, _CONSOLIDATION_MODE_LABELS
+        )
+        self._consolidation_mode_combo.setToolTip(_CONSOLIDATION_MODE_TOOLTIP)
+        self._consolidation_mode_combo.currentIndexChanged.connect(
+            self._sync_order_irrelevant
+        )
 
         self._style_directives_input = QTextEdit(self)
         self._style_directives_input.setPlaceholderText(_DIRECTIVES_PLACEHOLDER)
@@ -290,6 +314,7 @@ class GenerationSettingsView(QDialog):
         outer = QVBoxLayout(page)
         form = QFormLayout()
         form.addRow("Style :", self._style_combo)
+        form.addRow(_CONSOLIDATION_MODE_LABEL, self._consolidation_mode_combo)
         form.addRow("Directives stylistiques :", self._style_directives_input)
         form.addRow(self._reformulate_documents_checkbox)
         outer.addLayout(form)
@@ -468,6 +493,17 @@ class GenerationSettingsView(QDialog):
         )
         self._stt_cloud_model_combo.setEnabled(provider is SttProvider.OPENAI_CLOUD)
 
+    def _sync_order_irrelevant(self) -> None:
+        """Signale (note UI) que l'ordre des sources est ignoré en mode thématique.
+
+        ``QComboBox`` peut restituer un ``str`` plutôt que le ``StrEnum`` : on
+        recoerce en enum avant la comparaison d'identité.
+        """
+        mode = ConsolidationMode(self._consolidation_mode_combo.currentData())
+        self._source_order_view.set_order_irrelevant(
+            mode is ConsolidationMode.THEMATIC
+        )
+
     def _populate(self, generation: GenerationSettings) -> None:
         """Pré-remplit les champs depuis des réglages existants.
 
@@ -482,6 +518,11 @@ class GenerationSettingsView(QDialog):
         style_idx = self._style_combo.findData(generation.style_preset)
         if style_idx >= 0:
             self._style_combo.setCurrentIndex(style_idx)
+        mode_idx = self._consolidation_mode_combo.findData(
+            generation.consolidation_mode
+        )
+        if mode_idx >= 0:
+            self._consolidation_mode_combo.setCurrentIndex(mode_idx)
         self._style_directives_input.setPlainText(generation.style_directives)
         self._reformulate_documents_checkbox.setChecked(generation.reformulate_documents)
         stt_idx = self._stt_combo.findData(generation.stt_provider)
@@ -535,6 +576,9 @@ class GenerationSettingsView(QDialog):
             source_language=source_lang,
             output_languages=output_langs,
             style_preset=StylePreset(self._style_combo.currentData()),
+            consolidation_mode=ConsolidationMode(
+                self._consolidation_mode_combo.currentData()
+            ),
             style_directives=self._style_directives_input.toPlainText().strip(),
             stt_provider=SttProvider(self._stt_combo.currentData()),
             stt_local_model=LocalSttModel(self._stt_local_model_combo.currentData()),

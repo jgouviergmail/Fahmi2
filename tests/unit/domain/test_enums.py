@@ -3,6 +3,7 @@
 import pytest
 
 from fahmi2.domain.enums import (
+    ConsolidationMode,
     Language,
     LLMModel,
     PhaseId,
@@ -72,6 +73,15 @@ def test_reasoning_effort_values() -> None:
 
 def test_source_kind_values() -> None:
     assert {k.value for k in SourceKind} == {"video", "audio", "document", "youtube"}
+
+
+def test_consolidation_mode_values() -> None:
+    assert {m.value for m in ConsolidationMode} == {"ordered", "thematic"}
+
+
+def test_consolidation_mode_from_str() -> None:
+    assert ConsolidationMode("ordered") is ConsolidationMode.ORDERED
+    assert ConsolidationMode("thematic") is ConsolidationMode.THEMATIC
 
 
 def test_enum_from_str() -> None:

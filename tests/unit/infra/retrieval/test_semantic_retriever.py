@@ -122,6 +122,18 @@ def test_fingerprint_changes_with_model() -> None:
     assert small != large
 
 
+def test_fingerprint_changes_with_glossary_mtime() -> None:
+    # Éditer le glossaire (même nb de chunks, consolidé inchangé) doit invalider
+    # l'index sémantique : l'empreinte intègre le mtime du glossaire.
+    before = build_index_fingerprint(
+        model="fake", source_mtime_ns=1, language=Language.FR, glossary_mtime_ns=10
+    )
+    after = build_index_fingerprint(
+        model="fake", source_mtime_ns=1, language=Language.FR, glossary_mtime_ns=20
+    )
+    assert before != after
+
+
 def test_purge_index_removes_file(tmp_path: Path) -> None:
     index_path = tmp_path / "index.npz"
     SemanticPassageRetriever(

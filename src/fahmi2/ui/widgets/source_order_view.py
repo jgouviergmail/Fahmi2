@@ -38,6 +38,10 @@ _KIND_LABELS: dict[SourceKind, str] = {
 }
 _INCLUDED_TITLE = "Sources à traiter — ordre des chapitres"
 _EXCLUDED_TITLE = "Exclues — non traitées"
+_ORDER_IRRELEVANT_NOTE = (
+    "ⓘ Mode refonte thématique : l'ordre des sources est sans effet "
+    "(seule l'inclusion / exclusion compte)."
+)
 _NEW_BADGE = "  • nouveau"
 _UP_LABEL = "↑"
 _DOWN_LABEL = "↓"
@@ -72,6 +76,9 @@ class SourceOrderView(QWidget):
         self._included.setMinimumHeight(_LIST_MIN_HEIGHT_PX)
         self._excluded = QListWidget(self)
         self._excluded.setMinimumHeight(_LIST_MIN_HEIGHT_PX)
+        self._order_note = QLabel(_ORDER_IRRELEVANT_NOTE, self)
+        self._order_note.setWordWrap(True)
+        self._order_note.setVisible(False)
         self._build_layout()
 
     # ------------------------------------------------------------------ API
@@ -121,6 +128,16 @@ class SourceOrderView(QWidget):
             item = self._excluded.takeItem(0)
             if item is not None:
                 self._included.addItem(item)
+
+    def set_order_irrelevant(self, irrelevant: bool) -> None:
+        """Affiche la note quand l'ordre des sources est ignoré (mode thématique).
+
+        L'inclusion / exclusion reste pertinente : seul l'**ordre** n'a pas d'effet.
+
+        Args:
+            irrelevant: ``True`` pour signaler que l'ordre n'a pas d'effet.
+        """
+        self._order_note.setVisible(irrelevant)
 
     # -------------------------------------------------------------- internes
 
@@ -202,6 +219,7 @@ class SourceOrderView(QWidget):
     def _build_layout(self) -> None:
         """Assemble les deux listes, les boutons de déplacement et la barre d'actions."""
         outer = QVBoxLayout(self)
+        outer.addWidget(self._order_note)
         outer.addWidget(QLabel(_INCLUDED_TITLE, self))
 
         included_row = QHBoxLayout()

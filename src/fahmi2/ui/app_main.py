@@ -135,6 +135,11 @@ def main() -> int:  # noqa: PLR0915, C901
     window.projects_sidebar.set_projects(_entries())
     generation_tab.controller.run_state_changed.connect(_refresh_statuses)
     pedagogy_tab.controller.run_state_changed.connect(_refresh_statuses)
+    # Une (re)génération met à jour le consolidé/glossaire : le Dialogue recharge
+    # son corpus si nécessaire (évite de citer un document périmé).
+    generation_tab.controller.run_state_changed.connect(
+        chat_tab.controller.refresh_corpus_if_stale
+    )
 
     def _open_settings() -> None:
         dialog = GlobalSettingsDialog(secrets_service, parent=window)
@@ -185,9 +190,10 @@ def main() -> int:  # noqa: PLR0915, C901
             "Supprimer le projet ?",
             (
                 f"Supprimer le projet « {project.name} » ?\n\n"
-                "Cette action supprime également TOUS ses runs et leurs "
-                "métadonnées en base de données. Les fichiers du dossier "
-                "d'entrée et du workspace ne sont PAS supprimés sur disque.\n\n"
+                "Cette action supprime ses runs et métadonnées en base, AINSI QUE "
+                "le dossier du projet et tout son contenu sur disque :\n"
+                f"{project.workspace_folder}\n\n"
+                "Le dossier d'entrée (vos fichiers sources) n'est PAS supprimé.\n\n"
                 "Cette action est irréversible."
             ),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,

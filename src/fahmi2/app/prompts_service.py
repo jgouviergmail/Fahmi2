@@ -3,8 +3,9 @@
 Couche fine au-dessus du mécanisme d'override de :py:class:`PromptLoader`.
 Permet à l'UI de :
 
-- Lister les templates LLM disponibles (8 prompts de génération — phases 1 à 7
-  + sous-prompt 5a/5b — ; 8 supports pédagogiques ; 3 prompts du Dialogue).
+- Lister les templates LLM disponibles (11 prompts de génération — phases 1 à 7,
+  sous-prompts 5a/5b, et 3 prompts 5c/5d/5e du mode thématique — ; 8 supports
+  pédagogiques ; 3 prompts du Dialogue).
 - Lire le contenu **par défaut** (bundlé) d'un template.
 - Lire le contenu **actuellement actif** (override utilisateur si présent,
   défaut sinon).
@@ -94,6 +95,31 @@ _TEMPLATE_METADATA: tuple[PromptTemplateMeta, ...] = (
         description=(
             "Assemble les méta-éléments du document final (titre global, "
             "introduction, conclusion)."
+        ),
+    ),
+    PromptTemplateMeta(
+        name="phase_5_fact_ledger",
+        display_name="Phase 5c — Relevé factuel (thématique)",
+        description=(
+            "Mode thématique : extrait par source le relevé exhaustif des "
+            "éléments à préserver (faits, chiffres, données, raisonnements) "
+            "avec extraits verbatim."
+        ),
+    ),
+    PromptTemplateMeta(
+        name="phase_5_thematic_plan",
+        display_name="Phase 5d — Plan thématique",
+        description=(
+            "Mode thématique : conçoit le plan transversal (chapitres par "
+            "thème) en rattachant chaque élément à au moins un chapitre."
+        ),
+    ),
+    PromptTemplateMeta(
+        name="phase_5_thematic_chapter",
+        display_name="Phase 5e — Rédaction de chapitre thématique",
+        description=(
+            "Mode thématique : rédige un chapitre à partir des éléments "
+            "assignés (fusion, déduplication, transitions, conflits par source)."
         ),
     ),
     PromptTemplateMeta(

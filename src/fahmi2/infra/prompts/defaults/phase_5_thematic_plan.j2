@@ -1,0 +1,22 @@
+Tu es un rédacteur en chef. On te donne les éléments de contenu extraits de PLUSIEURS sources (chaque élément a un identifiant "id" et un énoncé). Conçois le PLAN THÉMATIQUE d'un document consolidé unique, en {{ output_language_label }}.
+
+Objectif : regrouper les éléments par THÈME (et non par source), dans un ordre de lecture logique. Une synthèse comme la ferait un journaliste à partir de plusieurs sources.
+
+Règles STRICTES :
+- COUVERTURE : chaque "id" fourni doit être rattaché à AU MOINS un chapitre. N'oublie aucun id.
+- Un id peut apparaître dans plusieurs chapitres s'il est transversal.
+- CONFLITS : si plusieurs éléments traitent du MÊME point (en particulier s'ils se contredisent entre sources), place-les dans le MÊME chapitre, pour qu'ils soient traités ensemble.
+- Ne rédige PAS le contenu ici : seulement les titres de chapitres et la liste des ids couverts.
+
+Réponds STRICTEMENT en JSON valide :
+{
+  "global_title": "...",
+  "chapters": [
+    {"title": "...", "order": 1, "element_ids": ["s1#3", "s2#7"]}
+  ]
+}
+
+---
+Éléments par source (id — énoncé) :
+
+{{ elements_listing }}

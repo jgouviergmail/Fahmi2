@@ -27,14 +27,24 @@ _EPSILON = 1e-12
 
 
 def build_index_fingerprint(
-    *, model: str, source_mtime_ns: int | None, language: Language
+    *,
+    model: str,
+    source_mtime_ns: int | None,
+    language: Language,
+    glossary_mtime_ns: int | None = None,
 ) -> str:
     """Construit l'empreinte de validité d'un index sémantique.
+
+    Le corpus indexé = chunks du consolidé **+ chunks du glossaire** ; l'empreinte
+    intègre donc le mtime des deux sources, sinon une édition du glossaire qui ne
+    change pas le nombre de chunks (ex. définition modifiée) laisserait des
+    embeddings périmés.
 
     Args:
         model: Identifiant du modèle d'embedding.
         source_mtime_ns: mtime (ns) du document consolidé source (``None`` si absent).
         language: Langue du corpus.
+        glossary_mtime_ns: mtime (ns) du glossaire master (``None`` si absent).
 
     Returns:
         Une chaîne JSON déterministe (clés triées).
@@ -43,6 +53,7 @@ def build_index_fingerprint(
         {
             "model": model,
             "source_mtime_ns": source_mtime_ns,
+            "glossary_mtime_ns": glossary_mtime_ns,
             "language": str(language),
         },
         sort_keys=True,

@@ -11,6 +11,22 @@ def _src(name: str, kind: SourceKind = SourceKind.VIDEO) -> InputSource:
     return InputSource(kind=kind, location=name)
 
 
+def test_order_note_hidden_by_default(qtbot: QtBot) -> None:
+    view = SourceOrderView()
+    qtbot.addWidget(view)
+    # ``isHidden`` reflète l'état explicite, indépendamment de l'affichage du parent.
+    assert view._order_note.isHidden() is True  # noqa: SLF001
+
+
+def test_set_order_irrelevant_toggles_note(qtbot: QtBot) -> None:
+    view = SourceOrderView()
+    qtbot.addWidget(view)
+    view.set_order_irrelevant(True)
+    assert view._order_note.isHidden() is False  # noqa: SLF001
+    view.set_order_irrelevant(False)
+    assert view._order_note.isHidden() is True  # noqa: SLF001
+
+
 def test_populate_and_getters(qtbot: QtBot) -> None:
     view = SourceOrderView()
     qtbot.addWidget(view)

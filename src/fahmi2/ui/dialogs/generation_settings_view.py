@@ -438,7 +438,9 @@ class GenerationSettingsView(QDialog):
         Args:
             index: Index sélectionné dans le combo STT.
         """
-        provider = self._stt_combo.itemData(index)
+        # ``itemData`` peut « dégrader » le StrEnum en str : on recoerce en enum
+        # pour que la comparaison d'identité (et l'avertissement GPU) fonctionne.
+        provider = SttProvider(self._stt_combo.itemData(index))
         if (
             provider is SttProvider.FASTER_WHISPER_LOCAL
             and not self._hardware.cuda_available
@@ -457,14 +459,14 @@ class GenerationSettingsView(QDialog):
     def _sync_stt_model_enabled(self) -> None:
         """Active le combo modèle correspondant au provider STT sélectionné.
 
-        Compare par **valeur** (``==``) : ``QComboBox`` peut restituer un ``str``
-        plutôt que le membre ``StrEnum`` stocké en donnée.
+        ``QComboBox`` peut restituer un ``str`` plutôt que le membre ``StrEnum``
+        stocké en donnée : on recoerce en enum (cohérent avec ``_on_stt_changed``).
         """
-        provider = self._stt_combo.currentData()
+        provider = SttProvider(self._stt_combo.currentData())
         self._stt_local_model_combo.setEnabled(
-            provider == SttProvider.FASTER_WHISPER_LOCAL
+            provider is SttProvider.FASTER_WHISPER_LOCAL
         )
-        self._stt_cloud_model_combo.setEnabled(provider == SttProvider.OPENAI_CLOUD)
+        self._stt_cloud_model_combo.setEnabled(provider is SttProvider.OPENAI_CLOUD)
 
     def _populate(self, generation: GenerationSettings) -> None:
         """Pré-remplit les champs depuis des réglages existants.
@@ -532,9 +534,9 @@ class GenerationSettingsView(QDialog):
             input_folder=Path(input_folder_text),
             source_language=source_lang,
             output_languages=output_langs,
-            style_preset=self._style_combo.currentData(),
+            style_preset=StylePreset(self._style_combo.currentData()),
             style_directives=self._style_directives_input.toPlainText().strip(),
-            stt_provider=self._stt_combo.currentData(),
+            stt_provider=SttProvider(self._stt_combo.currentData()),
             stt_local_model=LocalSttModel(self._stt_local_model_combo.currentData()),
             stt_cloud_model=CloudSttModel(self._stt_cloud_model_combo.currentData()),
             llm_model=LLMModel(self._llm_combo.currentData()),

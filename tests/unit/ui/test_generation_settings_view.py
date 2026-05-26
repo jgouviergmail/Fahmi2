@@ -15,6 +15,7 @@ from fahmi2.domain.enums import (
     Language,
     LocalSttModel,
     SttProvider,
+    StylePreset,
 )
 from fahmi2.domain.generation import ParallelismConfig
 from fahmi2.ui.dialogs.generation_settings_view import GenerationSettingsView
@@ -100,6 +101,45 @@ def test_edit_mode_reflects_keep_audio(
     view = GenerationSettingsView(_HW, initial=gen)
     qtbot.addWidget(view)
     assert view._keep_audio_checkbox.isChecked() is True  # noqa: SLF001
+
+
+def test_built_settings_are_enums_not_str(
+    qtbot: QtBot, make_generation_settings: Any
+) -> None:
+    # Robustesse : QComboBox peut dégrader un StrEnum en str ; les réglages
+    # construits doivent toujours porter de vrais enums (sinon les comparaisons
+    # `is` en aval — build_stt_provider, phase 0… — échouent silencieusement).
+    gen = make_generation_settings(input_folder=Path("D:/Cours"))
+    view = GenerationSettingsView(_HW, initial=gen)
+    qtbot.addWidget(view)
+    view._on_accept()  # noqa: SLF001
+    result = view.get_generation_settings()
+    assert result is not None
+    assert isinstance(result.stt_provider, SttProvider)
+    assert isinstance(result.style_preset, StylePreset)
+
+
+def test_local_stt_without_gpu_reverts_to_cloud(
+    qtbot: QtBot, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Quand l'utilisateur sélectionne le STT local sans GPU CUDA, l'avertissement
+    # doit se déclencher et re-basculer sur le cloud. (Avant le recoerce en enum,
+    # la comparaison d'identité était toujours fausse → bascule jamais déclenchée.)
+    monkeypatch.setattr(
+        "fahmi2.ui.dialogs.generation_settings_view.QMessageBox.warning",
+        lambda *a, **k: None,
+    )
+    view = GenerationSettingsView(_HW, initial=None)  # _HW : pas de CUDA
+    qtbot.addWidget(view)
+    view._input_folder_input.setText("D:/Cours")  # noqa: SLF001
+    combo = view._stt_combo  # noqa: SLF001
+    combo.setCurrentIndex(combo.findData(SttProvider.OPENAI_CLOUD))
+    # L'utilisateur tente le local → doit re-basculer sur le cloud.
+    combo.setCurrentIndex(combo.findData(SttProvider.FASTER_WHISPER_LOCAL))
+    view._on_accept()  # noqa: SLF001
+    result = view.get_generation_settings()
+    assert result is not None
+    assert result.stt_provider is SttProvider.OPENAI_CLOUD
 
 
 def test_stt_models_round_trip(

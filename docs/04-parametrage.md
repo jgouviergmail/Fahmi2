@@ -57,13 +57,14 @@ master-detail) ; ils incluent le **dossier des vidéos**.
 
 ### 2.2 Langues
 
-Un **contrôle unique** « Langues du document » : pour chaque langue, une case
-**Incluse** (versions produites) et un radio **Principale**.
+Un **contrôle unique** « Langues du document » : une ligne de cases
+**Produites** (langues générées) et un menu déroulant **Principale** qui ne
+propose que les langues produites.
 
 | Élément | Description |
 |---------|-------------|
-| **Principale** | La version **originale**, rédigée **directement** depuis les entrées (toute langue d'entrée y est unifiée) ; c'est aussi l'indice de langue donné au STT pour les médias, et le **pivot** des traductions. Une seule langue principale. |
-| **Incluse** | Chaque langue cochée produit un `consolidated.{lang}.md` : la principale est écrite directement, les autres en sont des **traductions**. La principale est **toujours incluse** (case verrouillée). |
+| **Produites** | Chaque langue cochée produit un `consolidated.{lang}.md`. Au moins une langue reste toujours produite. |
+| **Principale** | La version **originale**, rédigée **directement** depuis les entrées (toute langue d'entrée y est unifiée) ; c'est aussi l'indice de langue donné au STT pour les médias, et le **pivot** des traductions. Choisie parmi les langues produites (donc toujours produite) ; les autres langues produites en sont des **traductions**. |
 
 > Exemple : entrées EN + FR, **principale = FR**, **incluses = {FR, EN}** → un
 > `consolidated.fr.md` (rédigé directement, les passages EN unifiés en FR) **et** un

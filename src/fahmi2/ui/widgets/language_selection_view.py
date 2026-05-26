@@ -1,4 +1,4 @@
-"""Widget de sélection des langues du document (langues livrées + principale).
+"""Widget de sélection des langues du document (langues produites + principale).
 
 Fusionne deux notions auparavant présentées séparément :
 
@@ -7,37 +7,45 @@ Fusionne deux notions auparavant présentées séparément :
   entrées (les autres en sont des **traductions**) — c'est aussi l'indice de langue
   donné au STT pour les médias.
 
-Une ligne par langue : un radio « principale » (exclusif) et une case « incluse ».
-La langue principale est **toujours incluse** (sa case est cochée et verrouillée).
-Expose ``primary_language`` et ``output_languages`` consommés par
-``GenerationSettingsView``.
+Présentation : une ligne de **cases** « Produites » (langues générées) et un **combo**
+« Principale » qui ne propose que les langues produites. La principale est donc
+toujours produite, et on peut librement la choisir (y compris une autre que la 1ʳᵉ).
+Au moins une langue reste toujours produite. Expose ``primary_language`` et
+``output_languages`` consommés par ``GenerationSettingsView``.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
+from functools import partial
 
+from PySide6.QtCore import QSignalBlocker
 from PySide6.QtWidgets import (
-    QButtonGroup,
     QCheckBox,
-    QGridLayout,
+    QComboBox,
+    QHBoxLayout,
     QLabel,
-    QRadioButton,
+    QVBoxLayout,
     QWidget,
 )
 
 from fahmi2.domain.enums import Language
 
-_PRIMARY_HEADER = "Principale"
-_INCLUDE_HEADER = "Incluse"
+_PRODUCED_LABEL = "Produites :"
+_PRIMARY_LABEL = "Principale (originale) :"
 _LANGUAGE_LABELS: dict[Language, str] = {
     Language.FR: "Français",
     Language.EN: "Anglais",
 }
 
 
+def _language_label(language: Language) -> str:
+    """Libellé humain d'une langue (valeur brute en repli)."""
+    return _LANGUAGE_LABELS.get(language, language.value)
+
+
 class LanguageSelectionView(QWidget):
-    """Sélecteur unifié : langues livrées + langue principale (originale)."""
+    """Sélecteur unifié : cases « produites » + combo « principale » (originale)."""
 
     def __init__(
         self, languages: Sequence[Language], parent: QWidget | None = None
@@ -49,75 +57,97 @@ class LanguageSelectionView(QWidget):
             parent: Parent Qt optionnel.
         """
         super().__init__(parent)
-        self._radios: dict[Language, QRadioButton] = {}
+        self._languages = tuple(languages)
         self._checks: dict[Language, QCheckBox] = {}
-        self._primary_group = QButtonGroup(self)
-        self._primary_group.setExclusive(True)
 
-        grid = QGridLayout(self)
-        grid.setContentsMargins(0, 0, 0, 0)
-        grid.addWidget(QLabel(_PRIMARY_HEADER, self), 0, 1)
-        grid.addWidget(QLabel(_INCLUDE_HEADER, self), 0, 2)
-        for row, lang in enumerate(languages, start=1):
-            grid.addWidget(QLabel(_LANGUAGE_LABELS.get(lang, lang.value), self), row, 0)
-            radio = QRadioButton(self)
-            self._primary_group.addButton(radio)
-            self._radios[lang] = radio
-            grid.addWidget(radio, row, 1)
-            check = QCheckBox(self)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        produced_row = QHBoxLayout()
+        produced_row.addWidget(QLabel(_PRODUCED_LABEL, self))
+        for lang in self._languages:
+            check = QCheckBox(_language_label(lang), self)
+            check.toggled.connect(partial(self._on_check_toggled, lang))
             self._checks[lang] = check
-            grid.addWidget(check, row, 2)
-            radio.toggled.connect(self._sync_primary_lock)
-        grid.setColumnStretch(3, 1)
+            produced_row.addWidget(check)
+        produced_row.addStretch(1)
+        layout.addLayout(produced_row)
 
-        first = next(iter(self._radios))
+        primary_row = QHBoxLayout()
+        primary_row.addWidget(QLabel(_PRIMARY_LABEL, self))
+        self._primary_combo = QComboBox(self)
+        primary_row.addWidget(self._primary_combo)
+        primary_row.addStretch(1)
+        layout.addLayout(primary_row)
+
+        first = self._languages[0]
         self.set_selection(primary=first, outputs=(first,))
 
     def set_selection(
         self, *, primary: Language, outputs: Sequence[Language]
     ) -> None:
-        """Pré-remplit la sélection (langues incluses + langue principale).
+        """Pré-remplit la sélection (langues produites + langue principale).
 
         Args:
             primary: Langue principale (originale).
-            outputs: Langues incluses (la principale y est forcée).
+            outputs: Langues produites (la principale y est forcée).
         """
         for lang, check in self._checks.items():
-            check.setChecked(lang in outputs)
-        if primary in self._radios:
-            self._radios[primary].setChecked(True)
-        self._sync_primary_lock()
+            with QSignalBlocker(check):
+                check.setChecked(lang in outputs or lang is primary)
+        self._rebuild_primary_combo(preferred=primary)
 
     def primary_language(self) -> Language:
-        """Langue principale (originale) sélectionnée.
+        """Langue principale (originale) sélectionnée dans le combo.
 
         Returns:
-            La langue dont le radio « principale » est coché (1ʳᵉ langue en repli).
+            La langue choisie comme principale (1ʳᵉ langue en repli).
         """
-        for lang, radio in self._radios.items():
-            if radio.isChecked():
-                return lang
-        return next(iter(self._radios))
+        data = self._primary_combo.currentData()
+        return Language(data) if data is not None else self._languages[0]
 
     def output_languages(self) -> tuple[Language, ...]:
-        """Langues incluses, la principale étant toujours présente.
+        """Langues produites, la principale étant toujours présente.
 
         Returns:
             Les langues cochées, garanties de contenir la principale.
         """
         primary = self.primary_language()
-        return tuple(
-            lang
-            for lang, check in self._checks.items()
-            if check.isChecked() or lang is primary
+        checked = tuple(
+            lang for lang, check in self._checks.items() if check.isChecked()
         )
+        return checked if primary in checked else (primary, *checked)
 
-    def _sync_primary_lock(self) -> None:
-        """Verrouille la case de la principale (toujours incluse), libère les autres."""
-        primary = self.primary_language()
-        for lang, check in self._checks.items():
-            if lang is primary:
-                check.setChecked(True)
-                check.setEnabled(False)
-            else:
-                check.setEnabled(True)
+    def _on_check_toggled(self, lang: Language, checked: bool) -> None:
+        """Maintient ≥ 1 langue produite et rafraîchit le combo principale.
+
+        Args:
+            lang: Langue dont la case vient d'être (dé)cochée.
+            checked: Nouvel état de la case.
+        """
+        if not checked and not any(c.isChecked() for c in self._checks.values()):
+            # Au moins une langue doit rester produite : on annule le décochage.
+            with QSignalBlocker(self._checks[lang]):
+                self._checks[lang].setChecked(True)
+            return
+        self._rebuild_primary_combo(preferred=self.primary_language())
+
+    def _rebuild_primary_combo(self, *, preferred: Language) -> None:
+        """Repeuple le combo « principale » avec les seules langues produites.
+
+        Args:
+            preferred: Langue à resélectionner si elle est encore produite ;
+                sinon la 1ʳᵉ langue produite.
+        """
+        produced = [lang for lang in self._languages if self._checks[lang].isChecked()]
+        with QSignalBlocker(self._primary_combo):
+            self._primary_combo.clear()
+            for lang in produced:
+                self._primary_combo.addItem(_language_label(lang), lang.value)
+            target = preferred if preferred in produced else (
+                produced[0] if produced else None
+            )
+            if target is not None:
+                index = self._primary_combo.findData(target.value)
+                if index >= 0:
+                    self._primary_combo.setCurrentIndex(index)

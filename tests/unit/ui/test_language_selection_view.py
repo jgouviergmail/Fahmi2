@@ -1,4 +1,4 @@
-"""Tests du widget unifié de sélection des langues (principale + incluses)."""
+"""Tests du widget unifié de sélection des langues (produites + principale)."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ def _view(qtbot: QtBot) -> LanguageSelectionView:
     return view
 
 
-def test_default_first_language_is_primary_and_included(qtbot: QtBot) -> None:
+def test_default_first_language_is_primary_and_produced(qtbot: QtBot) -> None:
     view = _view(qtbot)
     assert view.primary_language() is Language.FR
     assert view.output_languages() == (Language.FR,)
@@ -27,25 +27,43 @@ def test_set_selection_reflects_primary_and_outputs(qtbot: QtBot) -> None:
     assert set(view.output_languages()) == {Language.FR, Language.EN}
 
 
-def test_primary_is_always_included(qtbot: QtBot) -> None:
-    # EN principale → EN inclus même si seul FR était coché au départ.
+def test_english_can_be_primary(qtbot: QtBot) -> None:
+    view = _view(qtbot)
+    view.set_selection(primary=Language.EN, outputs=(Language.FR, Language.EN))
+    assert view.primary_language() is Language.EN
+    assert set(view.output_languages()) == {Language.FR, Language.EN}
+
+
+def test_primary_is_always_produced(qtbot: QtBot) -> None:
+    # EN principale → EN produite même si absente des outputs fournis.
     view = _view(qtbot)
     view.set_selection(primary=Language.EN, outputs=())
     assert view.primary_language() is Language.EN
     assert Language.EN in view.output_languages()
 
 
-def test_primary_checkbox_is_locked_others_free(qtbot: QtBot) -> None:
+def test_primary_combo_lists_only_produced(qtbot: QtBot) -> None:
+    view = _view(qtbot)
+    view.set_selection(primary=Language.FR, outputs=(Language.FR,))
+    # Seul FR est produit → le combo principale ne propose que FR.
+    assert view._primary_combo.count() == 1  # noqa: SLF001
+    view._checks[Language.EN].setChecked(True)  # noqa: SLF001 — produit EN aussi
+    assert view._primary_combo.count() == 2  # noqa: SLF001
+
+
+def test_unchecking_last_language_is_reverted(qtbot: QtBot) -> None:
+    view = _view(qtbot)
+    view.set_selection(primary=Language.FR, outputs=(Language.FR,))
+    view._checks[Language.FR].setChecked(False)  # noqa: SLF001 — tentative tout décocher
+    # Au moins une langue reste produite : le décochage est annulé.
+    assert view._checks[Language.FR].isChecked()  # noqa: SLF001
+    assert view.output_languages() == (Language.FR,)
+
+
+def test_primary_moves_when_its_language_unproduced(qtbot: QtBot) -> None:
     view = _view(qtbot)
     view.set_selection(primary=Language.FR, outputs=(Language.FR, Language.EN))
-    # La case de la principale est verrouillée (toujours incluse)…
-    assert not view._checks[Language.FR].isEnabled()  # noqa: SLF001
-    # … les autres restent librement décochables.
-    assert view._checks[Language.EN].isEnabled()  # noqa: SLF001
-
-
-def test_changing_primary_relocks_and_frees(qtbot: QtBot) -> None:
-    view = _view(qtbot)
-    view.set_selection(primary=Language.EN, outputs=(Language.FR, Language.EN))
-    assert not view._checks[Language.EN].isEnabled()  # noqa: SLF001 — EN verrouillée
-    assert view._checks[Language.FR].isEnabled()  # noqa: SLF001 — FR libérée
+    view._checks[Language.FR].setChecked(False)  # noqa: SLF001 — FR n'est plus produit
+    # La principale bascule sur une langue encore produite (EN).
+    assert view.primary_language() is Language.EN
+    assert Language.FR not in view.output_languages()

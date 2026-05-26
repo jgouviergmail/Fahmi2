@@ -265,12 +265,12 @@ def _citations_html(citations: tuple[Citation, ...]) -> str:
     """
     if not citations:
         return ""
-    links = " ".join(
-        f'<a href="{html.escape(c.anchor)}">[§ {html.escape(c.chapter_title)} › '
-        f"{html.escape(c.section_title)}]</a>"
+    items = "".join(
+        f'<li><a href="{html.escape(c.anchor)}">§ {html.escape(c.chapter_title)} › '
+        f"{html.escape(c.section_title)}</a></li>"
         for c in citations
     )
-    return f"<p><small>Sources : {links}</small></p>"
+    return f"<p><small>Sources :</small></p><ul>{items}</ul>"
 
 
 def show_passage_dialog(parent: QWidget, *, title: str, markdown_text: str) -> None:

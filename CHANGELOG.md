@@ -9,6 +9,10 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Corrigé
 
+- **Dialogue : sources d'une réponse sur des lignes distinctes.** Les sources
+  citées (`§ Chapitre › Section`) étaient affichées côte à côte sur une seule
+  ligne (peu lisible quand il y en a plusieurs) ; elles sont désormais listées
+  une par ligne.
 - **Génération : sortie tronquée pour les sources volumineuses.** Les phases LLM
   (reformulation, structuration, traduction, cohérence) traitent chaque source en
   un appel et ne fixaient pas `max_tokens` → DeepSeek appliquait son **petit défaut**
@@ -26,12 +30,14 @@ et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Modifié — Langues de génération : un contrôle unique
 
 - Les réglages **Entrée & langues** fusionnent « Langue source » et « Langues de
-  sortie » en **un seul contrôle** : par langue, une case **Incluse** + un radio
-  **Principale**. La principale est la version **originale** (rédigée directement,
-  pivot des traductions, indice STT) ; les autres langues incluses en sont des
-  traductions. Lève l'ambiguïté du couple précédent (notamment avec des entrées
-  multilingues). Comportement et modèle de données inchangés (`source_language`
-  = principale, `output_languages` = incluses ; la principale reste toujours incluse).
+  sortie » en **un seul contrôle** : des cases **Produites** + un menu déroulant
+  **Principale** (qui ne propose que les langues produites). La principale est la
+  version **originale** (rédigée directement, pivot des traductions, indice STT) ;
+  les autres langues produites en sont des traductions. Lève l'ambiguïté du couple
+  précédent (notamment avec des entrées multilingues) et permet de choisir
+  clairement n'importe quelle langue comme principale. Comportement et modèle de
+  données inchangés (`source_language` = principale, `output_languages` = produites ;
+  la principale est toujours produite, au moins une langue reste produite).
 
 ### Modifié — Bandeau d'état des Supports pédagogiques
 

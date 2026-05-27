@@ -153,7 +153,7 @@ L'écart résiduel est de l'ordre de ±20 % selon le contenu des vidéos.
 | **Delete audio after STT** | Supprime les WAV extraits après transcription | `True` (économise du disque) |
 | **Transcriptions en parallèle** (`stt_cloud_workers`) | Transcriptions STT cloud simultanées (effectif ; sans effet en STT local : 1 GPU). Réglable 1–8 (page Transcription). | 3 |
 | **Appels LLM en parallèle** (`llm_workers`) | Appels LLM simultanés du pipeline (phases per-video + traduction/cohérence/résumés). Effectif ; la limite DeepSeek étant par concurrence, une valeur élevée reste sûre. Réglable 1–64 (page Modèle & coût). | 16 |
-| **Formats d'export** (`export_formats`) | Formats proposés par le bouton **Exporter** de l'onglet Génération (page **Export**) : **Markdown / PDF / HTML**. À l'export, le **consolidé** et le **glossaire** sont écrits, un fichier par langue, dans le format choisi (`consolidated.{lang}.<ext>`, `glossary.{lang}.<ext>`). | aucun (opt-in) |
+| **Formats d'export** (`export_formats`) | Formats proposés par le bouton **Exporter** de l'onglet Génération (page **Export**) : **Markdown / PDF / HTML / Word (`.docx`)**. À l'export, le **consolidé** et le **glossaire** sont écrits, un fichier par langue, dans le format choisi (`consolidated.{lang}.<ext>`, `glossary.{lang}.<ext>`). Le PDF gère le chinois (police YaHei) et l'arabe (RTL). | aucun (opt-in) |
 
 ## 3. Surcouche des prompts (avancé)
 
@@ -261,16 +261,16 @@ Onglet **Supports pédagogiques → ⚙ Réglages** (vue master-detail) :
 | **Difficulté** | Public cible (découverte / lycée / licence / master-expert), objectif Bloom (auto / restituer / comprendre & appliquer / analyser & au-delà), densité (légère / standard / dense), directives libres. |
 | **Langues** | Toutes les langues supportées : les supports sont rédigés dans la langue choisie même si le document source est dans une autre langue (l'orchestrateur résout une langue de contenu à partir d'un `consolidated.{lang}.md` existant). |
 | **Modèle & coût** | Modèle LLM, mode raisonnement + niveau d'effort, température, **plafond budget** (interrompt proprement ; en génération parallèle, léger dépassement toléré par les requêtes déjà en vol), **tâches en parallèle** (défaut 16, plage 1–64 : nombre d'appels LLM concurrents pour générer les supports — la limite DeepSeek étant par concurrence, une valeur élevée reste sûre ; le parallélisme effectif est borné par le nombre de supports × langues). |
-| **Export** | Formats proposés au bouton **Exporter** : Anki (`.apkg`), Markdown, PDF, HTML. Le Markdown des champs est converti en HTML à l'export Anki ; Markdown/PDF/HTML produisent **un fichier par support et par corrigé**. |
+| **Export** | Formats proposés au bouton **Exporter** : Anki (`.apkg`), Markdown, PDF, HTML, Word (`.docx`). Le Markdown des champs est converti en HTML à l'export Anki ; Markdown/PDF/HTML/DOCX produisent **un fichier par support et par corrigé**. |
 
 Le bouton **Estimer le coût** donne un ordre de grandeur (par support × langue ×
 chapitre, selon densité et thinking) ; **Générer** lance la génération (progression
 par support × langue, reprise *coarse* des supports déjà à jour) ; **Ouvrir le
-dossier** ouvre `<emplacement>/pedagogy/` ; **Exporter** propose 4 formats :
+dossier** ouvre `<emplacement>/pedagogy/` ; **Exporter** propose 5 formats :
 - **Anki `.apkg`** (flashcards → Basic, textes à trous → Cloze, QCM → note custom ;
   GUID stables, sous-decks par support, tags support/langue/niveau/chapitre) ;
-- **Markdown**, **PDF** et **HTML** : **un fichier par support et par corrigé**,
-  nommés `<support>.<langue>.<ext>` et `<support>.<langue>.corrige.<ext>`
+- **Markdown**, **PDF**, **HTML** et **Word (`.docx`)** : **un fichier par support et
+  par corrigé**, nommés `<support>.<langue>.<ext>` et `<support>.<langue>.corrige.<ext>`
   (le HTML est un document autonome avec feuille de style intégrée).
 
 ## 3ter. Réglages du Dialogue (chat)

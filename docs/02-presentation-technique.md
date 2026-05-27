@@ -177,8 +177,11 @@ Adapters externes (ports/adapters) :
   mode thématique** + 8 `pedagogy_*` + 3 `chat_*`.
 - `infra/anki/genanki_exporter.py` — export `.apkg` (genanki : Basic/Cloze/QCM,
   GUID stables, sous-decks par support, tags).
-- `infra/export/markdown_pdf.py` — assemblage Markdown + rendu PDF
-  (`markdown` → HTML → `fpdf2`, police Unicode système Windows).
+- `infra/export/markdown_pdf.py` — rendu Markdown → HTML (`render_markdown_body`,
+  partagé) → PDF via `xhtml2pdf`/ReportLab ; **polices système par langue** (Arial
+  latin/arabe, Microsoft YaHei chinois, RTL + reshaping arabe).
+- `infra/export/markdown_docx.py` — rendu Markdown → HTML → **DOCX** via `htmldocx`
+  (s'appuie sur `python-docx`).
 
 ### 2.6 Couche `app`
 
@@ -475,16 +478,20 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
 > (support / langue / niveau / chapitre). La désérialisation des artefacts JSON est dans
 > `pedagogy/artifact_reader.py` ; le service `app/pedagogy_export.py` scanne `pedagogy/`.
 > Les supports non-cartes (vrai/faux, questions ouvertes, fiche, points clés, examen
-> blanc) relèvent de l'export Markdown/PDF/HTML (SP3/02). À l'export Anki, les champs
+> blanc) relèvent de l'export Markdown/PDF/HTML/DOCX. À l'export Anki, les champs
 > Markdown sont convertis en HTML (`genanki_exporter._md_to_html`), sauf le texte cloze.
 
-> **Export Markdown/PDF/HTML (SP3/02)** : l'adapter `infra/export/markdown_pdf.py` assemble
-> les Markdown **déjà rendus** (`<support>.md` / `<support>.corrige.md`) en documents
-> agrégés par langue (sujet/corrigé séparés : `supports.{lang}.md`,
-> `supports.{lang}.corrige.md`, variantes `.pdf` / `.html`), rend le PDF via `markdown` →
-> HTML → `fpdf2.write_html` (police Unicode système Windows Arial ; les polices cœur de
-> fpdf2 sont latin-1), et le HTML en document autonome (UTF-8 + feuille de style intégrée). Le service `app/pedagogy_export.py` coordonne (réutilisation des `.md`
-> rendus, **pas** de re-rendu ni d'`artifact_reader` — réservé à l'Anki).
+> **Export Markdown/PDF/HTML/DOCX** : le cœur partagé `app/document_export.py`
+> (`write_documents`) écrit **un fichier par support et par corrigé** (`<support>.{lang}.<ext>`,
+> `<support>.{lang}.corrige.<ext>`) à partir des Markdown **déjà rendus**. Le corps HTML est
+> produit une fois par `markdown_pdf.render_markdown_body` (extensions `tables` + `toc`),
+> réutilisé par : le HTML (document autonome, CSS intégré) ; le **PDF** via `xhtml2pdf`
+> (moteur ReportLab — pagination réelle, **polices système par langue** : Arial pour le
+> latin/arabe, Microsoft YaHei pour le chinois, RTL + reshaping arabe) ; le **DOCX** via
+> `markdown_docx` (htmldocx → python-docx ; Word gère nativement CJK et bidi). Les services
+> `app/generation_export.py` et `app/pedagogy_export.py` collectent les documents (par
+> langue) ; ils réutilisent les `.md` rendus, **pas** de re-rendu (l'`artifact_reader` est
+> réservé à l'Anki).
 
 ## 5. Conventions de code
 
@@ -530,12 +537,12 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
   mode STT local (sinon jamais).
 - **.zip portable** : `packaging/make-portable-zip.ps1` produit
   `Fahmi2-<version>-win64.zip`.
-- **Dépendances supports pédagogiques** : `genanki` embarque des données
-  (`apkg_schema.sql`, `apkg_col.anki2`) à collecter explicitement
-  (`--collect-data genanki`) ; `markdown` et `fpdf2` (+ `Pillow`, `fontTools`,
-  `defusedxml`) sont des modules purs. Le rendu PDF s'appuie sur la police
-  **Arial système Windows** (aucune police à bundler). Détails et procédure dans
-  [`packaging/README.md`](../packaging/README.md).
+- **Dépendances exports** : `genanki` (Anki) embarque le schéma en modules Python
+  (rien à collecter) ; le **PDF** s'appuie sur `xhtml2pdf`/`reportlab` (purs,
+  `collect_all`) ; le **DOCX** sur `htmldocx` + `beautifulsoup4` (purs ; `lxml` déjà
+  tiré par `python-docx`). Le rendu PDF utilise des **polices système Windows** (Arial
+  latin/arabe, Microsoft YaHei chinois — aucune police à bundler). Détails et procédure
+  dans [`packaging/README.md`](../packaging/README.md).
 - **Pas de signature de code en v1** : un avertissement SmartScreen apparaît
   au 1er lancement (clic « Plus d'infos » → « Exécuter quand même »).
 
@@ -554,7 +561,12 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
 
 L'architecture est ouverte à des extensions sans casser l'existant :
 
-- **Ajouter une langue** : ajouter à `Language` + ses libellés FR/EN + tests.
+- **Ajouter une langue** : ajouter la valeur à `Language` (`domain/enums.py`), son
+  libellé dans `domain/languages._LANGUAGE_NAMES` (source unique, prompts + UI), ses
+  en-têtes et son titre de glossaire (`domain/glossary`), ses alias de détection STT
+  (`openai_whisper_adapter`) ; pour le PDF, ajouter une police si l'écriture l'exige
+  (CJK) et, pour une écriture de droite à gauche, l'inscrire dans
+  `markdown_pdf._RTL_LANGUAGES` (+ `_PDF_LANG_RENDERING`). Tests à compléter.
 - **Ajouter un provider STT** : implémenter le Protocol `STTProvider`.
 - **Ajouter un provider LLM** : implémenter le Protocol `LLMProvider` +
   ajouter une grille de tarifs dans `_pricing.py`.
@@ -566,8 +578,11 @@ L'architecture est ouverte à des extensions sans casser l'existant :
   entité dans `domain/supports.py`.
 - **Ajouter une fonctionnalité (onglet)** : enregistrer un `FeatureTab` + son type
   de réglages dans le `FeatureRegistry`, sans modifier `MainWindow` ni `Project`.
-- **Ajouter un format d'export** : étendre `ExportFormat` + le service
-  `app/pedagogy_export.py` (et l'adapter `infra/` correspondant).
+- **Ajouter un format d'export** : étendre `ExportFormat`, ajouter son extension
+  (`markdown_pdf.EXTENSION_BY_FORMAT`) et son libellé (`ui/pedagogy_labels.EXPORT_LABELS`),
+  brancher le rendu dans `app/document_export.write_documents` (+ l'adapter `infra/export/`
+  correspondant) ; un format documentaire s'ajoute à `GENERATION_EXPORT_FORMATS` pour
+  être proposé en génération.
 - **Changer le retriever de glossaire** : implémenter `GlossaryRetriever`
   (Protocol) — actuellement TF-IDF, demain peut-être embeddings.
 - **Migrer le schéma SQLite** : créer `core/migrations/vXX_to_vYY.py` et

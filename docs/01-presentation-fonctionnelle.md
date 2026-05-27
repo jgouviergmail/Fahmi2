@@ -53,10 +53,10 @@ des **réglages** (⚙ : supports, difficulté, langues, modèle & coût), un bo
 **Générer** et **Estimer le coût**, une **table de progression** (support × langue)
 et un **bandeau d'état** (« génération requise » / « prêt » / « à jour » /
 « périmé »). Les supports sont écrits sous `<emplacement>/pedagogy/`. Un bouton
-**Exporter** propose 4 formats : **Anki `.apkg`** (flashcards, textes à trous, QCM ;
-ré-import sans doublon), **Markdown**, **PDF** et **HTML** — ces trois derniers
-produisant **un fichier par support et par corrigé** (`<support>.<langue>.<ext>` /
-`<support>.<langue>.corrige.<ext>`), chacun autonome.
+**Exporter** propose 5 formats : **Anki `.apkg`** (flashcards, textes à trous, QCM ;
+ré-import sans doublon), **Markdown**, **PDF**, **HTML** et **Word (`.docx`)** — ces
+quatre derniers produisant **un fichier par support et par corrigé**
+(`<support>.<langue>.<ext>` / `<support>.<langue>.corrige.<ext>`), chacun autonome.
 
 - Création d'un projet via un **dialogue minimal** (nom + emplacement) ; les
   réglages de génération se configurent ensuite depuis l'onglet **Génération →
@@ -92,8 +92,9 @@ L'utilisateur configure **via l'interface** (et **uniquement** via l'interface) 
 - **Mode raisonnement** (`thinking` activé / désactivé), **niveau de
   raisonnement** (`HIGH` / `MAX`) et **température**, configurables
   **par phase LLM** indépendamment.
-- **Langues du document** (FR / EN en v1) : langues produites + **langue
-  principale** (l'originale, rédigée directement ; les autres en sont traduites).
+- **Langues du document** (français, anglais, allemand, espagnol, italien,
+  chinois, arabe) : langues produites + **langue principale** (l'originale, rédigée
+  directement ; les autres en sont traduites).
 - **Style de rendu** : décontracté / standard / professionnel / académique.
 - **Mode de consolidation** : **ordonné** (1 source = 1 chapitre, contenu recopié
   dans l'ordre choisi) ou **refonte thématique** (le LLM agrège et restructure
@@ -123,9 +124,9 @@ L'utilisateur configure **via l'interface** (et **uniquement** via l'interface) 
 - **Ouvrir le dossier de sortie** en un clic depuis la barre
   d'en-tête à la fin du Run.
 - **Exporter** les livrables de la génération (document **consolidé** et
-  **glossaire**, un fichier par langue) en **Markdown**, **PDF** ou **HTML** vers
-  un dossier choisi. Les formats proposés se cochent dans **⚙ Réglages → Export**
-  (aucun par défaut — opt-in).
+  **glossaire**, un fichier par langue) en **Markdown**, **PDF**, **HTML** ou
+  **Word (`.docx`)** vers un dossier choisi. Les formats proposés se cochent dans
+  **⚙ Réglages → Export** (aucun par défaut — opt-in).
 - **Traitement parallèle** : les phases par vidéo (transcription cloud,
   extraction de termes, reformulation, structuration) traitent plusieurs vidéos
   simultanément, et les phases finales parallélisent traduction et cohérence ;
@@ -176,8 +177,8 @@ temps réel :
   sémantiques.
 
 Tous les fichiers sont en **Markdown UTF-8**, ouvrables dans n'importe quel
-éditeur, dans VS Code, Obsidian, ou convertibles vers DOCX/PDF/HTML via
-pandoc.
+éditeur, dans VS Code ou Obsidian. L'**export intégré** produit en plus, à la
+demande, des versions **PDF**, **HTML** et **Word (`.docx`)** (cf. § 4.4).
 
 ### 4.7 Dialogue (chat ancré sur le corpus)
 
@@ -256,24 +257,24 @@ document consolidé et le glossaire, **citées** (chapitre › section, cliquabl
 
 ### Inclus
 
-- 2 langues : **français et anglais**, dans les deux sens.
+- 7 langues, dans les deux sens : **français, anglais, allemand, espagnol,
+  italien, chinois, arabe**.
 - 2 providers STT (FasterWhisper local + OpenAI cloud).
 - 1 fournisseur LLM (**DeepSeek v4**, deux modèles).
 - 4 styles de rendu.
-- Formats de sortie : génération en **Markdown** ; supports pédagogiques
-  exportables en **Anki `.apkg`**, **Markdown**, **PDF** et **HTML**.
+- Formats de sortie : génération et supports pédagogiques exportables en
+  **Markdown**, **PDF**, **HTML** et **Word (`.docx`)** ; les supports ajoutent
+  l'**Anki `.apkg`**. Le rendu PDF gère le **chinois** (police système Microsoft
+  YaHei) et l'**arabe** (droite-à-gauche + liaison contextuelle).
 - **Dialogue** : chat ancré sur le corpus (citations + streaming), retrieval
-  lexical (hors-ligne) ou sémantique (embeddings OpenAI).
+  lexical (hors-ligne) ou sémantique (embeddings OpenAI ; recommandé pour le
+  chinois).
 - Plateforme : **Windows 11** (10 minimum).
 
 ### Hors v1
 
 - Multi-utilisateur, collaboration, cloud sync.
 - Édition manuelle des transcriptions dans l'UI.
-- Export **DOCX** natif pour la génération (conversion externe via pandoc
-  possible). *(Le PDF et le HTML sont en revanche des exports **natifs** pour les
-  supports pédagogiques.)*
-- Autres langues que FR / EN.
 - Autres LLM que DeepSeek (architecture prête mais non implémenté).
 - Auto-update.
 - Signature de code (l'EXE n'est pas signé en v1).

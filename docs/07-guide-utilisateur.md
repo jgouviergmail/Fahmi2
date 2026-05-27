@@ -65,7 +65,7 @@ configurer la génération (vue à 6 catégories) :
 | **Transcription** | Provider STT (`openai_cloud` sans GPU, sinon `faster_whisper_local`) · *Transcriptions en parallèle* (cloud) |
 | **Modèle & coût** | Modèle LLM (`deepseek-v4-flash` pour démarrer) · Plafond budget · *Appels LLM en parallèle* |
 | **Phases** | Thinking, effort, température, retries par phase LLM (avancé) |
-| **Export** | Formats d'export proposés : Markdown / PDF / HTML (aucun par défaut) |
+| **Export** | Formats d'export proposés : Markdown / PDF / HTML / Word (`.docx`) (aucun par défaut) |
 
 Validez : l'aperçu des sources détectées s'affiche dans le cockpit.
 
@@ -159,15 +159,13 @@ Tous les fichiers sont en **Markdown**, lisibles dans n'importe quel
 liens cliquables s'affiche directement dans VS Code, Obsidian, GitHub,
 GitLab, etc.
 
-**Exporter en PDF ou HTML** : le bouton **📦 Exporter** (en haut à droite)
+**Exporter en PDF, HTML ou Word** : le bouton **📦 Exporter** (en haut à droite)
 écrit le document consolidé et le glossaire — un fichier par langue
 (`consolidated.{langue}`, `glossary.{langue}`) — dans le format choisi
-(**Markdown**, **PDF** ou **HTML**), vers un dossier de votre choix. Cochez
-d'abord les formats voulus dans **⚙ Réglages → Export** (aucun n'est coché par
-défaut). Le HTML est un document autonome, ouvrable dans un navigateur.
-
-Pour d'autres conversions (par exemple **DOCX**), l'outil libre
-[Pandoc](https://pandoc.org) fait ça très bien.
+(**Markdown**, **PDF**, **HTML** ou **Word `.docx`**), vers un dossier de votre
+choix. Cochez d'abord les formats voulus dans **⚙ Réglages → Export** (aucun n'est
+coché par défaut). Le HTML est un document autonome, ouvrable dans un navigateur ;
+le PDF gère aussi le **chinois** et l'**arabe** (droite-à-gauche).
 
 ## 8. Générer des supports de révision
 
@@ -218,9 +216,10 @@ réglages (« ⚙ Réglages → Export → Formats d'export proposés ») :
   cartes Basic / Cloze / QCM, étiquettes (support / langue / niveau / chapitre).
   Les ré-imports ne créent pas de doublons (identifiants stables). La mise en
   forme Markdown des cartes (listes, gras) est rendue en HTML dans Anki.
-- **Markdown** : documents agrégés par langue (sujet et corrigé séparés).
-- **PDF** : mêmes documents, prêts à imprimer.
+- **Markdown** : un fichier par support et par corrigé, par langue.
+- **PDF** : mêmes documents, prêts à imprimer (chinois et arabe gérés).
 - **HTML** : document autonome (ouvrable dans un navigateur, mise en forme incluse).
+- **Word (`.docx`)** : mêmes documents, éditables dans Word/LibreOffice.
 
 ## 9. Dialoguer avec votre cours
 

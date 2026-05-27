@@ -112,7 +112,9 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   ouvertes, fiche, points clés, examen blanc), `labels`.
 - `chat/` — moteur du **Dialogue** (chat RAG sur corpus) : `corpus` (chargement +
   chunking par section + glossaire), `prompt_builder` (système/historique + passages
-  numérotés + garde-fou d'historique), `citations` (parsing `[§N]`), `query_expander`
+  numérotés + garde-fou d'historique), `citations` (`resolve_citations` : réécrit
+  les marqueurs `[§N]` du LLM en liens numérotés cliquables `[[N]](ancre)`, `Citation`
+  portant le `number` d'affichage séquentiel dédupliqué par ancre), `query_expander`
   (reformulation LLM à la demande), `retriever_factory` (résolution `AUTO` + repli),
   `chat_service` (`answer`/`stream_answer`). Retrieval en ports : `PassageRetriever`
   (`core/retrieval`, lexical TF-IDF) + `EmbeddingProvider` (`infra/embeddings`,

@@ -330,7 +330,9 @@ Génération (consolidé + glossaire).
   (lexical, réutilise scikit-learn) ; distinct de `GlossaryRetriever`.
 - `chat/` (moteur) — `corpus.py` (chargement + chunking par section + glossaire),
   `prompt_builder.py` (système/historique + passages numérotés + garde-fou
-  d'historique), `citations.py` (parsing `[§N]`), `query_expander.py` (reformulation
+  d'historique), `citations.py` (`resolve_citations` : réécrit les marqueurs
+  `[§N]` du LLM en liens numérotés cliquables `[[N]](ancre)` + `Citation`),
+  `query_expander.py` (reformulation
   LLM à la demande si retrieval faible), `retriever_factory.py` (résolution `AUTO` +
   repli), `chat_service.py` (`answer` + `stream_answer`).
 - `infra/embeddings/` — port `EmbeddingProvider` + `OpenAIEmbeddingProvider`

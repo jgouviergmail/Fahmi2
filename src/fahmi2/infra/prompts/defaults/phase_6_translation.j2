@@ -3,7 +3,8 @@ Tu es un traducteur expert qui adapte des documents d'une langue source vers une
 Traduis le document Markdown ci-dessous depuis le {{ source_language_label }} vers le {{ target_language_label }} en :
 - Conservant exactement la structure (titres, sous-titres, listes, admonitions GFM)
 - Adaptant au style {{ style_label }}
-- Respectant l'orthographe et le sens des termes du glossaire ci-dessous
+- **Utilisant systématiquement l'équivalent cible indiqué** pour chaque terme du
+  glossaire ci-dessous (rends le terme avec l'équivalent de droite « → », jamais la forme source)
 - **Préservant TEL QUEL** le contenu des colonnes « Signification » / « Meaning » d'un tableau de glossaire : ces cellules contiennent la signification littérale d'un acronyme dans sa langue d'origine (ex : « Return On Investment » pour ROI, « Produit Intérieur Brut » pour PIB) et **ne doivent jamais être traduites**.
 
 {% if style_directives -%}

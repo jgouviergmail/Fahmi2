@@ -665,20 +665,21 @@ def render_markdown_to_pdf(
         language, (_PDF_DEFAULT_FAMILY, "")
     )
     direction = _text_direction(language)
-    if language is Language.ZH:
+    is_cjk = language in _CJK_LANGUAGES
+    if is_cjk:
         _ensure_cjk_font_registered()
     elif language is Language.AR:
         _ensure_arabic_font_registered()
     # Police effective du rendu : YaHei pour le chinois, Arial sinon (couvre latin
     # et arabe) — sert à filtrer les caractères sans glyphe (émojis → carrés ``□``).
-    render_font = _CJK_FONT_NAME if language is Language.ZH else _PDF_FONT_REGULAR
+    render_font = _CJK_FONT_NAME if is_cjk else _PDF_FONT_REGULAR
     normalized = _strip_unrenderable_for_pdf(
         _normalize_for_pdf(markdown_text), render_font
     )
     body = render_markdown_body(normalized)
     body = _layout_table_cells(body, table_column_widths)
     cjk_table_rule = ""
-    if language in _CJK_LANGUAGES:
+    if is_cjk:
         body = _prewrap_cjk_runs(body, font_name=render_font, landscape=landscape)
         cjk_table_rule = _PDF_TABLE_CJK_WORD_WRAP_RULE
     document = _PDF_HTML_TEMPLATE.format(

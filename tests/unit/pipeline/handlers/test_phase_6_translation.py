@@ -15,17 +15,6 @@ from fahmi2.pipeline.handlers.phase_6_translation import Phase6TranslationHandle
 from tests.unit.pipeline.handlers._helpers import build_phase_context
 
 
-def _llm(content: str = "Translated.") -> LLMResponse:
-    return LLMResponse(
-        content=content,
-        thinking_content=None,
-        prompt_tokens=400,
-        completion_tokens=400,
-        cached_prompt_tokens=0,
-        cost_usd=0.01,
-    )
-
-
 def _localization_response(entries: list[dict[str, str]]) -> LLMResponse:
     return LLMResponse(
         content=json.dumps(entries, ensure_ascii=False),
@@ -128,10 +117,14 @@ def test_execute_translates_for_target_language(
         source_id=SourceId.new(),
         source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / "v.mp4")),
     )
+    # La même réponse sert l'appel de localisation (JSON) et les traductions de docs
+    # (le test n'asserte que l'existence des fichiers, pas leur contenu traduit).
     ctx, _ = build_phase_context(
         tmp_path,
         make_generation_settings,
-        llm_response=_llm("Translated content."),
+        llm_response=_localization_response(
+            [{"source": "PIB", "term": "GDP", "definition": "gross domestic product"}]
+        ),
         sources=(video,),
         settings_overrides={
             "source_language": Language.FR,
@@ -152,6 +145,43 @@ def test_execute_translates_for_target_language(
     ).exists()
     assert (ctx.output_dir / "consolidated.en.md").exists()
     assert (ctx.output_dir / "glossary.en.md").exists()
+
+
+def test_execute_localizes_glossary_and_persists_cross_lang(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    video = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / "v.mp4")),
+    )
+    ctx, _ = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        llm_response=_localization_response(
+            [{"source": "Bilan", "term": "Balance sheet", "definition": "accounting doc"}]
+        ),
+        sources=(video,),
+        settings_overrides={
+            "source_language": Language.FR,
+            "output_languages": (Language.FR, Language.EN),
+        },
+    )
+    _seed_workspace(
+        ctx.workspace,
+        sources=(video,),
+        glossary_terms=[{"term": "Bilan", "definition": "doc comptable"}],
+    )
+    Phase6TranslationHandler().execute(ctx, source=None)
+
+    glossary_en = (ctx.output_dir / "glossary.en.md").read_text(encoding="utf-8")
+    assert "Balance sheet" in glossary_en
+    assert "Bilan" not in glossary_en
+    glossary_fr = (ctx.output_dir / "glossary.fr.md").read_text(encoding="utf-8")
+    assert "Bilan" in glossary_fr  # langue source : terme conservé
+    master = json.loads(
+        (ctx.workspace / "glossary_master.json").read_text(encoding="utf-8")
+    )
+    assert master["terms"][0]["cross_lang"]["en"] == "Balance sheet"
 
 
 def test_execute_raises_when_consolidated_master_missing(
@@ -187,7 +217,9 @@ def test_execute_accumulates_per_video_translation_cost(
     ctx, _ = build_phase_context(
         tmp_path,
         make_generation_settings,
-        llm_response=_llm("Translated."),  # cost_usd=0.01 par appel
+        llm_response=_localization_response(  # cost_usd=0.01 par appel
+            [{"source": "PIB", "term": "GDP", "definition": "gross domestic product"}]
+        ),
         sources=(video,),
         settings_overrides={
             "source_language": Language.FR,
@@ -197,6 +229,6 @@ def test_execute_accumulates_per_video_translation_cost(
     _seed_workspace(ctx.workspace, sources=(video,))
     handler = Phase6TranslationHandler()
     result = handler.execute(ctx, source=None)
-    # FR = source -> copies gratuites. EN -> 3 appels : 1 per-video + consolidated
-    # + glossaire, chacun 0.01 = 0.03. Avant correctif : 0.02 (per-video ignoré).
+    # FR = source -> copies gratuites. EN -> 3 appels LLM (0.01 chacun) : localisation
+    # du glossaire + traduction per-source + traduction consolidé = 0.03.
     assert result.cost_usd == pytest.approx(0.03)

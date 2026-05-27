@@ -171,6 +171,11 @@ pour le détail complet.
 
 ## Statut
 
+**v1.4.1** — **Dialogue : langue du corpus sélectionnable par conversation** (le
+chat lit, **cite** et **répond** dans la langue choisie parmi celles produites) ;
+**glossaire entièrement localisé** en aval (terme **et** définition) dans les Supports
+pédagogiques et le Dialogue.
+
 **v1.4.0** — **5 langues supplémentaires** (allemand, espagnol, italien, chinois,
 arabe → **7 au total**, en entrée comme en sortie, pour les 3 fonctionnalités) ;
 **export Word (`.docx`)** pour la Génération et les Supports pédagogiques ; **rendu

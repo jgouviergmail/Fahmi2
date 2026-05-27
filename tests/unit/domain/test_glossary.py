@@ -9,7 +9,9 @@ from fahmi2.domain.glossary import (
     _HEADERS_BY_LANGUAGE,
     Glossary,
     Term,
+    glossary_term_for_language,
     glossary_title,
+    localize_glossary_terms,
     parse_glossary_master_terms,
     render_glossary_markdown_table,
 )
@@ -23,6 +25,30 @@ def test_glossary_headers_exist_for_all_languages() -> None:
         assert all(h for h in headers)
     assert _HEADERS_BY_LANGUAGE[Language.DE][0] == "Begriff"
     assert _HEADERS_BY_LANGUAGE[Language.ZH][3] == "定义"
+
+
+def test_glossary_term_for_language_uses_cross_lang_then_falls_back() -> None:
+    t = Term(term="Bilan", definition="...", cross_lang={Language.EN: "Balance sheet"})
+    assert glossary_term_for_language(t, Language.EN) == "Balance sheet"
+    # Pas d'entrée DE → repli sur le terme source.
+    assert glossary_term_for_language(t, Language.DE) == "Bilan"
+
+
+def test_localize_glossary_terms_replaces_surface_keeps_rest() -> None:
+    terms = (
+        Term(
+            term="Bilan",
+            definition="def",
+            acronym="B",
+            cross_lang={Language.EN: "Balance sheet"},
+        ),
+        Term(term="IFRS", definition="norme"),  # pas de cross_lang → inchangé
+    )
+    out = localize_glossary_terms(terms, Language.EN)
+    assert out[0].term == "Balance sheet"
+    assert out[0].definition == "def"  # définition inchangée (source)
+    assert out[0].acronym == "B"  # acronyme conservé
+    assert out[1].term == "IFRS"  # repli (pas d'équivalent)
 
 
 def test_glossary_title_localized_for_all_languages() -> None:

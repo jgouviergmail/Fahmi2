@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from fahmi2.domain.enums import Language
@@ -42,6 +42,38 @@ def glossary_title(language: Language) -> str:
         hors périmètre.
     """
     return _TITLE_BY_LANGUAGE.get(language, _TITLE_BY_LANGUAGE[Language.EN])
+
+
+def glossary_term_for_language(term: Term, language: Language) -> str:
+    """Forme localisée d'un terme pour une langue (repli sur le terme source).
+
+    Args:
+        term: Terme du glossaire master.
+        language: Langue cible.
+
+    Returns:
+        ``term.cross_lang[language]`` s'il existe, sinon ``term.term``.
+    """
+    return term.cross_lang.get(language, term.term)
+
+
+def localize_glossary_terms(
+    terms: Iterable[Term], language: Language
+) -> tuple[Term, ...]:
+    """Vue du glossaire pour une langue : remplace la forme du terme par sa
+    localisation (``cross_lang[language]``) ; définition, acronyme et expansion
+    restent inchangés (la définition reste donc en langue source en aval).
+
+    Args:
+        terms: Termes du glossaire master.
+        language: Langue de la vue voulue.
+
+    Returns:
+        Un tuple de ``Term`` dont seul ``term`` est localisé (repli sur la source).
+    """
+    return tuple(
+        replace(t, term=glossary_term_for_language(t, language)) for t in terms
+    )
 
 
 @dataclass(frozen=True)

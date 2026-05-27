@@ -185,7 +185,7 @@ doublon), **Markdown**, **PDF**, **HTML** et **Word (`.docx`)** (documents
 autonomes, sujet / corrigé séparés). Le rendu PDF gère le **chinois** (police
 Microsoft YaHei système) et l'**arabe** (droite-à-gauche + liaison contextuelle).
 
-1017 tests passants, `mypy --strict` et `ruff` propres sur 389 fichiers.
+1024 tests passants, `mypy --strict` et `ruff` propres sur 389 fichiers.
 
 ## Licence
 

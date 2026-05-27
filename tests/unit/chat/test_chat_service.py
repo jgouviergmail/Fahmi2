@@ -93,6 +93,9 @@ def test_stream_answer_yields_deltas_then_final_message() -> None:
     final = chunks[-1]
     assert final.message is not None
     assert final.message.role == "assistant"
+    # Le message final porte le contenu réécrit (lien), même si les deltas du
+    # flux restent bruts ([§1]).
+    assert "[[1]](pib)" in final.message.content
     assert final.message.citations[0].anchor == "pib"
     assert final.message.cost_usd == 0.01
 

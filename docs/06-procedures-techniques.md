@@ -398,14 +398,53 @@ Même recette que les modèles LLM — l'app suit partout le triptyque
   l'adapter en `json` (segment unique par tranche) — cf.
   `OpenAIWhisperAdapter._VERBOSE_JSON_MODELS`.
 
-## 14. Le Dialogue (chat) — artefacts et index
+## 14. Ajouter une langue
+
+L'enum `Language` couvre 7 langues (fr/en/de/es/it/zh/ar). Pour en ajouter une :
+
+1. Ajouter la valeur à `Language` (`src/fahmi2/domain/enums.py`).
+2. Ajouter son **libellé** dans `domain/languages._LANGUAGE_NAMES` (**source
+   unique** réutilisée par les prompts, l'UI et les rendus).
+3. Ajouter ses **en-têtes** et son **titre** de glossaire dans
+   `domain/glossary._HEADERS_BY_LANGUAGE` / `_TITLE_BY_LANGUAGE` (repli sur l'anglais
+   sinon).
+4. Ajouter ses **alias de détection STT** (nom complet Whisper → code ISO) dans
+   `infra/stt/openai_whisper_adapter._WHISPER_LANGUAGE_ALIASES`.
+5. **Rendu PDF** : si l'écriture exige une police dédiée (CJK), l'inscrire dans
+   `markdown_pdf._CJK_LANGUAGES` et brancher sa police système (cf. la résolution
+   YaHei) ; si l'écriture est **droite-à-gauche**, l'inscrire dans
+   `domain/languages._RTL_LANGUAGES` (**source unique RTL** PDF/HTML/DOCX) **et**
+   dans `markdown_pdf._PDF_LANG_RENDERING` (famille de police + tag `pdf:language`
+   pour le reshaping/bidi). Le DOCX (RTL via `is_rtl`) et le HTML (`dir`) se déduisent
+   de `_RTL_LANGUAGES`, sans code dédié.
+6. Écrire/compléter les tests (glossaire, détection STT, rendu PDF/DOCX selon
+   l'écriture), puis lancer la suite complète + lint + types.
+
+## 15. Ajouter un format d'export
+
+Les formats documentaires (Markdown / PDF / HTML / DOCX) passent tous par le cœur
+partagé `app/document_export.write_documents` ; l'Anki (`.apkg`) est à part. Pour
+ajouter un format documentaire :
+
+1. Étendre l'enum `ExportFormat` (`src/fahmi2/domain/enums.py`).
+2. Déclarer son **extension** dans `markdown_pdf.EXTENSION_BY_FORMAT`.
+3. Brancher le rendu dans `app/document_export.write_documents` (+ un *renderer*
+   dans `infra/export/` si le format ne se déduit pas du HTML/Markdown existant).
+4. Ajouter un **libellé** dans `ui/pedagogy_labels.EXPORT_LABELS` (partagé par les
+   sélecteurs d'export des deux onglets).
+5. Pour le proposer aussi en **génération**, l'ajouter à
+   `domain/generation.GENERATION_EXPORT_FORMATS`.
+6. Écrire les tests (rendu + collecte) puis lancer la suite complète + lint + types.
+
+## 16. Le Dialogue (chat) — artefacts et index
 
 Artefacts par projet (sous `<emplacement>/chat/`) :
 
 - `conversations/<conversation_id>.json` — conversations persistées (relisibles
   hors session ; supprimables depuis l'UI ou en effaçant le fichier).
 - `index.{lang}.npz` — **index sémantique** (embeddings du corpus + empreinte de
-  validité : modèle + mtime du consolidé + langue). Pour forcer une réindexation,
+  validité : modèle + langue + mtime du consolidé **et du glossaire** — une édition
+  du glossaire à nombre de termes constant réindexe donc aussi). Pour forcer une réindexation,
   supprimer ce fichier (ou utiliser `infra.retrieval.semantic.purge_index`) ; il
   est de toute façon reconstruit dès que l'empreinte change.
 
@@ -413,7 +452,7 @@ Le corpus interrogé est le **document consolidé** (`generation/output/`) + le
 glossaire (`generation/glossary_master.json`), chunké à la volée à chaque session
 (aucune régénération nécessaire après modification du chunking).
 
-## 15. Audit qualité
+## 17. Audit qualité
 
 Avant chaque release, dérouler :
 

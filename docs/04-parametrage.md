@@ -59,7 +59,9 @@ master-detail) ; ils incluent le **dossier des vidéos**.
 
 Un **contrôle unique** « Langues du document » : une ligne de cases
 **Produites** (langues générées) et un menu déroulant **Principale** qui ne
-propose que les langues produites.
+propose que les langues produites. **7 langues** sont disponibles, en entrée
+comme en sortie : **français, anglais, allemand, espagnol, italien, chinois,
+arabe**.
 
 | Élément | Description |
 |---------|-------------|
@@ -165,9 +167,11 @@ manuel d'un fichier `.j2`.
 
 Menu **Édition → Modifier les prompts…** ouvre un dialogue dédié :
 
-- **Sidebar gauche** : liste des 8 templates LLM (phases 1-7 +
-  sous-prompt 5a). Un astérisque ` *` est ajouté en face d'un template
-  pour lequel un override est actif.
+- **Sidebar gauche** : liste de **tous** les templates LLM éditables — phases de
+  génération (1-7, dont les sous-prompts de consolidation, les variantes du mode
+  **refonte thématique** et la **localisation du glossaire**), supports pédagogiques
+  et Dialogue. Un astérisque ` *` est ajouté en face d'un template pour lequel un
+  override est actif.
 - **Description** courte de chaque phase et de son rôle dans le
   pipeline.
 - **Bandeau d'état** : *« 📦 Prompt par défaut »* ou *« ✏️ Override
@@ -202,6 +206,7 @@ fichiers :
    - `phase_5_fact_ledger.j2`, `phase_5_thematic_plan.j2`,
      `phase_5_thematic_chapter.j2` (mode **refonte thématique**)
    - `phase_6_translation.j2`
+   - `phase_6_glossary_localization.j2` (localisation des termes du glossaire par langue)
    - `phase_7_coherence.j2`
    - les 8 templates `pedagogy_*.j2` (supports de révision)
    - `chat_strict.j2`, `chat_augmented.j2`, `chat_query_expansion.j2` (Dialogue)
@@ -222,6 +227,7 @@ fichiers :
 | `phase_5_thematic_plan` | `output_language_label`, `elements_listing` |
 | `phase_5_thematic_chapter` | `output_language_label`, `style_label`, `style_directives`, `chapter_title`, `elements_json` |
 | `phase_6_translation` | `source_language_label`, `target_language_label`, `style_label`, `style_directives`, `glossary_terms`, `source_markdown` |
+| `phase_6_glossary_localization` | `source_language_label`, `target_language_label`, `style_label`, `style_directives`, `terms` (`term`, `definition`) |
 | `phase_7_coherence` | `output_language_label`, `style_label`, `style_directives`, `glossary_terms`, `consolidated_markdown` |
 | `pedagogy_flashcards_concepts` | `output_language_label`, `audience_label`, `bloom_label`, `density_label`, `pedagogy_directives`, `glossary_terms`, `chapter_title`, `chapter_markdown` |
 | `pedagogy_qcm` | *(idem flashcards concepts)* |

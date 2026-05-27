@@ -104,7 +104,7 @@ dist/Fahmi2/
 ├── _internal/
 │   ├── fahmi2/
 │   │   ├── core/errors/messages.fr.json
-│   │   ├── infra/prompts/defaults/*.j2   ← 8 phases + 3 phase_5_* thématiques + 8 pedagogy_* + 3 chat_*
+│   │   ├── infra/prompts/defaults/*.j2   ← 8 phases + 3 phase_5_* thématiques + phase_6_glossary_localization + 8 pedagogy_* + 3 chat_*
 │   │   └── infra/storage/_schema.sql
 │   └── genanki/                          ← données collectées (apkg_schema.sql, apkg_col.anki2)
 └── …
@@ -143,7 +143,11 @@ sont **déjà câblées** dans `packaging/fahmi2.spec` (gitignored ; build v1.0.
   `subfontIndex`) pour le **chinois**. Si YaHei est absente, l'export PDF chinois
   lève `EXPORT.NO_CJK_FONT` (MD/HTML/Word restent disponibles). Quelques tirets
   Unicode rares (U+2010/2011/2012/2015) non rendus par ReportLab+Arial sont
-  normalisés au rendu PDF (`markdown_pdf._normalize_for_pdf`).
+  normalisés au rendu PDF (`markdown_pdf._normalize_for_pdf`). Deux autres
+  traitements **purement runtime** (rien à bundler) : les caractères **sans glyphe**
+  dans la police active (émojis décoratifs) sont **retirés** du PDF
+  (`_strip_unrenderable_for_pdf`), et la **prose chinoise est pré-coupée** par `<br/>`
+  (ReportLab ne coupe qu'aux espaces, absents en CJK ; `_prewrap_cjk_runs`).
 
 ### Dépendances ingestion documents (pypdf / python-docx)
 

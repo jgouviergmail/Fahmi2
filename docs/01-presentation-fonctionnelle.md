@@ -274,7 +274,9 @@ document consolidé et le glossaire, **citées** (chapitre › section, cliquabl
   **Markdown**, **PDF**, **HTML** et **Word (`.docx`)** ; les supports ajoutent
   l'**Anki `.apkg`**. Le rendu PDF gère le **chinois** (police système Microsoft
   YaHei, **retours à la ligne** automatiques) et l'**arabe** (droite-à-gauche +
-  liaison contextuelle). Le **glossaire** s'exporte en **paysage** (PDF et Word).
+  liaison contextuelle) ; l'**arabe** est aussi rendu **droite-à-gauche en Word**
+  (bidi + inversion des colonnes du tableau). Le **glossaire** s'exporte en
+  **paysage** (PDF et Word).
 - **Dialogue** : chat ancré sur le corpus (citations + streaming), retrieval
   lexical (hors-ligne) ou sémantique (embeddings OpenAI ; recommandé pour le
   chinois).

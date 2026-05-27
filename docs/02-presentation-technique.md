@@ -71,7 +71,8 @@ Modules transverses, sans dépendance externe (ni Qt, ni HTTP, ni SQL) :
 
 Entités pures immuables + machines d'état :
 
-- Énumérations : `Language`, `StylePreset`, `PhaseId` (8 phases),
+- Énumérations : `Language` (7 langues : fr/en/de/es/it/zh/ar),
+  `StylePreset`, `PhaseId` (8 phases),
   `RunStatus`, `PhaseStatus`, `SourceKind` (vidéo/audio/document/YouTube),
   `SttProvider`, `LLMModel`, `ReasoningEffort`, et
   pédagogie : `SupportType` (×8), `TargetAudience`, `BloomObjective`,
@@ -174,7 +175,8 @@ Adapters externes (ports/adapters) :
   `DPAPISecretsStore` (Windows).
 - `infra/prompts/` — `PromptLoader` avec override `%APPDATA%/Fahmi2/prompts/`
   + **templates Jinja2 bundlés** : 8 phases de génération + **3 `phase_5_*` du
-  mode thématique** + 8 `pedagogy_*` + 3 `chat_*`.
+  mode thématique** + **`phase_6_glossary_localization`** (localisation des termes
+  du glossaire) + 8 `pedagogy_*` + 3 `chat_*`.
 - `infra/anki/genanki_exporter.py` — export `.apkg` (genanki : Basic/Cloze/QCM,
   GUID stables, sous-decks par support, tags).
 - `infra/export/markdown_pdf.py` — rendu Markdown → HTML (`render_markdown_body`,
@@ -186,7 +188,12 @@ Adapters externes (ports/adapters) :
   pour les cellules) — réservées aux langues CJK / au PDF (HTML et Word gèrent
   nativement).
 - `infra/export/markdown_docx.py` — rendu Markdown → HTML → **DOCX** via `htmldocx`
-  (s'appuie sur `python-docx`) ; orientation **paysage** optionnelle (glossaire).
+  (s'appuie sur `python-docx`) ; tableaux reformatés (style **Table Grid** +
+  largeur 100 %, htmldocx ne traduit ni les bordures CSS ni `width:100%`) ;
+  orientation **paysage** optionnelle (glossaire) ; **arabe en droite-à-gauche**
+  (`w:bidi` paragraphes, `w:rtl` runs, `w:bidiVisual` tableaux), aligné sur le
+  PDF/HTML. Word gère nativement la police CJK et la coupe de ligne (rien à déclarer
+  côté chinois).
 
 ### 2.6 Couche `app`
 
@@ -215,16 +222,26 @@ Services applicatifs :
   partagées dans `app/_cost_common.py`.
 - `PedagogyCostEstimator` — estimation de coût des supports (par support ×
   langue × chapitre, selon densité et thinking).
-- `pedagogy_export` — exports `export_pedagogy_to_apkg` / `_to_markdown` / `_to_pdf`.
+- `pedagogy_export` / `generation_export` — collecteurs (`collect_*_documents`) +
+  façades d'export (`export_pedagogy_to_apkg` pour l'Anki ; `export_*_documents` pour
+  Markdown / PDF / HTML / DOCX, déléguées au cœur partagé `document_export.write_documents`).
 - Glossaire : pas de service applicatif dédié — il est lu **sur disque**
-  (`glossary_master.json`) comme le pipeline ; le parsing (`parse_glossary_master_terms`)
-  et le rendu Markdown 4 colonnes (`render_glossary_markdown_table` : Terme / Acronyme /
-  Signification / Définition, ou Term / Acronym / Meaning / Definition) vivent dans
-  `domain/glossary.py` (réutilisés par pipeline et pédagogie).
+  (`glossary_master.json`) comme le pipeline ; le parsing (`parse_glossary_master_terms`),
+  le rendu Markdown 4 colonnes (`render_glossary_markdown_table` : en-têtes localisés
+  par langue parmi les 7, ex. Terme / Acronyme / Signification / Définition ou
+  Term / Acronym / Meaning / Definition) et la **localisation terminologique**
+  (`localize_glossary_terms` → `cross_lang[L]`, repli sur le terme source) vivent dans
+  `domain/glossary.py` (réutilisés par pipeline, pédagogie et Dialogue). La **phase 6**
+  localise les termes par un appel LLM structuré (`_localize_glossary`, prompt
+  `phase_6_glossary_localization`), rend `glossary.{L}.md` de façon déterministe,
+  injecte les équivalents source → cible dans la traduction et persiste `cross_lang`
+  dans `glossary_master.json` ; la Pédagogie et le Dialogue **pré-localisent** ensuite
+  le glossaire à la langue de contenu qu'ils chargent.
 - `PromptsService` — gestion des overrides utilisateur des templates LLM
   (lecture défaut bundlé, lecture / écriture / suppression d'override
   dans `%APPDATA%/Fahmi2/prompts/`, validation Jinja2). Backend du
-  `PromptsEditorDialog`. Catalogue : 8 phases + 8 templates `pedagogy_*`.
+  `PromptsEditorDialog`. Catalogue : prompts de génération (8 phases + 3 `phase_5_*`
+  thématiques + `phase_6_glossary_localization`) + 8 templates `pedagogy_*` + 3 `chat_*`.
 - `SecretsService` — wrapper SecretsStore avec redaction logs auto.
 - `HardwareProbe` — détection CUDA/GPU au démarrage.
 
@@ -292,7 +309,7 @@ Qt PySide6 :
   et **`open_generation_settings`**).
 - `ui/pedagogy_controller.py` — orchestre l'onglet Supports pédagogiques
   (worker QThread `SupportsOrchestrator`, pause/cancel, sélecteur d'export
-  Anki / Markdown / PDF, bridge `PedagogyQtEventBus`).
+  Anki / Markdown / PDF / HTML / DOCX, bridge `PedagogyQtEventBus`).
 - `ui/features/` — abstraction onglet : `FeatureId`, `FeatureTab`,
   `FeatureRegistry`, `GenerationTab` (cockpit + contrôleur), `PedagogyTab`
   (cockpit pédagogique réel + `PedagogyController`).
@@ -529,8 +546,8 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
 
 ### 6.2 Métriques actuelles
 
-- **951 tests** passants
-- **ruff** + **mypy --strict** propres sur 375 fichiers
+- **1053 tests** passants
+- **ruff** + **mypy --strict** propres sur 389 fichiers
 
 ## 7. Packaging et distribution
 

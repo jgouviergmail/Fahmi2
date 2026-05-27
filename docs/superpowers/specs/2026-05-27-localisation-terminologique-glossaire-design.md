@@ -62,16 +62,28 @@ glossaire entière par un **appel LLM structuré de localisation**.
 ### 4.1 Flux phase 6 (réorganisé en 2 étapes)
 
 1. **Localisation du glossaire** (par langue cible, en parallèle `map_bounded`) :
-   appel LLM → JSON. On en dérive `cross_lang_by_language[L] = {terme_source:
-   terme_localisé}` et on **rend + écrit** `glossary.{L}.md` (via
+   appel LLM → JSON. On en dérive, **en mémoire**, `cross_lang_by_language[L] =
+   {terme_source: terme_localisé}` et on **rend + écrit** `glossary.{L}.md` (via
    `render_glossary_markdown_table`, termes = termes localisés, **définitions
-   traduites** par le même appel ; acronyme/expansion repris du master). On
-   **réécrit `glossary_master.json`** en ajoutant à chaque terme
-   `cross_lang: {"en": "Balance sheet", "de": "Bilanz", …}` (clés = codes langue ;
-   round-trip géré par `parse_glossary_master_terms` qui fait `Language(k)`).
+   traduites** par le même appel ; acronyme/expansion repris du master).
 2. **Traduction documentaire** (consolidé + docs **par source**, en parallèle,
    inchangée) : la liste « équivalents recommandés » du prompt provient désormais de
-   `cross_lang_by_language[L]` (vrais équivalents `source → cible`).
+   `cross_lang_by_language[L]` (en mémoire ; vrais équivalents `source → cible`).
+3. **Persistance pour l'aval** (fin de phase, écriture **atomique**) : on charge le
+   payload `glossary_master.json` (dict), on ajoute à chaque terme
+   `cross_lang: {"en": "Balance sheet", "de": "Bilanz", …}` (clés = codes langue ;
+   round-trip géré par `parse_glossary_master_terms`, `Language(k)`) et on réécrit via
+   `ctx.artifacts.write_json_atomic`. *(Les étapes 1-2 n'en dépendent pas — elles
+   utilisent le `cross_lang_by_language` en mémoire ; cette écriture sert uniquement
+   Pédagogie/Dialogue.)*
+
+**SoC assumé** : la phase 6 **enrichit** un artefact produit par la phase 2
+(`glossary_master.json`). Choix délibéré : c'est la **source unique** déjà lue par les
+trois features (`parse_glossary_master_terms`). L'alternative (fichier séparé
+`glossary_localized.json`) est **écartée** : elle forcerait Pédagogie/Dialogue à lire
+**et fusionner** deux fichiers. Aucune incohérence de checkpoint (le checkpoint pipeline
+est par-phase en SQLite, sans hash d'artefact) ; une régénération depuis la phase 2
+réécrit le master sans `cross_lang`, repeuplé par la phase 6 qui suit.
 
 La langue **source** : copie directe des artefacts (glossaire master rendu avec les
 termes source — correct), aucun appel LLM. Le glossaire **n'est plus une
@@ -147,7 +159,7 @@ similaire. Vérifier/ajuster `CostEstimator` (phase 6) pour rester réaliste.
 
 | Couche | Fichier | Changement |
 |--------|---------|------------|
-| infra/prompts | `defaults/phase_6_glossary_localization.j2` (**nouveau**) | prompt de localisation structuré (JSON, politique DNT) ; éditable + catalogue `PromptsService` |
+| infra/prompts | `defaults/phase_6_glossary_localization.j2` (**nouveau**) | prompt de localisation structuré (JSON, politique DNT) ; enregistré au catalogue éditable via `PromptTemplateMeta(name, display_name, description)` dans `app/prompts_service.py` |
 | infra/prompts | `defaults/phase_6_translation.j2` | la liste d'équivalents reçoit de vrais `source→cible` (plus de « X→X ») |
 | pipeline | `handlers/phase_6_translation.py` | étape de localisation + persistance `cross_lang` + flux 2 étapes ; `_glossary_terms_for_template` lit `cross_lang_by_language` |
 | domain | `glossary.py` | `glossary_term_for_language()` ; (parsing `cross_lang` déjà OK) |

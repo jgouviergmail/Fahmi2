@@ -114,16 +114,23 @@ termes source — correct), aucun appel LLM. Le glossaire **n'est plus une
 les trois features via `parse_glossary_master_terms`), on ajoute un résolveur
 partagé et on l'utilise au point d'injection de chaque consommateur.
 
-- **Domaine** : `glossary_term_for_language(term: Term, language: Language) -> str`
-  = `term.cross_lang.get(language, term.term)` (`domain/glossary.py`). Source unique
+**Mécanisme — pré-localisation chez le producteur** (les deux générateurs pédagogie
+*et* `mock_exam` appellent `format_glossary_terms` ; le faire dépendre d'une nouvelle
+langue toucherait 3 sites. Plus propre : le **producteur** fournit un glossaire déjà
+localisé, les consommateurs restent inchangés) :
+
+- **Domaine** : `glossary_term_for_language(term, language) -> str`
+  = `term.cross_lang.get(language, term.term)` + `localize_glossary_terms(terms,
+  language) -> tuple[Term, ...]` (= `dataclasses.replace(t, term=…)`). Source unique
   de résolution (DRY).
-- **Pédagogie** : `format_glossary_terms(glossary, *, language)` utilise le résolveur.
-  `SupportsOrchestrator` **propage `content_lang`** (déjà résolu via
-  `resolve_content_language`, mais aujourd'hui non transmis) jusqu'au générateur, qui
-  formate le glossaire en `content_lang`. → supports en allemand citent « Bilanz ».
-- **Dialogue** : `_glossary_chunks(terms, *, language)` utilise le résolveur ;
-  `load_corpus_chunks` transmet déjà sa `language` (= langue de contenu résolue par
-  le contrôleur). → retrieval/citations dans la bonne langue.
+- **Pédagogie** : `SupportsOrchestrator` résout déjà `content_lang`
+  (`resolve_content_language`) mais le **discarde** ; on le **conserve** et on passe
+  `localize_glossary_terms(glossary, content_lang)` à `_run_one` (à la place du
+  glossaire master). Générateurs + `format_glossary_terms` **inchangés**. → supports
+  en allemand citent « Bilanz ».
+- **Dialogue** : `load_corpus_chunks` (qui a déjà `language` = langue de contenu
+  résolue par le contrôleur) pré-localise via `localize_glossary_terms(…, language)`
+  avant `_glossary_chunks` (**inchangé**). → retrieval/citations dans la bonne langue.
 
 ### 5.1 Limite assumée (définitions en aval)
 
@@ -160,12 +167,12 @@ similaire. Vérifier/ajuster `CostEstimator` (phase 6) pour rester réaliste.
 | Couche | Fichier | Changement |
 |--------|---------|------------|
 | infra/prompts | `defaults/phase_6_glossary_localization.j2` (**nouveau**) | prompt de localisation structuré (JSON, politique DNT) ; enregistré au catalogue éditable via `PromptTemplateMeta(name, display_name, description)` dans `app/prompts_service.py` |
-| infra/prompts | `defaults/phase_6_translation.j2` | la liste d'équivalents reçoit de vrais `source→cible` (plus de « X→X ») |
+| infra/prompts | `defaults/phase_6_translation.j2` | la liste d'équivalents porte désormais de vrais `source→cible` (via `cross_lang`, plus de « X→X ») ; clarification mineure de la consigne : **utiliser** l'équivalent cible indiqué |
 | pipeline | `handlers/phase_6_translation.py` | étape de localisation + persistance `cross_lang` + flux 2 étapes ; `_glossary_terms_for_template` lit `cross_lang_by_language` |
-| domain | `glossary.py` | `glossary_term_for_language()` ; (parsing `cross_lang` déjà OK) |
-| pedagogy | `labels.format_glossary_terms(*, language)` | résolveur ; 2 appelants (`generators/_base`, `mock_exam`) passent `content_lang` |
-| app | `supports_orchestrator.py` | propager `content_lang` (déjà résolu) jusqu'au formatage du glossaire |
-| chat | `corpus._glossary_chunks(*, language)` + `load_corpus_chunks` | résolveur (langue déjà disponible) |
+| domain | `glossary.py` | `glossary_term_for_language()` + `localize_glossary_terms()` ; (parsing `cross_lang` déjà OK) |
+| app | `supports_orchestrator.py` | conserver `content_lang` (déjà résolu) + pré-localiser le glossaire (`localize_glossary_terms`) avant `_run_one` |
+| chat | `corpus.load_corpus_chunks` | pré-localiser via `localize_glossary_terms(…, language)` avant `_glossary_chunks` |
+| pedagogy/chat | — | générateurs, `format_glossary_terms`, `_glossary_chunks` **inchangés** |
 
 ## 10. Tests
 

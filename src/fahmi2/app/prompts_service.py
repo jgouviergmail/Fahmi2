@@ -131,6 +131,15 @@ _TEMPLATE_METADATA: tuple[PromptTemplateMeta, ...] = (
         ),
     ),
     PromptTemplateMeta(
+        name="phase_6_glossary_localization",
+        display_name="Phase 6 — Localisation du glossaire",
+        description=(
+            "Localise chaque terme du glossaire dans la langue cible (traduit "
+            "l'équivalent métier consacré, garde les termes internationaux) et "
+            "traduit les définitions. Sortie JSON."
+        ),
+    ),
+    PromptTemplateMeta(
         name="phase_7_coherence",
         display_name="Phase 7 — Cohérence finale",
         description=(

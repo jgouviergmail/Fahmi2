@@ -24,6 +24,14 @@ def test_list_templates_covers_all_llm_phases(tmp_path: Path) -> None:
     assert expected <= names
 
 
+def test_list_templates_includes_glossary_localization(tmp_path: Path) -> None:
+    service = PromptsService(override_dir=tmp_path)
+    names = {meta.name for meta in service.list_templates()}
+    assert "phase_6_glossary_localization" in names
+    # Le template par défaut est bien présent et non vide.
+    assert service.load_default("phase_6_glossary_localization").strip()
+
+
 def test_list_templates_includes_thematic_prompts(tmp_path: Path) -> None:
     service = PromptsService(override_dir=tmp_path)
     names = {meta.name for meta in service.list_templates()}

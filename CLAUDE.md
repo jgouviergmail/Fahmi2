@@ -185,7 +185,7 @@ Ordre canonique dans `phase_registry.py`. Chaque handler déclare `is_per_source
 | 3 Reformulation | `phase_3_reformulation` | **par source** |
 | 4 Structuration | `phase_4_structuration` | **par source** |
 | 5 Consolidation | `phase_5_consolidation` (dispatcher `ORDERED`/`THEMATIC`) | batch |
-| 6 Traduction | `phase_6_translation` | batch (boucle sources × langues) |
+| 6 Traduction (+ localisation glossaire) | `phase_6_translation` | batch (boucle sources × langues) |
 | 7 Cohérence | `phase_7_coherence` | batch (boucle langues) |
 
 Le `PipelineEngine._execute_one` persiste chaque `PhaseExecution` en SQLite. Une
@@ -226,6 +226,21 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
   génération). UI : sélecteur dans `GenerationSettingsView` + note « ordre sans
   effet » sur `SourceOrderView`. 3 prompts `phase_5_fact_ledger`/`_thematic_plan`/
   `_thematic_chapter`. Spec : `docs/superpowers/specs/2026-05-26-modes-consolidation-thematique-design.md`.
+- **Localisation terminologique du glossaire (phase 6)** : les **termes** du glossaire
+  sont localisés **par langue cible** (traduit-sauf-international ; acronyme conservé ;
+  `acronym_expansion` invariante) par un **appel LLM structuré** (`_localize_glossary`,
+  prompt `phase_6_glossary_localization`, JSON apparié par terme source + repli
+  per-terme). La phase 6 (1) **rend `glossary.{L}.md` de façon déterministe** (le
+  glossaire **n'est plus une `_TranslationTask`**), (2) injecte les vrais équivalents
+  `source → cible` dans la traduction du consolidé/docs par source, (3) **persiste
+  `cross_lang` dans `glossary_master.json`** (écriture atomique, pour l'aval). **Source
+  unique** : `domain/glossary.localize_glossary_terms(terms, language)` (= `cross_lang[L]`,
+  repli sur le terme source). **Propagation** : la **Pédagogie** (`SupportsOrchestrator`)
+  et le **Dialogue** (`corpus.load_corpus_chunks`) **pré-localisent** le glossaire à la
+  **langue de contenu** qu'ils chargent (générateurs / `format_glossary_terms` /
+  `_glossary_chunks` inchangés). **Limite assumée** : seul le **terme** est porté par
+  `cross_lang` ; en aval, la **définition** reste en langue source (le `glossary.{L}.md`
+  exporté reste, lui, entièrement localisé). Spec : `docs/superpowers/specs/2026-05-27-localisation-terminologique-glossaire-design.md`.
 - **Coquille multi-fonctionnalités** : la zone projet est une `QTabWidget` peuplée
   par un `FeatureRegistry` (calqué sur `PhaseRegistry`). Un `Project` ne porte que
   nom + emplacement (immuable après création) ; les réglages métier sont par

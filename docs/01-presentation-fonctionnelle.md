@@ -67,15 +67,15 @@ quatre derniers produisant **un fichier par support et par corrigé**
 
 ### 4.2 Pipeline de traitement
 
-Pour chaque projet, le **pipeline en 8 phases** transforme les vidéos en
+Pour chaque projet, le **pipeline en 8 phases** transforme les sources en
 documents :
 
 | Phase | Description |
 |-------|-------------|
-| 0. STT | Transcription audio → texte (Whisper local ou cloud) |
-| 1. Termes | Extraction des termes techniques candidats par vidéo |
-| 2. Glossaire | Réconciliation cross-vidéos pour produire un glossaire master |
-| 3. Reformulation | Reformulation écrite fidèle, par vidéo, en langue source |
+| 0. STT | Transcription audio → texte (Whisper local ou cloud ; les documents texte sont extraits sans STT) |
+| 1. Termes | Extraction des termes techniques candidats par source |
+| 2. Glossaire | Réconciliation cross-sources pour produire un glossaire master |
+| 3. Reformulation | Reformulation écrite fidèle, par source, en langue source |
 | 4. Structuration | Mise en forme Markdown avec titres, intro, conclusion, admonitions sémantiques (remarques, exemples, définitions, exercices) |
 | 5. Consolidation | Assemblage du document consolidé selon le **mode choisi** (cf. §4.3) : **ordonné** (1 source = 1 chapitre, contenu recopié) ou **refonte thématique** (le LLM agrège/restructure transversalement par thème) |
 | 6. Traduction | Production des artefacts dans toutes les langues de sortie demandées |
@@ -127,8 +127,8 @@ L'utilisateur configure **via l'interface** (et **uniquement** via l'interface) 
   **glossaire**, un fichier par langue) en **Markdown**, **PDF**, **HTML** ou
   **Word (`.docx`)** vers un dossier choisi. Les formats proposés se cochent dans
   **⚙ Réglages → Export** (aucun par défaut — opt-in).
-- **Traitement parallèle** : les phases par vidéo (transcription cloud,
-  extraction de termes, reformulation, structuration) traitent plusieurs vidéos
+- **Traitement parallèle** : les phases par source (transcription cloud,
+  extraction de termes, reformulation, structuration) traitent plusieurs sources
   simultanément, et les phases finales parallélisent traduction et cohérence ;
   le nombre d'appels concurrents est réglable. La transcription **locale** reste
   séquentielle (un seul GPU).
@@ -138,14 +138,14 @@ L'utilisateur configure **via l'interface** (et **uniquement** via l'interface) 
 L'interface principale (cockpit dense, thème **Clair Fluent**) affiche en
 temps réel :
 
-- **Une matrice 2D** : une ligne par vidéo, une colonne par phase. Chaque
+- **Une matrice 2D** : une ligne par source, une colonne par phase. Chaque
   cellule affiche le statut (en attente, en cours, succès, échec, sauté)
   avec un symbole **et une couleur** (vert succès, bleu en cours, gris
   attente, rouge échec, indigo sauté). Au survol : détail (timestamps,
   coût, retries, erreur éventuelle). En-têtes courts et lisibles (STT,
   Termes, Glossaire, Reformul., Structur., Consolid., Traduction,
   Cohérence).
-- **Cinq cartes d'indicateurs** : Statut, Vidéos, Phases, **Durée**,
+- **Six cartes d'indicateurs** : Statut, Sources, Phases, Langues, **Durée**,
   Coût. Chaque carte = icône + titre + valeur en grand + sous-info. La
   carte Durée est mise à jour chaque seconde tant que le Run tourne.
 - **Un panneau de logs** filtrable par sévérité, avec coloration
@@ -161,7 +161,7 @@ temps réel :
   - **Sommaire automatique** complet avec ancres GFM cliquables vers
     chaque section.
   - Chapitres et sections **numérotés hiérarchiquement** (1, 1.1, 1.1.1).
-  - Contenu des vidéos recopié tel quel (pas de réécriture par le LLM).
+  - Contenu des sources recopié tel quel (pas de réécriture par le LLM).
   - **Admonitions élégantes** : 📝 Remarque, 💡 Exemple, 📖 Définition,
     🎯 Exercice (blockquotes Markdown avec emoji, plus lisibles que les
     GFM `[!NOTE]` bruts). Les emoji s'affichent en Markdown, HTML et Word ; ils
@@ -174,8 +174,8 @@ temps réel :
     **Signification** (expansion littérale de l'acronyme dans sa langue
     d'origine — *Return On Investment* pour ROI, même dans un glossaire
     FR), **Définition** (contextuelle).
-- `per-video/{lang}/<video_id>.md` — un document Markdown autonome par
-  vidéo, avec son propre titre, intro, conclusion et admonitions
+- `per-video/{lang}/<source_id>.md` — un document Markdown autonome par
+  source, avec son propre titre, intro, conclusion et admonitions
   sémantiques.
 
 Tous les fichiers sont en **Markdown UTF-8**, ouvrables dans n'importe quel
@@ -220,7 +220,7 @@ document consolidé et le glossaire, **citées** (chapitre › section, cliquabl
 
 - Un **glossaire master** est construit en deux passes (extraction puis
   réconciliation) à partir des termes extraits indépendamment de chaque
-  vidéo.
+  source.
 - Les termes pertinents sont ré-injectés en contexte LLM lors de la
   reformulation, de la structuration et de la traduction pour garantir
   l'orthographe et le sens cohérents à travers tout le batch.

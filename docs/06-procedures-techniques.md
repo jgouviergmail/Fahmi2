@@ -282,7 +282,7 @@ sqlite3 "$env:APPDATA\Fahmi2\projects.db"
 .tables
 .schema phase_executions
 SELECT * FROM projects;
-SELECT run_id, phase_id, video_id, status FROM phase_executions
+SELECT run_id, phase_id, source_id, status FROM phase_executions
   WHERE run_id = '...' ORDER BY id;
 ```
 
@@ -354,7 +354,7 @@ python -m memory_profiler script.py
 ## 11. Ajouter une nouvelle phase au pipeline
 
 1. Créer `src/fahmi2/pipeline/handlers/phase_N_xxx.py` qui hérite de
-   `PhaseHandler`. Si la phase est **per-vidéo et parallélisable** (unités
+   `PhaseHandler`. Si la phase est **per-source et parallélisable** (unités
    indépendantes, I/O-bound), surcharger `max_parallel_workers(ctx)` pour
    retourner le pool voulu (défaut hérité : `1` = séquentiel). Pour une phase
    batch, paralléliser ses boucles internes via `core/concurrency/map_bounded`.

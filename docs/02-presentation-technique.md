@@ -102,14 +102,14 @@ Moteur d'exécution pur :
   `PhaseProgress`, `PhaseFinished`, `RetryAttempt`, `RunFinished`).
 - `PhaseHandler` ABC + `PhaseContext` (DI complet) ; `max_parallel_workers(ctx)`
   déclare le pool de la phase (défaut 1 = séquentiel ; surchargé par les phases
-  per-video indépendantes).
+  per-source indépendantes).
 - `PhaseRegistry` (ordre canonique des 8 phases).
 - `PipelineEngine` — boucle d'exécution avec checkpoint SQLite, retry
-  policy, événements, pause/cancel. Les phases **per-video** sont parallélisées
+  policy, événements, pause/cancel. Les phases **per-source** sont parallélisées
   via `core/concurrency/map_bounded` (pool borné par `ParallelismConfig` : STT
   cloud = `stt_cloud_workers`, phases LLM 1/3/4 = `llm_workers` ; STT local = 1,
   GPU unique). Les phases batch 5/6/7 parallélisent leurs boucles internes
-  (résumés vidéo, langue × document, langues) ; barrières aux phases batch 2 et 5.
+  (résumés par source, langue × document, langues) ; barrières aux phases batch 2 et 5.
 - 8 handlers dans `pipeline/handlers/` (un fichier par phase).
 - `pipeline/handlers/_base.py` — helpers communs (invoke LLM, parse JSON,
   build PhaseExecution succeeded, sélection top-K glossaire).
@@ -259,7 +259,7 @@ Qt PySide6 :
   - `cost_matrix` — viewmodel **générique** présentationnel (`CostMatrixSnapshot` :
     cellules `statut + coût`, totaux ligne/colonne/général) partagé par les deux
     dashboards (`build_cost_matrix`).
-  - `RunMatrixViewModel` — produit un `CostMatrixSnapshot` (vidéos × phases, coût
+  - `RunMatrixViewModel` — produit un `CostMatrixSnapshot` (sources × phases, coût
     par cellule via `list_phase_cells`, coût des phases batch en total de colonne).
   - `StatsStripViewModel` enrichi avec `started_at`, `finished_at`,
     `elapsed_seconds` pour piloter la carte Durée live.
@@ -269,12 +269,12 @@ Qt PySide6 :
 - `ui/widgets/` :
   - `StatCard` — carte d'indicateur réutilisable (icône + valeur + sous-info +
     accent), socle des bandes de stats des deux dashboards.
-  - `StatsStripWidget` — 5 cartes (Statut, Vidéos, Phases, Durée,
+  - `StatsStripWidget` — 6 cartes (Statut, Sources, Phases, Langues, Durée,
     Coût) bâties sur `StatCard`, avec un `QTimer` interne (1 s) qui rafraîchit la
     carte Durée tant que le Run est `RUNNING` ou `PAUSED`.
   - `CostMatrixView` — matrice de coût **générique** (`QTableView` + délégué) :
     glyphe de statut proéminent + coût secondaire par cellule, totaux mis en avant.
-    Partagée par les dashboards Génération (vidéos × phases) et Pédagogie
+    Partagée par les dashboards Génération (sources × phases) et Pédagogie
     (supports × langues). Libellés de statut/accents partagés (`ui/status_labels`).
   - `PedagogyProgressView` — bandeau de fraîcheur + bande de tuiles + `CostMatrixView`.
   - `ProjectsSidebar` — liste des projets préfixés par leurs **icônes de statut**
@@ -369,7 +369,7 @@ RunOrchestrator.execute(run, ctx)
         ▼
 PipelineEngine boucle sur les phases :
    pour chaque PhaseHandler dans l'ordre canonique :
-     pour chaque vidéo (si per-video) ou une seule fois (si batch) :
+     pour chaque source (si per-source) ou une seule fois (si batch) :
         1. check PauseToken (raise si cancel, wait si pause)
         2. lookup checkpoint SQLite (skip si SUCCEEDED)
         3. emit PhaseStarted
@@ -378,7 +378,7 @@ PipelineEngine boucle sur les phases :
         6. emit PhaseFinished
         │
         ▼
-[Sortie : Markdown par vidéo × langues, glossaire × langues, consolidé × langues]
+[Sortie : Markdown par source × langues, glossaire × langues, consolidé × langues]
 ```
 
 ## 4. Modèle de données
@@ -402,20 +402,21 @@ CREATE TABLE runs (
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 
-CREATE TABLE videos (
+CREATE TABLE sources (
   id TEXT PRIMARY KEY, run_id TEXT NOT NULL,
-  source_path TEXT NOT NULL, detected_language TEXT,
+  source_kind TEXT NOT NULL DEFAULT 'video',
+  source_location TEXT NOT NULL, detected_language TEXT,
   FOREIGN KEY (run_id) REFERENCES runs(id) ON DELETE CASCADE
 );
 
 CREATE TABLE phase_executions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  run_id TEXT NOT NULL, phase_id TEXT NOT NULL, video_id TEXT,
+  run_id TEXT NOT NULL, phase_id TEXT NOT NULL, source_id TEXT,
   status TEXT NOT NULL,
   started_at TEXT, finished_at TEXT,
   artifact_path TEXT, retry_count INTEGER NOT NULL DEFAULT 0,
   cost_usd REAL NOT NULL DEFAULT 0, error_json TEXT,
-  UNIQUE (run_id, phase_id, video_id),
+  UNIQUE (run_id, phase_id, source_id),
   FOREIGN KEY (run_id) REFERENCES runs(id) ON DELETE CASCADE
 );
 ```
@@ -424,7 +425,7 @@ CREATE TABLE phase_executions (
 > disque (`glossary_master.json` + `glossary.{lang}.md`), comme les autres
 > documents générés.
 
-Index : `idx_runs_project_id`, `idx_videos_run_id`,
+Index : `idx_runs_project_id`, `idx_sources_run_id`,
 `idx_phase_executions_run`, `idx_phase_executions_lookup`.
 
 **Soft migrations** appliquées automatiquement à l'ouverture
@@ -434,7 +435,7 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
   de socle jamais branchée — le glossaire est lu sur disque comme les autres
   documents générés.
 - Nettoyage rétroactif des doublons batch dans `phase_executions` (lignes
-  multiples avec `video_id IS NULL` pour la même `(run_id, phase_id)` —
+  multiples avec `source_id IS NULL` pour la même `(run_id, phase_id)` —
   SQLite traite `NULL` comme distinct dans une contrainte `UNIQUE`,
   ce qui faisait s'accumuler les lignes avant que le upsert ne gère
   explicitement le cas `NULL`). On ne conserve que la ligne `id` la
@@ -442,10 +443,10 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
 
 **`upsert_phase_execution`** distingue maintenant les deux cas :
 
-- `video_id` défini → `INSERT ... ON CONFLICT(run_id, phase_id,
-  video_id) DO UPDATE`.
-- `video_id IS NULL` (phases batch) → `DELETE FROM phase_executions
-  WHERE run_id = ? AND phase_id = ? AND video_id IS NULL` puis
+- `source_id` défini → `INSERT ... ON CONFLICT(run_id, phase_id,
+  source_id) DO UPDATE`.
+- `source_id IS NULL` (phases batch) → `DELETE FROM phase_executions
+  WHERE run_id = ? AND phase_id = ? AND source_id IS NULL` puis
   `INSERT`. C'est la seule manière fiable d'unifier les phases batch
   dans SQLite.
 
@@ -453,18 +454,18 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
 
 ```
 <workspace_folder>/
-├── transcripts/{video_id}.json       ← Phase 0 STT
-├── audio/{video_id}.wav              ← Audio extrait (supprimable)
-├── candidates/{video_id}.json        ← Phase 1
+├── transcripts/{source_id}.json       ← Phase 0 STT
+├── audio/{source_id}.wav              ← Audio extrait (supprimable)
+├── candidates/{source_id}.json        ← Phase 1
 ├── glossary_master.json              ← Phase 2
-├── reformulated/{video_id}.md        ← Phase 3
-├── structured/{video_id}.md          ← Phase 4
+├── reformulated/{source_id}.md        ← Phase 3
+├── structured/{source_id}.md          ← Phase 4
 └── consolidated_master.md            ← Phase 5
 
 <output_dir>/
 ├── consolidated.{lang}.md            ← Phases 6 + 7
 ├── glossary.{lang}.md
-└── per-video/{lang}/{video_id}.md
+└── per-video/{lang}/{source_id}.md
 
 <emplacement>/pedagogy/                ← Supports pédagogiques (SP2)
 ├── manifest.json                     ← Fraîcheur (hash réglages + mtime source/langue)

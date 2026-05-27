@@ -66,7 +66,7 @@ DeepSeek v4), entièrement paramétrable via l'interface graphique.
   prompts…) avec validation Jinja2 et restauration au défaut.
 - **Checkpointing fin par phase** : aucun travail perdu en cas de pause,
   annulation ou crash.
-- **Traitement parallèle** : vidéos (phases per-vidéo) et supports pédagogiques
+- **Traitement parallèle** : sources (phases per-source) et supports pédagogiques
   traités concurremment, avec un nombre de workers réglable, pour réduire le
   délai sur les gros lots.
 - **Concept de Projet persistant** avec historique de runs et reprise.

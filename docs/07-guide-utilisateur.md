@@ -76,7 +76,7 @@ Validez : l'aperçu des sources détectées s'affiche dans le cockpit.
    **Supports pédagogiques** (flashcards, QCM, fiches… à générer une fois la
    Génération terminée — voir §8).
 2. (Optionnel mais recommandé) Cliquez sur **💵 Estimer le coût** pour
-   voir le budget prévu avant de lancer. Le dialogue affiche les vidéos
+   voir le budget prévu avant de lancer. Le dialogue affiche les sources
    détectées, la durée totale, une **décomposition par phase** (en tenant
    compte du mode raisonnement si activé) et un **total sous forme de
    fourchette indicative** (≈ X, fourchette ±33 %), avec un avertissement
@@ -85,7 +85,7 @@ Validez : l'aperçu des sources détectées s'affiche dans le cockpit.
 
 La grille au centre commence à se remplir :
 
-- Une **ligne par vidéo**.
+- Une **ligne par source** (vidéo, audio, document ou lien YouTube).
 - Une **colonne par phase** (8 colonnes : STT, Termes, Glossaire,
   Reformul., Structur., Consolid., Traduction, Cohérence).
 - Chaque case montre l'avancement avec **couleur + symbole** :
@@ -95,11 +95,12 @@ La grille au centre commence à se remplir :
   - `✗` rouge : échec (rare, voir [Dépannage](#10-dépannage))
   - `↷` indigo : sauté (déjà fait au précédent run)
 
-En haut, **5 cartes** affichent :
+En haut, **6 cartes** affichent :
 
 - **Statut** du projet (En cours / En pause / Terminé…)
-- **Vidéos** terminées (ex: *« 3 / 12 »*)
+- **Sources** terminées (ex: *« 3 / 12 »*)
 - **Phases** terminées (ex: *« 15 / 96 »*)
+- **Langues** de sortie (nombre de langues produites)
 - **Durée** écoulée (mise à jour en direct chaque seconde)
 - **Coût** cumulé en USD (avec plafond si défini)
 
@@ -137,7 +138,7 @@ s'ouvre directement sur le bon dossier. Vous y trouverez :
 ├── glossary.en.md         ← Le glossaire en anglais
 └── per-video/
     ├── fr/
-    │   ├── XXX.md         ← Un fichier par vidéo (FR)
+    │   ├── XXX.md         ← Un fichier par source (FR)
     │   └── …
     └── en/
         └── …
@@ -279,7 +280,7 @@ Vous avez fixé un plafond et il est atteint. Pour continuer :
 2. Augmentez ou supprimez le plafond.
 3. Revenez sur le projet, cliquez sur **▶ Reprendre**.
 
-### Une vidéo a échoué (case `✗`)
+### Une source a échoué (case `✗`)
 
 Double-cliquez sur la case rouge pour voir le détail de l'erreur. Pour
 relancer juste cette phase : cliquer *« Rejouer cette phase »* dans la
@@ -363,7 +364,7 @@ Pas besoin de tout refaire — la reprise saute les phases déjà bien faites.
 ### Glossaire homogène
 
 Le glossaire est construit en deux passes (extraction puis réconciliation
-cross-vidéos). Plus votre dossier contient de vidéos sur le même domaine,
+cross-sources). Plus votre dossier contient de sources sur le même domaine,
 plus le glossaire sera riche et cohérent. Les acronymes (ROI, PIB,
 IFRS…) sont accompagnés de leur **signification d'origine** en plus de
 la définition — celle-ci reste dans la langue où l'acronyme a été forgé

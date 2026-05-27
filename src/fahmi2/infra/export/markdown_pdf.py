@@ -36,7 +36,7 @@ from pathlib import Path
 
 import markdown
 from bs4 import BeautifulSoup
-from bs4.element import NavigableString
+from bs4.element import NavigableString, PageElement
 from reportlab.lib.fonts import addMapping
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.textsplit import wordSplit
@@ -264,6 +264,11 @@ _CJK_PREWRAP_SKIP_ANCESTORS: frozenset[str] = frozenset({"td", "th", "pre", "cod
 #: et retrait supplémentaire pour l'indentation d'une puce/élément de liste.
 _CJK_PREWRAP_SAFETY_PT = 6.0
 _CJK_PREWRAP_LIST_INDENT_PT = 20.0
+#: ``wordSplit`` peut **dépasser** sa largeur cible d'un caractère (il inclut le glyphe
+#: qui fait franchir la limite). On réserve donc en plus la largeur d'un idéogramme
+#: pleine chasse pour que ce dépassement reste **dans** la marge (sinon le dernier
+#: caractère sort à droite). Mesuré sur la police active à la taille du bloc.
+_CJK_WIDEST_CHAR = "中"
 #: Règle CSS de coupe CJK des cellules de tableau : le seul contexte où le mode CJK
 #: de xhtml2pdf 0.2.17 fonctionne (n'est injectée que pour les langues CJK).
 _PDF_TABLE_CJK_WORD_WRAP_RULE = "td, th { -pdf-word-wrap: CJK; }"
@@ -702,36 +707,89 @@ def _contains_cjk(text: str | None) -> bool:
     return text is not None and _CJK_CODEPOINT_RE.search(text) is not None
 
 
-def _nearest_prewrap_tag(node: NavigableString) -> str | None:
-    """Balise de pré-formatage la plus proche d'un nœud texte CJK.
+def _cjk_line_break_offsets(
+    flat_text: str, width: float, font_name: str, font_size: float
+) -> list[int]:
+    """Décale les points de coupe (offsets) d'un texte CJK à une largeur donnée.
 
-    Remonte les ancêtres : renvoie ``None`` si l'on rencontre d'abord un ancêtre où
-    l'on s'abstient (cellule de tableau, ``pre``/``code``), sinon le nom de la
-    première balise pré-formatable rencontrée (``p``, ``li``, titre…).
+    Utilise ``wordSplit`` (coupe caractère par caractère pour le CJK, préserve les
+    mots latins) puis convertit les lignes en **offsets cumulés** dans ``flat_text``.
 
     Args:
-        node: Nœud texte (BeautifulSoup) contenant du CJK.
+        flat_text: Texte aplati du bloc (CJK + éventuel latin inline).
+        width: Largeur cible (réserve d'un idéogramme déjà retranchée par l'appelant).
+        font_name: Police CJK enregistrée.
+        font_size: Taille de police du bloc.
 
     Returns:
-        Le nom de balise pré-formatable, ou ``None`` si aucun / contexte exclu.
+        Les offsets (positions de caractère dans ``flat_text``) où insérer un ``<br/>``.
     """
-    for parent in node.parents:
-        if parent.name in _CJK_PREWRAP_SKIP_ANCESTORS:
-            return None
-        if parent.name in _CJK_PREWRAP_TAGS:
-            return str(parent.name)
-    return None
+    lines = [line for _extra, line in wordSplit(flat_text, width, font_name, font_size)]
+    offsets: list[int] = []
+    position = 0
+    for line in lines[:-1]:
+        position += len(line)
+        offsets.append(position)
+    return offsets
+
+
+def _insert_cjk_breaks(
+    text_nodes: list[NavigableString], offsets: list[int], soup: BeautifulSoup
+) -> None:
+    """Insère des ``<br/>`` aux offsets donnés à travers les nœuds texte d'un bloc.
+
+    Les offsets sont relatifs au texte **aplati** du bloc (concaténation des nœuds).
+    Un offset tombant **au début** d'un nœud (frontière avec un élément inline, ex.
+    après un terme en gras) insère un ``<br/>`` avant ce nœud ; un offset **interne**
+    scinde le nœud autour d'un ``<br/>``. Préserve donc la mise en forme inline.
+
+    Args:
+        text_nodes: Nœuds texte du bloc, dans l'ordre du document.
+        offsets: Positions de coupe dans le texte aplati (triées, ``0 < offset < len``).
+        soup: Soupe BeautifulSoup (fabrique des balises ``<br/>``).
+    """
+    starts: list[tuple[NavigableString, int]] = []
+    position = 0
+    for node in text_nodes:
+        starts.append((node, position))
+        position += len(str(node))
+    node_at_start = {start: node for node, start in starts}
+    within: dict[int, tuple[NavigableString, list[int]]] = {}
+    for offset in sorted(offsets):
+        boundary_node = node_at_start.get(offset)
+        if boundary_node is not None and offset > 0:
+            boundary_node.insert_before(soup.new_tag("br"))
+            continue
+        for node, start in starts:
+            if start < offset < start + len(str(node)):
+                within.setdefault(id(node), (node, []))[1].append(offset - start)
+                break
+    for node, local_offsets in within.values():
+        text = str(node)
+        pieces: list[PageElement] = []
+        previous = 0
+        for local in sorted(local_offsets):
+            pieces.append(NavigableString(text[previous:local]))
+            pieces.append(soup.new_tag("br"))
+            previous = local
+        pieces.append(NavigableString(text[previous:]))
+        for piece in pieces:
+            node.insert_before(piece)
+        node.extract()
 
 
 def _prewrap_cjk_runs(body_html: str, *, font_name: str, landscape: bool) -> str:
     """Insère des ``<br/>`` aux points de coupe CJK de la prose (hors tableaux).
 
     ReportLab ne coupe les lignes qu'aux espaces ; le chinois s'écrit sans espaces et
-    déborderait. On découpe chaque **nœud texte** CJK avec ``reportlab.lib.textsplit.
-    wordSplit`` (coupe caractère par caractère, sans insérer d'espace, en préservant
-    les mots latins) à la largeur disponible de la page, puis on remplace le nœud par
-    ses lignes séparées de ``<br/>``. Les cellules de tableau sont laissées à la règle
-    CSS ``-pdf-word-wrap: CJK`` (cf. ``_PDF_TABLE_CJK_WORD_WRAP_RULE``).
+    déborderait. On opère **par bloc** (paragraphe, élément de liste, titre…) : on
+    **aplatit** tout le texte du bloc — y compris les fragments en **gras/italique** —
+    puis on calcule les coupures sur ce flux complet et on insère les ``<br/>`` aux bons
+    offsets (cf. ``_insert_cjk_breaks``). Indispensable : couper **nœud par nœud** place
+    la 1ʳᵉ ligne du texte qui suit un terme en gras *après* ce terme → débordement à
+    droite. La largeur cible réserve **un idéogramme** car ``wordSplit`` dépasse sa cible
+    du dernier caractère ajouté (cf. ``_CJK_WIDEST_CHAR``). Les cellules de tableau sont
+    laissées à la règle CSS ``-pdf-word-wrap: CJK`` (cf. ``_PDF_TABLE_CJK_WORD_WRAP_RULE``).
 
     Args:
         body_html: Corps HTML rendu (après ``_layout_table_cells``).
@@ -744,21 +802,34 @@ def _prewrap_cjk_runs(body_html: str, *, font_name: str, landscape: bool) -> str
     soup = BeautifulSoup(body_html, "html.parser")
     page_width = _A4_HEIGHT_PT if landscape else _A4_WIDTH_PT
     available = page_width - 2 * _PDF_PAGE_MARGIN_PT
-    for text_node in list(soup.find_all(string=_contains_cjk)):
-        tag = _nearest_prewrap_tag(text_node)
-        if tag is None:
+    skip_ancestors = list(_CJK_PREWRAP_SKIP_ANCESTORS)
+    prewrap_tags = list(_CJK_PREWRAP_TAGS)
+    for block in soup.find_all(prewrap_tags):
+        if block.find_parent(skip_ancestors) is not None:
             continue
-        font_size = _PDF_HEADING_FONT_SIZES_PT.get(tag, _PDF_FONT_SIZE_BODY_PT)
-        indent = _CJK_PREWRAP_LIST_INDENT_PT if tag == "li" else 0.0
-        width = available - indent - _CJK_PREWRAP_SAFETY_PT
-        lines = [line for _extra, line in wordSplit(str(text_node), width, font_name, font_size)]
-        if len(lines) <= 1:
+        # Texte **directement** porté par ce bloc (hors blocs imbriqués, qui seront
+        # traités à leur tour) et hors contenu préformaté.
+        text_nodes = [
+            node
+            for node in block.descendants
+            if isinstance(node, NavigableString)
+            and node.find_parent(prewrap_tags) is block
+            and node.find_parent(skip_ancestors) is None
+        ]
+        flat_text = "".join(str(node) for node in text_nodes)
+        if not _contains_cjk(flat_text):
             continue
-        for index, line in enumerate(lines):
-            if index:
-                text_node.insert_before(soup.new_tag("br"))
-            text_node.insert_before(NavigableString(line))
-        text_node.extract()
+        font_size = _PDF_HEADING_FONT_SIZES_PT.get(block.name, _PDF_FONT_SIZE_BODY_PT)
+        indent = (
+            _CJK_PREWRAP_LIST_INDENT_PT
+            if block.name == "li" or block.find_parent("li") is not None
+            else 0.0
+        )
+        char_width = pdfmetrics.stringWidth(_CJK_WIDEST_CHAR, font_name, font_size)
+        width = available - indent - char_width - _CJK_PREWRAP_SAFETY_PT
+        offsets = _cjk_line_break_offsets(flat_text, width, font_name, font_size)
+        if offsets:
+            _insert_cjk_breaks(text_nodes, offsets, soup)
     return str(soup)
 
 

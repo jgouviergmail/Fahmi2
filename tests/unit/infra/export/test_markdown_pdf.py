@@ -297,9 +297,17 @@ def test_prewrap_cjk_leaves_latin_paragraph_untouched() -> None:
 
 @pytest.mark.skipif(not cjk_font_available(), reason="Police CJK indisponible")
 def test_render_pdf_chinese_prose_wraps_within_margin(tmp_path: Path) -> None:
-    # Un long paragraphe chinois ne déborde plus de la marge droite (portrait).
+    # Un long paragraphe chinois mêlant des termes latins (comme le résumé réel) ne
+    # déborde pas de la marge droite. NB : on compose la CTM (``cm``) avec la matrice
+    # texte (``tm``) — ``tm[4]`` seul est relatif au cadre et masquait le décalage de
+    # marge ; et ``wordSplit`` peut dépasser sa cible d'un caractère (cf. réserve
+    # ``_CJK_WIDEST_CHAR``), d'où ce garde-fou.
     out = tmp_path / "zh_wrap.pdf"
-    long_cjk = "财务分析解读企业健康状况会计信息的可靠性是关键" * 8
+    long_cjk = (
+        "本文件整合了关于理解财务分析至关重要的视频内容揭示了其基础概念"
+        "WACC、Free Cash Flow、EBIDA并展示了如何将运营决策与财务绩效联系起来"
+        "强调了财务数据可靠性的关键重要性面向管理者企业家和投资者"
+    ) * 2
     render_markdown_to_pdf(f"# 标题\n\n{long_cjk}\n", out, language=Language.ZH)
     right_edge = float(markdown_pdf._A4_WIDTH_PT) - markdown_pdf._PDF_PAGE_MARGIN_PT
     overflow: list[float] = []
@@ -307,11 +315,44 @@ def test_render_pdf_chinese_prose_wraps_within_margin(tmp_path: Path) -> None:
     def _visit(text: str, cm: Any, tm: Any, font_dict: Any, font_size: Any) -> None:
         if not text.strip():
             return
+        abs_x = tm[4] * cm[0] + tm[5] * cm[2] + cm[4]
         width = pdfmetrics.stringWidth(
             text, markdown_pdf._CJK_FONT_NAME, font_size or markdown_pdf._PDF_FONT_SIZE_BODY_PT
         )
-        if tm[4] + width > right_edge + 1:
-            overflow.append(tm[4] + width)
+        if abs_x + width > right_edge + 1:
+            overflow.append(abs_x + width)
+
+    for page in PdfReader(io.BytesIO(out.read_bytes())).pages:
+        page.extract_text(visitor_text=_visit)
+    assert overflow == []
+
+
+@pytest.mark.skipif(not cjk_font_available(), reason="Police CJK indisponible")
+def test_render_pdf_chinese_bold_term_wraps_within_margin(tmp_path: Path) -> None:
+    # Régression (capture utilisateur, section conclusion) : un **terme en gras** au
+    # milieu d'un long paragraphe chinois ne doit pas faire déborder la ligne. Le
+    # découpage par nœud plaçait le texte suivant le gras *après* lui sur la même
+    # ligne → débordement ; le découpage par bloc (flux complet) le corrige.
+    out = tmp_path / "zh_bold.pdf"
+    md = (
+        "财务信息的可靠性不是理论上的奢侈品它是市场正常运作和保护所有"
+        "**利益相关方**"
+        "的基本条件正如我们通过安然和麦道夫案例所看到的会计欺诈的后果远远"
+        "超出了违规公司的范围它影响股东员工债权人和整个经济生态系统\n"
+    )
+    render_markdown_to_pdf(md, out, language=Language.ZH)
+    right_edge = float(markdown_pdf._A4_WIDTH_PT) - markdown_pdf._PDF_PAGE_MARGIN_PT
+    overflow: list[float] = []
+
+    def _visit(text: str, cm: Any, tm: Any, font_dict: Any, font_size: Any) -> None:
+        if not text.strip():
+            return
+        abs_x = tm[4] * cm[0] + tm[5] * cm[2] + cm[4]
+        width = pdfmetrics.stringWidth(
+            text, markdown_pdf._CJK_FONT_NAME, font_size or markdown_pdf._PDF_FONT_SIZE_BODY_PT
+        )
+        if abs_x + width > right_edge + 1:
+            overflow.append(abs_x + width)
 
     for page in PdfReader(io.BytesIO(out.read_bytes())).pages:
         page.extract_text(visitor_text=_visit)

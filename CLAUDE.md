@@ -378,7 +378,11 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
   `<br/>` (`_prewrap_cjk_runs` via `reportlab…wordSplit` + BeautifulSoup, largeur dérivée
   des constantes A4/marge) et les **cellules** par la règle CSS `-pdf-word-wrap: CJK`
   (seul contexte où elle fonctionne) ; les deux ne s'appliquent qu'aux langues CJK
-  (`_CJK_LANGUAGES`). **Police PDF par langue** : latin
+  (`_CJK_LANGUAGES`). Le pré-formatage opère **par bloc** (paragraphe/li/titre) sur le
+  **texte aplati** — fragments **gras/italiques inclus** : couper nœud par nœud plaçait
+  la 1ʳᵉ ligne suivant un terme en gras *après* ce terme → débordement à droite. La
+  largeur cible réserve **un idéogramme** (`_CJK_WIDEST_CHAR`) car `wordSplit` dépasse sa
+  cible du dernier caractère ajouté. **Police PDF par langue** : latin
   (fr/en/de/es/it) → Arial système (résolu en Helvetica par xhtml2pdf, couvre Latin-1) ;
   **chinois** → Microsoft YaHei (`msyh.ttc` système, chargé via `subfontIndex`) injecté
   dans `xhtml2pdf.default.DEFAULT_FONT` (garde `EXPORT.NO_CJK_FONT` si absent) ;

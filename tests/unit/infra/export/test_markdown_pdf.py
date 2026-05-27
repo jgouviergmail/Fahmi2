@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import io
+import re
 import unicodedata
 from pathlib import Path
 from typing import Any, cast
 
 import pytest
 from pypdf import PdfReader
+from reportlab.pdfbase import pdfmetrics
 
 from fahmi2.core.errors.exceptions import ConfigError
 from fahmi2.core.slugify import slugify_anchor
@@ -160,6 +162,89 @@ def test_render_pdf_strips_emoji_without_crash(tmp_path: Path) -> None:
     text = PdfReader(io.BytesIO(pdf)).pages[0].extract_text()
     assert "📖" not in text
     assert "Définition" in text
+
+
+def test_prewrap_cjk_short_paragraph_is_unchanged() -> None:
+    # Un passage CJK court (qui tient sur une ligne) n'est pas pré-coupé.
+    markdown_pdf._ensure_pdf_fonts_registered()
+    markdown_pdf._ensure_cjk_font_registered()
+    body = "<p>财务分析</p>"
+    result = markdown_pdf._prewrap_cjk_runs(
+        body, font_name=markdown_pdf._CJK_FONT_NAME, landscape=False
+    )
+    assert "<br" not in result
+
+
+@pytest.mark.skipif(not cjk_font_available(), reason="Police CJK indisponible")
+def test_prewrap_cjk_breaks_long_paragraph_preserving_text() -> None:
+    markdown_pdf._ensure_pdf_fonts_registered()
+    markdown_pdf._ensure_cjk_font_registered()
+    long_cjk = "财务分析解读企业健康状况" * 20  # bien plus large qu'une ligne
+    body = f"<p>{long_cjk}</p>"
+    result = markdown_pdf._prewrap_cjk_runs(
+        body, font_name=markdown_pdf._CJK_FONT_NAME, landscape=False
+    )
+    assert "<br" in result  # des points de coupe ont été insérés
+    # Aucun caractère n'est perdu (on n'a fait qu'insérer des <br/>).
+    assert re.sub(r"<[^>]+>", "", result) == long_cjk
+
+
+@pytest.mark.skipif(not cjk_font_available(), reason="Police CJK indisponible")
+def test_prewrap_cjk_skips_table_cells() -> None:
+    # Les cellules sont laissées à la règle CSS -pdf-word-wrap: CJK (pas de <br/>).
+    markdown_pdf._ensure_pdf_fonts_registered()
+    markdown_pdf._ensure_cjk_font_registered()
+    long_cjk = "财务分析解读企业健康状况" * 20
+    body = f"<table><tr><td>{long_cjk}</td></tr></table>"
+    result = markdown_pdf._prewrap_cjk_runs(
+        body, font_name=markdown_pdf._CJK_FONT_NAME, landscape=False
+    )
+    assert "<br" not in result
+
+
+def test_prewrap_cjk_leaves_latin_paragraph_untouched() -> None:
+    # Un paragraphe latin (sans CJK) n'est jamais pré-coupé, même très long.
+    markdown_pdf._ensure_pdf_fonts_registered()
+    body = "<p>" + "alpha beta gamma " * 40 + "</p>"
+    result = markdown_pdf._prewrap_cjk_runs(
+        body, font_name=markdown_pdf._PDF_FONT_REGULAR, landscape=False
+    )
+    assert "<br" not in result
+
+
+@pytest.mark.skipif(not cjk_font_available(), reason="Police CJK indisponible")
+def test_render_pdf_chinese_prose_wraps_within_margin(tmp_path: Path) -> None:
+    # Un long paragraphe chinois ne déborde plus de la marge droite (portrait).
+    out = tmp_path / "zh_wrap.pdf"
+    long_cjk = "财务分析解读企业健康状况会计信息的可靠性是关键" * 8
+    render_markdown_to_pdf(f"# 标题\n\n{long_cjk}\n", out, language=Language.ZH)
+    right_edge = float(markdown_pdf._A4_WIDTH_PT) - markdown_pdf._PDF_PAGE_MARGIN_PT
+    overflow: list[float] = []
+
+    def _visit(text: str, cm: Any, tm: Any, font_dict: Any, font_size: Any) -> None:
+        if not text.strip():
+            return
+        width = pdfmetrics.stringWidth(
+            text, markdown_pdf._CJK_FONT_NAME, font_size or markdown_pdf._PDF_FONT_SIZE_BODY_PT
+        )
+        if tm[4] + width > right_edge + 1:
+            overflow.append(tm[4] + width)
+
+    for page in PdfReader(io.BytesIO(out.read_bytes())).pages:
+        page.extract_text(visitor_text=_visit)
+    assert overflow == []
+
+
+@pytest.mark.skipif(not cjk_font_available(), reason="Police CJK indisponible")
+def test_render_pdf_chinese_table_does_not_crash(tmp_path: Path) -> None:
+    # Tableau à contenu CJK long en paysage : règle -pdf-word-wrap: CJK, pas de crash.
+    out = tmp_path / "zh_tbl.pdf"
+    cell = "财务分析解读企业健康状况会计信息" * 6
+    md = f"# 术语表\n\n| 术语 | 定义 |\n|---|---|\n| 资本 | {cell} |\n"
+    render_markdown_to_pdf(
+        md, out, landscape=True, table_column_widths=("30%", "70%"), language=Language.ZH
+    )
+    assert out.read_bytes()[:5] == b"%PDF-"
 
 
 @pytest.mark.skipif(not cjk_font_available(), reason="Police CJK indisponible")

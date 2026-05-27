@@ -11,7 +11,10 @@ par format, écriture) vit dans ``app.document_export``.
 **Police PDF par langue** (toutes système Windows, rien à bundler) : latin
 (fr/en/de/es/it) → ``Arial`` (résolu en Helvetica par xhtml2pdf, couvre le Latin-1) ;
 **chinois** → ``Microsoft YaHei`` (``msyh.ttc``, chargé via ``subfontIndex`` et injecté
-dans ``xhtml2pdf.default.DEFAULT_FONT`` ; garde ``EXPORT.NO_CJK_FONT`` si absente) ;
+dans ``xhtml2pdf.default.DEFAULT_FONT`` ; garde ``EXPORT.NO_CJK_FONT`` si absente). Le
+chinois s'écrivant **sans espaces** (ReportLab ne coupe qu'aux espaces), la prose CJK est
+**pré-coupée** par ``<br/>`` (cf. ``_prewrap_cjk_runs``) et les cellules de tableau par la
+règle CSS ``-pdf-word-wrap: CJK`` — sinon le texte déborderait de la marge ;
 **arabe** → ``Arial`` (glyphes arabes) + ``direction:rtl`` + tag ``pdf:language`` qui
 déclenche le reshaping contextuel et la bidi. Quelques tirets Unicode rares
 (U+2010/2011/2012/2015) non rendus par ReportLab+Arial (carré ``□``) sont normalisés
@@ -32,7 +35,12 @@ from html import escape
 from pathlib import Path
 
 import markdown
+from bs4 import BeautifulSoup
+from bs4.element import NavigableString
 from reportlab.lib.fonts import addMapping
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.textsplit import wordSplit
+from reportlab.lib.units import cm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from xhtml2pdf import default as xhtml2pdf_default
@@ -173,30 +181,77 @@ th {{ background: #f5f7fb; }}
 </html>
 """
 
-#: Gabarit d'un document PDF (xhtml2pdf) : ``@page`` (orientation), police +
-#: direction par langue, styles de titres/tableaux. ``{orientation}`` =
-#: ``portrait``/``landscape`` ; ``{font_family}`` = famille résolue (latin/CJK/
-#: arabe) ; ``{direction}`` = ``ltr``/``rtl`` ; ``{language_tag}`` = tag
+#: Géométrie de page A4 (pt, source ReportLab) et marge — **source unique** du calcul
+#: de largeur disponible (pré-formatage CJK) ET de la marge ``@page`` du gabarit.
+_A4_WIDTH_PT, _A4_HEIGHT_PT = A4
+_PDF_PAGE_MARGIN_CM = 1.8
+_PDF_PAGE_MARGIN_PT = _PDF_PAGE_MARGIN_CM * cm
+
+#: Tailles de police (pt) — **source unique** : injectées dans le gabarit CSS et
+#: réutilisées pour estimer la largeur d'un texte lors du pré-formatage CJK.
+_PDF_FONT_SIZE_BODY_PT = 10.5
+_PDF_HEADING_FONT_SIZES_PT: dict[str, float] = {
+    "h1": 19.0,
+    "h2": 14.0,
+    "h3": 12.0,
+    "h4": 11.0,
+    "h5": 11.0,
+    "h6": 11.0,
+}
+
+#: Gabarit d'un document PDF (xhtml2pdf) : ``@page`` (orientation, marge), police +
+#: direction par langue, styles de titres/tableaux. Placeholders : ``{orientation}`` =
+#: ``portrait``/``landscape`` ; ``{margin_cm}`` = marge ; ``{font_family}`` = famille
+#: résolue (latin/CJK/arabe) ; ``{direction}`` = ``ltr``/``rtl`` ; ``{body_size}`` /
+#: ``{h1_size}``…``{h456_size}`` = tailles de police ; ``{cjk_table_rule}`` = règle de
+#: coupe CJK des cellules (langues CJK) ou chaîne vide ; ``{language_tag}`` = tag
 #: ``pdf:language`` (arabe) ou chaîne vide ; ``{body}`` = corps HTML du Markdown.
 _PDF_HTML_TEMPLATE = """<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
-@page {{ size: a4 {orientation}; margin: 1.8cm; }}
-body {{ font-family: "{font_family}"; font-size: 10.5pt; line-height: 1.4;
+@page {{ size: a4 {orientation}; margin: {margin_cm}cm; }}
+body {{ font-family: "{font_family}"; font-size: {body_size}pt; line-height: 1.4;
         color: #1f2328; direction: {direction}; }}
-h1 {{ font-size: 19pt; color: #0a4f93; }}
-h2 {{ font-size: 14pt; color: #0a4f93; }}
-h3 {{ font-size: 12pt; color: #0a4f93; }}
-h4, h5, h6 {{ font-size: 11pt; color: #0a4f93; }}
+h1 {{ font-size: {h1_size}pt; color: #0a4f93; }}
+h2 {{ font-size: {h2_size}pt; color: #0a4f93; }}
+h3 {{ font-size: {h3_size}pt; color: #0a4f93; }}
+h4, h5, h6 {{ font-size: {h456_size}pt; color: #0a4f93; }}
 li {{ margin-bottom: 2pt; }}
 table {{ border-collapse: collapse; width: 100%; }}
 th, td {{ border: 0.5pt solid #d0d7de; padding: 3pt 5pt; text-align: left;
          vertical-align: top; }}
 th {{ background: #f5f7fb; }}
 a {{ color: #0a4f93; text-decoration: none; }}
+{cjk_table_rule}
 </style></head><body>
 {language_tag}{body}
 </body></html>
 """
+
+#: Langues à écriture **sans espaces** : ReportLab ne coupe les lignes qu'aux espaces,
+#: et le mode ``-pdf-word-wrap: CJK`` de xhtml2pdf 0.2.17 plante sur ``<p>``/``<li>``.
+#: On pré-formate donc leur prose (cf. :func:`_prewrap_cjk_runs`). Extensible.
+_CJK_LANGUAGES: frozenset[Language] = frozenset({Language.ZH})
+
+#: Détection d'un texte CJK (idéogrammes unifiés + Ext. A, ponctuation, compatibilité,
+#: pleine chasse) : un nœud contenant l'un de ces caractères est pré-formaté.
+_CJK_CODEPOINT_RE = re.compile(
+    "[　-〿㐀-䶿一-鿿豈-﫿＀-￯]"
+)
+
+#: Balises dont le **texte** est pré-formaté (un ``<br/>`` aux points de coupe CJK).
+_CJK_PREWRAP_TAGS: frozenset[str] = frozenset(
+    {"p", "li", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6"}
+)
+#: Ancêtres où l'on s'**abstient** de pré-formater : cellules (coupe gérée par la règle
+#: CSS ``td, th``) et contenus préformatés.
+_CJK_PREWRAP_SKIP_ANCESTORS: frozenset[str] = frozenset({"td", "th", "pre", "code"})
+#: Marge de sécurité (pt) retranchée de la largeur estimée (variabilité des métriques)
+#: et retrait supplémentaire pour l'indentation d'une puce/élément de liste.
+_CJK_PREWRAP_SAFETY_PT = 6.0
+_CJK_PREWRAP_LIST_INDENT_PT = 20.0
+#: Règle CSS de coupe CJK des cellules de tableau : le seul contexte où le mode CJK
+#: de xhtml2pdf 0.2.17 fonctionne (n'est injectée que pour les langues CJK).
+_PDF_TABLE_CJK_WORD_WRAP_RULE = "td, th { -pdf-word-wrap: CJK; }"
 
 #: Découpe d'une ligne de tableau et de ses cellules (tables Markdown simples,
 #: sans imbrication) pour l'aménagement PDF (remplissage des vides + largeurs).
@@ -499,6 +554,78 @@ def _layout_table_cells(body: str, column_widths: tuple[str, ...] | None) -> str
     return _TABLE_ROW_RE.sub(_fix_row, body)
 
 
+def _contains_cjk(text: str | None) -> bool:
+    """Indique si un texte contient au moins un caractère CJK.
+
+    Args:
+        text: Texte d'un nœud (``None`` pour les nœuds sans contenu textuel).
+
+    Returns:
+        ``True`` si ``text`` contient un caractère CJK (cf. ``_CJK_CODEPOINT_RE``).
+    """
+    return text is not None and _CJK_CODEPOINT_RE.search(text) is not None
+
+
+def _nearest_prewrap_tag(node: NavigableString) -> str | None:
+    """Balise de pré-formatage la plus proche d'un nœud texte CJK.
+
+    Remonte les ancêtres : renvoie ``None`` si l'on rencontre d'abord un ancêtre où
+    l'on s'abstient (cellule de tableau, ``pre``/``code``), sinon le nom de la
+    première balise pré-formatable rencontrée (``p``, ``li``, titre…).
+
+    Args:
+        node: Nœud texte (BeautifulSoup) contenant du CJK.
+
+    Returns:
+        Le nom de balise pré-formatable, ou ``None`` si aucun / contexte exclu.
+    """
+    for parent in node.parents:
+        if parent.name in _CJK_PREWRAP_SKIP_ANCESTORS:
+            return None
+        if parent.name in _CJK_PREWRAP_TAGS:
+            return str(parent.name)
+    return None
+
+
+def _prewrap_cjk_runs(body_html: str, *, font_name: str, landscape: bool) -> str:
+    """Insère des ``<br/>`` aux points de coupe CJK de la prose (hors tableaux).
+
+    ReportLab ne coupe les lignes qu'aux espaces ; le chinois s'écrit sans espaces et
+    déborderait. On découpe chaque **nœud texte** CJK avec ``reportlab.lib.textsplit.
+    wordSplit`` (coupe caractère par caractère, sans insérer d'espace, en préservant
+    les mots latins) à la largeur disponible de la page, puis on remplace le nœud par
+    ses lignes séparées de ``<br/>``. Les cellules de tableau sont laissées à la règle
+    CSS ``-pdf-word-wrap: CJK`` (cf. ``_PDF_TABLE_CJK_WORD_WRAP_RULE``).
+
+    Args:
+        body_html: Corps HTML rendu (après ``_layout_table_cells``).
+        font_name: Police CJK enregistrée (estimation de largeur).
+        landscape: Orientation de la page (largeur disponible portrait vs paysage).
+
+    Returns:
+        Le corps HTML avec les longs passages CJK pré-coupés.
+    """
+    soup = BeautifulSoup(body_html, "html.parser")
+    page_width = _A4_HEIGHT_PT if landscape else _A4_WIDTH_PT
+    available = page_width - 2 * _PDF_PAGE_MARGIN_PT
+    for text_node in list(soup.find_all(string=_contains_cjk)):
+        tag = _nearest_prewrap_tag(text_node)
+        if tag is None:
+            continue
+        font_size = _PDF_HEADING_FONT_SIZES_PT.get(tag, _PDF_FONT_SIZE_BODY_PT)
+        indent = _CJK_PREWRAP_LIST_INDENT_PT if tag == "li" else 0.0
+        width = available - indent - _CJK_PREWRAP_SAFETY_PT
+        lines = [line for _extra, line in wordSplit(str(text_node), width, font_name, font_size)]
+        if len(lines) <= 1:
+            continue
+        for index, line in enumerate(lines):
+            if index:
+                text_node.insert_before(soup.new_tag("br"))
+            text_node.insert_before(NavigableString(line))
+        text_node.extract()
+    return str(soup)
+
+
 def render_markdown_to_pdf(
     markdown_text: str,
     output_path: Path,
@@ -550,10 +677,21 @@ def render_markdown_to_pdf(
     )
     body = render_markdown_body(normalized)
     body = _layout_table_cells(body, table_column_widths)
+    cjk_table_rule = ""
+    if language in _CJK_LANGUAGES:
+        body = _prewrap_cjk_runs(body, font_name=render_font, landscape=landscape)
+        cjk_table_rule = _PDF_TABLE_CJK_WORD_WRAP_RULE
     document = _PDF_HTML_TEMPLATE.format(
         orientation="landscape" if landscape else "portrait",
+        margin_cm=_PDF_PAGE_MARGIN_CM,
         font_family=font_family,
         direction=direction,
+        body_size=_PDF_FONT_SIZE_BODY_PT,
+        h1_size=_PDF_HEADING_FONT_SIZES_PT["h1"],
+        h2_size=_PDF_HEADING_FONT_SIZES_PT["h2"],
+        h3_size=_PDF_HEADING_FONT_SIZES_PT["h3"],
+        h456_size=_PDF_HEADING_FONT_SIZES_PT["h4"],
+        cjk_table_rule=cjk_table_rule,
         language_tag=language_tag,
         body=body,
     )

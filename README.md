@@ -1,21 +1,23 @@
 # Fahmi2
 
-> Transformez vos cours — **vidéos, fichiers audio, liens YouTube ou documents
-> texte** (PDF, Word, Markdown, txt) — en un **document Markdown consolidé et
-> structuré** (reformulé, chapitré, **glossaire**, **multilingue** : français,
-> anglais, allemand, espagnol, italien, chinois, arabe),
-> assemblé **dans l'ordre** des sources ou par **refonte thématique** transversale.
-> Puis exploitez ce corpus sans effort : **supports de révision** (flashcards,
-> QCM, fiches, examen blanc…, exports Anki/PDF/HTML/Word) et **Dialogue** (chat ancré
-> sur le cours, réponses **citées**). Le tout en **quelques minutes** et **sans
-> intervention manuelle**.
+> Transformez vos entrants — **vidéos, fichiers audio, liens YouTube ou documents
+> texte** (PDF, Word, Markdown, txt) — en un **document consolidé et structuré**
+> (reformulé, chapitré, avec **glossaire**, **multilingue** : français, anglais,
+> allemand, espagnol, italien, chinois, arabe), assemblé **dans l'ordre** des sources
+> ou par **refonte thématique** transversale. Le consolidé et le glossaire
+> s'**exportent** en **Markdown / PDF / HTML / Word (`.docx`)** — le **chinois** et
+> l'**arabe** (droite-à-gauche) y sont rendus correctement. Puis exploitez ce corpus
+> sans effort : **supports de révision** (flashcards, QCM, fiches, examen blanc…,
+> exports **Anki / Markdown / PDF / HTML / Word**) et **Dialogue** (chat ancré sur le
+> cours, réponses **citées** et diffusées en **streaming**). Le tout en **quelques
+> minutes** et **sans intervention manuelle**.
 
 Application desktop Windows, mono-utilisateur, **installation en double-clic**
-(aucune dépendance système à installer, ffmpeg bundlé). Interface organisée en
-**onglets de fonctionnalité** — **Génération** · **Supports pédagogiques** ·
-**Dialogue**. La génération repose sur un pipeline en 8 phases (ingestion
-polymorphe — transcription Whisper ou extraction de texte — puis 7 phases LLM
-DeepSeek v4), entièrement paramétrable via l'interface graphique.
+(aucune dépendance système à installer — **ffmpeg et yt-dlp bundlés**). Interface
+organisée en **onglets de fonctionnalité** — **Génération** · **Supports
+pédagogiques** · **Dialogue**. La génération repose sur un pipeline en 8 phases
+(ingestion polymorphe — transcription Whisper ou extraction de texte — puis 7 phases
+LLM DeepSeek v4), entièrement paramétrable via l'interface graphique.
 
 ## Capacités
 
@@ -59,7 +61,14 @@ DeepSeek v4), entièrement paramétrable via l'interface graphique.
   admonitions élégantes (blockquote + emoji).
 - **Glossaire en tableau** 4 colonnes Terme / Acronyme / Signification /
   Définition, avec l'expansion d'acronyme conservée dans sa langue
-  d'origine (ROI = *Return On Investment* même dans un glossaire FR).
+  d'origine (ROI = *Return On Investment* même dans un glossaire FR). Les **termes**
+  sont **localisés par langue cible** (un `glossary.{langue}.md` par langue).
+- **Export documentaire** (opt-in) : le **consolidé** et le **glossaire**
+  s'exportent en **Markdown / PDF / HTML / Word (`.docx`)**, un fichier par langue ;
+  les **supports** ajoutent l'**Anki `.apkg`**. Le rendu PDF gère le **chinois**
+  (police système Microsoft YaHei, coupe de ligne automatique) et l'**arabe**
+  (droite-à-gauche + liaison contextuelle, y compris en Word) ; le **glossaire**
+  s'exporte en **paysage** (PDF et Word).
 - **Estimation de coût pré-run** prenant en compte le thinking par
   phase + **plafond budget** avec arrêt propre.
 - **Édition des prompts** depuis l'UI (menu Édition → Modifier les
@@ -106,7 +115,9 @@ DeepSeek v4), entièrement paramétrable via l'interface graphique.
    avant le lancement.
 9. Cliquer sur **▶ Lancer**. Récupérer les livrables Markdown à la fin
    via le bouton **📂 Dossier de sortie** (ou dans
-   `<emplacement>/generation/output/`).
+   `<emplacement>/generation/output/`). Pour obtenir le consolidé et le
+   glossaire en **PDF / HTML / Word**, cocher d'abord les formats dans
+   **⚙ Réglages → Export**, puis utiliser le bouton **📦 Exporter**.
 
 Voir [docs/07-guide-utilisateur.md](docs/07-guide-utilisateur.md) pour le
 guide détaillé.

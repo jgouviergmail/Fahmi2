@@ -37,7 +37,9 @@ from fahmi2.domain.generation import (
     GENERATION_OUTPUT_SUBDIR,
     GENERATION_WORKSPACE_SUBDIR,
 )
+from fahmi2.domain.glossary import localize_glossary_terms
 from fahmi2.domain.ids import ConversationId, ProjectId
+from fahmi2.domain.languages import language_display_label
 from fahmi2.domain.project import Project
 from fahmi2.infra.embeddings.interface import EmbeddingProvider
 from fahmi2.infra.embeddings.openai_adapter import OpenAIEmbeddingProvider
@@ -47,6 +49,7 @@ from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.pedagogy.labels import format_glossary_terms
 from fahmi2.pedagogy.sources import (
+    available_content_languages,
     glossary_master_mtime_ns,
     load_glossary_master_terms,
     resolve_content_language,
@@ -207,12 +210,18 @@ class ChatController(QObject):
         if project is None:
             return
         self._project = project
-        self._load_corpus(project)
+        default_language = self._default_conversation_language(project)
+        self._load_corpus(project, default_language)
+        available = available_content_languages(self._generation_output_dir(project))
+        self._view.set_languages(
+            [(lang.value, language_display_label(lang)) for lang in available],
+            default_language.value,
+        )
         self._store = ChatConversationStore(
             artifacts=FsArtifactStore(), chat_dir=self._chat_dir(project)
         )
         self._conversation = self._vm.start_conversation(
-            self._content_language or Language.FR
+            self._content_language or default_language
         )
         self._refresh_conversations()
         self._view.show_conversation(())
@@ -233,15 +242,22 @@ class ChatController(QObject):
         """
         if self._project is None or self._thread is not None:
             return
-        if self._compute_corpus_key(self._project) != self._corpus_key:
-            self._load_corpus(self._project)
+        target = self._active_target_language(self._project)
+        if self._compute_corpus_key(self._project, target) != self._corpus_key:
+            self._load_corpus(self._project, target)
             self._apply_state()
 
-    def _resolve_content_language(self, project: Project) -> Language | None:
-        """Résout la langue de contenu du corpus (doc consolidé disponible).
+    def _resolve_content_language(
+        self, project: Project, target: Language
+    ) -> Language | None:
+        """Résout la langue de contenu du corpus pour une langue **cible**.
+
+        Préfère le doc de la langue cible (celle de la conversation) ; repli sur la
+        langue source de la génération, puis sur la première langue produite.
 
         Args:
             project: Projet concerné.
+            target: Langue désirée (langue de la conversation active).
 
         Returns:
             La langue de contenu, ou ``None`` si aucun consolidé n'existe.
@@ -252,41 +268,84 @@ class ChatController(QObject):
             else Language.FR
         )
         return resolve_content_language(
-            self._generation_output_dir(project), source_language, source_language
+            self._generation_output_dir(project), target, source_language
         )
 
-    def _load_corpus(self, project: Project) -> None:
-        """(Re)dérive le corpus (chunks + glossaire + langue) et l'empreinte.
+    def _default_conversation_language(self, project: Project) -> Language:
+        """Langue par défaut d'une nouvelle conversation.
+
+        La langue source si elle est produite, sinon la première langue produite,
+        sinon la source (cas sans aucun document : corpus vide géré en aval).
+
+        Args:
+            project: Projet concerné.
+
+        Returns:
+            La langue par défaut.
+        """
+        source_language = (
+            project.generation.source_language
+            if project.generation is not None
+            else Language.FR
+        )
+        available = available_content_languages(self._generation_output_dir(project))
+        if source_language in available:
+            return source_language
+        return available[0] if available else source_language
+
+    def _active_target_language(self, project: Project) -> Language:
+        """Langue cible courante = celle de la conversation active (ou défaut).
+
+        Args:
+            project: Projet concerné.
+
+        Returns:
+            La langue de la conversation active, sinon la langue par défaut.
+        """
+        if self._conversation is not None:
+            return self._conversation.language
+        return self._default_conversation_language(project)
+
+    def _load_corpus(self, project: Project, target: Language) -> None:
+        """(Re)dérive le corpus (chunks + glossaire + langue) pour une langue cible.
+
+        Le corpus, le glossaire injecté et l'index sémantique suivent la langue de la
+        conversation : en changer recharge le corpus dans cette langue.
 
         Args:
             project: Projet dont on charge le corpus.
+            target: Langue désirée (langue de la conversation active).
         """
         generation_dir = self._generation_dir(project)
-        self._content_language = self._resolve_content_language(project)
+        self._content_language = self._resolve_content_language(project, target)
         if self._content_language is not None:
             self._chunks = load_corpus_chunks(
                 generation_output_dir=self._generation_output_dir(project),
                 generation_dir=generation_dir,
                 language=self._content_language,
             )
+            # Glossaire injecté pré-localisé (terme + définition) dans la langue de contenu.
             self._glossary_text = format_glossary_terms(
-                load_glossary_master_terms(generation_dir)
+                localize_glossary_terms(
+                    load_glossary_master_terms(generation_dir), self._content_language
+                )
             )
         else:
             self._chunks = ()
             self._glossary_text = ""
-        self._corpus_key = self._compute_corpus_key(project)
+        self._corpus_key = self._compute_corpus_key(project, target)
 
-    def _compute_corpus_key(self, project: Project) -> _CorpusKey:
+    def _compute_corpus_key(self, project: Project, target: Language) -> _CorpusKey:
         """Empreinte de fraîcheur courante du corpus (lue sur disque).
 
         Args:
             project: Projet concerné.
+            target: Langue désirée (langue de la conversation active).
 
         Returns:
             ``(langue de contenu, mtime du consolidé, mtime du glossaire)``.
         """
-        content_language = self._resolve_content_language(project)
+        content_language = self._resolve_content_language(project, target)
         consolidated_mtime = (
             source_mtime_ns(self._generation_output_dir(project), content_language)
             if content_language is not None
@@ -377,12 +436,24 @@ class ChatController(QObject):
         self._thread = thread
         thread.start()
 
-    def new_conversation(self) -> None:
-        """Démarre une nouvelle conversation vide."""
+    def new_conversation(self, language_code: str = "") -> None:
+        """Démarre une nouvelle conversation vide dans la langue choisie.
+
+        Args:
+            language_code: Code de la langue désirée (ex. ``"en"``) ; vide → langue
+                par défaut (source si produite, sinon 1ʳᵉ langue produite). Le corpus,
+                les citations et la réponse suivront cette langue.
+        """
         if self._project is None:
             return
+        target = (
+            Language(language_code)
+            if language_code
+            else self._default_conversation_language(self._project)
+        )
+        self._load_corpus(self._project, target)
         self._conversation = self._vm.start_conversation(
-            self._content_language or Language.FR
+            self._content_language or target
         )
         self._view.show_conversation(())
         self._view.set_total_cost(0.0)
@@ -394,12 +465,14 @@ class ChatController(QObject):
         Args:
             conversation_id: Identifiant de la conversation.
         """
-        if self._store is None:
+        if self._store is None or self._project is None:
             return
         conversation = self._store.load(ConversationId(value=conversation_id))
         if conversation is None:
             return
         self._conversation = conversation
+        # Le corpus suit la langue de la conversation (références dans sa langue).
+        self._load_corpus(self._project, conversation.language)
         self._view.show_conversation(conversation.messages)
         self._view.set_total_cost(conversation.total_cost_usd())
         self._apply_state()

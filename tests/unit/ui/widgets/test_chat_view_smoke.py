@@ -86,6 +86,22 @@ def test_no_corpus_disables_input(qtbot: QtBot) -> None:
     assert not view._banner.isHidden()  # noqa: SLF001 — visible (widget non monté)
 
 
+def test_language_selector_visibility_and_signal(qtbot: QtBot) -> None:
+    view = ChatView()
+    qtbot.addWidget(view)
+    # Une seule langue produite → combo masqué (comportement mono-langue inchangé).
+    view.set_languages([("fr", "Français")], "fr")
+    assert view._language_combo.isHidden()  # noqa: SLF001
+    # Plusieurs langues → combo visible, langue présélectionnée.
+    view.set_languages([("fr", "Français"), ("en", "Anglais")], "en")
+    assert not view._language_combo.isHidden()  # noqa: SLF001
+    assert view._language_combo.currentData() == "en"  # noqa: SLF001
+    # Le clic « Nouvelle conversation » émet le code de la langue sélectionnée.
+    with qtbot.waitSignal(view.new_conversation_requested, timeout=1000) as blocker:
+        view._on_new_conversation()  # noqa: SLF001 — smoke d'assemblage
+    assert blocker.args == ["en"]
+
+
 def test_error_state_keeps_input_active_for_retry(qtbot: QtBot) -> None:
     view = ChatView()
     qtbot.addWidget(view)

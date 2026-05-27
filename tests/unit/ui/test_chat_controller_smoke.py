@@ -98,6 +98,38 @@ def test_refresh_corpus_noop_when_unchanged(qtbot: QtBot, tmp_path: Path) -> Non
     assert controller._chunks is before  # noqa: SLF001 — pas de re-dérivation inutile
 
 
+def test_new_conversation_in_other_language_switches_corpus(
+    qtbot: QtBot, tmp_path: Path
+) -> None:
+    # Une conversation créée dans une autre langue lit le document de CETTE langue
+    # (corpus + langue de réponse), pas celui de la langue source.
+    controller, _view, _pid = _make_controller(tmp_path, with_corpus=True, qtbot=qtbot)
+    out_dir = tmp_path / "ws" / "generation" / "output"
+    consolidated_doc_path(out_dir, Language.EN).write_text(
+        "# Course\n\n# 1. Basics\n\nGDP measures wealth.\n", encoding="utf-8"
+    )
+    controller.new_conversation("en")
+    assert controller._conversation is not None  # noqa: SLF001
+    assert controller._conversation.language is Language.EN  # noqa: SLF001
+    assert controller._content_language is Language.EN  # noqa: SLF001
+    assert {c.chapter_title for c in controller._chunks} == {"Basics"}  # noqa: SLF001
+
+
+def test_language_selector_populated_with_produced_languages(
+    qtbot: QtBot, tmp_path: Path
+) -> None:
+    controller, view, pid = _make_controller(tmp_path, with_corpus=True, qtbot=qtbot)
+    out_dir = tmp_path / "ws" / "generation" / "output"
+    consolidated_doc_path(out_dir, Language.EN).write_text(_DOC, encoding="utf-8")
+    controller.on_project_selected(pid)  # re-sélection → re-peuple le sélecteur
+    assert not view._language_combo.isHidden()  # noqa: SLF001 — 2 langues → visible
+    codes = {
+        view._language_combo.itemData(i)  # noqa: SLF001
+        for i in range(view._language_combo.count())  # noqa: SLF001
+    }
+    assert codes == {"fr", "en"}
+
+
 def test_no_corpus_state(qtbot: QtBot, tmp_path: Path) -> None:
     _ctrl, view, _pid = _make_controller(tmp_path, with_corpus=False, qtbot=qtbot)
     assert not view._input.isEnabled()  # noqa: SLF001 — NO_CORPUS désactive la saisie

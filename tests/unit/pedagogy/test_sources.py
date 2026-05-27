@@ -7,6 +7,7 @@ from pathlib import Path
 from fahmi2.domain.enums import Language
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.pedagogy.sources import (
+    available_content_languages,
     consolidated_doc_path,
     glossary_master_mtime_ns,
     load_chapters,
@@ -94,3 +95,14 @@ def test_resolve_content_language_falls_back_to_first_available(
 
 def test_resolve_content_language_none_when_no_doc(tmp_path: Path) -> None:
     assert resolve_content_language(tmp_path, Language.FR, Language.FR) is None
+
+
+def test_available_content_languages_lists_produced_in_enum_order(tmp_path: Path) -> None:
+    _write_doc(tmp_path, Language.EN)
+    _write_doc(tmp_path, Language.FR)
+    # Ordre de l'enum (fr avant en), indépendant de l'ordre d'écriture.
+    assert available_content_languages(tmp_path) == [Language.FR, Language.EN]
+
+
+def test_available_content_languages_empty_when_none(tmp_path: Path) -> None:
+    assert available_content_languages(tmp_path) == []

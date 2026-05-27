@@ -14,6 +14,7 @@ import html
 from PySide6.QtCore import QPoint, Qt, Signal
 from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import (
+    QComboBox,
     QDialog,
     QDialogButtonBox,
     QHBoxLayout,
@@ -34,6 +35,9 @@ from fahmi2.infra.export.markdown_pdf import render_markdown_fragment
 from fahmi2.ui._buttons import BUTTON_ROLE_PRIMARY, make_role_button
 
 _NEW_CONVERSATION_LABEL = "＋ Nouvelle conversation"
+_LANGUAGE_COMBO_TOOLTIP = (
+    "Langue du corpus pour une nouvelle conversation : lecture, citations et réponse."
+)
 _DELETE_CONVERSATION_LABEL = "Supprimer la conversation"
 _SEND_LABEL = "Envoyer"
 _INPUT_PLACEHOLDER = "Pose une question sur le cours…"
@@ -56,7 +60,7 @@ class ChatView(QWidget):
     """Vue conversationnelle (passive) de l'onglet Dialogue."""
 
     question_submitted = Signal(str)
-    new_conversation_requested = Signal()
+    new_conversation_requested = Signal(str)  # code langue ("" = langue par défaut)
     conversation_selected = Signal(str)
     conversation_delete_requested = Signal(str)
     citation_clicked = Signal(str)
@@ -82,9 +86,13 @@ class ChatView(QWidget):
         self._conversations.customContextMenuRequested.connect(
             self._on_conversation_menu
         )
+        self._language_combo = QComboBox(self)
+        self._language_combo.setToolTip(_LANGUAGE_COMBO_TOOLTIP)
+        self._language_combo.setVisible(False)  # masqué tant qu'il n'y a pas >1 langue
         new_button = QPushButton(_NEW_CONVERSATION_LABEL, self)
-        new_button.clicked.connect(self.new_conversation_requested)
+        new_button.clicked.connect(self._on_new_conversation)
         left = QVBoxLayout()
+        left.addWidget(self._language_combo)
         left.addWidget(new_button)
         left.addWidget(self._conversations, stretch=1)
         root.addLayout(left)
@@ -128,6 +136,35 @@ class ChatView(QWidget):
             entry = QListWidgetItem(title)
             entry.setData(_CONVERSATION_ID_ROLE, conversation_id)
             self._conversations.addItem(entry)
+
+    def set_languages(self, items: list[tuple[str, str]], current: str) -> None:
+        """Peuple le sélecteur de langue du corpus (utilisé par une nouvelle conversation).
+
+        Masqué s'il y a 0 ou 1 langue produite (aucun choix à offrir → comportement
+        mono-langue inchangé).
+
+        Args:
+            items: Liste de ``(code_langue, libellé)`` des langues produites.
+            current: Code de la langue à présélectionner.
+        """
+        self._language_combo.blockSignals(True)
+        self._language_combo.clear()
+        for code, label in items:
+            self._language_combo.addItem(label, code)
+        index = self._language_combo.findData(current)
+        if index >= 0:
+            self._language_combo.setCurrentIndex(index)
+        self._language_combo.blockSignals(False)
+        self._language_combo.setVisible(len(items) > 1)
+
+    def _current_language_code(self) -> str:
+        """Code de la langue actuellement sélectionnée (``""`` si aucune)."""
+        data = self._language_combo.currentData()
+        return str(data) if data is not None else ""
+
+    def _on_new_conversation(self) -> None:
+        """Émet la demande de nouvelle conversation avec la langue sélectionnée."""
+        self.new_conversation_requested.emit(self._current_language_code())
 
     def show_conversation(self, messages: tuple[ChatMessage, ...]) -> None:
         """Affiche une conversation complète (réinitialise le fil).

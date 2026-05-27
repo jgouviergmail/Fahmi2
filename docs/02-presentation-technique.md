@@ -179,9 +179,14 @@ Adapters externes (ports/adapters) :
   GUID stables, sous-decks par support, tags).
 - `infra/export/markdown_pdf.py` — rendu Markdown → HTML (`render_markdown_body`,
   partagé) → PDF via `xhtml2pdf`/ReportLab ; **polices système par langue** (Arial
-  latin/arabe, Microsoft YaHei chinois, RTL + reshaping arabe).
+  latin/arabe, Microsoft YaHei chinois, RTL + reshaping arabe). Deux corrections de
+  rendu PDF : retrait des caractères **sans glyphe** (émojis → carrés blancs sinon ;
+  `_strip_unrenderable_for_pdf`) et **pré-coupe des retours à la ligne du chinois**
+  (`_prewrap_cjk_runs` via `wordSplit`/BeautifulSoup ; règle `-pdf-word-wrap: CJK`
+  pour les cellules) — réservées aux langues CJK / au PDF (HTML et Word gèrent
+  nativement).
 - `infra/export/markdown_docx.py` — rendu Markdown → HTML → **DOCX** via `htmldocx`
-  (s'appuie sur `python-docx`).
+  (s'appuie sur `python-docx`) ; orientation **paysage** optionnelle (glossaire).
 
 ### 2.6 Couche `app`
 
@@ -487,11 +492,12 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
 > produit une fois par `markdown_pdf.render_markdown_body` (extensions `tables` + `toc`),
 > réutilisé par : le HTML (document autonome, CSS intégré) ; le **PDF** via `xhtml2pdf`
 > (moteur ReportLab — pagination réelle, **polices système par langue** : Arial pour le
-> latin/arabe, Microsoft YaHei pour le chinois, RTL + reshaping arabe) ; le **DOCX** via
-> `markdown_docx` (htmldocx → python-docx ; Word gère nativement CJK et bidi). Les services
-> `app/generation_export.py` et `app/pedagogy_export.py` collectent les documents (par
-> langue) ; ils réutilisent les `.md` rendus, **pas** de re-rendu (l'`artifact_reader` est
-> réservé à l'Anki).
+> latin/arabe, Microsoft YaHei pour le chinois, RTL + reshaping arabe ; retrait des
+> émojis sans glyphe + pré-coupe des retours à la ligne CJK) ; le **DOCX** via
+> `markdown_docx` (htmldocx → python-docx ; Word gère nativement CJK et bidi ; paysage
+> optionnel). Les services `app/generation_export.py` et `app/pedagogy_export.py`
+> collectent les documents (par langue, le **glossaire** en paysage) ; ils réutilisent
+> les `.md` rendus, **pas** de re-rendu (l'`artifact_reader` est réservé à l'Anki).
 
 ## 5. Conventions de code
 

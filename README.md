@@ -183,9 +183,11 @@ par fonctionnalité.
 Export des supports en **Anki `.apkg`** (flashcards / cloze / QCM, ré-import sans
 doublon), **Markdown**, **PDF**, **HTML** et **Word (`.docx`)** (documents
 autonomes, sujet / corrigé séparés). Le rendu PDF gère le **chinois** (police
-Microsoft YaHei système) et l'**arabe** (droite-à-gauche + liaison contextuelle).
+Microsoft YaHei système, retours à la ligne automatiques) et l'**arabe**
+(droite-à-gauche + liaison contextuelle) ; le **glossaire** s'exporte en paysage
+(PDF et Word).
 
-1024 tests passants, `mypy --strict` et `ruff` propres sur 389 fichiers.
+1038 tests passants, `mypy --strict` et `ruff` propres sur 389 fichiers.
 
 ## Licence
 

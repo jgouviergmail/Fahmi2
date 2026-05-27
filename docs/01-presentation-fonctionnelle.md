@@ -164,7 +164,9 @@ temps réel :
   - Contenu des vidéos recopié tel quel (pas de réécriture par le LLM).
   - **Admonitions élégantes** : 📝 Remarque, 💡 Exemple, 📖 Définition,
     🎯 Exercice (blockquotes Markdown avec emoji, plus lisibles que les
-    GFM `[!NOTE]` bruts).
+    GFM `[!NOTE]` bruts). Les emoji s'affichent en Markdown, HTML et Word ; ils
+    sont **omis à l'export PDF** (le moteur de rendu ne sait pas dessiner les
+    emoji couleur — le texte de l'admonition, lui, reste intact).
   - Conclusion générale.
 - `glossary.{lang}.md` — glossaire en **tableau Markdown 4 colonnes**
   trié alphabétiquement :
@@ -271,7 +273,8 @@ document consolidé et le glossaire, **citées** (chapitre › section, cliquabl
 - Formats de sortie : génération et supports pédagogiques exportables en
   **Markdown**, **PDF**, **HTML** et **Word (`.docx`)** ; les supports ajoutent
   l'**Anki `.apkg`**. Le rendu PDF gère le **chinois** (police système Microsoft
-  YaHei) et l'**arabe** (droite-à-gauche + liaison contextuelle).
+  YaHei, **retours à la ligne** automatiques) et l'**arabe** (droite-à-gauche +
+  liaison contextuelle). Le **glossaire** s'exporte en **paysage** (PDF et Word).
 - **Dialogue** : chat ancré sur le corpus (citations + streaming), retrieval
   lexical (hors-ligne) ou sémantique (embeddings OpenAI ; recommandé pour le
   chinois).

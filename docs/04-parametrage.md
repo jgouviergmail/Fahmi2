@@ -153,7 +153,7 @@ L'écart résiduel est de l'ordre de ±20 % selon le contenu des vidéos.
 | **Delete audio after STT** | Supprime les WAV extraits après transcription | `True` (économise du disque) |
 | **Transcriptions en parallèle** (`stt_cloud_workers`) | Transcriptions STT cloud simultanées (effectif ; sans effet en STT local : 1 GPU). Réglable 1–8 (page Transcription). | 3 |
 | **Appels LLM en parallèle** (`llm_workers`) | Appels LLM simultanés du pipeline (phases per-video + traduction/cohérence/résumés). Effectif ; la limite DeepSeek étant par concurrence, une valeur élevée reste sûre. Réglable 1–64 (page Modèle & coût). | 16 |
-| **Formats d'export** (`export_formats`) | Formats proposés par le bouton **Exporter** de l'onglet Génération (page **Export**) : **Markdown / PDF / HTML / Word (`.docx`)**. À l'export, le **consolidé** et le **glossaire** sont écrits, un fichier par langue, dans le format choisi (`consolidated.{lang}.<ext>`, `glossary.{lang}.<ext>`). Le PDF gère le chinois (police YaHei) et l'arabe (RTL). | aucun (opt-in) |
+| **Formats d'export** (`export_formats`) | Formats proposés par le bouton **Exporter** de l'onglet Génération (page **Export**) : **Markdown / PDF / HTML / Word (`.docx`)**. À l'export, le **consolidé** et le **glossaire** sont écrits, un fichier par langue, dans le format choisi (`consolidated.{lang}.<ext>`, `glossary.{lang}.<ext>`). Le PDF gère le chinois (police YaHei, retours à la ligne automatiques) et l'arabe (RTL) ; le glossaire est mis en **paysage** (PDF et Word). | aucun (opt-in) |
 
 ## 3. Surcouche des prompts (avancé)
 

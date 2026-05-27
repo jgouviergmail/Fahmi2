@@ -337,7 +337,9 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
   cloze (mécanique `{{cN::}}` préservée). MD/PDF/HTML/DOCX consomment le Markdown rendu
   tel quel ; le **corps HTML est rendu une fois** par `render_markdown_body` (extensions
   `tables`+`toc`), réutilisé par HTML, PDF **et** DOCX (`markdown_docx` → htmldocx →
-  python-docx ; Word gère nativement CJK et bidi arabe, rien à déclarer côté DOCX).
+  python-docx ; Word gère nativement CJK, coupe de ligne et bidi arabe, rien à déclarer
+  côté DOCX ; l'**orientation paysage** — option `landscape`, ex: glossaire — est posée
+  sur les sections du document via `WD_ORIENT.LANDSCAPE` + permutation largeur/hauteur).
   **Rendu PDF/HTML (`infra/export/markdown_pdf`)** : le **PDF est rendu à partir du
   HTML via `xhtml2pdf`** (moteur ReportLab, Python pur, *bundleable*) — vraie
   pagination (listes/tableaux multi-pages), typo CSS, orientation paysage. Gotchas :
@@ -345,19 +347,31 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
   (2) sommaire **cliquable** via l'extension `toc` + `core/slugify.slugify_anchor`
   (ids de titres = ancres du sommaire ; `slugify_anchor` conserve les lettres Unicode
   → ancres CJK/arabes valides) ; (3) `app.document_export.ExportDocument`
-  porte les **options PDF par document** (`pdf_landscape`, `pdf_column_widths`) + la
-  **langue** — le **glossaire** s'exporte en paysage + largeurs dédiées ; (4) xhtml2pdf
-  n'honore les largeurs de colonnes que posées sur **chaque** cellule et effondre les
-  cellules vides → `_layout_table_cells` (largeurs + remplissage `&nbsp;`) ; (5) ReportLab+
-  Arial ne rend pas U+2010/2011/2012/2015 (carré) → `_normalize_for_pdf` les
-  normalise (em-dash/en-dash conservés). **Police PDF par langue** : latin
+  porte l'**orientation `landscape`** (PDF **et** DOCX), les **largeurs de colonnes PDF**
+  (`pdf_column_widths`) et la **langue** — le **glossaire** s'exporte en paysage (PDF +
+  DOCX) + largeurs dédiées (PDF) ; (4) xhtml2pdf n'honore les largeurs de colonnes que
+  posées sur **chaque** cellule et effondre les cellules vides → `_layout_table_cells`
+  (largeurs + remplissage `&nbsp;`) ; (5) ReportLab+Arial ne rend pas U+2010/2011/2012/2015
+  (carré) → `_normalize_for_pdf` les normalise (em-dash/en-dash conservés) ; (6) plus
+  largement, tout caractère **sans glyphe** dans la police active (émojis décoratifs
+  📖/📝/💡/🎯…) est **retiré** avant rendu (`_strip_unrenderable_for_pdf` ; couverture
+  via `pdfmetrics.getFont(...).face.charToGlyph`, catégories Cc/Cf/Zs/Zl/Zp conservées
+  dont ZWJ/RLM pour l'arabe) — sinon ReportLab dessine un carré (pas d'émojis couleur,
+  pas de repli par glyphe) ; HTML/DOCX, eux, les conservent ; (7) le **chinois s'écrit
+  sans espaces** et ReportLab ne coupe qu'aux espaces (le mode CSS `-pdf-word-wrap: CJK`
+  de xhtml2pdf 0.2.17 plante sur `<p>`/`<li>`) → la prose CJK est **pré-coupée** par
+  `<br/>` (`_prewrap_cjk_runs` via `reportlab…wordSplit` + BeautifulSoup, largeur dérivée
+  des constantes A4/marge) et les **cellules** par la règle CSS `-pdf-word-wrap: CJK`
+  (seul contexte où elle fonctionne) ; les deux ne s'appliquent qu'aux langues CJK
+  (`_CJK_LANGUAGES`). **Police PDF par langue** : latin
   (fr/en/de/es/it) → Arial système (résolu en Helvetica par xhtml2pdf, couvre Latin-1) ;
   **chinois** → Microsoft YaHei (`msyh.ttc` système, chargé via `subfontIndex`) injecté
   dans `xhtml2pdf.default.DEFAULT_FONT` (garde `EXPORT.NO_CJK_FONT` si absent) ;
   **arabe** → Arial (glyphes arabes) + `direction:rtl` + tag `<pdf:language name="arabic"/>`
   qui déclenche le reshaping contextuel + bidi (`arabic-reshaper`/`python-bidi`, transitifs
-  xhtml2pdf). `_text_direction`/`_RTL_LANGUAGES` = source unique de direction (PDF + HTML).
-  **Polices toutes système Windows — rien à bundler.**
+  xhtml2pdf). `_text_direction`/`_RTL_LANGUAGES` = source unique de direction (PDF + HTML) ;
+  tailles de police et marge `@page` **centralisées** (source unique gabarit CSS ↔ calcul
+  de largeur du pré-formatage CJK). **Polices toutes système Windows — rien à bundler.**
 - **Erreurs → UI** : une exception levée par un handler **doit** être une
   `Fahmi2Error` (code + user_message + technical_details). Le moteur la convertit
   en `ErrorInfo`, la propage dans `PhaseFinished.error`, et `generation_controller._to_log_event`

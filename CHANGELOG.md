@@ -5,6 +5,15 @@ Toutes les évolutions notables du projet Fahmi2.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] — 2026-05-28
+
+### Modifié — Dialogue : langue indiquée dans la liste des conversations
+
+- Chaque conversation de la liste latérale est désormais **préfixée par son code
+  langue** (ex. « EN · what is ebida ? »). Une conversation gardant une langue **fixe**
+  (lecture, citations et réponse), ce préfixe lève l'ambiguïté entre conversations de
+  langues différentes — auparavant indiscernables dans la liste.
+
 ## [1.4.1] — 2026-05-28
 
 ### Ajouté — Dialogue : langue du corpus sélectionnable

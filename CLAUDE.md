@@ -132,7 +132,8 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   **lue/citée ET la langue de réponse** ; un sélecteur (peuplé par
   `pedagogy.sources.available_content_languages`) la choisit à la création d'une
   conversation (parmi les `consolidated.{lang}.md` produits ; masqué si une seule
-  langue). Le corpus, le glossaire injecté (pré-localisé terme + définition) et
+  langue ; la liste latérale **préfixe** chaque conversation par son code langue, la
+  langue d'une conversation étant **fixe**). Le corpus, le glossaire injecté (pré-localisé terme + définition) et
   l'index `.npz` (déjà **par langue**, construit **paresseusement**) suivent ;
   `_resolve_content_language(project, target)` préfère la langue de la conversation,
   repli source puis 1ʳᵉ produite.

@@ -171,6 +171,9 @@ pour le détail complet.
 
 ## Statut
 
+**v1.4.2** — Dialogue : chaque conversation de la liste est **préfixée par son code
+langue** (ex. « EN · … »), une conversation gardant une langue fixe.
+
 **v1.4.1** — **Dialogue : langue du corpus sélectionnable par conversation** (le
 chat lit, **cite** et **répond** dans la langue choisie parmi celles produites) ;
 **glossaire entièrement localisé** en aval (terme **et** définition) dans les Supports

@@ -6,7 +6,7 @@ from pytestqt.qtbot import QtBot
 
 from fahmi2.domain.chat import ChatMessage, Citation
 from fahmi2.domain.enums import ChatTabState
-from fahmi2.ui.widgets.chat_view import ChatView, _citations_html
+from fahmi2.ui.widgets.chat_view import ChatView, _citations_html, _message_html
 
 
 def test_streaming_then_finalize(qtbot: QtBot) -> None:
@@ -126,3 +126,40 @@ def test_error_state_keeps_input_active_for_retry(qtbot: QtBot) -> None:
     assert view._input.isEnabled()  # noqa: SLF001 — relance possible après erreur
     view.set_state(ChatTabState.ANSWERING)
     assert not view._input.isEnabled()  # noqa: SLF001 — verrouillé pendant la réponse
+
+
+def test_citations_list_is_numbered_not_paragraph_sign() -> None:
+    # La liste « Sources » est préfixée par [K] (relié au marqueur du corps),
+    # le pied-de-mouche § ayant disparu.
+    citations = (
+        Citation(
+            number=1,
+            chapter_title="Éco",
+            section_title="PIB",
+            anchor="pib",
+            snippet="…",
+        ),
+    )
+    html_out = _citations_html(citations)
+    assert "[1] Éco › PIB" in html_out
+    assert "§" not in html_out
+
+
+def test_assistant_inline_marker_is_clickable_link() -> None:
+    # Le contenu réécrit [[K]](ancre) est rendu en lien cliquable par le moteur
+    # Markdown (clic câblé sur citation_clicked, inchangé).
+    message = ChatMessage(
+        role="assistant",
+        content="Le PIB [[1]](pib) mesure la richesse.",
+        citations=(
+            Citation(
+                number=1,
+                chapter_title="Éco",
+                section_title="PIB",
+                anchor="pib",
+                snippet="…",
+            ),
+        ),
+    )
+    html_out = _message_html(message)
+    assert '<a href="pib">[1]</a>' in html_out

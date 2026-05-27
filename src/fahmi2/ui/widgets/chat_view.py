@@ -313,7 +313,7 @@ def _citations_html(citations: tuple[Citation, ...]) -> str:
         return ""
     items = "".join(
         f'<li><a href="{html.escape(c.anchor)}" '
-        f'title="{_tooltip(c.snippet)}">§ {html.escape(c.chapter_title)} › '
+        f'title="{_tooltip(c.snippet)}">[{c.number}] {html.escape(c.chapter_title)} › '
         f"{html.escape(c.section_title)}</a></li>"
         for c in citations
     )

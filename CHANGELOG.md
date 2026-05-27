@@ -5,7 +5,7 @@ Toutes les évolutions notables du projet Fahmi2.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.4.2] — 2026-05-28
 
 ### Modifié — Dialogue : langue indiquée dans la liste des conversations
 

@@ -193,3 +193,28 @@ def test_render_table_english_headers() -> None:
     md = render_glossary_markdown_table(language=Language.EN, terms=terms)
     assert md.startswith("# Glossary")
     assert "| Term | Acronym | Meaning | Definition |" in md
+
+
+def test_render_table_escapes_pipes_and_flattens_newlines() -> None:
+    # Une barre ou un saut de ligne dans **n'importe quelle** colonne (terme,
+    # acronyme, signification, définition) ne doit pas casser la ligne du tableau.
+    terms = (
+        Term(
+            term="A|B\nC",
+            definition="d1\nd2",
+            acronym="X|Y\nZ",
+            acronym_expansion="e1\ne2|f",
+        ),
+    )
+    md = render_glossary_markdown_table(language=Language.FR, terms=terms)
+    data_rows = [
+        line
+        for line in md.splitlines()
+        if line.startswith("|") and "---" not in line and "Terme" not in line
+    ]
+    assert len(data_rows) == 1  # une seule ligne de données (aucun saut introduit)
+    row = data_rows[0]
+    assert "A\\|B C" in row  # terme : barre échappée + saut aplati
+    assert "X\\|Y Z" in row  # acronyme idem (jusque-là non aplati)
+    assert "e1 e2\\|f" in row  # signification idem
+    assert "d1 d2" in row  # définition aplatie

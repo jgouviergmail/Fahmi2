@@ -187,7 +187,7 @@ Microsoft YaHei système, retours à la ligne automatiques) et l'**arabe**
 (droite-à-gauche + liaison contextuelle) ; le **glossaire** s'exporte en paysage
 (PDF et Word).
 
-1048 tests passants, `mypy --strict` et `ruff` propres sur 389 fichiers.
+1050 tests passants, `mypy --strict` et `ruff` propres sur 389 fichiers.
 
 ## Licence
 

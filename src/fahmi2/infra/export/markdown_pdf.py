@@ -710,7 +710,7 @@ def _contains_cjk(text: str | None) -> bool:
 def _cjk_line_break_offsets(
     flat_text: str, width: float, font_name: str, font_size: float
 ) -> list[int]:
-    """Décale les points de coupe (offsets) d'un texte CJK à une largeur donnée.
+    """Calcule les points de coupe (offsets) d'un texte CJK à une largeur donnée.
 
     Utilise ``wordSplit`` (coupe caractère par caractère pour le CJK, préserve les
     mots latins) puis convertit les lignes en **offsets cumulés** dans ``flat_text``.

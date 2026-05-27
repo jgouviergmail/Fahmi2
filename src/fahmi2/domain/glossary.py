@@ -1,4 +1,10 @@
-"""Entités Term et Glossary (immuables)."""
+"""Entités Term et Glossary (immuables), localisation et rendu Markdown du glossaire.
+
+Source unique des en-têtes/titres localisés du glossaire (``_HEADERS_BY_LANGUAGE`` /
+``_TITLE_BY_LANGUAGE``), des helpers de localisation des termes par langue cible
+(``cross_lang``) et du rendu en tableau Markdown. Module de domaine pur (ni Qt, ni HTTP,
+ni SQL).
+"""
 
 from __future__ import annotations
 
@@ -178,6 +184,21 @@ def parse_glossary_master_terms(payload: dict[str, Any]) -> tuple[Term, ...]:
     return tuple(result)
 
 
+def _escape_table_cell(value: str) -> str:
+    """Échappe une valeur pour une cellule de tableau Markdown.
+
+    Échappe les barres verticales (sinon elles découperaient la cellule) et aplatit
+    les sauts de ligne (sinon ils casseraient la ligne du tableau).
+
+    Args:
+        value: Valeur brute de la cellule.
+
+    Returns:
+        La valeur sûre pour insertion dans une cellule de tableau pipe.
+    """
+    return value.replace("|", "\\|").replace("\n", " ")
+
+
 def render_glossary_markdown_table(
     *,
     language: Language,
@@ -203,12 +224,10 @@ def render_glossary_markdown_table(
     lines.append(f"| {headers[0]} | {headers[1]} | {headers[2]} | {headers[3]} |")
     lines.append("|---|---|---|---|")
     for term in terms:
-        acronym = term.acronym or ""
-        expansion = term.acronym_expansion or ""
-        term_cell = term.term.replace("|", "\\|")
-        acronym_cell = acronym.replace("|", "\\|")
-        expansion_cell = expansion.replace("|", "\\|").replace("\n", " ")
-        def_cell = term.definition.replace("|", "\\|").replace("\n", " ")
+        term_cell = _escape_table_cell(term.term)
+        acronym_cell = _escape_table_cell(term.acronym or "")
+        expansion_cell = _escape_table_cell(term.acronym_expansion or "")
+        def_cell = _escape_table_cell(term.definition)
         lines.append(
             f"| {term_cell} | {acronym_cell} | {expansion_cell} | {def_cell} |"
         )

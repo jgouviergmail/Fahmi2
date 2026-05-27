@@ -96,9 +96,28 @@ renderers. Le glossaire de la génération reste le seul document en paysage.
 - Tests : `test_markdown_pdf.py`, `test_markdown_docx.py`, `test_generation_export.py`.
 - Docs : `CLAUDE.md`, `docs/` pertinents, `README.md`.
 
+## Corrections complémentaires (issues de la validation terrain)
+
+Découvertes par re-export/régénération réels après la première passe :
+
+1. **Carrés blancs arabes (² fois)** : 1ʳᵉ cause = émojis (réglée par le strip ci-dessus) ;
+   2ᵉ cause = **Arial Italic/Bold-Italic n'ont aucun glyphe arabe** (l'arabe n'a pas d'italique)
+   → un terme arabe en emphase tombait en carrés. `_ensure_arabic_font_registered` enregistre une
+   famille dédiée `AppArabic` dont italique/gras-italique pointent sur les variantes **droites**.
+2. **Définitions d'acronymes en langue source (de/en/es/zh)** : le prompt listait le terme en
+   `source: WACC (acronyme : WACC)` ; le LLM réémettait ce `source` **pollué** → l'appariement par
+   chaîne échouait → repli sur la définition source. Corrigé : prompt nettoyé (sans acronyme inline)
+   **et** appariement `_localize_glossary` par terme source d'abord, **repli par position** ensuite.
+3. **Tableaux pipe collés/indentés non rendus** (MD/PDF/HTML/DOCX) : `_normalize_table_blocks`
+   (ligne vide + désindentation) + `_renumber_lists_split_by_tables` (continuité `<ol start>`).
+4. **Glossaire DOCX sans bordures ni pleine largeur** : `_format_docx_tables` (style `Table Grid`
+   + `tblW` à 100 %), htmldocx ne traduisant ni les bordures CSS ni `width:100%`.
+5. **Débordement à droite du chinois avec termes en gras** : le pré-formatage **par nœud** plaçait
+   la 1ʳᵉ ligne suivant un terme en gras *après* lui → hors marge. Désormais **par bloc** (texte
+   aplati, fragments inline compris) + réserve d'un idéogramme (`wordSplit` dépasse sa cible d'un
+   caractère). NB : la vérif de débordement doit composer la CTM (`tm[4]` seul masque la marge).
+
 ## Hors périmètre
 
-- Définitions d'acronymes non traduites : déjà corrigé (prompt `phase_6_glossary_localization`,
-  commit `adce5f0`), revalidation par régénération à la charge de l'utilisateur.
 - Rendu des émojis en couleur dans le PDF (ReportLab ne le supporte pas) : on retire, on ne
   remplace pas.

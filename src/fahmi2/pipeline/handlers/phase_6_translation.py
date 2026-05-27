@@ -316,7 +316,6 @@ class Phase6TranslationHandler(PhaseHandler):
             terms=[
                 {
                     "term": str(t.get("term", "")),
-                    "acronym": t.get("acronym"),
                     "definition": str(t.get("definition", "")),
                 }
                 for t in master_terms

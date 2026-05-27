@@ -102,6 +102,21 @@ def test_language_selector_visibility_and_signal(qtbot: QtBot) -> None:
     assert blocker.args == ["en"]
 
 
+def test_answering_freezes_conversation_controls(qtbot: QtBot) -> None:
+    # Pendant le streaming, les contrôles de conversation sont gelés (le rechargement
+    # de corpus est ignoré côté contrôleur → on le rend visible, pas silencieux).
+    view = ChatView()
+    qtbot.addWidget(view)
+    view.set_state(ChatTabState.ANSWERING)
+    assert not view._new_button.isEnabled()  # noqa: SLF001
+    assert not view._language_combo.isEnabled()  # noqa: SLF001
+    assert not view._conversations.isEnabled()  # noqa: SLF001
+    view.set_state(ChatTabState.READY)
+    assert view._new_button.isEnabled()  # noqa: SLF001
+    assert view._language_combo.isEnabled()  # noqa: SLF001
+    assert view._conversations.isEnabled()  # noqa: SLF001
+
+
 def test_error_state_keeps_input_active_for_retry(qtbot: QtBot) -> None:
     view = ChatView()
     qtbot.addWidget(view)

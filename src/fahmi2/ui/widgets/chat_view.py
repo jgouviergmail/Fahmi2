@@ -89,11 +89,11 @@ class ChatView(QWidget):
         self._language_combo = QComboBox(self)
         self._language_combo.setToolTip(_LANGUAGE_COMBO_TOOLTIP)
         self._language_combo.setVisible(False)  # masqué tant qu'il n'y a pas >1 langue
-        new_button = QPushButton(_NEW_CONVERSATION_LABEL, self)
-        new_button.clicked.connect(self._on_new_conversation)
+        self._new_button = QPushButton(_NEW_CONVERSATION_LABEL, self)
+        self._new_button.clicked.connect(self._on_new_conversation)
         left = QVBoxLayout()
         left.addWidget(self._language_combo)
-        left.addWidget(new_button)
+        left.addWidget(self._new_button)
         left.addWidget(self._conversations, stretch=1)
         root.addLayout(left)
 
@@ -222,6 +222,13 @@ class ChatView(QWidget):
         can_send = state in (ChatTabState.READY, ChatTabState.ERROR)
         self._input.setEnabled(can_send)
         self._send_button.setEnabled(can_send)
+        # Pendant le streaming, gèle les contrôles de conversation : changer/créer une
+        # conversation rechargerait le corpus (ignoré par le contrôleur) — on le rend
+        # visible plutôt que silencieux.
+        idle = state is not ChatTabState.ANSWERING
+        self._new_button.setEnabled(idle)
+        self._language_combo.setEnabled(idle)
+        self._conversations.setEnabled(idle)
 
     def set_total_cost(self, usd: float) -> None:
         """Met à jour le libellé de coût cumulé.

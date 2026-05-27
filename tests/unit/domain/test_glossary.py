@@ -153,9 +153,7 @@ def test_render_table_french_headers_and_invariant_expansion() -> None:
             ]
         }
     )
-    md = render_glossary_markdown_table(
-        title="Glossaire", language=Language.FR, terms=terms
-    )
+    md = render_glossary_markdown_table(language=Language.FR, terms=terms)
     assert md.startswith("# Glossaire")
     assert "| Terme | Acronyme | Signification | Définition |" in md
     assert "Return On Investment" in md  # expansion invariante
@@ -166,8 +164,6 @@ def test_render_table_english_headers() -> None:
     terms = parse_glossary_master_terms(
         {"terms": [{"term": "GDP", "definition": "Gross domestic product."}]}
     )
-    md = render_glossary_markdown_table(
-        title="Glossary", language=Language.EN, terms=terms
-    )
+    md = render_glossary_markdown_table(language=Language.EN, terms=terms)
     assert md.startswith("# Glossary")
     assert "| Term | Acronym | Meaning | Definition |" in md

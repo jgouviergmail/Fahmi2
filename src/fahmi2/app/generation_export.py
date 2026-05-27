@@ -92,7 +92,9 @@ def export_generation_documents(
 
     Raises:
         ValueError: Si ``fmt`` n'est pas documentaire.
-        ConfigError: ``EXPORT.NO_PDF_FONT`` en PDF sans police Unicode.
+        ConfigError: en PDF, ``EXPORT.NO_PDF_FONT`` (Arial absente),
+            ``EXPORT.NO_CJK_FONT`` (police chinoise absente, langue ZH) ou
+            ``EXPORT.PDF_RENDER_FAILED`` (échec du moteur de rendu).
     """
     return write_documents(
         collect_generation_documents(project), output_dir=output_dir, fmt=fmt

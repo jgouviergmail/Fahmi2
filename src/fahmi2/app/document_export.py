@@ -1,10 +1,10 @@
-"""Cœur d'écriture générique des exports documentaires (Markdown / PDF / HTML).
+"""Cœur d'écriture générique des exports documentaires (Markdown / PDF / HTML / DOCX).
 
 Contrat partagé par les fonctionnalités (génération, pédagogie) : un collecteur
-fournit une liste d'``ExportDocument`` (nom + Markdown + options de rendu PDF) ;
+fournit une liste d'``ExportDocument`` (nom + Markdown + options de rendu + langue) ;
 ``write_documents`` écrit un fichier par document, à l'extension du format demandé.
-Le **dispatch** par format vit ici (couche app) ; ``infra/export/markdown_pdf``
-reste un pur *renderer*.
+Le **dispatch** par format vit ici (couche app) ; ``infra/export/markdown_pdf`` et
+``markdown_docx`` restent de purs *renderers*.
 """
 
 from __future__ import annotations
@@ -28,7 +28,9 @@ from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 class ExportDocument:
     """Un document à exporter : nom de fichier + Markdown + options de rendu.
 
-    Les options PDF n'affectent que le rendu PDF (ignorées en Markdown/HTML).
+    Les options ``pdf_*`` n'affectent que le rendu PDF ; ``language`` pilote police
+    et direction des rendus **PDF et HTML** (sans effet sur Markdown ni DOCX, qui
+    s'appuient sur les capacités natives du lecteur).
 
     Attributes:
         stem: Nom de fichier sans extension.
@@ -55,7 +57,7 @@ DocumentCollector = Callable[[Project], list[ExportDocument]]
 
 @dataclass(frozen=True)
 class DocumentExportResult:
-    """Résultat d'un export documentaire (Markdown / PDF / HTML).
+    """Résultat d'un export documentaire (Markdown / PDF / HTML / DOCX).
 
     Attributes:
         output_paths: Chemins des documents écrits.
@@ -82,7 +84,7 @@ def write_documents(
     """Écrit un fichier par ``ExportDocument`` à l'extension du format.
 
     Args:
-        documents: Documents à écrire (nom + Markdown + options PDF).
+        documents: Documents à écrire (nom + Markdown + options de rendu + langue).
         output_dir: Dossier de destination.
         fmt: Format documentaire (``MARKDOWN``, ``PDF``, ``HTML`` ou ``DOCX``).
 
@@ -91,7 +93,9 @@ def write_documents(
 
     Raises:
         ValueError: Si ``fmt`` n'est pas un format documentaire (ex. ``APKG``).
-        ConfigError: ``EXPORT.NO_PDF_FONT`` / ``EXPORT.PDF_RENDER_FAILED`` en PDF.
+        ConfigError: en PDF, ``EXPORT.NO_PDF_FONT`` (Arial absente),
+            ``EXPORT.NO_CJK_FONT`` (police chinoise absente, langue ZH) ou
+            ``EXPORT.PDF_RENDER_FAILED`` (échec du moteur de rendu).
     """
     if fmt not in EXTENSION_BY_FORMAT:
         raise ValueError(f"Format non documentaire : {fmt}")

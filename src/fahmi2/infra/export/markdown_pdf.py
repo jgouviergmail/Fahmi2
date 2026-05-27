@@ -1,16 +1,21 @@
 """Renderer d'export Markdown → HTML / PDF (pur, sans I/O d'orchestration).
 
-Le HTML est un document autonome (CSS intégré, tableaux stylés, sommaire cliquable
-via l'extension ``toc``). Le **PDF** rend ce même HTML via ``xhtml2pdf`` (moteur
-ReportLab) : vraie pagination (listes/tableaux qui franchissent les pages), typo
-CSS, orientation **paysage** optionnelle (glossaire) et largeurs de colonnes de
-tableau maîtrisées. L'orchestration (collecte, dispatch par format, écriture) vit
-dans ``app.document_export``.
+Le corps HTML est rendu **une fois** par :func:`render_markdown_body` (extensions
+``tables`` + ``toc``), réutilisé tel quel par l'export HTML, par l'export PDF et par
+l'export DOCX (``markdown_docx``). Le HTML est un document autonome (CSS intégré,
+sommaire cliquable via ``toc``). Le **PDF** rend ce même corps via ``xhtml2pdf``
+(moteur ReportLab) : vraie pagination, typo CSS, orientation **paysage** optionnelle
+(glossaire) et largeurs de colonnes maîtrisées. L'orchestration (collecte, dispatch
+par format, écriture) vit dans ``app.document_export``.
 
-La police PDF est une police Unicode système Windows (``Arial``), enregistrée
-auprès de ReportLab. Quelques tirets Unicode rares (U+2010/2011/2012/2015) ne sont
-pas rendus par ReportLab+Arial (carré ``□``) : ils sont normalisés vers
-``-``/``—`` au rendu PDF (cf. ``_PDF_CHAR_REPLACEMENTS``).
+**Police PDF par langue** (toutes système Windows, rien à bundler) : latin
+(fr/en/de/es/it) → ``Arial`` (résolu en Helvetica par xhtml2pdf, couvre le Latin-1) ;
+**chinois** → ``Microsoft YaHei`` (``msyh.ttc``, chargé via ``subfontIndex`` et injecté
+dans ``xhtml2pdf.default.DEFAULT_FONT`` ; garde ``EXPORT.NO_CJK_FONT`` si absente) ;
+**arabe** → ``Arial`` (glyphes arabes) + ``direction:rtl`` + tag ``pdf:language`` qui
+déclenche le reshaping contextuel et la bidi. Quelques tirets Unicode rares
+(U+2010/2011/2012/2015) non rendus par ReportLab+Arial (carré ``□``) sont normalisés
+vers ``-``/``—`` au rendu PDF (cf. ``_PDF_CHAR_REPLACEMENTS``).
 """
 
 from __future__ import annotations

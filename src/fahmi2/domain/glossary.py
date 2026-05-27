@@ -148,27 +148,26 @@ def parse_glossary_master_terms(payload: dict[str, Any]) -> tuple[Term, ...]:
 
 def render_glossary_markdown_table(
     *,
-    title: str,
     language: Language,
     terms: Iterable[Term],
 ) -> str:
     """Rend une liste de ``Term`` au format tableau Markdown 4 colonnes.
 
-    Colonnes ``| Terme | Acronyme | Signification | Définition |`` (FR) ou
-    ``| Term | Acronym | Meaning | Definition |`` (EN). La colonne *Signification*
-    contient l'expansion littérale de l'acronyme, conservée dans sa langue
-    d'origine. Vide si le terme n'a pas d'acronyme.
+    Le **titre H1 et les en-têtes** sont localisés depuis ``language`` (titre via
+    :func:`glossary_title`, en-têtes via ``_HEADERS_BY_LANGUAGE``) : impossible de
+    désaligner titre et colonnes. La colonne *Signification* contient l'expansion
+    littérale de l'acronyme, conservée dans sa langue d'origine (vide si le terme
+    n'a pas d'acronyme).
 
     Args:
-        title: Titre H1 du document.
-        language: Langue (libellés d'en-têtes).
+        language: Langue cible (pilote le titre H1 et les libellés d'en-têtes).
         terms: Termes à afficher (déjà triés par l'appelant).
 
     Returns:
         Le Markdown complet (titre, ligne vide, tableau, saut final).
     """
     headers = _HEADERS_BY_LANGUAGE.get(language, _HEADERS_BY_LANGUAGE[Language.EN])
-    lines: list[str] = [f"# {title}", ""]
+    lines: list[str] = [f"# {glossary_title(language)}", ""]
     lines.append(f"| {headers[0]} | {headers[1]} | {headers[2]} | {headers[3]} |")
     lines.append("|---|---|---|---|")
     for term in terms:

@@ -188,7 +188,11 @@ class SupportDensity(StrEnum):
 
 
 class ExportFormat(StrEnum):
-    """Formats d'export des supports."""
+    """Formats d'export (supports pédagogiques et livrables de génération).
+
+    ``APKG`` (Anki) ne concerne que les supports pédagogiques ; ``MARKDOWN``/``PDF``/
+    ``HTML``/``DOCX`` sont les formats documentaires partagés par les deux features.
+    """
 
     APKG = "apkg"
     MARKDOWN = "markdown"

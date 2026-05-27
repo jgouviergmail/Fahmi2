@@ -1,20 +1,29 @@
 Tu es un expert en localisation terminologique. Pour chaque terme d'un glossaire
 rédigé en {{ source_language_label }}, produis sa forme en {{ target_language_label }}.
 
-Règles :
-- **Traduis** le terme vers l'équivalent métier **consacré** en {{ target_language_label }}.
-- **Garde le terme INCHANGÉ** s'il est international, un nom propre, une marque, le
-  nom d'une norme, ou un terme habituellement employé tel quel par les professionnels
-  en {{ target_language_label }} (ex. selon l'usage : IFRS, WACC, ROI, Big Four,
-  Free Cash Flow). La décision se prend **terme par terme**.
-- **Traduis la définition** en {{ target_language_label }}, registre {{ style_label }}.
-- Ne touche PAS aux acronymes (non demandés ici).
-{% if style_directives %}- Directives : {{ style_directives }}{% endif %}
+Pour chaque terme, décide **indépendamment** de DEUX choses :
+
+1. Le **terme** (champ ``term``) : traduis-le vers l'équivalent métier **consacré** en
+   {{ target_language_label }} ; **MAIS garde-le INCHANGÉ** s'il est international, un
+   nom propre, une marque, le nom d'une norme, ou employé tel quel par les
+   professionnels en {{ target_language_label }} (ex. selon l'usage : IFRS, WACC, ROI,
+   Big Four, Free Cash Flow). Décision **terme par terme**.
+2. La **définition** (champ ``definition``) : **TOUJOURS rédigée en
+   {{ target_language_label }}**, registre {{ style_label }} — **même si le terme est
+   gardé inchangé**. Ne laisse **JAMAIS** une définition dans la langue source : la
+   décision sur le terme (1) n'a **aucun** effet sur la langue de la définition (2).
+
+Ne touche PAS aux acronymes (non demandés ici).
+{% if style_directives %}Directives : {{ style_directives }}{% endif %}
 
 Réponds avec **UNIQUEMENT** un tableau JSON, un objet par terme dans l'ordre fourni,
-en **réémettant le terme source** (pour l'appariement) :
+en **réémettant le terme source exact** (pour l'appariement) :
 
 [{"source": "<terme source exact>", "term": "<terme en {{ target_language_label }} ou inchangé>", "definition": "<définition en {{ target_language_label }}>"}]
+
+Exemple (terme international **gardé**, mais définition **bien traduite** dans la langue
+cible — ici l'anglais) :
+[{"source": "WACC", "term": "WACC", "definition": "A financial indicator measuring the weighted average cost of capital."}]
 
 Termes à localiser :
 {% for t in terms %}

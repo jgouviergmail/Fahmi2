@@ -353,6 +353,8 @@ Ajouter la méthode dans `Phase6TranslationHandler` :
             ctx, phase_id=self.phase_id, system_prompt=None, user_prompt=prompt
         )
         entries = parse_json_response(response.content, phase_id=self.phase_id)
+        if not isinstance(entries, list):
+            entries = []  # forme JSON inattendue → repli per-terme (termes source)
         by_source: dict[str, dict[str, Any]] = {
             str(e.get("source", "")): e for e in entries if isinstance(e, dict)
         }
@@ -482,32 +484,43 @@ localisation par langue, rendu + écriture des glossaires, calcul de
 (per-source + consolidé) en parallèle avec l'indice par langue.
 
 Remplacer la boucle existante `for target in ... : self._collect_for_language(...)`
-+ `map_bounded(...)` par :
++ `map_bounded(...)` + `return build_succeeded_phase(...)` par (localisation
+**parallélisée** par langue, puis rendu/persistance séquentiels, puis traductions
+parallélisées) :
 
 ```python
+        # Étape 1 — localisation parallèle des glossaires (1 appel LLM par langue
+        # cible ≠ source). map_bounded préserve l'ordre et honore le pause_token.
+        non_source_targets = [
+            t for t in ctx.settings.output_languages
+            if t is not ctx.settings.source_language
+        ]
+        localization_results = map_bounded(
+            lambda target: (target, *self._localize_glossary(
+                ctx, target=target, payload=glossary_master
+            )),
+            non_source_targets,
+            max_workers=ctx.settings.parallelism.llm_workers,
+            pause_token=ctx.pause_token,
+        )
         cross_lang_by_language: dict[Language, dict[str, str]] = {}
         localization_cost = 0.0
-        for target in ctx.settings.output_languages:
-            glossary_target = ctx.output_dir / glossary_doc_filename(target)
-            if target is ctx.settings.source_language:
-                ctx.artifacts.write_text_atomic(
-                    glossary_target, _render_master_glossary(glossary_master, target)
-                )
-                continue
-            localized, cost = self._localize_glossary(
-                ctx, target=target, payload=glossary_master
-            )
+        for target, localized, cost in localization_results:
             localization_cost += cost
-            cross_lang_by_language[target] = {
-                loc.source: loc.term for loc in localized
-            }
+            cross_lang_by_language[target] = {loc.source: loc.term for loc in localized}
             ctx.artifacts.write_text_atomic(
-                glossary_target,
+                ctx.output_dir / glossary_doc_filename(target),
                 _render_localized_glossary(localized, glossary_master, target),
             )
-
+        # Glossaire de la langue source (si produite) : rendu master, aucun appel LLM.
+        if ctx.settings.source_language in ctx.settings.output_languages:
+            ctx.artifacts.write_text_atomic(
+                ctx.output_dir / glossary_doc_filename(ctx.settings.source_language),
+                _render_master_glossary(glossary_master, ctx.settings.source_language),
+            )
         _persist_cross_lang(ctx, glossary_master, cross_lang_by_language)
 
+        # Étape 2 — traductions documentaires (per-source + consolidé) en parallèle.
         tasks: list[_TranslationTask] = []
         for target in ctx.settings.output_languages:
             self._collect_doc_tasks(
@@ -523,7 +536,12 @@ Remplacer la boucle existante `for target in ... : self._collect_for_language(..
             max_workers=ctx.settings.parallelism.llm_workers,
             pause_token=ctx.pause_token,
         )
-        total_cost = localization_cost + sum(costs)
+        return build_succeeded_phase(
+            phase_id=self.phase_id,
+            artifact_path=ctx.output_dir,
+            started_at=started_at,
+            cost_usd=localization_cost + sum(costs),
+        )
 ```
 
 Renommer/raccourcir `_collect_for_language` en `_collect_doc_tasks` : **retirer** le
@@ -871,20 +889,29 @@ git commit -m "feat(dialogue): chunks de glossaire pre-localises a la langue du 
   glossaire à la **langue de contenu** qu'ils chargent ; définitions en aval restent
   en langue source (limite assumée).
 
-- [ ] **Step 2: Suite complète**
+- [ ] **Step 2: Vérifier l'impact `CostEstimator` (phase 6)**
+
+Inspecter `src/fahmi2/app/cost_estimator.py` (et `tests/unit/app/test_cost_estimator.py`)
+pour la phase 6. La localisation **remplace** l'ancienne traduction de la table
+glossaire (1 appel/langue, ordre de grandeur similaire) → aucun ajustement attendu si
+l'estimateur ne **détaille pas** le glossaire séparément. S'il l'itémise (peu probable),
+ajuster pour refléter l'appel de localisation. Documenter le constat ; ne modifier que
+si nécessaire (sinon, laisser tel quel et noter « impact négligeable, vérifié »).
+
+- [ ] **Step 3: Suite complète**
 
 Run: `.venv\Scripts\python.exe -m pytest`
 Expected: tous verts.
 
-- [ ] **Step 3: Lint + typage**
+- [ ] **Step 4: Lint + typage**
 
 Run: `.venv\Scripts\python.exe -m ruff check .`
 Run: `.venv\Scripts\python.exe -m mypy src tests`
 Expected: `All checks passed!` / `Success`.
 
-- [ ] **Step 4: Repasser si nécessaire** jusqu'à zéro défaut.
+- [ ] **Step 5: Repasser si nécessaire** jusqu'à zéro défaut.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add CLAUDE.md

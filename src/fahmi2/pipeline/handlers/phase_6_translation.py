@@ -331,18 +331,20 @@ class Phase6TranslationHandler(PhaseHandler):
             if isinstance(entries, list)
             else []
         )
-        # Appariement **par position** quand le LLM a renvoyé un objet par terme dans
-        # l'ordre demandé (cas normal) : robuste à une réémission imparfaite du champ
-        # ``source`` (les termes acronymes voyaient leur définition tomber en langue
-        # source). Repli sur l'appariement par terme source sinon, puis per-terme.
-        aligned = len(dict_entries) == len(master_terms)
+        # Appariement **par terme source** d'abord (correct même si le LLM réordonne),
+        # avec **repli par position** pour les termes non appariés — typiquement les
+        # acronymes, dont le champ ``source`` était réémis pollué ⇒ leur définition
+        # tombait en langue source. Dernier repli : terme/définition source.
         by_source: dict[str, dict[str, Any]] = {
             str(e.get("source", "")).strip(): e for e in dict_entries
         }
         localized: list[_LocalizedTerm] = []
         for index, t in enumerate(master_terms):
             source = str(t.get("term", ""))
-            entry = dict_entries[index] if aligned else by_source.get(source.strip(), {})
+            entry = by_source.get(source.strip())
+            if entry is None and index < len(dict_entries):
+                entry = dict_entries[index]  # repli par position (ordre préservé)
+            entry = entry or {}
             localized.append(
                 _LocalizedTerm(
                     source=source,

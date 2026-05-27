@@ -85,6 +85,37 @@ def test_localize_glossary_matches_by_position_when_source_echo_polluted(
     assert localized[1].definition == "accounting doc"
 
 
+def test_localize_glossary_matches_by_source_despite_reordering(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    # Si le LLM renvoie les entrées dans un ordre différent (sources propres),
+    # l'appariement par terme source attribue à chacun SA définition (pas celle
+    # du voisin) — un appariement purement positionnel se tromperait.
+    payload = {
+        "terms": [
+            {"term": "Bilan", "definition": "doc1", "acronym": None},
+            {"term": "Compte de résultat", "definition": "doc2", "acronym": None},
+        ]
+    }
+    ctx, _run = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        llm_response=_localization_response(
+            [
+                {"source": "Compte de résultat", "term": "Income statement", "definition": "d2"},
+                {"source": "Bilan", "term": "Balance sheet", "definition": "d1"},
+            ]
+        ),
+    )
+    localized, _cost = Phase6TranslationHandler()._localize_glossary(
+        ctx, target=Language.EN, payload=payload
+    )
+    assert localized[0].term == "Balance sheet"  # Bilan → sa propre traduction
+    assert localized[0].definition == "d1"
+    assert localized[1].term == "Income statement"  # Compte de résultat
+    assert localized[1].definition == "d2"
+
+
 def test_localize_glossary_matches_despite_whitespace(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:

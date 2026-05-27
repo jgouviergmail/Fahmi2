@@ -36,6 +36,7 @@ def _datetime_or_none(value: Any) -> datetime | None:  # noqa: ANN401
 def _serialize_citation(citation: Citation) -> dict[str, Any]:
     """Sérialise une ``Citation`` en dict JSON-compatible."""
     return {
+        "number": citation.number,
         "chapter_title": citation.chapter_title,
         "section_title": citation.section_title,
         "anchor": citation.anchor,
@@ -63,12 +64,14 @@ def _deserialize_message(payload: dict[str, Any]) -> ChatMessage:
     )
     citations = tuple(
         Citation(
+            # Conversations antérieures sans "number" : numéro 1-based par position.
+            number=int(c.get("number", index + 1)),
             chapter_title=str(c["chapter_title"]),
             section_title=str(c["section_title"]),
             anchor=str(c["anchor"]),
             snippet=str(c["snippet"]),
         )
-        for c in payload.get("citations", [])
+        for index, c in enumerate(payload.get("citations", []))
     )
     return ChatMessage(
         role=role,

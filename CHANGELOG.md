@@ -5,6 +5,20 @@ Toutes les évolutions notables du projet Fahmi2.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.3] — 2026-05-28
+
+### Ajouté — Dialogue : citations lisibles et cliquables
+
+- Les citations du Dialogue sont désormais des **repères numérotés `[1]`, `[2]`…
+  cliquables** au fil de la réponse (au lieu du marqueur brut `[§N]`), reliés à une
+  liste « **Sources** » **numérotée à l'identique** (`[N] Chapitre › Section`).
+  Cliquer un repère — dans le texte ou la liste — ouvre l'extrait source. En interne,
+  `resolve_citations` réécrit les marqueurs `[§N]` du LLM en liens Markdown
+  `[[N]](ancre)` (numérotation **séquentielle dédupliquée par ancre**, marqueurs hors
+  bornes retirés) ; `Citation` porte le **numéro d'affichage**, persisté avec migration
+  **par position** pour les conversations antérieures. Indépendant de la langue (marqueur
+  non localisé, ancres alignées sur la langue de la conversation).
+
 ## [1.4.2] — 2026-05-28
 
 ### Modifié — Dialogue : langue indiquée dans la liste des conversations

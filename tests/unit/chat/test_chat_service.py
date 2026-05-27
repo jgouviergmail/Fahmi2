@@ -67,7 +67,7 @@ def test_answer_returns_message_with_citation() -> None:
         language=Language.FR,
     )
     assert message.role == "assistant"
-    assert "[§1]" in message.content
+    assert "[[1]](pib)" in message.content  # marqueur réécrit en lien numéroté
     assert message.cost_usd == 0.01
     assert len(message.citations) == 1
     assert message.citations[0].anchor == "pib"
@@ -93,6 +93,9 @@ def test_stream_answer_yields_deltas_then_final_message() -> None:
     final = chunks[-1]
     assert final.message is not None
     assert final.message.role == "assistant"
+    # Le message final porte le contenu réécrit (lien), même si les deltas du
+    # flux restent bruts ([§1]).
+    assert "[[1]](pib)" in final.message.content
     assert final.message.citations[0].anchor == "pib"
     assert final.message.cost_usd == 0.01
 

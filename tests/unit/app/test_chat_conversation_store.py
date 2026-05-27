@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from fahmi2.app.chat_conversation_store import ChatConversationStore
@@ -27,6 +28,7 @@ def _conversation() -> Conversation:
                 content="Le PIB [§1].",
                 citations=(
                     Citation(
+                        number=1,
                         chapter_title="Éco",
                         section_title="PIB",
                         anchor="pib",
@@ -49,6 +51,24 @@ def test_save_then_load_roundtrip(tmp_path: Path) -> None:
     assert len(loaded.messages) == 2
     assert loaded.messages[1].cost_usd == 0.02
     assert loaded.messages[1].citations[0].anchor == "pib"
+
+
+def test_load_legacy_citation_without_number_falls_back_to_position(
+    tmp_path: Path,
+) -> None:
+    store = _store(tmp_path)
+    conv = _conversation()
+    store.save(conv)
+    # Simule un fichier antérieur : retire la clé "number" des citations.
+    path = tmp_path / "conversations" / f"{conv.conversation_id.value}.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    for message in payload["messages"]:
+        for citation in message["citations"]:
+            citation.pop("number", None)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    loaded = store.load(conv.conversation_id)
+    assert loaded is not None
+    assert loaded.messages[1].citations[0].number == 1  # 1er = position 1
 
 
 def test_list_and_delete(tmp_path: Path) -> None:

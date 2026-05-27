@@ -12,7 +12,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from fahmi2.chat.citations import parse_citations
+from fahmi2.chat.citations import resolve_citations
 from fahmi2.chat.prompt_builder import build_chat_messages
 from fahmi2.core.retrieval.passages import PassageRetriever
 from fahmi2.domain.chat import ChatMessage, ChatSettings, RetrievedPassage
@@ -198,7 +198,12 @@ class ChatService:
         passages: tuple[RetrievedPassage, ...],
         retrieval_cost_usd: float = 0.0,
     ) -> ChatMessage:
-        """Construit le ``ChatMessage`` assistant final (citations + coût total).
+        """Construit le ``ChatMessage`` assistant final (contenu + citations + coût).
+
+        Le contenu de la réponse est réécrit par ``resolve_citations`` : les
+        marqueurs ``[§N]`` deviennent des liens numérotés cliquables ``[[K]](ancre)``
+        et les citations correspondantes en sont extraites (numérotées,
+        dédupliquées par ancre).
 
         Args:
             response: Réponse LLM (complète).
@@ -207,12 +212,13 @@ class ChatService:
                 éventuelle), ajouté au coût de la réponse pour un total exhaustif.
 
         Returns:
-            Le ``ChatMessage`` assistant.
+            Le ``ChatMessage`` assistant (contenu réécrit + citations + coût total).
         """
+        content, citations = resolve_citations(response.content, passages)
         return ChatMessage(
             role="assistant",
-            content=response.content,
-            citations=parse_citations(response.content, passages),
+            content=content,
+            citations=citations,
             cost_usd=response.cost_usd + retrieval_cost_usd,
             prompt_tokens=response.prompt_tokens,
             completion_tokens=response.completion_tokens,

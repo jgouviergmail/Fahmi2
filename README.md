@@ -171,6 +171,10 @@ pour le détail complet.
 
 ## Statut
 
+**v1.4.3** — Dialogue : citations affichées en **repères numérotés `[1]` cliquables**
+au fil de la réponse, reliés à une liste « Sources » **numérotée** ; cliquer un repère
+ou une source ouvre l'aperçu de l'extrait.
+
 **v1.4.2** — Dialogue : chaque conversation de la liste est **préfixée par son code
 langue** (ex. « EN · … »), une conversation gardant une langue fixe.
 

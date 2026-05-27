@@ -119,6 +119,11 @@ _CJK_FONT_NAME_BOLD = "CJKFont-Bold"
 #: Familles ``font-family`` injectées dans ``xhtml2pdf.default.DEFAULT_FONT``.
 _CJK_FAMILY = "cjk"
 _ARABIC_FAMILY = "arab"
+#: Famille ReportLab dédiée à l'arabe : Arial **Italic** et **Bold-Italic** n'ont
+#: **aucun glyphe arabe** (l'arabe n'a pas de formes italiques) → un terme arabe en
+#: emphase tomberait en carrés ``□``. On mappe donc italique/gras-italique sur les
+#: variantes **droites** (régulier/gras), qui couvrent l'arabe.
+_PDF_ARABIC_FONT_FAMILY = "AppArabic"
 #: Tag xhtml2pdf déclenchant le reshaping + bidi de l'arabe (cf. xhtml2pdf/util.py).
 _PDF_LANGUAGE_TAG_ARABIC = '<pdf:language name="arabic"/>'
 
@@ -379,16 +384,22 @@ def _ensure_cjk_font_registered() -> None:
 
 @functools.cache
 def _ensure_arabic_font_registered() -> None:
-    """Mappe la famille ``arab`` sur Arial (déjà enregistré comme ``AppSans``).
+    """Mappe la famille ``arab`` sur une famille Arial **toujours arabe** (droite).
 
-    Arial contient les glyphes arabes (régulier + gras déjà enregistrés par
-    :func:`_ensure_pdf_fonts_registered`, appelé en amont) : on **réutilise** cet
-    enregistrement plutôt que de réenregistrer la police. Sans ce mapping,
-    ``font-family: arab`` serait rabattu par xhtml2pdf sur Helvetica (dépourvue de
-    glyphes arabes). Le reshaping contextuel + la bidi sont, eux, déclenchés par le
-    tag ``pdf:language``. Mémoïsé (injection idempotente).
+    Arial contient les glyphes arabes en **régulier** et **gras**, mais **pas** en
+    italique ni gras-italique (cf. ``ariali.ttf``/``arialbi.ttf`` : 0 glyphe arabe).
+    Comme l'arabe n'a pas de formes italiques, on enregistre une famille dédiée
+    ``AppArabic`` dont les 4 variantes pointent vers les fontes **droites** Arial
+    (régulier/gras, déjà enregistrées par :func:`_ensure_pdf_fonts_registered`) : un
+    terme arabe en emphase reste ainsi lisible au lieu de tomber en carrés ``□``. Le
+    reshaping contextuel + la bidi sont, eux, déclenchés par le tag ``pdf:language``.
+    Mémoïsé (injection idempotente).
     """
-    xhtml2pdf_default.DEFAULT_FONT[_ARABIC_FAMILY] = _PDF_FONT_REGULAR
+    addMapping(_PDF_ARABIC_FONT_FAMILY, 0, 0, _PDF_FONT_REGULAR)
+    addMapping(_PDF_ARABIC_FONT_FAMILY, 1, 0, _PDF_FONT_BOLD)
+    addMapping(_PDF_ARABIC_FONT_FAMILY, 0, 1, _PDF_FONT_REGULAR)  # italique → droit
+    addMapping(_PDF_ARABIC_FONT_FAMILY, 1, 1, _PDF_FONT_BOLD)  # gras-italique → gras
+    xhtml2pdf_default.DEFAULT_FONT[_ARABIC_FAMILY] = _PDF_ARABIC_FONT_FAMILY
 
 
 def _extract_title(markdown_text: str) -> str:

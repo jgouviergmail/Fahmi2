@@ -229,8 +229,12 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
 - **Localisation terminologique du glossaire (phase 6)** : les **termes** du glossaire
   sont localisés **par langue cible** (traduit-sauf-international ; acronyme conservé ;
   `acronym_expansion` invariante) par un **appel LLM structuré** (`_localize_glossary`,
-  prompt `phase_6_glossary_localization`, JSON apparié par terme source + repli
-  per-terme). La phase 6 (1) **rend `glossary.{L}.md` de façon déterministe** (le
+  prompt `phase_6_glossary_localization`). **Appariement par position** (le prompt impose
+  un objet JSON par terme **dans l'ordre**) — robuste à une réémission imparfaite du champ
+  `source` (sinon les **acronymes** voyaient leur **définition** retomber en langue source) ;
+  repli sur l'appariement par terme source puis per-terme si le compte diffère. La
+  **définition est toujours traduite** (même pour un acronyme gardé) ; seule
+  l'`acronym_expansion` reste en langue source. La phase 6 (1) **rend `glossary.{L}.md` de façon déterministe** (le
   glossaire **n'est plus une `_TranslationTask`**), (2) injecte les vrais équivalents
   `source → cible` dans la traduction du consolidé/docs par source, (3) **persiste
   `cross_lang` dans `glossary_master.json`** (écriture atomique, pour l'aval). **Source
@@ -347,6 +351,10 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
   python-docx ; Word gère nativement CJK, coupe de ligne et bidi arabe, rien à déclarer
   côté DOCX ; l'**orientation paysage** — option `landscape`, ex: glossaire — est posée
   sur les sections du document via `WD_ORIENT.LANDSCAPE` + permutation largeur/hauteur).
+  **htmldocx ne traduit ni les bordures CSS ni `width:100%`** (tableaux sans contour,
+  largeur ajustée au contenu) → `markdown_docx._format_docx_tables` reformate **tous**
+  les tableaux après conversion : style intégré `Table Grid` (bordures) + `tblW` à
+  `pct` 5000 (100 %), pour s'aligner sur HTML/PDF.
   **Rendu PDF/HTML (`infra/export/markdown_pdf`)** : le **PDF est rendu à partir du
   HTML via `xhtml2pdf`** (moteur ReportLab, Python pur, *bundleable*) — vraie
   pagination (listes/tableaux multi-pages), typo CSS, orientation paysage. Gotchas :
@@ -376,7 +384,11 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
   dans `xhtml2pdf.default.DEFAULT_FONT` (garde `EXPORT.NO_CJK_FONT` si absent) ;
   **arabe** → Arial (glyphes arabes) + `direction:rtl` + tag `<pdf:language name="arabic"/>`
   qui déclenche le reshaping contextuel + bidi (`arabic-reshaper`/`python-bidi`, transitifs
-  xhtml2pdf). `_text_direction`/`_RTL_LANGUAGES` = source unique de direction (PDF + HTML) ;
+  xhtml2pdf). ⚠ **Arial Italic/Bold-Italic n'ont aucun glyphe arabe** (l'arabe n'a pas de
+  formes italiques) → l'arabe en emphase (`*…*`) tombait en carrés ; `_ensure_arabic_font_registered`
+  enregistre une famille dédiée `AppArabic` dont **italique/gras-italique pointent sur les
+  variantes droites** (régulier/gras), qui couvrent l'arabe.
+  `_text_direction`/`_RTL_LANGUAGES` = source unique de direction (PDF + HTML) ;
   tailles de police et marge `@page` **centralisées** (source unique gabarit CSS ↔ calcul
   de largeur du pré-formatage CJK). **Polices toutes système Windows — rien à bundler.**
 - **Erreurs → UI** : une exception levée par un handler **doit** être une

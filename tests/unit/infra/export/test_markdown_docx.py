@@ -67,3 +67,14 @@ def test_render_docx_landscape_sets_orientation(tmp_path: Path) -> None:
     assert width is not None and height is not None
     assert section.orientation == WD_ORIENT.LANDSCAPE
     assert width > height
+
+
+def test_render_docx_tables_have_borders_and_full_width(tmp_path: Path) -> None:
+    # htmldocx ne traduit ni les bordures CSS ni width:100% ; on les rétablit
+    # (style Table Grid + tblW à 100 %) pour s'aligner sur HTML/PDF.
+    out = tmp_path / "tbl.docx"
+    render_markdown_to_docx(_MD, out)  # _MD contient un tableau
+    xml = _document_xml(out)
+    assert "TableGrid" in xml  # style à bordures appliqué
+    assert 'w:type="pct"' in xml
+    assert 'w:w="5000"' in xml  # 100 % de la largeur utile

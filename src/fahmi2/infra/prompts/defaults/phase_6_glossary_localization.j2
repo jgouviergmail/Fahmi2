@@ -10,23 +10,22 @@ Pour chaque terme, décide **indépendamment** de DEUX choses :
    Big Four, Free Cash Flow). Décision **terme par terme**.
 2. La **définition** (champ ``definition``) : **TOUJOURS rédigée en
    {{ target_language_label }}**, registre {{ style_label }} — **même si le terme est
-   gardé inchangé**. Ne laisse **JAMAIS** une définition dans la langue source : la
-   décision sur le terme (1) n'a **aucun** effet sur la langue de la définition (2).
-
-Ne touche PAS aux acronymes (non demandés ici).
+   gardé inchangé** (y compris pour un acronyme : WACC, ROI, EBITDA…). Ne laisse
+   **JAMAIS** une définition dans la langue source : la décision sur le terme (1) n'a
+   **aucun** effet sur la langue de la définition (2).
 {% if style_directives %}Directives : {{ style_directives }}{% endif %}
 
-Réponds avec **UNIQUEMENT** un tableau JSON, un objet par terme dans l'ordre fourni,
-en **réémettant le terme source exact** (pour l'appariement) :
+Réponds avec **UNIQUEMENT** un tableau JSON, **un objet par terme, dans le même ordre**
+que la liste ci-dessous (réémets le terme source pour faciliter le contrôle) :
 
-[{"source": "<terme source exact>", "term": "<terme en {{ target_language_label }} ou inchangé>", "definition": "<définition en {{ target_language_label }}>"}]
+[{"source": "<terme source>", "term": "<terme en {{ target_language_label }} ou inchangé>", "definition": "<définition en {{ target_language_label }}>"}]
 
 Exemple (terme international **gardé**, mais définition **bien traduite** dans la langue
 cible — ici l'anglais) :
 [{"source": "WACC", "term": "WACC", "definition": "A financial indicator measuring the weighted average cost of capital."}]
 
-Termes à localiser :
+Termes à localiser (dans l'ordre) :
 {% for t in terms %}
-- source: {{ t.term }}{% if t.acronym %} (acronyme : {{ t.acronym }}){% endif %}
+- terme: {{ t.term }}
   définition: {{ t.definition }}
 {% endfor %}

@@ -10,6 +10,7 @@ from typing import Any, cast
 
 import pytest
 from pypdf import PdfReader
+from reportlab.lib.fonts import tt2ps
 from reportlab.pdfbase import pdfmetrics
 
 from fahmi2.core.errors.exceptions import ConfigError
@@ -350,6 +351,19 @@ def test_render_pdf_arabic_is_shaped(tmp_path: Path) -> None:
     text = PdfReader(io.BytesIO(pdf)).pages[0].extract_text()
     # Lettres arabes liées => formes de présentation U+FE70..U+FEFF (shaping).
     assert any(0xFE70 <= ord(ch) <= 0xFEFF for ch in text)
+
+
+@pytest.mark.skipif(not pdf_fonts_available(), reason="Police Unicode indisponible")
+def test_arabic_italic_uses_arabic_capable_font() -> None:
+    # Arial Italic / Bold-Italic n'ont pas de glyphes arabes : un terme arabe en
+    # emphase (*...*) tomberait en carrés. La famille arabe doit résoudre italique et
+    # gras-italique vers une fonte qui couvre l'arabe (variantes droites Arial).
+    markdown_pdf._ensure_pdf_fonts_registered()
+    markdown_pdf._ensure_arabic_font_registered()
+    arabic_letter = ord("ا")  # U+0627 ALEF
+    for bold, italic in ((0, 1), (1, 1), (0, 0), (1, 0)):
+        resolved = tt2ps(markdown_pdf._PDF_ARABIC_FONT_FAMILY, bold, italic)
+        assert arabic_letter in markdown_pdf._renderable_codepoints(resolved)
 
 
 def test_render_pdf_chinese_raises_without_cjk_font(

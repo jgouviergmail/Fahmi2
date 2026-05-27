@@ -326,17 +326,23 @@ class Phase6TranslationHandler(PhaseHandler):
             ctx, phase_id=self.phase_id, system_prompt=None, user_prompt=prompt
         )
         entries = parse_json_response(response.content, phase_id=self.phase_id)
-        if not isinstance(entries, list):
-            entries = []  # forme JSON inattendue → repli per-terme (termes source)
-        # Appariement par terme source, normalisé sur les espaces de bord pour
-        # tolérer une réémission imparfaite du LLM (repli per-terme sinon).
+        dict_entries = (
+            [e for e in entries if isinstance(e, dict)]
+            if isinstance(entries, list)
+            else []
+        )
+        # Appariement **par position** quand le LLM a renvoyé un objet par terme dans
+        # l'ordre demandé (cas normal) : robuste à une réémission imparfaite du champ
+        # ``source`` (les termes acronymes voyaient leur définition tomber en langue
+        # source). Repli sur l'appariement par terme source sinon, puis per-terme.
+        aligned = len(dict_entries) == len(master_terms)
         by_source: dict[str, dict[str, Any]] = {
-            str(e.get("source", "")).strip(): e for e in entries if isinstance(e, dict)
+            str(e.get("source", "")).strip(): e for e in dict_entries
         }
         localized: list[_LocalizedTerm] = []
-        for t in master_terms:
+        for index, t in enumerate(master_terms):
             source = str(t.get("term", ""))
-            entry = by_source.get(source.strip(), {})
+            entry = dict_entries[index] if aligned else by_source.get(source.strip(), {})
             localized.append(
                 _LocalizedTerm(
                     source=source,

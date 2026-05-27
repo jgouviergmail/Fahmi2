@@ -55,6 +55,36 @@ def test_localize_glossary_matches_by_source_and_falls_back(
     assert cost == pytest.approx(0.01)
 
 
+def test_localize_glossary_matches_by_position_when_source_echo_polluted(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    # Bug réel : pour les termes acronymes, le LLM réémettait un ``source`` pollué
+    # (≠ terme) → l'appariement par chaîne échouait → la définition retombait en
+    # langue source. L'appariement **par position** récupère la définition traduite.
+    payload = {
+        "terms": [
+            {"term": "WACC", "definition": "déf source FR", "acronym": "WACC"},
+            {"term": "Bilan", "definition": "doc comptable", "acronym": None},
+        ]
+    }
+    ctx, _run = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        llm_response=_localization_response(
+            [
+                {"source": "WACC (acronyme : WACC)", "term": "WACC", "definition": "EN def"},
+                {"source": "Bilan", "term": "Balance sheet", "definition": "accounting doc"},
+            ]
+        ),
+    )
+    localized, _cost = Phase6TranslationHandler()._localize_glossary(
+        ctx, target=Language.EN, payload=payload
+    )
+    assert localized[0].term == "WACC"
+    assert localized[0].definition == "EN def"  # définition traduite, pas la source FR
+    assert localized[1].definition == "accounting doc"
+
+
 def test_localize_glossary_matches_despite_whitespace(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:

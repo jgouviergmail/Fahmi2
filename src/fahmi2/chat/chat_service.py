@@ -12,7 +12,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from fahmi2.chat.citations import parse_citations
+from fahmi2.chat.citations import resolve_citations
 from fahmi2.chat.prompt_builder import build_chat_messages
 from fahmi2.core.retrieval.passages import PassageRetriever
 from fahmi2.domain.chat import ChatMessage, ChatSettings, RetrievedPassage
@@ -209,10 +209,11 @@ class ChatService:
         Returns:
             Le ``ChatMessage`` assistant.
         """
+        content, citations = resolve_citations(response.content, passages)
         return ChatMessage(
             role="assistant",
-            content=response.content,
-            citations=parse_citations(response.content, passages),
+            content=content,
+            citations=citations,
             cost_usd=response.cost_usd + retrieval_cost_usd,
             prompt_tokens=response.prompt_tokens,
             completion_tokens=response.completion_tokens,

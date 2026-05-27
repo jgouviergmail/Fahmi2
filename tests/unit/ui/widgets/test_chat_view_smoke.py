@@ -22,6 +22,7 @@ def test_streaming_then_finalize(qtbot: QtBot) -> None:
             content="Le PIB mesure la richesse.",
             citations=(
                 Citation(
+                    number=1,
                     chapter_title="Éco",
                     section_title="PIB",
                     anchor="pib",
@@ -40,6 +41,7 @@ def test_citation_link_carries_snippet_tooltip() -> None:
     # aplati sur une ligne.
     citations = (
         Citation(
+            number=1,
             chapter_title="Éco",
             section_title="PIB",
             anchor="pib",

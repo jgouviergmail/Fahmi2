@@ -67,7 +67,7 @@ def test_answer_returns_message_with_citation() -> None:
         language=Language.FR,
     )
     assert message.role == "assistant"
-    assert "[§1]" in message.content
+    assert "[[1]](pib)" in message.content  # marqueur réécrit en lien numéroté
     assert message.cost_usd == 0.01
     assert len(message.citations) == 1
     assert message.citations[0].anchor == "pib"

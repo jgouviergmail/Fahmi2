@@ -69,12 +69,16 @@ class Citation:
     """Référence vers un passage cité dans une réponse.
 
     Attributes:
+        number: Numéro d'affichage 1-based, séquentiel par ordre d'apparition
+            (dédupliqué par ancre) ; relie le marqueur ``[N]`` du corps à la
+            ligne « Sources ».
         chapter_title: Titre du chapitre cité.
         section_title: Titre de la section citée.
         anchor: Ancre GFM du passage (lien cliquable).
         snippet: Court extrait du passage cité.
     """
 
+    number: int
     chapter_title: str
     section_title: str
     anchor: str

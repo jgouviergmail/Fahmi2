@@ -61,9 +61,10 @@ def test_chat_message_defaults() -> None:
 
 def test_citation_fields() -> None:
     cit = Citation(
-        chapter_title="Bases", section_title="1.1", anchor="11", snippet="…"
+        number=1, chapter_title="Bases", section_title="1.1", anchor="11", snippet="…"
     )
     assert cit.anchor == "11"
+    assert cit.number == 1
 
 
 def test_conversation_with_message_and_total_cost() -> None:

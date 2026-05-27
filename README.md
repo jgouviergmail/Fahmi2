@@ -158,15 +158,13 @@ pour le détail complet.
 
 ## Statut
 
-**Version en préparation (non publiée)** — **5 langues supplémentaires**
-(allemand, espagnol, italien, chinois, arabe → **7 au total**, en entrée comme en
-sortie, pour les 3 fonctionnalités) ; **export Word (`.docx`)** pour la Génération
-et les Supports pédagogiques ; **rendu PDF du chinois** (police Microsoft YaHei,
-coupe de ligne automatique) **et de l'arabe** (droite-à-gauche + liaison
-contextuelle) ; **localisation terminologique du glossaire** par langue cible
-(phase 6) ; **normalisation du rendu des tableaux** (Markdown/PDF/HTML/DOCX). Ces
-ajouts décrits dans « Capacités » ci-dessus ne figurent pas encore dans le dernier
-`.zip` publié (v1.3.0). Cf. la section *[Unreleased]* du [CHANGELOG.md](CHANGELOG.md).
+**v1.4.0** — **5 langues supplémentaires** (allemand, espagnol, italien, chinois,
+arabe → **7 au total**, en entrée comme en sortie, pour les 3 fonctionnalités) ;
+**export Word (`.docx`)** pour la Génération et les Supports pédagogiques ; **rendu
+PDF du chinois** (police Microsoft YaHei, coupe de ligne automatique) **et de
+l'arabe** (droite-à-gauche + liaison contextuelle, y compris en Word) ;
+**localisation terminologique du glossaire** par langue cible (phase 6) ;
+**normalisation du rendu des tableaux** (Markdown/PDF/HTML/DOCX).
 
 **v1.3.0** — **mode de consolidation « refonte thématique »** (le LLM agrège et
 restructure transversalement les contenus par thème, à côté du mode ordonné par

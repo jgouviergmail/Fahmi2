@@ -5,7 +5,7 @@ Toutes les évolutions notables du projet Fahmi2.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.4.0] — 2026-05-27
 
 ### Ajouté — 5 langues supplémentaires (allemand, espagnol, italien, chinois, arabe)
 

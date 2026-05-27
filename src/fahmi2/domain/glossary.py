@@ -1,9 +1,15 @@
-"""Entités Term et Glossary (immuables)."""
+"""Entités Term et Glossary (immuables), localisation et rendu Markdown du glossaire.
+
+Source unique des en-têtes/titres localisés du glossaire (``_HEADERS_BY_LANGUAGE`` /
+``_TITLE_BY_LANGUAGE``), des helpers de localisation des termes par langue cible
+(``cross_lang``) et du rendu en tableau Markdown. Module de domaine pur (ni Qt, ni HTTP,
+ni SQL).
+"""
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from fahmi2.domain.enums import Language
@@ -12,7 +18,68 @@ from fahmi2.domain.ids import SourceId
 _HEADERS_BY_LANGUAGE: dict[Language, tuple[str, str, str, str]] = {
     Language.FR: ("Terme", "Acronyme", "Signification", "Définition"),
     Language.EN: ("Term", "Acronym", "Meaning", "Definition"),
+    Language.DE: ("Begriff", "Akronym", "Bedeutung", "Definition"),
+    Language.ES: ("Término", "Acrónimo", "Significado", "Definición"),
+    Language.IT: ("Termine", "Acronimo", "Significato", "Definizione"),
+    Language.ZH: ("术语", "缩写", "含义", "定义"),
+    Language.AR: ("المصطلح", "الاختصار", "المعنى", "التعريف"),
 }
+
+#: Titre H1 localisé du glossaire par langue (cohérent avec les en-têtes).
+_TITLE_BY_LANGUAGE: dict[Language, str] = {
+    Language.FR: "Glossaire",
+    Language.EN: "Glossary",
+    Language.DE: "Glossar",
+    Language.ES: "Glosario",
+    Language.IT: "Glossario",
+    Language.ZH: "术语表",
+    Language.AR: "مسرد المصطلحات",
+}
+
+
+def glossary_title(language: Language) -> str:
+    """Titre H1 localisé du glossaire pour une langue.
+
+    Args:
+        language: Langue cible.
+
+    Returns:
+        Le titre localisé (ex: ``"Glossaire"``) ; repli anglais si la langue est
+        hors périmètre.
+    """
+    return _TITLE_BY_LANGUAGE.get(language, _TITLE_BY_LANGUAGE[Language.EN])
+
+
+def glossary_term_for_language(term: Term, language: Language) -> str:
+    """Forme localisée d'un terme pour une langue (repli sur le terme source).
+
+    Args:
+        term: Terme du glossaire master.
+        language: Langue cible.
+
+    Returns:
+        ``term.cross_lang[language]`` s'il existe, sinon ``term.term``.
+    """
+    return term.cross_lang.get(language, term.term)
+
+
+def localize_glossary_terms(
+    terms: Iterable[Term], language: Language
+) -> tuple[Term, ...]:
+    """Vue du glossaire pour une langue : remplace la forme du terme par sa
+    localisation (``cross_lang[language]``) ; définition, acronyme et expansion
+    restent inchangés (la définition reste donc en langue source en aval).
+
+    Args:
+        terms: Termes du glossaire master.
+        language: Langue de la vue voulue.
+
+    Returns:
+        Un tuple de ``Term`` dont seul ``term`` est localisé (repli sur la source).
+    """
+    return tuple(
+        replace(t, term=glossary_term_for_language(t, language)) for t in terms
+    )
 
 
 @dataclass(frozen=True)
@@ -117,38 +184,50 @@ def parse_glossary_master_terms(payload: dict[str, Any]) -> tuple[Term, ...]:
     return tuple(result)
 
 
+def _escape_table_cell(value: str) -> str:
+    """Échappe une valeur pour une cellule de tableau Markdown.
+
+    Échappe les barres verticales (sinon elles découperaient la cellule) et aplatit
+    les sauts de ligne (sinon ils casseraient la ligne du tableau).
+
+    Args:
+        value: Valeur brute de la cellule.
+
+    Returns:
+        La valeur sûre pour insertion dans une cellule de tableau pipe.
+    """
+    return value.replace("|", "\\|").replace("\n", " ")
+
+
 def render_glossary_markdown_table(
     *,
-    title: str,
     language: Language,
     terms: Iterable[Term],
 ) -> str:
     """Rend une liste de ``Term`` au format tableau Markdown 4 colonnes.
 
-    Colonnes ``| Terme | Acronyme | Signification | Définition |`` (FR) ou
-    ``| Term | Acronym | Meaning | Definition |`` (EN). La colonne *Signification*
-    contient l'expansion littérale de l'acronyme, conservée dans sa langue
-    d'origine. Vide si le terme n'a pas d'acronyme.
+    Le **titre H1 et les en-têtes** sont localisés depuis ``language`` (titre via
+    :func:`glossary_title`, en-têtes via ``_HEADERS_BY_LANGUAGE``) : impossible de
+    désaligner titre et colonnes. La colonne *Signification* contient l'expansion
+    littérale de l'acronyme, conservée dans sa langue d'origine (vide si le terme
+    n'a pas d'acronyme).
 
     Args:
-        title: Titre H1 du document.
-        language: Langue (libellés d'en-têtes).
+        language: Langue cible (pilote le titre H1 et les libellés d'en-têtes).
         terms: Termes à afficher (déjà triés par l'appelant).
 
     Returns:
         Le Markdown complet (titre, ligne vide, tableau, saut final).
     """
     headers = _HEADERS_BY_LANGUAGE.get(language, _HEADERS_BY_LANGUAGE[Language.EN])
-    lines: list[str] = [f"# {title}", ""]
+    lines: list[str] = [f"# {glossary_title(language)}", ""]
     lines.append(f"| {headers[0]} | {headers[1]} | {headers[2]} | {headers[3]} |")
     lines.append("|---|---|---|---|")
     for term in terms:
-        acronym = term.acronym or ""
-        expansion = term.acronym_expansion or ""
-        term_cell = term.term.replace("|", "\\|")
-        acronym_cell = acronym.replace("|", "\\|")
-        expansion_cell = expansion.replace("|", "\\|").replace("\n", " ")
-        def_cell = term.definition.replace("|", "\\|").replace("\n", " ")
+        term_cell = _escape_table_cell(term.term)
+        acronym_cell = _escape_table_cell(term.acronym or "")
+        expansion_cell = _escape_table_cell(term.acronym_expansion or "")
+        def_cell = _escape_table_cell(term.definition)
         lines.append(
             f"| {term_cell} | {acronym_cell} | {expansion_cell} | {def_cell} |"
         )

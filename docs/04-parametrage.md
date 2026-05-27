@@ -59,7 +59,9 @@ master-detail) ; ils incluent le **dossier des vidéos**.
 
 Un **contrôle unique** « Langues du document » : une ligne de cases
 **Produites** (langues générées) et un menu déroulant **Principale** qui ne
-propose que les langues produites.
+propose que les langues produites. **7 langues** sont disponibles, en entrée
+comme en sortie : **français, anglais, allemand, espagnol, italien, chinois,
+arabe**.
 
 | Élément | Description |
 |---------|-------------|
@@ -152,8 +154,8 @@ L'écart résiduel est de l'ordre de ±20 % selon le contenu des vidéos.
 | **Emplacement (workspace)** | Dossier de travail choisi à la création. Les artefacts de génération vont sous `<emplacement>/generation/` (livrables sous `<emplacement>/generation/output/`). | choisi à la création |
 | **Delete audio after STT** | Supprime les WAV extraits après transcription | `True` (économise du disque) |
 | **Transcriptions en parallèle** (`stt_cloud_workers`) | Transcriptions STT cloud simultanées (effectif ; sans effet en STT local : 1 GPU). Réglable 1–8 (page Transcription). | 3 |
-| **Appels LLM en parallèle** (`llm_workers`) | Appels LLM simultanés du pipeline (phases per-video + traduction/cohérence/résumés). Effectif ; la limite DeepSeek étant par concurrence, une valeur élevée reste sûre. Réglable 1–64 (page Modèle & coût). | 16 |
-| **Formats d'export** (`export_formats`) | Formats proposés par le bouton **Exporter** de l'onglet Génération (page **Export**) : **Markdown / PDF / HTML**. À l'export, le **consolidé** et le **glossaire** sont écrits, un fichier par langue, dans le format choisi (`consolidated.{lang}.<ext>`, `glossary.{lang}.<ext>`). | aucun (opt-in) |
+| **Appels LLM en parallèle** (`llm_workers`) | Appels LLM simultanés du pipeline (phases per-source + traduction/cohérence/résumés). Effectif ; la limite DeepSeek étant par concurrence, une valeur élevée reste sûre. Réglable 1–64 (page Modèle & coût). | 16 |
+| **Formats d'export** (`export_formats`) | Formats proposés par le bouton **Exporter** de l'onglet Génération (page **Export**) : **Markdown / PDF / HTML / Word (`.docx`)**. À l'export, le **consolidé** et le **glossaire** sont écrits, un fichier par langue, dans le format choisi (`consolidated.{lang}.<ext>`, `glossary.{lang}.<ext>`). Le PDF gère le chinois (police YaHei, retours à la ligne automatiques) et l'arabe (RTL) ; le glossaire est mis en **paysage** (PDF et Word). | aucun (opt-in) |
 
 ## 3. Surcouche des prompts (avancé)
 
@@ -165,9 +167,11 @@ manuel d'un fichier `.j2`.
 
 Menu **Édition → Modifier les prompts…** ouvre un dialogue dédié :
 
-- **Sidebar gauche** : liste des 8 templates LLM (phases 1-7 +
-  sous-prompt 5a). Un astérisque ` *` est ajouté en face d'un template
-  pour lequel un override est actif.
+- **Sidebar gauche** : liste de **tous** les templates LLM éditables — phases de
+  génération (1-7, dont les sous-prompts de consolidation, les variantes du mode
+  **refonte thématique** et la **localisation du glossaire**), supports pédagogiques
+  et Dialogue. Un astérisque ` *` est ajouté en face d'un template pour lequel un
+  override est actif.
 - **Description** courte de chaque phase et de son rôle dans le
   pipeline.
 - **Bandeau d'état** : *« 📦 Prompt par défaut »* ou *« ✏️ Override
@@ -202,6 +206,7 @@ fichiers :
    - `phase_5_fact_ledger.j2`, `phase_5_thematic_plan.j2`,
      `phase_5_thematic_chapter.j2` (mode **refonte thématique**)
    - `phase_6_translation.j2`
+   - `phase_6_glossary_localization.j2` (localisation des termes du glossaire par langue)
    - `phase_7_coherence.j2`
    - les 8 templates `pedagogy_*.j2` (supports de révision)
    - `chat_strict.j2`, `chat_augmented.j2`, `chat_query_expansion.j2` (Dialogue)
@@ -222,6 +227,7 @@ fichiers :
 | `phase_5_thematic_plan` | `output_language_label`, `elements_listing` |
 | `phase_5_thematic_chapter` | `output_language_label`, `style_label`, `style_directives`, `chapter_title`, `elements_json` |
 | `phase_6_translation` | `source_language_label`, `target_language_label`, `style_label`, `style_directives`, `glossary_terms`, `source_markdown` |
+| `phase_6_glossary_localization` | `source_language_label`, `target_language_label`, `style_label`, `style_directives`, `terms` (`term`, `definition`) |
 | `phase_7_coherence` | `output_language_label`, `style_label`, `style_directives`, `glossary_terms`, `consolidated_markdown` |
 | `pedagogy_flashcards_concepts` | `output_language_label`, `audience_label`, `bloom_label`, `density_label`, `pedagogy_directives`, `glossary_terms`, `chapter_title`, `chapter_markdown` |
 | `pedagogy_qcm` | *(idem flashcards concepts)* |
@@ -261,16 +267,16 @@ Onglet **Supports pédagogiques → ⚙ Réglages** (vue master-detail) :
 | **Difficulté** | Public cible (découverte / lycée / licence / master-expert), objectif Bloom (auto / restituer / comprendre & appliquer / analyser & au-delà), densité (légère / standard / dense), directives libres. |
 | **Langues** | Toutes les langues supportées : les supports sont rédigés dans la langue choisie même si le document source est dans une autre langue (l'orchestrateur résout une langue de contenu à partir d'un `consolidated.{lang}.md` existant). |
 | **Modèle & coût** | Modèle LLM, mode raisonnement + niveau d'effort, température, **plafond budget** (interrompt proprement ; en génération parallèle, léger dépassement toléré par les requêtes déjà en vol), **tâches en parallèle** (défaut 16, plage 1–64 : nombre d'appels LLM concurrents pour générer les supports — la limite DeepSeek étant par concurrence, une valeur élevée reste sûre ; le parallélisme effectif est borné par le nombre de supports × langues). |
-| **Export** | Formats proposés au bouton **Exporter** : Anki (`.apkg`), Markdown, PDF, HTML. Le Markdown des champs est converti en HTML à l'export Anki ; Markdown/PDF/HTML produisent **un fichier par support et par corrigé**. |
+| **Export** | Formats proposés au bouton **Exporter** : Anki (`.apkg`), Markdown, PDF, HTML, Word (`.docx`). Le Markdown des champs est converti en HTML à l'export Anki ; Markdown/PDF/HTML/DOCX produisent **un fichier par support et par corrigé**. |
 
 Le bouton **Estimer le coût** donne un ordre de grandeur (par support × langue ×
 chapitre, selon densité et thinking) ; **Générer** lance la génération (progression
 par support × langue, reprise *coarse* des supports déjà à jour) ; **Ouvrir le
-dossier** ouvre `<emplacement>/pedagogy/` ; **Exporter** propose 4 formats :
+dossier** ouvre `<emplacement>/pedagogy/` ; **Exporter** propose 5 formats :
 - **Anki `.apkg`** (flashcards → Basic, textes à trous → Cloze, QCM → note custom ;
   GUID stables, sous-decks par support, tags support/langue/niveau/chapitre) ;
-- **Markdown**, **PDF** et **HTML** : **un fichier par support et par corrigé**,
-  nommés `<support>.<langue>.<ext>` et `<support>.<langue>.corrige.<ext>`
+- **Markdown**, **PDF**, **HTML** et **Word (`.docx`)** : **un fichier par support et
+  par corrigé**, nommés `<support>.<langue>.<ext>` et `<support>.<langue>.corrige.<ext>`
   (le HTML est un document autonome avec feuille de style intégrée).
 
 ## 3ter. Réglages du Dialogue (chat)

@@ -104,16 +104,16 @@ dist/Fahmi2/
 ├── _internal/
 │   ├── fahmi2/
 │   │   ├── core/errors/messages.fr.json
-│   │   ├── infra/prompts/defaults/*.j2   ← 8 phases + 3 phase_5_* thématiques + 8 pedagogy_* + 3 chat_*
+│   │   ├── infra/prompts/defaults/*.j2   ← 8 phases + 3 phase_5_* thématiques + phase_6_glossary_localization + 8 pedagogy_* + 3 chat_*
 │   │   └── infra/storage/_schema.sql
 │   └── genanki/                          ← données collectées (apkg_schema.sql, apkg_col.anki2)
 └── …
 ```
 
-### Dépendances exports (genanki / markdown / xhtml2pdf)
+### Dépendances exports (genanki / markdown / xhtml2pdf / htmldocx)
 
-Les exports (Anki / Markdown / PDF / HTML) ajoutent des dépendances. Elles sont
-**déjà câblées** dans `packaging/fahmi2.spec` (gitignored ; build v1.0.0 validé) :
+Les exports (Anki / Markdown / PDF / HTML / Word) ajoutent des dépendances. Elles
+sont **déjà câblées** dans `packaging/fahmi2.spec` (gitignored ; build v1.0.0 validé) :
 
 - **`xhtml2pdf`** (export **PDF**, rendu du HTML) s'appuie sur **`reportlab`** et
   tire `html5lib`, `pypdf`, `Pillow`, `svglib`, `arabic-reshaper`, `python-bidi`,
@@ -129,12 +129,25 @@ Les exports (Anki / Markdown / PDF / HTML) ajoutent des dépendances. Elles sont
   ses modules sont bundlés par l'analyse d'imports. (`collect_data_files('genanki')`
   renvoie `[]` ; conservé dans le `.spec` par sécurité si une version future
   ré-externalise ces données.)
-- **Police PDF** : le rendu PDF s'appuie sur la police **Arial du système
-  Windows** (`%SystemRoot%\Fonts\arial*.ttf`), enregistrée auprès de ReportLab —
-  **aucune police à bundler**, mais l'EXE en dépend à l'exécution (toujours
-  présente sur une cible Windows). Quelques tirets Unicode rares
-  (U+2010/2011/2012/2015) non rendus par ReportLab+Arial sont normalisés au rendu
-  PDF (`markdown_pdf._normalize_for_pdf`).
+- **`htmldocx`** (export **Word `.docx`**, rendu HTML→docx) s'appuie sur
+  **`beautifulsoup4`** (`bs4`) — tous deux **pur Python** ; `lxml` (natif) est
+  **déjà** tiré par `python-docx` (cf. ingestion). Imports paresseux dans
+  `markdown_docx` → `hiddenimports += ['htmldocx']` + `collect_submodules('bs4')`
+  dans le `.spec`.
+- **Polices PDF** : le rendu PDF s'appuie sur des **polices système Windows**,
+  enregistrées auprès de ReportLab — **aucune police à bundler**, mais l'EXE en
+  dépend à l'exécution (toujours présentes sur une cible Windows standard) :
+  **Arial** (`%SystemRoot%\Fonts\arial*.ttf`) pour le latin **et l'arabe** (glyphes
+  arabes + liaison contextuelle via `arabic-reshaper`/`python-bidi`) ; **Microsoft
+  YaHei** (`%SystemRoot%\Fonts\msyh.ttc`, TrueType Collection chargée via
+  `subfontIndex`) pour le **chinois**. Si YaHei est absente, l'export PDF chinois
+  lève `EXPORT.NO_CJK_FONT` (MD/HTML/Word restent disponibles). Quelques tirets
+  Unicode rares (U+2010/2011/2012/2015) non rendus par ReportLab+Arial sont
+  normalisés au rendu PDF (`markdown_pdf._normalize_for_pdf`). Deux autres
+  traitements **purement runtime** (rien à bundler) : les caractères **sans glyphe**
+  dans la police active (émojis décoratifs) sont **retirés** du PDF
+  (`_strip_unrenderable_for_pdf`), et la **prose chinoise est pré-coupée** par `<br/>`
+  (ReportLab ne coupe qu'aux espaces, absents en CJK ; `_prewrap_cjk_runs`).
 
 ### Dépendances ingestion documents (pypdf / python-docx)
 

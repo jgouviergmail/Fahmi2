@@ -6,10 +6,15 @@ from enum import StrEnum
 
 
 class Language(StrEnum):
-    """Langues supportées en v1 (entrée et sortie)."""
+    """Langues supportées (entrée et sortie)."""
 
     FR = "fr"
     EN = "en"
+    DE = "de"
+    ES = "es"
+    IT = "it"
+    ZH = "zh"
+    AR = "ar"
 
 
 class StylePreset(StrEnum):
@@ -183,12 +188,17 @@ class SupportDensity(StrEnum):
 
 
 class ExportFormat(StrEnum):
-    """Formats d'export des supports."""
+    """Formats d'export (supports pédagogiques et livrables de génération).
+
+    ``APKG`` (Anki) ne concerne que les supports pédagogiques ; ``MARKDOWN``/``PDF``/
+    ``HTML``/``DOCX`` sont les formats documentaires partagés par les deux features.
+    """
 
     APKG = "apkg"
     MARKDOWN = "markdown"
     PDF = "pdf"
     HTML = "html"
+    DOCX = "docx"
 
 
 class ChatGroundingMode(StrEnum):

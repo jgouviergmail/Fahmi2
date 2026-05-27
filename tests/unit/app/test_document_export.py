@@ -7,8 +7,15 @@ from pathlib import Path
 import pytest
 
 from fahmi2.app.document_export import ExportDocument, write_documents
-from fahmi2.domain.enums import ExportFormat
+from fahmi2.domain.enums import ExportFormat, Language
 from fahmi2.infra.export.markdown_pdf import EXTENSION_BY_FORMAT, pdf_fonts_available
+
+
+def test_export_document_carries_language() -> None:
+    doc = ExportDocument(stem="x", markdown="# x", language=Language.AR)
+    assert doc.language is Language.AR
+    # Défaut rétro-compatible : FR si non précisé.
+    assert ExportDocument(stem="y", markdown="# y").language is Language.FR
 
 
 def test_extension_by_format_doc_formats_only() -> None:
@@ -16,8 +23,18 @@ def test_extension_by_format_doc_formats_only() -> None:
         ExportFormat.MARKDOWN: ".md",
         ExportFormat.PDF: ".pdf",
         ExportFormat.HTML: ".html",
+        ExportFormat.DOCX: ".docx",
     }
     assert ExportFormat.APKG not in EXTENSION_BY_FORMAT
+
+
+def test_write_documents_dispatches_docx(tmp_path: Path) -> None:
+    docs = [ExportDocument(stem="support.fr", markdown="# Titre\n\nTexte.\n")]
+    result = write_documents(docs, output_dir=tmp_path, fmt=ExportFormat.DOCX)
+    out = tmp_path / "support.fr.docx"
+    assert out in result.output_paths
+    # Un .docx est un zip OOXML : signature "PK".
+    assert out.read_bytes()[:2] == b"PK"
 
 
 def test_write_markdown_copies_content_and_preserves_order(tmp_path: Path) -> None:

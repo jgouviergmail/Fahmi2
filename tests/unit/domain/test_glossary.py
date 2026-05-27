@@ -6,12 +6,59 @@ import pytest
 
 from fahmi2.domain.enums import Language
 from fahmi2.domain.glossary import (
+    _HEADERS_BY_LANGUAGE,
     Glossary,
     Term,
+    glossary_term_for_language,
+    glossary_title,
+    localize_glossary_terms,
     parse_glossary_master_terms,
     render_glossary_markdown_table,
 )
 from fahmi2.domain.ids import SourceId
+
+
+def test_glossary_headers_exist_for_all_languages() -> None:
+    for lang in Language:
+        headers = _HEADERS_BY_LANGUAGE[lang]
+        assert len(headers) == 4
+        assert all(h for h in headers)
+    assert _HEADERS_BY_LANGUAGE[Language.DE][0] == "Begriff"
+    assert _HEADERS_BY_LANGUAGE[Language.ZH][3] == "定义"
+
+
+def test_glossary_term_for_language_uses_cross_lang_then_falls_back() -> None:
+    t = Term(term="Bilan", definition="...", cross_lang={Language.EN: "Balance sheet"})
+    assert glossary_term_for_language(t, Language.EN) == "Balance sheet"
+    # Pas d'entrée DE → repli sur le terme source.
+    assert glossary_term_for_language(t, Language.DE) == "Bilan"
+
+
+def test_localize_glossary_terms_replaces_surface_keeps_rest() -> None:
+    terms = (
+        Term(
+            term="Bilan",
+            definition="def",
+            acronym="B",
+            cross_lang={Language.EN: "Balance sheet"},
+        ),
+        Term(term="IFRS", definition="norme"),  # pas de cross_lang → inchangé
+    )
+    out = localize_glossary_terms(terms, Language.EN)
+    assert out[0].term == "Balance sheet"
+    assert out[0].definition == "def"  # définition inchangée (source)
+    assert out[0].acronym == "B"  # acronyme conservé
+    assert out[1].term == "IFRS"  # repli (pas d'équivalent)
+
+
+def test_glossary_title_localized_for_all_languages() -> None:
+    for lang in Language:
+        assert glossary_title(lang)
+    assert glossary_title(Language.FR) == "Glossaire"
+    assert glossary_title(Language.EN) == "Glossary"
+    assert glossary_title(Language.DE) == "Glossar"
+    assert glossary_title(Language.ES) == "Glosario"
+    assert glossary_title(Language.IT) == "Glossario"
 
 
 def test_term_minimal() -> None:
@@ -132,9 +179,7 @@ def test_render_table_french_headers_and_invariant_expansion() -> None:
             ]
         }
     )
-    md = render_glossary_markdown_table(
-        title="Glossaire", language=Language.FR, terms=terms
-    )
+    md = render_glossary_markdown_table(language=Language.FR, terms=terms)
     assert md.startswith("# Glossaire")
     assert "| Terme | Acronyme | Signification | Définition |" in md
     assert "Return On Investment" in md  # expansion invariante
@@ -145,8 +190,31 @@ def test_render_table_english_headers() -> None:
     terms = parse_glossary_master_terms(
         {"terms": [{"term": "GDP", "definition": "Gross domestic product."}]}
     )
-    md = render_glossary_markdown_table(
-        title="Glossary", language=Language.EN, terms=terms
-    )
+    md = render_glossary_markdown_table(language=Language.EN, terms=terms)
     assert md.startswith("# Glossary")
     assert "| Term | Acronym | Meaning | Definition |" in md
+
+
+def test_render_table_escapes_pipes_and_flattens_newlines() -> None:
+    # Une barre ou un saut de ligne dans **n'importe quelle** colonne (terme,
+    # acronyme, signification, définition) ne doit pas casser la ligne du tableau.
+    terms = (
+        Term(
+            term="A|B\nC",
+            definition="d1\nd2",
+            acronym="X|Y\nZ",
+            acronym_expansion="e1\ne2|f",
+        ),
+    )
+    md = render_glossary_markdown_table(language=Language.FR, terms=terms)
+    data_rows = [
+        line
+        for line in md.splitlines()
+        if line.startswith("|") and "---" not in line and "Terme" not in line
+    ]
+    assert len(data_rows) == 1  # une seule ligne de données (aucun saut introduit)
+    row = data_rows[0]
+    assert "A\\|B C" in row  # terme : barre échappée + saut aplati
+    assert "X\\|Y Z" in row  # acronyme idem (jusque-là non aplati)
+    assert "e1 e2\\|f" in row  # signification idem
+    assert "d1 d2" in row  # définition aplatie

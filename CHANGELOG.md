@@ -5,6 +5,126 @@ Toutes les évolutions notables du projet Fahmi2.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] — 2026-05-27
+
+### Ajouté — 5 langues supplémentaires (allemand, espagnol, italien, chinois, arabe)
+
+- L'enum `Language` passe de **2 à 7 langues** : ajout de l'**allemand**,
+  l'**espagnol**, l'**italien**, le **chinois** et l'**arabe**, en plus du français
+  et de l'anglais. Les 7 langues sont gérées **en entrée et en sortie** pour les
+  **3 fonctionnalités** (Génération, Supports pédagogiques, Dialogue) : détection
+  STT, glossaire, supports et chat inclus.
+- **STT** : alias de détection de langue Whisper (nom complet OpenAI → code ISO)
+  étendus aux 5 nouvelles langues (« german » → `de`, « chinese » → `zh`, …).
+- **Glossaire localisé** : en-têtes du tableau (Terme / Acronyme / Signification /
+  Définition) et titre du glossaire traduits pour les 7 langues
+  (`_HEADERS_BY_LANGUAGE`, `_TITLE_BY_LANGUAGE` dans `domain/glossary`).
+- **Libellés de langue centralisés** (`domain/languages` : `language_label` /
+  `language_display_label`), **source unique** réutilisée par l'UI (combos de langue
+  capitalisés), le PDF/HTML/DOCX et le Dialogue.
+- **Limitation connue (chinois)** : le retrieval **lexical** du Dialogue (TF-IDF,
+  tokenisation `\b\w+\b`) est peu adapté au chinois (pas d'espaces entre les mots)
+  → privilégier le mode **sémantique** (le défaut `AUTO` y route dès qu'une clé
+  OpenAI est présente). L'arabe (mots séparés par des espaces) n'est pas concerné.
+
+### Ajouté — Export Word (`.docx`)
+
+- Nouveau format d'export **Word `.docx`** pour la **Génération** (consolidé +
+  glossaire, un fichier par langue) et les **Supports pédagogiques** (un fichier par
+  support et par corrigé), aux côtés de Markdown / PDF / HTML / Anki. Le corps HTML
+  est **rendu une fois** (`render_markdown_body`, extensions `tables` / `toc`,
+  partagé HTML/PDF/DOCX) puis converti en `.docx` via **`htmldocx`** (sur
+  `python-docx`). Réglages : `GenerationSettings.export_formats` /
+  `PedagogySettings.export_formats` (opt-in).
+- **Tableaux** : `htmldocx` ne traduit ni les bordures CSS ni `width: 100%` → ses
+  tableaux sortent sans contour et en largeur automatique ; on les reformate après
+  conversion (style **Table Grid** + largeur **100 %**, `tblW` en pourcentage) pour
+  s'aligner sur le rendu HTML/PDF.
+- **Orientation paysage** (option `landscape`, ex: glossaire) posée sur les sections
+  du document (`WD_ORIENT.LANDSCAPE` + permutation largeur/hauteur), comme le PDF.
+- **Arabe en droite-à-gauche** : direction RTL explicite — `w:bidi` sur les
+  paragraphes, `w:rtl` sur les runs, `w:bidiVisual` sur les tableaux (ordre des
+  colonnes inversé) — alignée sur le PDF (`direction:rtl`) et le HTML (`dir="rtl"`).
+  Toggles insérés à la position valide du schéma OOXML via `insert_element_before`.
+  Word gère **nativement** la substitution de police CJK et la coupe de ligne : rien
+  à déclarer côté DOCX pour le chinois.
+- Dépendance d'export **`htmldocx`** (+ `beautifulsoup4` ; `lxml` est déjà tiré par
+  `python-docx`). Câblée dans `packaging/fahmi2.spec` (`hiddenimports += ['htmldocx']`
+  + `collect_submodules('bs4')`).
+
+### Ajouté — Rendu PDF des nouvelles langues (chinois CJK + arabe RTL)
+
+- **Chinois** : police **Microsoft YaHei** (`msyh.ttc` système, chargée via
+  `subfontIndex`) injectée dans `xhtml2pdf.default.DEFAULT_FONT` (garde
+  `EXPORT.NO_CJK_FONT` si la police est absente). Comme le chinois s'écrit **sans
+  espaces** et que ReportLab ne coupe qu'aux espaces, la **prose CJK est pré-coupée**
+  par `<br/>` (par **bloc** entier, largeur dérivée des constantes A4/marge) et les
+  **cellules de tableau** par la règle CSS `-pdf-word-wrap: CJK` (seul contexte où
+  elle ne plante pas dans xhtml2pdf 0.2.17).
+- **Arabe** : police **Arial** (glyphes arabes) + `direction:rtl` + tag
+  `<pdf:language name="arabic"/>` qui déclenche la **liaison contextuelle** et la
+  **bidi** (`arabic-reshaper` / `python-bidi`, transitifs de xhtml2pdf).
+- **Police PDF par langue** : latin (fr/en/de/es/it) → Arial (résolu en Helvetica,
+  couvre Latin-1) ; chinois → YaHei ; arabe → Arial + RTL. **Polices toutes système
+  Windows — rien à bundler.**
+- **Glossaire en paysage** étendu au **DOCX** (l'était déjà en PDF) ; largeurs de
+  colonnes dédiées en PDF.
+
+### Ajouté — Localisation terminologique du glossaire (phase 6)
+
+- Les **termes** du glossaire sont désormais **localisés par langue cible** par un
+  **appel LLM structuré** (`_localize_glossary`, prompt
+  `phase_6_glossary_localization` éditable) : traduit-sauf-international, acronyme
+  conservé, expansion d'acronyme invariante. Appariement **par terme source**
+  d'abord, repli par **position**, puis repli sur le terme source.
+- La phase 6 **rend `glossary.{L}.md` de façon déterministe** (le glossaire n'est
+  plus une tâche de traduction), **injecte les vrais équivalents source → cible**
+  dans la traduction du consolidé et des docs, et **persiste `cross_lang`** dans
+  `glossary_master.json` (écriture atomique).
+- **Propagation** : la **Pédagogie** (`SupportsOrchestrator`) et le **Dialogue**
+  (`corpus.load_corpus_chunks`) **pré-localisent** le glossaire à la langue de
+  contenu qu'ils chargent. **Source unique** :
+  `domain/glossary.localize_glossary_terms`.
+- **Limite assumée** : seul le **terme** est porté par `cross_lang` (en aval, la
+  **définition** reste en langue source) ; le `glossary.{L}.md` **exporté** reste,
+  lui, entièrement localisé.
+
+### Corrigé — Rendu des tableaux (Markdown / PDF / HTML / DOCX)
+
+- **Tableaux pipe collés ou indentés non rendus.** Un tableau Markdown collé au
+  texte (sans ligne vide avant/après) ou indenté sortait en **`|` littéraux** au lieu
+  d'un vrai tableau (l'extension `tables` de python-markdown exige des lignes vides
+  autour). Normalisation déterministe en amont des 4 formats (`_normalize_table_blocks` :
+  ligne vide avant/après + désindentation, en **préservant les blocs de code**), plus
+  renumérotation des listes ordonnées scindées par un tableau (`<ol start>`).
+- **Carrés arabes en italique (PDF).** Arial *Italic* / *Bold-Italic* n'ont aucun
+  glyphe arabe → tout passage arabe en italique sortait en carrés. Famille de police
+  **`AppArabic`** qui retombe sur le droit (regular / bold) pour les variantes
+  italiques.
+- **Débordement du chinois à droite (PDF).** Les paragraphes chinois se
+  chevauchaient / dépassaient la marge droite, y compris après un terme **en gras**
+  inline (la coupe était calculée par nœud, ignorant le décalage du gras). Corrigé en
+  pré-coupant la prose CJK **au niveau du bloc** (texte aplati, balises inline
+  comprises).
+- **Caractères sans glyphe (PDF).** Tout caractère absent de la police active
+  (émojis décoratifs 📖 / 📝 / 💡 / 🎯…) est **retiré avant rendu** (ReportLab
+  dessinait sinon un carré ; catégories Cc/Cf/Zs/Zl/Zp conservées, dont ZWJ/RLM pour
+  l'arabe) ; HTML et DOCX, eux, les **conservent**. Tirets Unicode rares
+  (U+2010/2011/2012/2015) normalisés au rendu PDF.
+
+### Technique
+
+- **`domain/languages.is_rtl`** + `_RTL_LANGUAGES` : **source unique** de la
+  direction droite-à-gauche (PDF + HTML + DOCX). **`_CJK_LANGUAGES`** : source unique
+  de la décision « langue CJK » (police YaHei + pré-coupe).
+- **`ExportDocument`** porte désormais la **langue** du contenu (pilote police et
+  direction des rendus PDF/HTML/DOCX), en plus de l'orientation `landscape` et des
+  largeurs de colonnes PDF ; renseignée par les collecteurs des deux fonctionnalités.
+- Échappement des cellules du tableau de glossaire (`|` → `\|`, sauts de ligne →
+  espace) **centralisé** (`_escape_table_cell`, appliqué aux 4 colonnes).
+- Tailles de police et marge `@page` du PDF **centralisées** (source unique du
+  gabarit CSS ↔ calcul de largeur du pré-formatage CJK).
+
 ## [1.3.0] — 2026-05-26
 
 ### Ajouté

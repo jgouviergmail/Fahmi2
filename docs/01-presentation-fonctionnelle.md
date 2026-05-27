@@ -53,10 +53,10 @@ des **réglages** (⚙ : supports, difficulté, langues, modèle & coût), un bo
 **Générer** et **Estimer le coût**, une **table de progression** (support × langue)
 et un **bandeau d'état** (« génération requise » / « prêt » / « à jour » /
 « périmé »). Les supports sont écrits sous `<emplacement>/pedagogy/`. Un bouton
-**Exporter** propose 4 formats : **Anki `.apkg`** (flashcards, textes à trous, QCM ;
-ré-import sans doublon), **Markdown**, **PDF** et **HTML** — ces trois derniers
-produisant **un fichier par support et par corrigé** (`<support>.<langue>.<ext>` /
-`<support>.<langue>.corrige.<ext>`), chacun autonome.
+**Exporter** propose 5 formats : **Anki `.apkg`** (flashcards, textes à trous, QCM ;
+ré-import sans doublon), **Markdown**, **PDF**, **HTML** et **Word (`.docx`)** — ces
+quatre derniers produisant **un fichier par support et par corrigé**
+(`<support>.<langue>.<ext>` / `<support>.<langue>.corrige.<ext>`), chacun autonome.
 
 - Création d'un projet via un **dialogue minimal** (nom + emplacement) ; les
   réglages de génération se configurent ensuite depuis l'onglet **Génération →
@@ -67,15 +67,15 @@ produisant **un fichier par support et par corrigé** (`<support>.<langue>.<ext>
 
 ### 4.2 Pipeline de traitement
 
-Pour chaque projet, le **pipeline en 8 phases** transforme les vidéos en
+Pour chaque projet, le **pipeline en 8 phases** transforme les sources en
 documents :
 
 | Phase | Description |
 |-------|-------------|
-| 0. STT | Transcription audio → texte (Whisper local ou cloud) |
-| 1. Termes | Extraction des termes techniques candidats par vidéo |
-| 2. Glossaire | Réconciliation cross-vidéos pour produire un glossaire master |
-| 3. Reformulation | Reformulation écrite fidèle, par vidéo, en langue source |
+| 0. STT | Transcription audio → texte (Whisper local ou cloud ; les documents texte sont extraits sans STT) |
+| 1. Termes | Extraction des termes techniques candidats par source |
+| 2. Glossaire | Réconciliation cross-sources pour produire un glossaire master |
+| 3. Reformulation | Reformulation écrite fidèle, par source, en langue source |
 | 4. Structuration | Mise en forme Markdown avec titres, intro, conclusion, admonitions sémantiques (remarques, exemples, définitions, exercices) |
 | 5. Consolidation | Assemblage du document consolidé selon le **mode choisi** (cf. §4.3) : **ordonné** (1 source = 1 chapitre, contenu recopié) ou **refonte thématique** (le LLM agrège/restructure transversalement par thème) |
 | 6. Traduction | Production des artefacts dans toutes les langues de sortie demandées |
@@ -92,8 +92,9 @@ L'utilisateur configure **via l'interface** (et **uniquement** via l'interface) 
 - **Mode raisonnement** (`thinking` activé / désactivé), **niveau de
   raisonnement** (`HIGH` / `MAX`) et **température**, configurables
   **par phase LLM** indépendamment.
-- **Langues du document** (FR / EN en v1) : langues produites + **langue
-  principale** (l'originale, rédigée directement ; les autres en sont traduites).
+- **Langues du document** (français, anglais, allemand, espagnol, italien,
+  chinois, arabe) : langues produites + **langue principale** (l'originale, rédigée
+  directement ; les autres en sont traduites).
 - **Style de rendu** : décontracté / standard / professionnel / académique.
 - **Mode de consolidation** : **ordonné** (1 source = 1 chapitre, contenu recopié
   dans l'ordre choisi) ou **refonte thématique** (le LLM agrège et restructure
@@ -123,11 +124,11 @@ L'utilisateur configure **via l'interface** (et **uniquement** via l'interface) 
 - **Ouvrir le dossier de sortie** en un clic depuis la barre
   d'en-tête à la fin du Run.
 - **Exporter** les livrables de la génération (document **consolidé** et
-  **glossaire**, un fichier par langue) en **Markdown**, **PDF** ou **HTML** vers
-  un dossier choisi. Les formats proposés se cochent dans **⚙ Réglages → Export**
-  (aucun par défaut — opt-in).
-- **Traitement parallèle** : les phases par vidéo (transcription cloud,
-  extraction de termes, reformulation, structuration) traitent plusieurs vidéos
+  **glossaire**, un fichier par langue) en **Markdown**, **PDF**, **HTML** ou
+  **Word (`.docx`)** vers un dossier choisi. Les formats proposés se cochent dans
+  **⚙ Réglages → Export** (aucun par défaut — opt-in).
+- **Traitement parallèle** : les phases par source (transcription cloud,
+  extraction de termes, reformulation, structuration) traitent plusieurs sources
   simultanément, et les phases finales parallélisent traduction et cohérence ;
   le nombre d'appels concurrents est réglable. La transcription **locale** reste
   séquentielle (un seul GPU).
@@ -137,14 +138,14 @@ L'utilisateur configure **via l'interface** (et **uniquement** via l'interface) 
 L'interface principale (cockpit dense, thème **Clair Fluent**) affiche en
 temps réel :
 
-- **Une matrice 2D** : une ligne par vidéo, une colonne par phase. Chaque
+- **Une matrice 2D** : une ligne par source, une colonne par phase. Chaque
   cellule affiche le statut (en attente, en cours, succès, échec, sauté)
   avec un symbole **et une couleur** (vert succès, bleu en cours, gris
   attente, rouge échec, indigo sauté). Au survol : détail (timestamps,
   coût, retries, erreur éventuelle). En-têtes courts et lisibles (STT,
   Termes, Glossaire, Reformul., Structur., Consolid., Traduction,
   Cohérence).
-- **Cinq cartes d'indicateurs** : Statut, Vidéos, Phases, **Durée**,
+- **Six cartes d'indicateurs** : Statut, Sources, Phases, Langues, **Durée**,
   Coût. Chaque carte = icône + titre + valeur en grand + sous-info. La
   carte Durée est mise à jour chaque seconde tant que le Run tourne.
 - **Un panneau de logs** filtrable par sévérité, avec coloration
@@ -160,10 +161,12 @@ temps réel :
   - **Sommaire automatique** complet avec ancres GFM cliquables vers
     chaque section.
   - Chapitres et sections **numérotés hiérarchiquement** (1, 1.1, 1.1.1).
-  - Contenu des vidéos recopié tel quel (pas de réécriture par le LLM).
+  - Contenu des sources recopié tel quel (pas de réécriture par le LLM).
   - **Admonitions élégantes** : 📝 Remarque, 💡 Exemple, 📖 Définition,
     🎯 Exercice (blockquotes Markdown avec emoji, plus lisibles que les
-    GFM `[!NOTE]` bruts).
+    GFM `[!NOTE]` bruts). Les emoji s'affichent en Markdown, HTML et Word ; ils
+    sont **omis à l'export PDF** (le moteur de rendu ne sait pas dessiner les
+    emoji couleur — le texte de l'admonition, lui, reste intact).
   - Conclusion générale.
 - `glossary.{lang}.md` — glossaire en **tableau Markdown 4 colonnes**
   trié alphabétiquement :
@@ -171,13 +174,13 @@ temps réel :
     **Signification** (expansion littérale de l'acronyme dans sa langue
     d'origine — *Return On Investment* pour ROI, même dans un glossaire
     FR), **Définition** (contextuelle).
-- `per-video/{lang}/<video_id>.md` — un document Markdown autonome par
-  vidéo, avec son propre titre, intro, conclusion et admonitions
+- `per-video/{lang}/<source_id>.md` — un document Markdown autonome par
+  source, avec son propre titre, intro, conclusion et admonitions
   sémantiques.
 
 Tous les fichiers sont en **Markdown UTF-8**, ouvrables dans n'importe quel
-éditeur, dans VS Code, Obsidian, ou convertibles vers DOCX/PDF/HTML via
-pandoc.
+éditeur, dans VS Code ou Obsidian. L'**export intégré** produit en plus, à la
+demande, des versions **PDF**, **HTML** et **Word (`.docx`)** (cf. § 4.4).
 
 ### 4.7 Dialogue (chat ancré sur le corpus)
 
@@ -217,10 +220,16 @@ document consolidé et le glossaire, **citées** (chapitre › section, cliquabl
 
 - Un **glossaire master** est construit en deux passes (extraction puis
   réconciliation) à partir des termes extraits indépendamment de chaque
-  vidéo.
+  source.
 - Les termes pertinents sont ré-injectés en contexte LLM lors de la
   reformulation, de la structuration et de la traduction pour garantir
   l'orthographe et le sens cohérents à travers tout le batch.
+- **Localisation des termes par langue** : pour chaque langue produite, les termes
+  du glossaire sont traduits vers leur **équivalent métier consacré** (« Bilan » →
+  « Balance sheet », « Bilanz »…), **sauf** les termes internationaux, noms propres,
+  marques ou normes (IFRS, WACC, ROI, Big Four…) qui sont conservés tels quels — la
+  décision se prenant terme par terme. Le **même terme localisé** est utilisé dans le
+  glossaire, le document consolidé, les supports pédagogiques et le Dialogue.
 - L'**expansion d'acronyme** (champ `acronym_expansion`) est conservée
   dans sa langue d'origine et n'est jamais traduite : un glossaire FR
   expose `ROI = Return On Investment`, un glossaire EN expose
@@ -256,24 +265,27 @@ document consolidé et le glossaire, **citées** (chapitre › section, cliquabl
 
 ### Inclus
 
-- 2 langues : **français et anglais**, dans les deux sens.
+- 7 langues, dans les deux sens : **français, anglais, allemand, espagnol,
+  italien, chinois, arabe**.
 - 2 providers STT (FasterWhisper local + OpenAI cloud).
 - 1 fournisseur LLM (**DeepSeek v4**, deux modèles).
 - 4 styles de rendu.
-- Formats de sortie : génération en **Markdown** ; supports pédagogiques
-  exportables en **Anki `.apkg`**, **Markdown**, **PDF** et **HTML**.
+- Formats de sortie : génération et supports pédagogiques exportables en
+  **Markdown**, **PDF**, **HTML** et **Word (`.docx`)** ; les supports ajoutent
+  l'**Anki `.apkg`**. Le rendu PDF gère le **chinois** (police système Microsoft
+  YaHei, **retours à la ligne** automatiques) et l'**arabe** (droite-à-gauche +
+  liaison contextuelle) ; l'**arabe** est aussi rendu **droite-à-gauche en Word**
+  (bidi + inversion des colonnes du tableau). Le **glossaire** s'exporte en
+  **paysage** (PDF et Word).
 - **Dialogue** : chat ancré sur le corpus (citations + streaming), retrieval
-  lexical (hors-ligne) ou sémantique (embeddings OpenAI).
+  lexical (hors-ligne) ou sémantique (embeddings OpenAI ; recommandé pour le
+  chinois).
 - Plateforme : **Windows 11** (10 minimum).
 
 ### Hors v1
 
 - Multi-utilisateur, collaboration, cloud sync.
 - Édition manuelle des transcriptions dans l'UI.
-- Export **DOCX** natif pour la génération (conversion externe via pandoc
-  possible). *(Le PDF et le HTML sont en revanche des exports **natifs** pour les
-  supports pédagogiques.)*
-- Autres langues que FR / EN.
 - Autres LLM que DeepSeek (architecture prête mais non implémenté).
 - Auto-update.
 - Signature de code (l'EXE n'est pas signé en v1).

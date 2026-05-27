@@ -14,7 +14,7 @@ from fahmi2.core.slugify import slugify_anchor
 from fahmi2.core.text_metrics import estimate_tokens
 from fahmi2.domain.chat import CorpusChunk
 from fahmi2.domain.enums import Language
-from fahmi2.domain.glossary import Term
+from fahmi2.domain.glossary import Term, localize_glossary_terms
 from fahmi2.pedagogy.chapters import Chapter, parse_chapters
 from fahmi2.pedagogy.sources import load_chapters, load_glossary_master_terms
 
@@ -227,5 +227,13 @@ def load_corpus_chunks(
     chunks: list[CorpusChunk] = []
     for chapter in load_chapters(generation_output_dir, language):
         chunks.extend(_chunk_chapter(chapter))
-    chunks.extend(_glossary_chunks(load_glossary_master_terms(generation_dir)))
+    # Glossaire pré-localisé dans la langue du corpus (termes via cross_lang ;
+    # repli sur le terme source). `_glossary_chunks` reste agnostique.
+    chunks.extend(
+        _glossary_chunks(
+            localize_glossary_terms(
+                load_glossary_master_terms(generation_dir), language
+            )
+        )
+    )
     return tuple(chunks)

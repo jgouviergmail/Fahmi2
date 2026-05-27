@@ -105,6 +105,7 @@ def collect_pedagogy_documents(project: Project) -> list[ExportDocument]:
                     ExportDocument(
                         stem=f"{support.value}.{language.value}",
                         markdown=subject_path.read_text(encoding=_ENCODING_UTF8),
+                        language=language,
                     )
                 )
             correction_path = artifact_correction_markdown_path(
@@ -115,6 +116,7 @@ def collect_pedagogy_documents(project: Project) -> list[ExportDocument]:
                     ExportDocument(
                         stem=f"{support.value}.{language.value}{_CORRECTION_SUFFIX}",
                         markdown=correction_path.read_text(encoding=_ENCODING_UTF8),
+                        language=language,
                     )
                 )
     return documents
@@ -128,14 +130,16 @@ def export_pedagogy_documents(
     Args:
         project: Projet.
         output_dir: Dossier de destination.
-        fmt: Format documentaire (``MARKDOWN`` / ``PDF`` / ``HTML``).
+        fmt: Format documentaire (``MARKDOWN`` / ``PDF`` / ``HTML`` / ``DOCX``).
 
     Returns:
         ``DocumentExportResult``.
 
     Raises:
         ValueError: Si ``fmt`` n'est pas documentaire.
-        ConfigError: ``EXPORT.NO_PDF_FONT`` en PDF sans police Unicode.
+        ConfigError: en PDF, ``EXPORT.NO_PDF_FONT`` (Arial absente),
+            ``EXPORT.NO_CJK_FONT`` (police chinoise absente, langue ZH) ou
+            ``EXPORT.PDF_RENDER_FAILED`` (échec du moteur de rendu).
     """
     return write_documents(
         collect_pedagogy_documents(project), output_dir=output_dir, fmt=fmt

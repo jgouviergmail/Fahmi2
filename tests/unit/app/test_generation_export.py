@@ -52,8 +52,8 @@ def test_collect_returns_consolidated_then_glossary(tmp_path: Path) -> None:
     # Le glossaire est exporté en paysage avec des largeurs de colonnes ; le
     # consolidé reste en portrait par défaut.
     by_stem = {doc.stem: doc for doc in docs}
-    assert by_stem["consolidated.fr"].pdf_landscape is False
-    assert by_stem["glossary.fr"].pdf_landscape is True
+    assert by_stem["consolidated.fr"].landscape is False
+    assert by_stem["glossary.fr"].landscape is True
     assert by_stem["glossary.fr"].pdf_column_widths is not None
 
 

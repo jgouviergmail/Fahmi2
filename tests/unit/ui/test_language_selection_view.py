@@ -14,6 +14,15 @@ def _view(qtbot: QtBot) -> LanguageSelectionView:
     return view
 
 
+def test_language_selection_uses_display_labels(qtbot: QtBot) -> None:
+    view = LanguageSelectionView(tuple(Language))
+    qtbot.addWidget(view)
+    labels = {view._checks[lang].text() for lang in Language}  # noqa: SLF001
+    assert "Chinois" in labels
+    assert "Arabe" in labels
+    assert "fr" not in labels  # plus de code brut affiché
+
+
 def test_default_first_language_is_primary_and_produced(qtbot: QtBot) -> None:
     view = _view(qtbot)
     assert view.primary_language() is Language.FR

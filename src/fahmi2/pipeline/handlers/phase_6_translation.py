@@ -1,11 +1,17 @@
 """Handler Phase 6 — production des artefacts finaux par langue de sortie.
 
-Pour chaque langue de ``settings.output_languages`` :
+Deux étapes pour les langues de ``settings.output_languages`` :
 
-- Si la langue est la langue source : on **copie** les artefacts master sans
-  appel LLM (documents structurés par source + consolidated_master + glossaire
-  master rendu en Markdown).
-- Sinon : on **traduit** chaque artefact via le LLM.
+1. **Localisation du glossaire** (par langue cible ≠ source) : appel LLM structuré
+   (``_localize_glossary``) qui traduit chaque terme vers son équivalent métier
+   consacré (ou le garde si international) et traduit sa définition. On rend
+   ``glossary.{lang}.md`` de façon **déterministe**, on dérive les équivalents
+   ``terme_source -> terme_localisé`` (en mémoire) et on **persiste** ``cross_lang``
+   dans ``glossary_master.json`` (pour l'aval : Pédagogie, Dialogue). Le glossaire de
+   la **langue source** est rendu tel quel (sans appel LLM).
+2. **Traduction documentaire** : la langue source **copie** les docs par source +
+   consolidé ; les autres langues les **traduisent** via le LLM, avec les équivalents
+   de glossaire injectés comme indice terminologique.
 
 Les artefacts produits vivent dans ``output_dir`` :
 
@@ -32,6 +38,7 @@ from fahmi2.pipeline.handlers._base import (
     build_succeeded_phase,
     invoke_llm,
     language_label,
+    parse_json_response,
     style_label,
     utc_now,
 )
@@ -42,6 +49,7 @@ _CONSOLIDATED_MASTER_FILENAME = "consolidated_master.md"
 _GLOSSARY_MASTER_FILENAME = "glossary_master.json"
 _PER_VIDEO_OUTPUT_SUBDIR = "per-video"
 _TEMPLATE_NAME = "phase_6_translation"
+_GLOSSARY_LOCALIZATION_TEMPLATE = "phase_6_glossary_localization"
 
 
 @dataclass(frozen=True)
@@ -51,6 +59,15 @@ class _TranslationTask:
     source_markdown: str
     target: Language
     target_path: Path
+
+
+@dataclass(frozen=True)
+class _LocalizedTerm:
+    """Terme localisé : forme source (appariement), forme cible, définition cible."""
+
+    source: str
+    term: str
+    definition: str
 
 
 class Phase6TranslationHandler(PhaseHandler):
@@ -106,51 +123,82 @@ class Phase6TranslationHandler(PhaseHandler):
             ctx.workspace, ctx.run.sources
         )
 
-        # Les copies (langue source) sont écrites directement ; les traductions
-        # LLM (langues ≠ source) sont collectées puis exécutées en parallèle au
-        # grain (langue × document).
+        # Étape 1 — localisation parallèle des glossaires (1 appel LLM par langue
+        # cible ≠ source). map_bounded préserve l'ordre et honore le pause_token.
+        non_source_targets = [
+            t
+            for t in ctx.settings.output_languages
+            if t is not ctx.settings.source_language
+        ]
+        localization_results = map_bounded(
+            lambda target: (
+                target,
+                *self._localize_glossary(ctx, target=target, payload=glossary_master),
+            ),
+            non_source_targets,
+            max_workers=ctx.settings.parallelism.llm_workers,
+            pause_token=ctx.pause_token,
+        )
+        cross_lang_by_language: dict[Language, dict[str, str]] = {}
+        localization_cost = 0.0
+        for target, localized, cost in localization_results:
+            localization_cost += cost
+            cross_lang_by_language[target] = {loc.source: loc.term for loc in localized}
+            ctx.artifacts.write_text_atomic(
+                ctx.output_dir / glossary_doc_filename(target),
+                _render_localized_glossary(localized, glossary_master, target),
+            )
+        # Glossaire de la langue source (si produite) : rendu master, aucun appel LLM.
+        if ctx.settings.source_language in ctx.settings.output_languages:
+            ctx.artifacts.write_text_atomic(
+                ctx.output_dir / glossary_doc_filename(ctx.settings.source_language),
+                _render_master_glossary(glossary_master, ctx.settings.source_language),
+            )
+        # Persistance pour l'aval : seulement s'il y a des équivalents (sinon pas de
+        # réécriture inutile du master ni de churn de mtime côté Pédagogie/Dialogue).
+        if cross_lang_by_language:
+            _persist_cross_lang(ctx, glossary_master, cross_lang_by_language)
+
+        # Étape 2 — traductions documentaires (per-source + consolidé) en parallèle ;
+        # l'indice « équivalents » provient de cross_lang_by_language.
         tasks: list[_TranslationTask] = []
         for target in ctx.settings.output_languages:
-            self._collect_for_language(
+            self._collect_doc_tasks(
                 ctx,
                 target=target,
                 consolidated_master_md=consolidated_master,
-                glossary_master_payload=glossary_master,
                 per_source_structured=per_source_structured,
                 tasks=tasks,
             )
         costs = map_bounded(
-            lambda task: self._run_translation(ctx, task, glossary_master),
+            lambda task: self._run_translation(ctx, task, cross_lang_by_language),
             tasks,
             max_workers=ctx.settings.parallelism.llm_workers,
             pause_token=ctx.pause_token,
         )
-        total_cost = sum(costs)
-
         return build_succeeded_phase(
             phase_id=self.phase_id,
             artifact_path=ctx.output_dir,
             started_at=started_at,
-            cost_usd=total_cost,
+            cost_usd=localization_cost + sum(costs),
         )
 
-    def _collect_for_language(
+    def _collect_doc_tasks(
         self,
         ctx: PhaseContext,
         *,
         target: Language,
         consolidated_master_md: str,
-        glossary_master_payload: dict[str, Any],
         per_source_structured: dict[str, str],
         tasks: list[_TranslationTask],
     ) -> None:
-        """Écrit les copies (langue source) et empile les traductions (sinon).
+        """Écrit les copies (langue source) et empile les traductions per-source +
+        consolidé (langues ≠ source). Le glossaire est traité en amont (localisation).
 
         Args:
             ctx: Contexte.
             target: Langue cible.
             consolidated_master_md: Document consolidé en langue source.
-            glossary_master_payload: Glossaire JSON master.
             per_source_structured: Mapping ``source_id -> markdown structuré``.
             tasks: Liste de tâches de traduction à compléter (effet de bord).
         """
@@ -170,39 +218,31 @@ class Phase6TranslationHandler(PhaseHandler):
 
         consolidated_target = ctx.output_dir / consolidated_doc_filename(target)
         if is_source:
-            ctx.artifacts.write_text_atomic(
-                consolidated_target, consolidated_master_md
-            )
+            ctx.artifacts.write_text_atomic(consolidated_target, consolidated_master_md)
         else:
             tasks.append(
                 _TranslationTask(consolidated_master_md, target, consolidated_target)
             )
 
-        glossary_target = ctx.output_dir / glossary_doc_filename(target)
-        glossary_md = _render_glossary_md(glossary_master_payload, target)
-        if is_source:
-            ctx.artifacts.write_text_atomic(glossary_target, glossary_md)
-        else:
-            tasks.append(_TranslationTask(glossary_md, target, glossary_target))
-
     def _run_translation(
         self,
         ctx: PhaseContext,
         task: _TranslationTask,
-        glossary_master_payload: dict[str, Any],
+        cross_lang_by_language: dict[Language, dict[str, str]],
     ) -> float:
         """Traduit une tâche via le LLM et écrit le fichier cible.
 
         Args:
             ctx: Contexte.
             task: Tâche de traduction (source + langue + chemin cible).
-            glossary_master_payload: Glossaire master JSON.
+            cross_lang_by_language: Équivalents ``terme_source -> terme_localisé``
+                par langue (issus de la localisation du glossaire).
 
         Returns:
             Le coût LLM (USD).
         """
         translated, cost = self._translate(
-            ctx, task.source_markdown, task.target, glossary_master_payload
+            ctx, task.source_markdown, task.target, cross_lang_by_language
         )
         ctx.artifacts.write_text_atomic(task.target_path, translated)
         return cost
@@ -212,7 +252,7 @@ class Phase6TranslationHandler(PhaseHandler):
         ctx: PhaseContext,
         source_markdown: str,
         target: Language,
-        glossary_master_payload: dict[str, Any],
+        cross_lang_by_language: dict[Language, dict[str, str]],
     ) -> tuple[str, float]:
         """Traduit un document Markdown vers la langue cible via le LLM.
 
@@ -220,7 +260,8 @@ class Phase6TranslationHandler(PhaseHandler):
             ctx: Contexte.
             source_markdown: Document source.
             target: Langue cible.
-            glossary_master_payload: Glossaire master JSON.
+            cross_lang_by_language: Équivalents ``terme_source -> terme_localisé``
+                par langue (injectés comme indice terminologique dans le prompt).
 
         Returns:
             ``(markdown_traduit, cost_usd)``.
@@ -232,7 +273,7 @@ class Phase6TranslationHandler(PhaseHandler):
             style_label=style_label(ctx.settings.style_preset),
             style_directives=ctx.settings.style_directives,
             glossary_terms=_glossary_terms_for_template(
-                glossary_master_payload, target=target
+                cross_lang_by_language.get(target, {})
             ),
             source_markdown=source_markdown,
         )
@@ -240,6 +281,77 @@ class Phase6TranslationHandler(PhaseHandler):
             ctx, phase_id=self.phase_id, system_prompt=None, user_prompt=prompt
         )
         return response.content, response.cost_usd
+
+    def _localize_glossary(
+        self,
+        ctx: PhaseContext,
+        *,
+        target: Language,
+        payload: dict[str, Any],
+    ) -> tuple[list[_LocalizedTerm], float]:
+        """Localise les termes du glossaire master vers ``target`` via le LLM.
+
+        Args:
+            ctx: Contexte d'exécution.
+            target: Langue cible (≠ langue source).
+            payload: Payload JSON du glossaire master.
+
+        Returns:
+            ``(localized, cost)`` : un ``_LocalizedTerm`` par terme master (ordre
+            préservé ; repli sur la forme/définition source si l'entrée LLM manque),
+            et le coût LLM. ``([], 0.0)`` si le glossaire est vide.
+
+        Raises:
+            LLMError / ValidationError: via ``parse_json_response`` si JSON invalide.
+        """
+        master_terms = payload.get("terms", [])
+        if not master_terms:
+            return [], 0.0
+        prompt = ctx.prompts.render(
+            _GLOSSARY_LOCALIZATION_TEMPLATE,
+            source_language_label=language_label(ctx.settings.source_language),
+            target_language_label=language_label(target),
+            style_label=style_label(ctx.settings.style_preset),
+            style_directives=ctx.settings.style_directives,
+            terms=[
+                {
+                    "term": str(t.get("term", "")),
+                    "definition": str(t.get("definition", "")),
+                }
+                for t in master_terms
+            ],
+        )
+        response = invoke_llm(
+            ctx, phase_id=self.phase_id, system_prompt=None, user_prompt=prompt
+        )
+        entries = parse_json_response(response.content, phase_id=self.phase_id)
+        dict_entries = (
+            [e for e in entries if isinstance(e, dict)]
+            if isinstance(entries, list)
+            else []
+        )
+        # Appariement **par terme source** d'abord (correct même si le LLM réordonne),
+        # avec **repli par position** pour les termes non appariés — typiquement les
+        # acronymes, dont le champ ``source`` était réémis pollué ⇒ leur définition
+        # tombait en langue source. Dernier repli : terme/définition source.
+        by_source: dict[str, dict[str, Any]] = {
+            str(e.get("source", "")).strip(): e for e in dict_entries
+        }
+        localized: list[_LocalizedTerm] = []
+        for index, t in enumerate(master_terms):
+            source = str(t.get("term", ""))
+            entry = by_source.get(source.strip())
+            if entry is None and index < len(dict_entries):
+                entry = dict_entries[index]  # repli par position (ordre préservé)
+            entry = entry or {}
+            localized.append(
+                _LocalizedTerm(
+                    source=source,
+                    term=str(entry.get("term") or source),
+                    definition=str(entry.get("definition") or t.get("definition", "")),
+                )
+            )
+        return localized, response.cost_usd
 
 
 def _load_required(path: Path, code: str, user_message: str) -> str:
@@ -297,63 +409,100 @@ def _load_per_source_structured(
     return result
 
 
-def _glossary_terms_for_template(
-    glossary_payload: dict[str, Any], *, target: Language
-) -> list[dict[str, str]]:
-    """Construit la liste des équivalents glossaire à injecter dans le prompt.
+def _glossary_terms_for_template(cross_lang: dict[str, str]) -> list[dict[str, str]]:
+    """Construit la liste ``[{source, target}]`` injectée dans le prompt de traduction.
 
     Args:
-        glossary_payload: Payload JSON du glossaire master.
-        target: Langue cible.
+        cross_lang: Mapping ``terme_source -> terme_localisé`` d'une langue cible.
 
     Returns:
-        Liste de ``{"source": "...", "target": "..."}``.
+        Liste de ``{"source": "...", "target": "..."}`` (vide si aucun équivalent).
     """
-    terms = glossary_payload.get("terms", [])
-    result: list[dict[str, str]] = []
-    for t in terms:
-        source = str(t.get("term", ""))
-        cross_lang = t.get("cross_lang", {}) or {}
-        target_str = str(cross_lang.get(str(target), source))
-        result.append({"source": source, "target": target_str})
-    return result
+    return [{"source": source, "target": term} for source, term in cross_lang.items()]
 
 
-def _render_glossary_md(payload: dict[str, Any], language: Language) -> str:
-    """Rend le glossaire master en tableau Markdown pour une langue donnée.
+def _render_master_glossary(payload: dict[str, Any], language: Language) -> str:
+    """Rend le glossaire master tel quel (termes/définitions source) en Markdown.
 
-    L'``acronym_expansion`` est intentionnellement conservée dans sa langue
-    d'origine — c'est l'invariant produit par la phase 1 et préservé par la
-    phase 2. Ce rendu se contente de la recopier dans la colonne
-    *Signification* / *Meaning*.
+    Utilisé pour la **langue source** (aucune localisation). L'``acronym_expansion``
+    reste dans sa langue d'origine (invariant phase 1/2).
 
     Args:
         payload: JSON master.
-        language: Langue cible (utilisée pour le titre H1 et les en-têtes).
+        language: Langue (titre H1 + en-têtes).
 
     Returns:
-        Le glossaire au format tableau Markdown ``| Terme | Acronyme |
-        Signification | Définition |``.
+        Le glossaire au format tableau Markdown.
     """
-    from fahmi2.domain.glossary import Term, render_glossary_markdown_table  # noqa: PLC0415
+    from fahmi2.domain.glossary import (  # noqa: PLC0415
+        parse_glossary_master_terms,
+        render_glossary_markdown_table,
+    )
 
-    title_by_lang = {Language.FR: "Glossaire", Language.EN: "Glossary"}
-    raw_terms = payload.get("terms", [])
+    return render_glossary_markdown_table(
+        language=language, terms=parse_glossary_master_terms(payload)
+    )
+
+
+def _render_localized_glossary(
+    localized: list[_LocalizedTerm], payload: dict[str, Any], language: Language
+) -> str:
+    """Rend ``glossary.{language}.md`` à partir des termes localisés.
+
+    Termes et définitions localisés ; ``acronym`` + ``acronym_expansion`` repris du
+    master (invariants). Aligné par ordre sur ``payload['terms']``.
+
+    Args:
+        localized: Termes localisés (un par terme master, même ordre).
+        payload: JSON master (acronyme + expansion conservés).
+        language: Langue cible (titre H1 + en-têtes).
+
+    Returns:
+        Le glossaire localisé au format tableau Markdown.
+    """
+    from fahmi2.domain.glossary import (  # noqa: PLC0415
+        Term,
+        render_glossary_markdown_table,
+    )
+
+    master = payload.get("terms", [])
     terms = [
         Term(
-            term=str(raw.get("term", "")),
-            definition=str(raw.get("definition", "")),
+            term=loc.term,
+            definition=loc.definition,
             acronym=str(raw["acronym"]) if raw.get("acronym") else None,
             acronym_expansion=(
-                str(raw["acronym_expansion"])
-                if raw.get("acronym_expansion")
-                else None
+                str(raw["acronym_expansion"]) if raw.get("acronym_expansion") else None
             ),
         )
-        for raw in raw_terms
+        for loc, raw in zip(localized, master, strict=True)
     ]
-    return render_glossary_markdown_table(
-        title=title_by_lang.get(language, "Glossary"),
-        language=language,
-        terms=terms,
+    return render_glossary_markdown_table(language=language, terms=terms)
+
+
+def _persist_cross_lang(
+    ctx: PhaseContext,
+    payload: dict[str, Any],
+    cross_lang_by_language: dict[Language, dict[str, str]],
+) -> None:
+    """Réécrit ``glossary_master.json`` en ajoutant ``cross_lang`` à chaque terme.
+
+    Écriture atomique. Clés = codes langue (round-trip ``parse_glossary_master_terms``).
+    Sert l'aval (Pédagogie/Dialogue) ; les étapes de la phase 6 utilisent, elles, le
+    mapping en mémoire.
+
+    Args:
+        ctx: Contexte (artifact store + workspace).
+        payload: Payload master (muté : ajout de ``cross_lang`` par terme).
+        cross_lang_by_language: Équivalents ``terme_source -> terme_localisé`` par langue.
+    """
+    for raw in payload.get("terms", []):
+        source = str(raw.get("term", ""))
+        raw["cross_lang"] = {
+            lang.value: mapping[source]
+            for lang, mapping in cross_lang_by_language.items()
+            if source in mapping
+        }
+    ctx.artifacts.write_json_atomic(
+        ctx.workspace / _GLOSSARY_MASTER_FILENAME, payload
     )

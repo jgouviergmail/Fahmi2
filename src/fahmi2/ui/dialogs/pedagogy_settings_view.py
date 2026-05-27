@@ -33,6 +33,7 @@ from fahmi2.domain.enums import (
     SupportType,
     TargetAudience,
 )
+from fahmi2.domain.languages import language_display_label
 from fahmi2.domain.pedagogy import (
     DEFAULT_PEDAGOGY_LLM_WORKERS,
     EVALUATIVE_SUPPORTS,
@@ -251,7 +252,7 @@ class PedagogySettingsView(QDialog):
 
         self._language_checks: dict[Language, QCheckBox] = {}
         for lang in self._available_languages:
-            self._language_checks[lang] = QCheckBox(lang.value, self)
+            self._language_checks[lang] = QCheckBox(language_display_label(lang), self)
 
         self._llm_combo = labeled_enum_combo(self, LLM_MODEL_LABELS)
         self._thinking_check = QCheckBox("Mode raisonnement (thinking)", self)

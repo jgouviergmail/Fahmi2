@@ -136,6 +136,10 @@ def _llm_response_for_phase(phase_name: str) -> LLMResponse:
         content = json.dumps(
             {"title": "Chapitre", "outline": ["a"], "key_ideas": ["x"]}
         )
+    elif "glossary_localization" in phase_name:
+        content = json.dumps(
+            [{"source": "PIB", "term": "GDP", "definition": "gross domestic product"}]
+        )
     else:
         content = "# Titre\n\nContenu fictif."
     return LLMResponse(
@@ -180,6 +184,8 @@ class _RotatingFakeLLM(FakeLLMProvider):
             return _llm_response_for_phase("video_summary")
         if "rédige les méta-éléments" in user_content:
             return _llm_response_for_phase("consolidation")
+        if "localisation terminologique" in user_content:
+            return _llm_response_for_phase("glossary_localization")
         if "Traduis" in user_content:
             return _llm_response_for_phase("translation")
         if "passe de cohérence" in user_content:

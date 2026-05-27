@@ -10,8 +10,11 @@ consolidés (reformulés, structurés, glossaire) via un pipeline STT + 7 phases
 LLM DeepSeek. Application desktop Windows mono-utilisateur, PySide6, packagée en
 `.zip` portable (installation double-clic, ffmpeg bundlé).
 
+**Langues gérées** (entrée et sortie, pour les 3 fonctionnalités) : français,
+anglais, allemand, espagnol, italien, chinois, arabe (`Language`, 7 valeurs).
+
 L'app est organisée en **onglets de fonctionnalité** (Génération ; Supports
-pédagogiques — 8 types de supports de révision avec exports Anki/Markdown/PDF/HTML ;
+pédagogiques — 8 types de supports de révision avec exports Anki/Markdown/PDF/HTML/DOCX ;
 **Dialogue** — chat ancré sur le corpus, réponses citées + streaming, retrieval
 lexical/sémantique) : un `Project` ne porte que son nom + son emplacement, les
 réglages métier vivant par fonctionnalité (`GenerationSettings`, `PedagogySettings`,
@@ -68,8 +71,11 @@ gitignored) : le PDF est rendu par **`xhtml2pdf`** (moteur **`reportlab`**, +
 `markdown` charge ses extensions par nom → `collect_submodules('markdown')`.
 **`genanki` 0.13.1 inline le schéma en modules Python** (`apkg_col.py`/
 `apkg_schema.py`) — **aucun fichier de données à collecter**, ses modules sont
-bundlés par l'analyse d'imports. Le PDF utilise la police **Arial système Windows**
-(rien à bundler). Détails dans `packaging/README.md`.
+bundlés par l'analyse d'imports. L'**export DOCX** ajoute `htmldocx` (+ `beautifulsoup4`,
+`lxml` déjà tiré par python-docx) → `hiddenimports += ['htmldocx']` +
+`collect_submodules('bs4')`. Le PDF utilise des **polices système Windows** (Arial
+pour latin/arabe, Microsoft YaHei pour le chinois) — **rien à bundler** côté police.
+Détails dans `packaging/README.md`.
 
 ## Architecture en couches
 
@@ -122,6 +128,10 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   retrieval/embedding agrégé dans `ChatMessage.cost_usd`. Conversations persistées et
   **supprimables** (`app/chat_conversation_store`) ; `ChatSettings` dans le blob v2.
   Citations/chunking bornés au plan du document (`##`/`###`).
+  **Limitation connue (chinois)** : le retrieval **lexical** TF-IDF tokenise sur
+  `\b\w+\b`, peu adapté au chinois (pas d'espaces entre les mots) → privilégier le mode
+  **sémantique** pour le chinois (le défaut `AUTO` y route dès qu'une clé OpenAI est
+  présente). L'arabe (mots séparés par des espaces) n'est pas concerné.
 - `infra/` — adapters (ports/adapters) : `stt/` (FasterWhisper local + OpenAI
   cloud + fakes ; **modèle configurable par provider** `LocalSttModel`/`CloudSttModel`
   + `_pricing` USD/min ; cloud `gpt-4o-*` sans timestamps → segment unique),
@@ -138,7 +148,8 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   `TextExtractor` pypdf/python-docx] + `YoutubeIngestor` [URL → `YtDlpDownloader`
   télécharge l'audio (binaire yt-dlp résolu/remplaçable) → délègue au
   `MediaIngestor`]), `anki/genanki_exporter` (`.apkg`),
-  `export/markdown_pdf` (Markdown + PDF), `storage/sqlite_state` (WAL) +
+  `export/markdown_pdf` (Markdown + HTML + PDF) + `export/markdown_docx` (DOCX via
+  htmldocx, réutilise `render_markdown_body`), `storage/sqlite_state` (WAL) +
   `fs_artifacts` (writes atomiques), `secrets/` (DPAPI Windows),
   `prompts/loader` + `defaults/*.j2` (8 phases + 3 `phase_5_*` thématiques +
   8 `pedagogy_*` + 3 `chat_*`).
@@ -146,8 +157,8 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   suppression d'un projet efface aussi son **dossier workspace** sur disque,
   best-effort, hors dossier d'entrée et base globale),
   `RunOrchestrator`, `SupportsOrchestrator`, `CostEstimator`,
-  `PedagogyCostEstimator`, `pedagogy_export` (Anki/MD/PDF/HTML) + `generation_export`
-  (consolidé + glossaire MD/PDF/HTML) sur le cœur partagé `document_export`, `_cost_common`,
+  `PedagogyCostEstimator`, `pedagogy_export` (Anki/MD/PDF/HTML/DOCX) + `generation_export`
+  (consolidé + glossaire MD/PDF/HTML/DOCX) sur le cœur partagé `document_export`, `_cost_common`,
   `PromptsService`, `SecretsService`, `input_sources` (`build_input_sources` :
   scan dossier vidéo+audio → `SourceExecution`),
   `HardwareProbe`. (Le glossaire est lu sur disque — `glossary_master.json` —
@@ -174,7 +185,7 @@ Ordre canonique dans `phase_registry.py`. Chaque handler déclare `is_per_source
 | 3 Reformulation | `phase_3_reformulation` | **par source** |
 | 4 Structuration | `phase_4_structuration` | **par source** |
 | 5 Consolidation | `phase_5_consolidation` (dispatcher `ORDERED`/`THEMATIC`) | batch |
-| 6 Traduction | `phase_6_translation` | batch (boucle sources × langues) |
+| 6 Traduction (+ localisation glossaire) | `phase_6_translation` | batch (boucle sources × langues) |
 | 7 Cohérence | `phase_7_coherence` | batch (boucle langues) |
 
 Le `PipelineEngine._execute_one` persiste chaque `PhaseExecution` en SQLite. Une
@@ -215,6 +226,25 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
   génération). UI : sélecteur dans `GenerationSettingsView` + note « ordre sans
   effet » sur `SourceOrderView`. 3 prompts `phase_5_fact_ledger`/`_thematic_plan`/
   `_thematic_chapter`. Spec : `docs/superpowers/specs/2026-05-26-modes-consolidation-thematique-design.md`.
+- **Localisation terminologique du glossaire (phase 6)** : les **termes** du glossaire
+  sont localisés **par langue cible** (traduit-sauf-international ; acronyme conservé ;
+  `acronym_expansion` invariante) par un **appel LLM structuré** (`_localize_glossary`,
+  prompt `phase_6_glossary_localization`). **Appariement par position** (le prompt impose
+  un objet JSON par terme **dans l'ordre**) — robuste à une réémission imparfaite du champ
+  `source` (sinon les **acronymes** voyaient leur **définition** retomber en langue source) ;
+  repli sur l'appariement par terme source puis per-terme si le compte diffère. La
+  **définition est toujours traduite** (même pour un acronyme gardé) ; seule
+  l'`acronym_expansion` reste en langue source. La phase 6 (1) **rend `glossary.{L}.md` de façon déterministe** (le
+  glossaire **n'est plus une `_TranslationTask`**), (2) injecte les vrais équivalents
+  `source → cible` dans la traduction du consolidé/docs par source, (3) **persiste
+  `cross_lang` dans `glossary_master.json`** (écriture atomique, pour l'aval). **Source
+  unique** : `domain/glossary.localize_glossary_terms(terms, language)` (= `cross_lang[L]`,
+  repli sur le terme source). **Propagation** : la **Pédagogie** (`SupportsOrchestrator`)
+  et le **Dialogue** (`corpus.load_corpus_chunks`) **pré-localisent** le glossaire à la
+  **langue de contenu** qu'ils chargent (générateurs / `format_glossary_terms` /
+  `_glossary_chunks` inchangés). **Limite assumée** : seul le **terme** est porté par
+  `cross_lang` ; en aval, la **définition** reste en langue source (le `glossary.{L}.md`
+  exporté reste, lui, entièrement localisé). Spec : `docs/superpowers/specs/2026-05-27-localisation-terminologique-glossaire-design.md`.
 - **Coquille multi-fonctionnalités** : la zone projet est une `QTabWidget` peuplée
   par un `FeatureRegistry` (calqué sur `PhaseRegistry`). Un `Project` ne porte que
   nom + emplacement (immuable après création) ; les réglages métier sont par
@@ -296,31 +326,79 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
   le retry du pipeline (`core/retry/classification.default_classify`) via
   `pedagogy/generators/_base.py` (parsing JSON typé). Les supports **évaluatifs**
   « corrigé séparé » produisent un `<support>.corrige.md` distinct du sujet.
-  Exports : `.apkg` (genanki) via `app/pedagogy_export.py`, **Markdown/PDF/HTML
+  Exports : `.apkg` (genanki) via `app/pedagogy_export.py`, **Markdown/PDF/HTML/DOCX
   un fichier par support et par corrigé** (`<support>.<lang>(.corrige).<ext>`) via
   le cœur partagé `app/document_export.py` (`write_documents` : collecteur →
-  écriture par format ; `infra/export/markdown_pdf` reste un pur *renderer*). La
-  **génération** a son propre export documentaire `app/generation_export.py`
-  (consolidé + glossaire, un fichier par langue, MD/PDF/HTML ; réglage
-  `GenerationSettings.export_formats`, opt-in). Côté UI, le helper partagé
+  écriture par format ; `infra/export/markdown_pdf` et `markdown_docx` restent de purs
+  *renderers*). `ExportDocument` porte la **langue** du contenu (pilote police/direction
+  du rendu PDF/HTML). La **génération** a son propre export documentaire
+  `app/generation_export.py` (consolidé + glossaire, un fichier par langue,
+  MD/PDF/HTML/DOCX ; réglage `GenerationSettings.export_formats`, opt-in). Côté UI, le helper partagé
   `ui/_export_ui.py` (`choose_export_format` + `run_document_export`) factorise
   choix de format → dossier → erreurs → log pour les deux contrôleurs. Les
   prompts autorisent un Markdown léger dans le contenu ; l'export Anki **convertit
   les champs Markdown en HTML** (`genanki_exporter._md_to_html`) — sauf le texte
-  cloze (mécanique `{{cN::}}` préservée). MD/PDF/HTML consomment le Markdown rendu tel quel.
+  cloze (mécanique `{{cN::}}` préservée). MD/PDF/HTML/DOCX consomment le Markdown rendu
+  tel quel ; le **corps HTML est rendu une fois** par `render_markdown_body` (extensions
+  `tables`+`toc`), réutilisé par HTML, PDF **et** DOCX. **Normalisation des tableaux**
+  (`_normalize_table_blocks`, partagée donc HTML/PDF/DOCX) : les sorties LLM collent
+  souvent un tableau pipe à la phrase qui l'introduit ou l'indentent dans une liste
+  numérotée → python-markdown ne l'active pas (barres littérales). On garantit une ligne
+  vide avant/après + désindentation. *Limite python-markdown* : un tableau ne s'imbrique
+  pas dans un `<li>` → il en ressort ; la numérotation de la liste qui suit est rétablie
+  par `_renumber_lists_split_by_tables` (attribut `<ol start>`, honoré navigateur + PDF
+  xhtml2pdf). Réutilisé par HTML, PDF **et** DOCX (`markdown_docx` → htmldocx →
+  python-docx ; Word gère nativement CJK et coupe de ligne ; l'**arabe** reçoit une
+  direction RTL explicite (`w:bidi` paragraphes, `w:rtl` runs, `w:bidiVisual` tableaux →
+  colonnes inversées, comme `direction:rtl` PDF / `dir="rtl"` HTML), les toggles insérés
+  à la bonne position du schéma OOXML via `insert_element_before` ; l'**orientation
+  paysage** — option `landscape`, ex: glossaire — est posée sur les sections du document
+  via `WD_ORIENT.LANDSCAPE` + permutation largeur/hauteur.
+  **htmldocx ne traduit ni les bordures CSS ni `width:100%`** (tableaux sans contour,
+  largeur ajustée au contenu) → `markdown_docx._format_docx_tables` reformate **tous**
+  les tableaux après conversion : style intégré `Table Grid` (bordures) + `tblW` à
+  `pct` 5000 (100 %), pour s'aligner sur HTML/PDF.
   **Rendu PDF/HTML (`infra/export/markdown_pdf`)** : le **PDF est rendu à partir du
   HTML via `xhtml2pdf`** (moteur ReportLab, Python pur, *bundleable*) — vraie
   pagination (listes/tableaux multi-pages), typo CSS, orientation paysage. Gotchas :
   (1) tableaux pipe GFM → extension python-markdown `tables` (sinon texte littéral) ;
   (2) sommaire **cliquable** via l'extension `toc` + `core/slugify.slugify_anchor`
-  (ids de titres = ancres du sommaire) ; (3) `app.document_export.ExportDocument`
-  porte les **options PDF par document** (`pdf_landscape`, `pdf_column_widths`) — le
-  **glossaire** s'exporte en paysage + largeurs dédiées ; (4) xhtml2pdf n'honore les
-  largeurs de colonnes que posées sur **chaque** cellule et effondre les cellules
-  vides → `_layout_table_cells` (largeurs + remplissage `&nbsp;`) ; (5) ReportLab+
-  Arial ne rend pas U+2010/2011/2012/2015 (carré) → `_normalize_for_pdf` les
-  normalise (em-dash/en-dash conservés). La police PDF est l'Arial système Windows
-  (enregistrée auprès de ReportLab) — rien à bundler côté police.
+  (ids de titres = ancres du sommaire ; `slugify_anchor` conserve les lettres Unicode
+  → ancres CJK/arabes valides) ; (3) `app.document_export.ExportDocument`
+  porte l'**orientation `landscape`** (PDF **et** DOCX), les **largeurs de colonnes PDF**
+  (`pdf_column_widths`) et la **langue** — le **glossaire** s'exporte en paysage (PDF +
+  DOCX) + largeurs dédiées (PDF) ; (4) xhtml2pdf n'honore les largeurs de colonnes que
+  posées sur **chaque** cellule et effondre les cellules vides → `_layout_table_cells`
+  (largeurs + remplissage `&nbsp;`) ; (5) ReportLab+Arial ne rend pas U+2010/2011/2012/2015
+  (carré) → `_normalize_for_pdf` les normalise (em-dash/en-dash conservés) ; (6) plus
+  largement, tout caractère **sans glyphe** dans la police active (émojis décoratifs
+  📖/📝/💡/🎯…) est **retiré** avant rendu (`_strip_unrenderable_for_pdf` ; couverture
+  via `pdfmetrics.getFont(...).face.charToGlyph`, catégories Cc/Cf/Zs/Zl/Zp conservées
+  dont ZWJ/RLM pour l'arabe) — sinon ReportLab dessine un carré (pas d'émojis couleur,
+  pas de repli par glyphe) ; HTML/DOCX, eux, les conservent ; (7) le **chinois s'écrit
+  sans espaces** et ReportLab ne coupe qu'aux espaces (le mode CSS `-pdf-word-wrap: CJK`
+  de xhtml2pdf 0.2.17 plante sur `<p>`/`<li>`) → la prose CJK est **pré-coupée** par
+  `<br/>` (`_prewrap_cjk_runs` via `reportlab…wordSplit` + BeautifulSoup, largeur dérivée
+  des constantes A4/marge) et les **cellules** par la règle CSS `-pdf-word-wrap: CJK`
+  (seul contexte où elle fonctionne) ; les deux ne s'appliquent qu'aux langues CJK
+  (`_CJK_LANGUAGES`). Le pré-formatage opère **par bloc** (paragraphe/li/titre) sur le
+  **texte aplati** — fragments **gras/italiques inclus** : couper nœud par nœud plaçait
+  la 1ʳᵉ ligne suivant un terme en gras *après* ce terme → débordement à droite. La
+  largeur cible réserve **un idéogramme** (`_CJK_WIDEST_CHAR`) car `wordSplit` dépasse sa
+  cible du dernier caractère ajouté. **Police PDF par langue** : latin
+  (fr/en/de/es/it) → Arial système (résolu en Helvetica par xhtml2pdf, couvre Latin-1) ;
+  **chinois** → Microsoft YaHei (`msyh.ttc` système, chargé via `subfontIndex`) injecté
+  dans `xhtml2pdf.default.DEFAULT_FONT` (garde `EXPORT.NO_CJK_FONT` si absent) ;
+  **arabe** → Arial (glyphes arabes) + `direction:rtl` + tag `<pdf:language name="arabic"/>`
+  qui déclenche le reshaping contextuel + bidi (`arabic-reshaper`/`python-bidi`, transitifs
+  xhtml2pdf). ⚠ **Arial Italic/Bold-Italic n'ont aucun glyphe arabe** (l'arabe n'a pas de
+  formes italiques) → l'arabe en emphase (`*…*`) tombait en carrés ; `_ensure_arabic_font_registered`
+  enregistre une famille dédiée `AppArabic` dont **italique/gras-italique pointent sur les
+  variantes droites** (régulier/gras), qui couvrent l'arabe.
+  `domain.languages.is_rtl` = **source unique RTL** (PDF `direction`, HTML `dir`, DOCX
+  `bidi`/`bidiVisual`) ; `_text_direction` en dérive la valeur CSS ; tailles de police et
+  marge `@page` **centralisées** (source unique gabarit CSS ↔ calcul de largeur du
+  pré-formatage CJK). **Polices toutes système Windows — rien à bundler.**
 - **Erreurs → UI** : une exception levée par un handler **doit** être une
   `Fahmi2Error` (code + user_message + technical_details). Le moteur la convertit
   en `ErrorInfo`, la propage dans `PhaseFinished.error`, et `generation_controller._to_log_event`

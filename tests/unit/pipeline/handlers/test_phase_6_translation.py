@@ -15,15 +15,123 @@ from fahmi2.pipeline.handlers.phase_6_translation import Phase6TranslationHandle
 from tests.unit.pipeline.handlers._helpers import build_phase_context
 
 
-def _llm(content: str = "Translated.") -> LLMResponse:
+def _localization_response(entries: list[dict[str, str]]) -> LLMResponse:
     return LLMResponse(
-        content=content,
+        content=json.dumps(entries, ensure_ascii=False),
         thinking_content=None,
-        prompt_tokens=400,
-        completion_tokens=400,
+        prompt_tokens=100,
+        completion_tokens=100,
         cached_prompt_tokens=0,
         cost_usd=0.01,
     )
+
+
+def test_localize_glossary_matches_by_source_and_falls_back(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    payload = {
+        "terms": [
+            {"term": "Bilan", "definition": "doc comptable", "acronym": None},
+            {"term": "IFRS", "definition": "norme", "acronym": "IFRS"},
+        ]
+    }
+    ctx, _run = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        llm_response=_localization_response(
+            [
+                {"source": "Bilan", "term": "Balance sheet", "definition": "accounting doc"},
+                # "IFRS" volontairement absent → repli attendu
+            ]
+        ),
+    )
+    localized, cost = Phase6TranslationHandler()._localize_glossary(
+        ctx, target=Language.EN, payload=payload
+    )
+    assert localized[0].term == "Balance sheet"
+    assert localized[0].definition == "accounting doc"
+    assert localized[1].term == "IFRS"  # repli (manquant dans la réponse)
+    assert localized[1].definition == "norme"  # repli définition source
+    assert cost == pytest.approx(0.01)
+
+
+def test_localize_glossary_matches_by_position_when_source_echo_polluted(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    # Bug réel : pour les termes acronymes, le LLM réémettait un ``source`` pollué
+    # (≠ terme) → l'appariement par chaîne échouait → la définition retombait en
+    # langue source. L'appariement **par position** récupère la définition traduite.
+    payload = {
+        "terms": [
+            {"term": "WACC", "definition": "déf source FR", "acronym": "WACC"},
+            {"term": "Bilan", "definition": "doc comptable", "acronym": None},
+        ]
+    }
+    ctx, _run = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        llm_response=_localization_response(
+            [
+                {"source": "WACC (acronyme : WACC)", "term": "WACC", "definition": "EN def"},
+                {"source": "Bilan", "term": "Balance sheet", "definition": "accounting doc"},
+            ]
+        ),
+    )
+    localized, _cost = Phase6TranslationHandler()._localize_glossary(
+        ctx, target=Language.EN, payload=payload
+    )
+    assert localized[0].term == "WACC"
+    assert localized[0].definition == "EN def"  # définition traduite, pas la source FR
+    assert localized[1].definition == "accounting doc"
+
+
+def test_localize_glossary_matches_by_source_despite_reordering(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    # Si le LLM renvoie les entrées dans un ordre différent (sources propres),
+    # l'appariement par terme source attribue à chacun SA définition (pas celle
+    # du voisin) — un appariement purement positionnel se tromperait.
+    payload = {
+        "terms": [
+            {"term": "Bilan", "definition": "doc1", "acronym": None},
+            {"term": "Compte de résultat", "definition": "doc2", "acronym": None},
+        ]
+    }
+    ctx, _run = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        llm_response=_localization_response(
+            [
+                {"source": "Compte de résultat", "term": "Income statement", "definition": "d2"},
+                {"source": "Bilan", "term": "Balance sheet", "definition": "d1"},
+            ]
+        ),
+    )
+    localized, _cost = Phase6TranslationHandler()._localize_glossary(
+        ctx, target=Language.EN, payload=payload
+    )
+    assert localized[0].term == "Balance sheet"  # Bilan → sa propre traduction
+    assert localized[0].definition == "d1"
+    assert localized[1].term == "Income statement"  # Compte de résultat
+    assert localized[1].definition == "d2"
+
+
+def test_localize_glossary_matches_despite_whitespace(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    payload = {"terms": [{"term": "Bilan", "definition": "doc", "acronym": None}]}
+    ctx, _run = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        # Le LLM réémet le terme source avec un espace de bord.
+        llm_response=_localization_response(
+            [{"source": "  Bilan ", "term": "Balance sheet", "definition": "doc"}]
+        ),
+    )
+    localized, _cost = Phase6TranslationHandler()._localize_glossary(
+        ctx, target=Language.EN, payload=payload
+    )
+    assert localized[0].term == "Balance sheet"  # apparié malgré les espaces
 
 
 def _seed_workspace(
@@ -88,10 +196,14 @@ def test_execute_translates_for_target_language(
         source_id=SourceId.new(),
         source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / "v.mp4")),
     )
+    # La même réponse sert l'appel de localisation (JSON) et les traductions de docs
+    # (le test n'asserte que l'existence des fichiers, pas leur contenu traduit).
     ctx, _ = build_phase_context(
         tmp_path,
         make_generation_settings,
-        llm_response=_llm("Translated content."),
+        llm_response=_localization_response(
+            [{"source": "PIB", "term": "GDP", "definition": "gross domestic product"}]
+        ),
         sources=(video,),
         settings_overrides={
             "source_language": Language.FR,
@@ -112,6 +224,43 @@ def test_execute_translates_for_target_language(
     ).exists()
     assert (ctx.output_dir / "consolidated.en.md").exists()
     assert (ctx.output_dir / "glossary.en.md").exists()
+
+
+def test_execute_localizes_glossary_and_persists_cross_lang(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    video = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / "v.mp4")),
+    )
+    ctx, _ = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        llm_response=_localization_response(
+            [{"source": "Bilan", "term": "Balance sheet", "definition": "accounting doc"}]
+        ),
+        sources=(video,),
+        settings_overrides={
+            "source_language": Language.FR,
+            "output_languages": (Language.FR, Language.EN),
+        },
+    )
+    _seed_workspace(
+        ctx.workspace,
+        sources=(video,),
+        glossary_terms=[{"term": "Bilan", "definition": "doc comptable"}],
+    )
+    Phase6TranslationHandler().execute(ctx, source=None)
+
+    glossary_en = (ctx.output_dir / "glossary.en.md").read_text(encoding="utf-8")
+    assert "Balance sheet" in glossary_en
+    assert "Bilan" not in glossary_en
+    glossary_fr = (ctx.output_dir / "glossary.fr.md").read_text(encoding="utf-8")
+    assert "Bilan" in glossary_fr  # langue source : terme conservé
+    master = json.loads(
+        (ctx.workspace / "glossary_master.json").read_text(encoding="utf-8")
+    )
+    assert master["terms"][0]["cross_lang"]["en"] == "Balance sheet"
 
 
 def test_execute_raises_when_consolidated_master_missing(
@@ -147,7 +296,9 @@ def test_execute_accumulates_per_video_translation_cost(
     ctx, _ = build_phase_context(
         tmp_path,
         make_generation_settings,
-        llm_response=_llm("Translated."),  # cost_usd=0.01 par appel
+        llm_response=_localization_response(  # cost_usd=0.01 par appel
+            [{"source": "PIB", "term": "GDP", "definition": "gross domestic product"}]
+        ),
         sources=(video,),
         settings_overrides={
             "source_language": Language.FR,
@@ -157,6 +308,6 @@ def test_execute_accumulates_per_video_translation_cost(
     _seed_workspace(ctx.workspace, sources=(video,))
     handler = Phase6TranslationHandler()
     result = handler.execute(ctx, source=None)
-    # FR = source -> copies gratuites. EN -> 3 appels : 1 per-video + consolidated
-    # + glossaire, chacun 0.01 = 0.03. Avant correctif : 0.02 (per-video ignoré).
+    # FR = source -> copies gratuites. EN -> 3 appels LLM (0.01 chacun) : localisation
+    # du glossaire + traduction per-source + traduction consolidé = 0.03.
     assert result.cost_usd == pytest.approx(0.03)

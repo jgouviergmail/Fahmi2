@@ -114,3 +114,31 @@ def test_load_corpus_chunks_empty_when_no_consolidated(tmp_path: Path) -> None:
         language=Language.FR,
     )
     assert chunks == ()
+
+
+def test_corpus_glossary_chunks_use_localized_term(tmp_path: Path) -> None:
+    out_dir = tmp_path / "output"
+    out_dir.mkdir()
+    consolidated_doc_path(out_dir, Language.EN).write_text(
+        "# Cours\n\n## Intro\n\nx\n", encoding="utf-8"
+    )
+    (tmp_path / "glossary_master.json").write_text(
+        json.dumps(
+            {
+                "terms": [
+                    {
+                        "term": "Bilan",
+                        "definition": "doc comptable",
+                        "cross_lang": {"en": "Balance sheet"},
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    chunks = load_corpus_chunks(
+        generation_output_dir=out_dir, generation_dir=tmp_path, language=Language.EN
+    )
+    glossary = [c for c in chunks if c.origin == "glossary"]
+    assert any("Balance sheet" in c.text for c in glossary)
+    assert not any("Bilan" in c.text for c in glossary)

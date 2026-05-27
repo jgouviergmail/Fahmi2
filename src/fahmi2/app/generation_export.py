@@ -26,8 +26,9 @@ from fahmi2.domain.project import Project
 _ENCODING_UTF8 = "utf-8"
 
 #: Le glossaire (tableau Terme / Acronyme / Signification / Définition, dont les 2
-#: colonnes du milieu sont souvent vides) est exporté en **paysage** avec des
-#: largeurs de colonnes dédiées (sinon les définitions sont écrasées et illisibles).
+#: colonnes du milieu sont souvent vides) est exporté en **paysage** (PDF et DOCX)
+#: avec, en PDF, des largeurs de colonnes dédiées (sinon les définitions sont
+#: écrasées et illisibles).
 _GLOSSARY_PDF_COLUMN_WIDTHS: tuple[str, ...] = ("20%", "12%", "23%", "45%")
 
 
@@ -44,7 +45,8 @@ def collect_generation_documents(project: Project) -> list[ExportDocument]:
 
     Returns:
         Liste d'``ExportDocument`` : pour chaque langue, le consolidé puis le
-        glossaire s'ils existent. ``stem`` = nom de fichier privé de ``.md``.
+        glossaire s'ils existent. ``stem`` = nom de fichier privé de ``.md``. Le
+        glossaire est en paysage (PDF + DOCX) ; le consolidé en portrait.
     """
     output_dir = (
         project.workspace_folder
@@ -59,6 +61,7 @@ def collect_generation_documents(project: Project) -> list[ExportDocument]:
                 ExportDocument(
                     stem=consolidated.stem,
                     markdown=consolidated.read_text(encoding=_ENCODING_UTF8),
+                    language=language,
                 )
             )
         glossary = output_dir / glossary_doc_filename(language)
@@ -67,8 +70,9 @@ def collect_generation_documents(project: Project) -> list[ExportDocument]:
                 ExportDocument(
                     stem=glossary.stem,
                     markdown=glossary.read_text(encoding=_ENCODING_UTF8),
-                    pdf_landscape=True,
+                    landscape=True,
                     pdf_column_widths=_GLOSSARY_PDF_COLUMN_WIDTHS,
+                    language=language,
                 )
             )
     return documents
@@ -83,14 +87,16 @@ def export_generation_documents(
         project: Projet.
         output_dir: Dossier de destination choisi par l'utilisateur (distinct du
             dossier de sortie de génération).
-        fmt: Format documentaire (``MARKDOWN`` / ``PDF`` / ``HTML``).
+        fmt: Format documentaire (``MARKDOWN`` / ``PDF`` / ``HTML`` / ``DOCX``).
 
     Returns:
         ``DocumentExportResult``.
 
     Raises:
         ValueError: Si ``fmt`` n'est pas documentaire.
-        ConfigError: ``EXPORT.NO_PDF_FONT`` en PDF sans police Unicode.
+        ConfigError: en PDF, ``EXPORT.NO_PDF_FONT`` (Arial absente),
+            ``EXPORT.NO_CJK_FONT`` (police chinoise absente, langue ZH) ou
+            ``EXPORT.PDF_RENDER_FAILED`` (échec du moteur de rendu).
     """
     return write_documents(
         collect_generation_documents(project), output_dir=output_dir, fmt=fmt

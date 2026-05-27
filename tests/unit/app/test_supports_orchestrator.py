@@ -263,6 +263,48 @@ class _StubGen(SupportGenerator):
         )
 
 
+def test_orchestrator_passes_localized_glossary_to_generator(
+    tmp_path: Path, make_generation_settings: Any, make_pedagogy_settings: Any
+) -> None:
+    gen = _CapturingGen(SupportType.FLASHCARDS_CONCEPTS)
+    orchestrator, state, project_service = _build(
+        tmp_path, SupportGeneratorRegistry([gen])
+    )
+    ws = tmp_path / "ws"
+    project = project_service.create_project(
+        name="P",
+        workspace_folder=ws,
+        generation=make_generation_settings(),
+        pedagogy=make_pedagogy_settings(languages=(Language.EN,)),
+    )
+    _seed_completed_run_with_glossary(state, project, make_generation_settings())
+    # Glossaire master avec un équivalent localisé EN.
+    FsArtifactStore().write_json_atomic(
+        ws / GENERATION_WORKSPACE_SUBDIR / "glossary_master.json",
+        {
+            "terms": [
+                {
+                    "term": "Bilan",
+                    "definition": "doc comptable",
+                    "cross_lang": {"en": "Balance sheet"},
+                }
+            ]
+        },
+    )
+    # Consolidé EN présent → la langue de contenu résolue est EN.
+    FsArtifactStore().write_text_atomic(
+        ws
+        / GENERATION_WORKSPACE_SUBDIR
+        / GENERATION_OUTPUT_SUBDIR
+        / consolidated_doc_filename(Language.EN),
+        "# Cours\n\n# 1. Bases\n\nContenu.\n",
+    )
+
+    orchestrator.generate(project, pause_token=PauseToken(), event_bus=EventBus())
+
+    assert gen.seen_glossary[0].term == "Balance sheet"
+
+
 def test_generator_failure_yields_failed_status(
     tmp_path: Path, make_generation_settings: Any, make_pedagogy_settings: Any
 ) -> None:
@@ -404,12 +446,13 @@ class _CostlyGen(SupportGenerator):
 
 
 class _CapturingGen(SupportGenerator):
-    """Générateur de test (sans LLM) capturant la langue cible + chapitres reçus."""
+    """Générateur de test (sans LLM) capturant langue, chapitres et glossaire reçus."""
 
     def __init__(self, support_type: SupportType) -> None:
         self._support_type = support_type
         self.seen_language: Language | None = None
         self.seen_chapters: tuple[Chapter, ...] = ()
+        self.seen_glossary: tuple[Term, ...] = ()
 
     @property
     def support_type(self) -> SupportType:
@@ -427,9 +470,10 @@ class _CapturingGen(SupportGenerator):
         chapters: tuple[Chapter, ...],
         glossary: tuple[Term, ...],
     ) -> SupportArtifact:
-        del ctx, glossary
+        del ctx
         self.seen_language = language
         self.seen_chapters = chapters
+        self.seen_glossary = glossary
         return SupportArtifact(
             support_type=self._support_type,
             language=language,

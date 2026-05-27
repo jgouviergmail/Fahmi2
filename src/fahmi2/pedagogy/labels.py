@@ -13,11 +13,7 @@ from fahmi2.domain.enums import (
     TargetAudience,
 )
 from fahmi2.domain.glossary import Term
-
-_LANGUAGE_LABELS_FR: dict[Language, str] = {
-    Language.FR: "français",
-    Language.EN: "anglais",
-}
+from fahmi2.domain.languages import language_label as _language_label
 
 _AUDIENCE_LABELS_FR: dict[TargetAudience, str] = {
     TargetAudience.DISCOVERY: "grand public (découverte)",
@@ -41,7 +37,10 @@ _DENSITY_LABELS_FR: dict[SupportDensity, str] = {
 
 
 def language_label(language: Language) -> str:
-    """Libellé FR d'une langue.
+    """Libellé FR (minuscule) d'une langue.
+
+    Délègue à la source unique ``domain.languages`` (ré-export pour compat des
+    modules qui importent ``language_label`` depuis ce module).
 
     Args:
         language: Langue.
@@ -49,7 +48,7 @@ def language_label(language: Language) -> str:
     Returns:
         Le libellé (ex: ``"français"``).
     """
-    return _LANGUAGE_LABELS_FR[language]
+    return _language_label(language)
 
 
 def audience_label(audience: TargetAudience) -> str:

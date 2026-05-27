@@ -71,7 +71,8 @@ Modules transverses, sans dépendance externe (ni Qt, ni HTTP, ni SQL) :
 
 Entités pures immuables + machines d'état :
 
-- Énumérations : `Language`, `StylePreset`, `PhaseId` (8 phases),
+- Énumérations : `Language` (7 langues : fr/en/de/es/it/zh/ar),
+  `StylePreset`, `PhaseId` (8 phases),
   `RunStatus`, `PhaseStatus`, `SourceKind` (vidéo/audio/document/YouTube),
   `SttProvider`, `LLMModel`, `ReasoningEffort`, et
   pédagogie : `SupportType` (×8), `TargetAudience`, `BloomObjective`,
@@ -101,14 +102,14 @@ Moteur d'exécution pur :
   `PhaseProgress`, `PhaseFinished`, `RetryAttempt`, `RunFinished`).
 - `PhaseHandler` ABC + `PhaseContext` (DI complet) ; `max_parallel_workers(ctx)`
   déclare le pool de la phase (défaut 1 = séquentiel ; surchargé par les phases
-  per-video indépendantes).
+  per-source indépendantes).
 - `PhaseRegistry` (ordre canonique des 8 phases).
 - `PipelineEngine` — boucle d'exécution avec checkpoint SQLite, retry
-  policy, événements, pause/cancel. Les phases **per-video** sont parallélisées
+  policy, événements, pause/cancel. Les phases **per-source** sont parallélisées
   via `core/concurrency/map_bounded` (pool borné par `ParallelismConfig` : STT
   cloud = `stt_cloud_workers`, phases LLM 1/3/4 = `llm_workers` ; STT local = 1,
   GPU unique). Les phases batch 5/6/7 parallélisent leurs boucles internes
-  (résumés vidéo, langue × document, langues) ; barrières aux phases batch 2 et 5.
+  (résumés par source, langue × document, langues) ; barrières aux phases batch 2 et 5.
 - 8 handlers dans `pipeline/handlers/` (un fichier par phase).
 - `pipeline/handlers/_base.py` — helpers communs (invoke LLM, parse JSON,
   build PhaseExecution succeeded, sélection top-K glossaire).
@@ -174,11 +175,25 @@ Adapters externes (ports/adapters) :
   `DPAPISecretsStore` (Windows).
 - `infra/prompts/` — `PromptLoader` avec override `%APPDATA%/Fahmi2/prompts/`
   + **templates Jinja2 bundlés** : 8 phases de génération + **3 `phase_5_*` du
-  mode thématique** + 8 `pedagogy_*` + 3 `chat_*`.
+  mode thématique** + **`phase_6_glossary_localization`** (localisation des termes
+  du glossaire) + 8 `pedagogy_*` + 3 `chat_*`.
 - `infra/anki/genanki_exporter.py` — export `.apkg` (genanki : Basic/Cloze/QCM,
   GUID stables, sous-decks par support, tags).
-- `infra/export/markdown_pdf.py` — assemblage Markdown + rendu PDF
-  (`markdown` → HTML → `fpdf2`, police Unicode système Windows).
+- `infra/export/markdown_pdf.py` — rendu Markdown → HTML (`render_markdown_body`,
+  partagé) → PDF via `xhtml2pdf`/ReportLab ; **polices système par langue** (Arial
+  latin/arabe, Microsoft YaHei chinois, RTL + reshaping arabe). Deux corrections de
+  rendu PDF : retrait des caractères **sans glyphe** (émojis → carrés blancs sinon ;
+  `_strip_unrenderable_for_pdf`) et **pré-coupe des retours à la ligne du chinois**
+  (`_prewrap_cjk_runs` via `wordSplit`/BeautifulSoup ; règle `-pdf-word-wrap: CJK`
+  pour les cellules) — réservées aux langues CJK / au PDF (HTML et Word gèrent
+  nativement).
+- `infra/export/markdown_docx.py` — rendu Markdown → HTML → **DOCX** via `htmldocx`
+  (s'appuie sur `python-docx`) ; tableaux reformatés (style **Table Grid** +
+  largeur 100 %, htmldocx ne traduit ni les bordures CSS ni `width:100%`) ;
+  orientation **paysage** optionnelle (glossaire) ; **arabe en droite-à-gauche**
+  (`w:bidi` paragraphes, `w:rtl` runs, `w:bidiVisual` tableaux), aligné sur le
+  PDF/HTML. Word gère nativement la police CJK et la coupe de ligne (rien à déclarer
+  côté chinois).
 
 ### 2.6 Couche `app`
 
@@ -207,16 +222,26 @@ Services applicatifs :
   partagées dans `app/_cost_common.py`.
 - `PedagogyCostEstimator` — estimation de coût des supports (par support ×
   langue × chapitre, selon densité et thinking).
-- `pedagogy_export` — exports `export_pedagogy_to_apkg` / `_to_markdown` / `_to_pdf`.
+- `pedagogy_export` / `generation_export` — collecteurs (`collect_*_documents`) +
+  façades d'export (`export_pedagogy_to_apkg` pour l'Anki ; `export_*_documents` pour
+  Markdown / PDF / HTML / DOCX, déléguées au cœur partagé `document_export.write_documents`).
 - Glossaire : pas de service applicatif dédié — il est lu **sur disque**
-  (`glossary_master.json`) comme le pipeline ; le parsing (`parse_glossary_master_terms`)
-  et le rendu Markdown 4 colonnes (`render_glossary_markdown_table` : Terme / Acronyme /
-  Signification / Définition, ou Term / Acronym / Meaning / Definition) vivent dans
-  `domain/glossary.py` (réutilisés par pipeline et pédagogie).
+  (`glossary_master.json`) comme le pipeline ; le parsing (`parse_glossary_master_terms`),
+  le rendu Markdown 4 colonnes (`render_glossary_markdown_table` : en-têtes localisés
+  par langue parmi les 7, ex. Terme / Acronyme / Signification / Définition ou
+  Term / Acronym / Meaning / Definition) et la **localisation terminologique**
+  (`localize_glossary_terms` → `cross_lang[L]`, repli sur le terme source) vivent dans
+  `domain/glossary.py` (réutilisés par pipeline, pédagogie et Dialogue). La **phase 6**
+  localise les termes par un appel LLM structuré (`_localize_glossary`, prompt
+  `phase_6_glossary_localization`), rend `glossary.{L}.md` de façon déterministe,
+  injecte les équivalents source → cible dans la traduction et persiste `cross_lang`
+  dans `glossary_master.json` ; la Pédagogie et le Dialogue **pré-localisent** ensuite
+  le glossaire à la langue de contenu qu'ils chargent.
 - `PromptsService` — gestion des overrides utilisateur des templates LLM
   (lecture défaut bundlé, lecture / écriture / suppression d'override
   dans `%APPDATA%/Fahmi2/prompts/`, validation Jinja2). Backend du
-  `PromptsEditorDialog`. Catalogue : 8 phases + 8 templates `pedagogy_*`.
+  `PromptsEditorDialog`. Catalogue : prompts de génération (8 phases + 3 `phase_5_*`
+  thématiques + `phase_6_glossary_localization`) + 8 templates `pedagogy_*` + 3 `chat_*`.
 - `SecretsService` — wrapper SecretsStore avec redaction logs auto.
 - `HardwareProbe` — détection CUDA/GPU au démarrage.
 
@@ -234,7 +259,7 @@ Qt PySide6 :
   - `cost_matrix` — viewmodel **générique** présentationnel (`CostMatrixSnapshot` :
     cellules `statut + coût`, totaux ligne/colonne/général) partagé par les deux
     dashboards (`build_cost_matrix`).
-  - `RunMatrixViewModel` — produit un `CostMatrixSnapshot` (vidéos × phases, coût
+  - `RunMatrixViewModel` — produit un `CostMatrixSnapshot` (sources × phases, coût
     par cellule via `list_phase_cells`, coût des phases batch en total de colonne).
   - `StatsStripViewModel` enrichi avec `started_at`, `finished_at`,
     `elapsed_seconds` pour piloter la carte Durée live.
@@ -244,12 +269,12 @@ Qt PySide6 :
 - `ui/widgets/` :
   - `StatCard` — carte d'indicateur réutilisable (icône + valeur + sous-info +
     accent), socle des bandes de stats des deux dashboards.
-  - `StatsStripWidget` — 5 cartes (Statut, Vidéos, Phases, Durée,
+  - `StatsStripWidget` — 6 cartes (Statut, Sources, Phases, Langues, Durée,
     Coût) bâties sur `StatCard`, avec un `QTimer` interne (1 s) qui rafraîchit la
     carte Durée tant que le Run est `RUNNING` ou `PAUSED`.
   - `CostMatrixView` — matrice de coût **générique** (`QTableView` + délégué) :
     glyphe de statut proéminent + coût secondaire par cellule, totaux mis en avant.
-    Partagée par les dashboards Génération (vidéos × phases) et Pédagogie
+    Partagée par les dashboards Génération (sources × phases) et Pédagogie
     (supports × langues). Libellés de statut/accents partagés (`ui/status_labels`).
   - `PedagogyProgressView` — bandeau de fraîcheur + bande de tuiles + `CostMatrixView`.
   - `ProjectsSidebar` — liste des projets préfixés par leurs **icônes de statut**
@@ -284,7 +309,7 @@ Qt PySide6 :
   et **`open_generation_settings`**).
 - `ui/pedagogy_controller.py` — orchestre l'onglet Supports pédagogiques
   (worker QThread `SupportsOrchestrator`, pause/cancel, sélecteur d'export
-  Anki / Markdown / PDF, bridge `PedagogyQtEventBus`).
+  Anki / Markdown / PDF / HTML / DOCX, bridge `PedagogyQtEventBus`).
 - `ui/features/` — abstraction onglet : `FeatureId`, `FeatureTab`,
   `FeatureRegistry`, `GenerationTab` (cockpit + contrôleur), `PedagogyTab`
   (cockpit pédagogique réel + `PedagogyController`).
@@ -344,7 +369,7 @@ RunOrchestrator.execute(run, ctx)
         ▼
 PipelineEngine boucle sur les phases :
    pour chaque PhaseHandler dans l'ordre canonique :
-     pour chaque vidéo (si per-video) ou une seule fois (si batch) :
+     pour chaque source (si per-source) ou une seule fois (si batch) :
         1. check PauseToken (raise si cancel, wait si pause)
         2. lookup checkpoint SQLite (skip si SUCCEEDED)
         3. emit PhaseStarted
@@ -353,7 +378,7 @@ PipelineEngine boucle sur les phases :
         6. emit PhaseFinished
         │
         ▼
-[Sortie : Markdown par vidéo × langues, glossaire × langues, consolidé × langues]
+[Sortie : Markdown par source × langues, glossaire × langues, consolidé × langues]
 ```
 
 ## 4. Modèle de données
@@ -377,20 +402,21 @@ CREATE TABLE runs (
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 
-CREATE TABLE videos (
+CREATE TABLE sources (
   id TEXT PRIMARY KEY, run_id TEXT NOT NULL,
-  source_path TEXT NOT NULL, detected_language TEXT,
+  source_kind TEXT NOT NULL DEFAULT 'video',
+  source_location TEXT NOT NULL, detected_language TEXT,
   FOREIGN KEY (run_id) REFERENCES runs(id) ON DELETE CASCADE
 );
 
 CREATE TABLE phase_executions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  run_id TEXT NOT NULL, phase_id TEXT NOT NULL, video_id TEXT,
+  run_id TEXT NOT NULL, phase_id TEXT NOT NULL, source_id TEXT,
   status TEXT NOT NULL,
   started_at TEXT, finished_at TEXT,
   artifact_path TEXT, retry_count INTEGER NOT NULL DEFAULT 0,
   cost_usd REAL NOT NULL DEFAULT 0, error_json TEXT,
-  UNIQUE (run_id, phase_id, video_id),
+  UNIQUE (run_id, phase_id, source_id),
   FOREIGN KEY (run_id) REFERENCES runs(id) ON DELETE CASCADE
 );
 ```
@@ -399,7 +425,7 @@ CREATE TABLE phase_executions (
 > disque (`glossary_master.json` + `glossary.{lang}.md`), comme les autres
 > documents générés.
 
-Index : `idx_runs_project_id`, `idx_videos_run_id`,
+Index : `idx_runs_project_id`, `idx_sources_run_id`,
 `idx_phase_executions_run`, `idx_phase_executions_lookup`.
 
 **Soft migrations** appliquées automatiquement à l'ouverture
@@ -409,7 +435,7 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
   de socle jamais branchée — le glossaire est lu sur disque comme les autres
   documents générés.
 - Nettoyage rétroactif des doublons batch dans `phase_executions` (lignes
-  multiples avec `video_id IS NULL` pour la même `(run_id, phase_id)` —
+  multiples avec `source_id IS NULL` pour la même `(run_id, phase_id)` —
   SQLite traite `NULL` comme distinct dans une contrainte `UNIQUE`,
   ce qui faisait s'accumuler les lignes avant que le upsert ne gère
   explicitement le cas `NULL`). On ne conserve que la ligne `id` la
@@ -417,10 +443,10 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
 
 **`upsert_phase_execution`** distingue maintenant les deux cas :
 
-- `video_id` défini → `INSERT ... ON CONFLICT(run_id, phase_id,
-  video_id) DO UPDATE`.
-- `video_id IS NULL` (phases batch) → `DELETE FROM phase_executions
-  WHERE run_id = ? AND phase_id = ? AND video_id IS NULL` puis
+- `source_id` défini → `INSERT ... ON CONFLICT(run_id, phase_id,
+  source_id) DO UPDATE`.
+- `source_id IS NULL` (phases batch) → `DELETE FROM phase_executions
+  WHERE run_id = ? AND phase_id = ? AND source_id IS NULL` puis
   `INSERT`. C'est la seule manière fiable d'unifier les phases batch
   dans SQLite.
 
@@ -428,18 +454,18 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
 
 ```
 <workspace_folder>/
-├── transcripts/{video_id}.json       ← Phase 0 STT
-├── audio/{video_id}.wav              ← Audio extrait (supprimable)
-├── candidates/{video_id}.json        ← Phase 1
+├── transcripts/{source_id}.json       ← Phase 0 STT
+├── audio/{source_id}.wav              ← Audio extrait (supprimable)
+├── candidates/{source_id}.json        ← Phase 1
 ├── glossary_master.json              ← Phase 2
-├── reformulated/{video_id}.md        ← Phase 3
-├── structured/{video_id}.md          ← Phase 4
+├── reformulated/{source_id}.md        ← Phase 3
+├── structured/{source_id}.md          ← Phase 4
 └── consolidated_master.md            ← Phase 5
 
 <output_dir>/
 ├── consolidated.{lang}.md            ← Phases 6 + 7
 ├── glossary.{lang}.md
-└── per-video/{lang}/{video_id}.md
+└── per-video/{lang}/{source_id}.md
 
 <emplacement>/pedagogy/                ← Supports pédagogiques (SP2)
 ├── manifest.json                     ← Fraîcheur (hash réglages + mtime source/langue)
@@ -475,16 +501,21 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
 > (support / langue / niveau / chapitre). La désérialisation des artefacts JSON est dans
 > `pedagogy/artifact_reader.py` ; le service `app/pedagogy_export.py` scanne `pedagogy/`.
 > Les supports non-cartes (vrai/faux, questions ouvertes, fiche, points clés, examen
-> blanc) relèvent de l'export Markdown/PDF/HTML (SP3/02). À l'export Anki, les champs
+> blanc) relèvent de l'export Markdown/PDF/HTML/DOCX. À l'export Anki, les champs
 > Markdown sont convertis en HTML (`genanki_exporter._md_to_html`), sauf le texte cloze.
 
-> **Export Markdown/PDF/HTML (SP3/02)** : l'adapter `infra/export/markdown_pdf.py` assemble
-> les Markdown **déjà rendus** (`<support>.md` / `<support>.corrige.md`) en documents
-> agrégés par langue (sujet/corrigé séparés : `supports.{lang}.md`,
-> `supports.{lang}.corrige.md`, variantes `.pdf` / `.html`), rend le PDF via `markdown` →
-> HTML → `fpdf2.write_html` (police Unicode système Windows Arial ; les polices cœur de
-> fpdf2 sont latin-1), et le HTML en document autonome (UTF-8 + feuille de style intégrée). Le service `app/pedagogy_export.py` coordonne (réutilisation des `.md`
-> rendus, **pas** de re-rendu ni d'`artifact_reader` — réservé à l'Anki).
+> **Export Markdown/PDF/HTML/DOCX** : le cœur partagé `app/document_export.py`
+> (`write_documents`) écrit **un fichier par support et par corrigé** (`<support>.{lang}.<ext>`,
+> `<support>.{lang}.corrige.<ext>`) à partir des Markdown **déjà rendus**. Le corps HTML est
+> produit une fois par `markdown_pdf.render_markdown_body` (extensions `tables` + `toc`),
+> réutilisé par : le HTML (document autonome, CSS intégré) ; le **PDF** via `xhtml2pdf`
+> (moteur ReportLab — pagination réelle, **polices système par langue** : Arial pour le
+> latin/arabe, Microsoft YaHei pour le chinois, RTL + reshaping arabe ; retrait des
+> émojis sans glyphe + pré-coupe des retours à la ligne CJK) ; le **DOCX** via
+> `markdown_docx` (htmldocx → python-docx ; Word gère nativement CJK et bidi ; paysage
+> optionnel). Les services `app/generation_export.py` et `app/pedagogy_export.py`
+> collectent les documents (par langue, le **glossaire** en paysage) ; ils réutilisent
+> les `.md` rendus, **pas** de re-rendu (l'`artifact_reader` est réservé à l'Anki).
 
 ## 5. Conventions de code
 
@@ -516,8 +547,8 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
 
 ### 6.2 Métriques actuelles
 
-- **951 tests** passants
-- **ruff** + **mypy --strict** propres sur 375 fichiers
+- **1053 tests** passants
+- **ruff** + **mypy --strict** propres sur 389 fichiers
 
 ## 7. Packaging et distribution
 
@@ -530,12 +561,12 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
   mode STT local (sinon jamais).
 - **.zip portable** : `packaging/make-portable-zip.ps1` produit
   `Fahmi2-<version>-win64.zip`.
-- **Dépendances supports pédagogiques** : `genanki` embarque des données
-  (`apkg_schema.sql`, `apkg_col.anki2`) à collecter explicitement
-  (`--collect-data genanki`) ; `markdown` et `fpdf2` (+ `Pillow`, `fontTools`,
-  `defusedxml`) sont des modules purs. Le rendu PDF s'appuie sur la police
-  **Arial système Windows** (aucune police à bundler). Détails et procédure dans
-  [`packaging/README.md`](../packaging/README.md).
+- **Dépendances exports** : `genanki` (Anki) embarque le schéma en modules Python
+  (rien à collecter) ; le **PDF** s'appuie sur `xhtml2pdf`/`reportlab` (purs,
+  `collect_all`) ; le **DOCX** sur `htmldocx` + `beautifulsoup4` (purs ; `lxml` déjà
+  tiré par `python-docx`). Le rendu PDF utilise des **polices système Windows** (Arial
+  latin/arabe, Microsoft YaHei chinois — aucune police à bundler). Détails et procédure
+  dans [`packaging/README.md`](../packaging/README.md).
 - **Pas de signature de code en v1** : un avertissement SmartScreen apparaît
   au 1er lancement (clic « Plus d'infos » → « Exécuter quand même »).
 
@@ -554,7 +585,13 @@ Index : `idx_runs_project_id`, `idx_videos_run_id`,
 
 L'architecture est ouverte à des extensions sans casser l'existant :
 
-- **Ajouter une langue** : ajouter à `Language` + ses libellés FR/EN + tests.
+- **Ajouter une langue** : ajouter la valeur à `Language` (`domain/enums.py`), son
+  libellé dans `domain/languages._LANGUAGE_NAMES` (source unique, prompts + UI), ses
+  en-têtes et son titre de glossaire (`domain/glossary`), ses alias de détection STT
+  (`openai_whisper_adapter`) ; pour le PDF, ajouter une police si l'écriture l'exige
+  (CJK) et, pour une écriture de droite à gauche, l'inscrire dans
+  `domain/languages._RTL_LANGUAGES` (source unique RTL pour PDF/HTML/DOCX ;
+  + `markdown_pdf._PDF_LANG_RENDERING` pour le reshaping). Tests à compléter.
 - **Ajouter un provider STT** : implémenter le Protocol `STTProvider`.
 - **Ajouter un provider LLM** : implémenter le Protocol `LLMProvider` +
   ajouter une grille de tarifs dans `_pricing.py`.
@@ -566,8 +603,11 @@ L'architecture est ouverte à des extensions sans casser l'existant :
   entité dans `domain/supports.py`.
 - **Ajouter une fonctionnalité (onglet)** : enregistrer un `FeatureTab` + son type
   de réglages dans le `FeatureRegistry`, sans modifier `MainWindow` ni `Project`.
-- **Ajouter un format d'export** : étendre `ExportFormat` + le service
-  `app/pedagogy_export.py` (et l'adapter `infra/` correspondant).
+- **Ajouter un format d'export** : étendre `ExportFormat`, ajouter son extension
+  (`markdown_pdf.EXTENSION_BY_FORMAT`) et son libellé (`ui/pedagogy_labels.EXPORT_LABELS`),
+  brancher le rendu dans `app/document_export.write_documents` (+ l'adapter `infra/export/`
+  correspondant) ; un format documentaire s'ajoute à `GENERATION_EXPORT_FORMATS` pour
+  être proposé en génération.
 - **Changer le retriever de glossaire** : implémenter `GlossaryRetriever`
   (Protocol) — actuellement TF-IDF, demain peut-être embeddings.
 - **Migrer le schéma SQLite** : créer `core/migrations/vXX_to_vYY.py` et

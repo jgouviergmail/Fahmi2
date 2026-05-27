@@ -100,6 +100,25 @@ def resolve_content_language(
     return None
 
 
+def available_content_languages(generation_output_dir: Path) -> list[Language]:
+    """Langues dont un document consolidé existe sur disque (ordre de l'enum).
+
+    Sert à peupler le sélecteur de langue du Dialogue : on ne propose que les langues
+    **réellement produites** par la génération.
+
+    Args:
+        generation_output_dir: Dossier des livrables de génération.
+
+    Returns:
+        Liste des ``Language`` ayant un ``consolidated.{lang}.md`` (vide si aucun).
+    """
+    return [
+        language
+        for language in Language
+        if consolidated_doc_path(generation_output_dir, language).exists()
+    ]
+
+
 def glossary_master_mtime_ns(generation_dir: Path) -> int | None:
     """mtime (ns) du glossaire master, ou ``None`` s'il est absent.
 

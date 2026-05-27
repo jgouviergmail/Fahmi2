@@ -230,7 +230,8 @@ Services applicatifs :
   le rendu Markdown 4 colonnes (`render_glossary_markdown_table` : en-têtes localisés
   par langue parmi les 7, ex. Terme / Acronyme / Signification / Définition ou
   Term / Acronym / Meaning / Definition) et la **localisation terminologique**
-  (`localize_glossary_terms` → `cross_lang[L]`, repli sur le terme source) vivent dans
+  (`localize_glossary_terms` → `cross_lang[L]` portant **terme + définition** via
+  `LocalizedTerm`, repli sur la source) vivent dans
   `domain/glossary.py` (réutilisés par pipeline, pédagogie et Dialogue). La **phase 6**
   localise les termes par un appel LLM structuré (`_localize_glossary`, prompt
   `phase_6_glossary_localization`), rend `glossary.{L}.md` de façon déterministe,
@@ -349,6 +350,12 @@ Génération (consolidé + glossaire).
   ou le glossaire a changé sur disque (clé = langue + mtime consolidé + mtime
   glossaire), appelé avant chaque réponse **et** au signal `run_state_changed` de
   la génération → le Dialogue ne cite jamais un document périmé.
+  **Langue du corpus par conversation** : `Conversation.language` pilote la langue
+  **lue/citée et la langue de réponse** ; un sélecteur (peuplé par
+  `available_content_languages`) la choisit à la création d'une conversation (masqué
+  si une seule langue produite). `_resolve_content_language(project, target)` préfère
+  la langue de la conversation ; le corpus, le glossaire injecté (pré-localisé) et
+  l'index `.npz` (par langue, paresseux) suivent.
 
 Fidélité **configurable** (prompts `chat_strict`/`chat_augmented`) ; retrieval
 **lexical** (offline) ou **sémantique** (embeddings OpenAI), stratégie `AUTO`.
@@ -547,7 +554,7 @@ Index : `idx_runs_project_id`, `idx_sources_run_id`,
 
 ### 6.2 Métriques actuelles
 
-- **1053 tests** passants
+- **1059 tests** passants
 - **ruff** + **mypy --strict** propres sur 389 fichiers
 
 ## 7. Packaging et distribution

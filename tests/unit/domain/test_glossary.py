@@ -8,8 +8,8 @@ from fahmi2.domain.enums import Language
 from fahmi2.domain.glossary import (
     _HEADERS_BY_LANGUAGE,
     Glossary,
+    LocalizedTerm,
     Term,
-    glossary_term_for_language,
     glossary_title,
     localize_glossary_terms,
     parse_glossary_master_terms,
@@ -27,28 +27,30 @@ def test_glossary_headers_exist_for_all_languages() -> None:
     assert _HEADERS_BY_LANGUAGE[Language.ZH][3] == "定义"
 
 
-def test_glossary_term_for_language_uses_cross_lang_then_falls_back() -> None:
-    t = Term(term="Bilan", definition="...", cross_lang={Language.EN: "Balance sheet"})
-    assert glossary_term_for_language(t, Language.EN) == "Balance sheet"
-    # Pas d'entrée DE → repli sur le terme source.
-    assert glossary_term_for_language(t, Language.DE) == "Bilan"
-
-
-def test_localize_glossary_terms_replaces_surface_keeps_rest() -> None:
+def test_localize_glossary_terms_replaces_surface_and_definition_keeps_rest() -> None:
     terms = (
         Term(
             term="Bilan",
-            definition="def",
+            definition="État du patrimoine.",
             acronym="B",
-            cross_lang={Language.EN: "Balance sheet"},
+            acronym_expansion="Bilan comptable",
+            cross_lang={
+                Language.EN: LocalizedTerm(
+                    term="Balance sheet",
+                    definition="Statement of financial position.",
+                )
+            },
         ),
         Term(term="IFRS", definition="norme"),  # pas de cross_lang → inchangé
     )
     out = localize_glossary_terms(terms, Language.EN)
     assert out[0].term == "Balance sheet"
-    assert out[0].definition == "def"  # définition inchangée (source)
+    # Définition **localisée** (terme ET définition portés par cross_lang).
+    assert out[0].definition == "Statement of financial position."
     assert out[0].acronym == "B"  # acronyme conservé
+    assert out[0].acronym_expansion == "Bilan comptable"  # expansion invariante
     assert out[1].term == "IFRS"  # repli (pas d'équivalent)
+    assert out[1].definition == "norme"  # repli définition source
 
 
 def test_glossary_title_localized_for_all_languages() -> None:
@@ -77,11 +79,11 @@ def test_term_with_sources_and_aliases() -> None:
         definition="produit intérieur brut",
         sources=(vid,),
         aliases=("Produit Intérieur Brut",),
-        cross_lang={Language.EN: "GDP"},
+        cross_lang={Language.EN: LocalizedTerm(term="GDP", definition="gross dom. product")},
     )
     assert t.sources == (vid,)
     assert t.aliases == ("Produit Intérieur Brut",)
-    assert t.cross_lang[Language.EN] == "GDP"
+    assert t.cross_lang[Language.EN].term == "GDP"
 
 
 def test_term_is_frozen() -> None:
@@ -145,7 +147,7 @@ def test_parse_master_terms_reads_all_fields() -> None:
                 "acronym_expansion": "Produit Intérieur Brut",
                 "aliases": ["Produit Intérieur Brut"],
                 "sources": [vid.value],
-                "cross_lang": {"en": "GDP"},
+                "cross_lang": {"en": "GDP"},  # format legacy (terme seul)
             },
             {"term": "Inflation", "definition": "hausse des prix"},
         ]
@@ -156,8 +158,31 @@ def test_parse_master_terms_reads_all_fields() -> None:
     assert pib.term == "PIB"
     assert pib.acronym_expansion == "Produit Intérieur Brut"
     assert pib.aliases == ("Produit Intérieur Brut",)
-    assert pib.cross_lang[Language.EN] == "GDP"
+    # Legacy (chaîne) : terme localisé, définition repliée sur la source.
+    assert pib.cross_lang[Language.EN].term == "GDP"
+    assert pib.cross_lang[Language.EN].definition == "produit intérieur brut"
     assert pib.sources == (vid,)
+
+
+def test_parse_master_terms_reads_cross_lang_object_with_definition() -> None:
+    # Format courant : objet {term, definition} → terme ET définition localisés.
+    payload = {
+        "terms": [
+            {
+                "term": "Bilan",
+                "definition": "État du patrimoine.",
+                "cross_lang": {
+                    "en": {
+                        "term": "Balance sheet",
+                        "definition": "Statement of financial position.",
+                    }
+                },
+            }
+        ]
+    }
+    (bilan,) = parse_glossary_master_terms(payload)
+    assert bilan.cross_lang[Language.EN].term == "Balance sheet"
+    assert bilan.cross_lang[Language.EN].definition == "Statement of financial position."
 
 
 def test_parse_master_terms_empty_payload() -> None:

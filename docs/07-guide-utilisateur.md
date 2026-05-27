@@ -246,6 +246,12 @@ conversation**) ; elles sont conservées même après fermeture de l'application
 Pour en **supprimer** une, faites un **clic droit** dessus dans la liste →
 *« Supprimer la conversation »* (confirmation demandée).
 
+> **Dialoguer dans une autre langue.** Si votre cours a été généré en **plusieurs
+> langues**, un sélecteur de **langue** apparaît au-dessus de **＋ Nouvelle
+> conversation** : choisissez-y la langue **avant** de créer le fil. Le Dialogue
+> lira, **citera** et **répondra** dans cette langue (une conversation = une langue ;
+> pour en changer, créez-en une nouvelle).
+
 Le bouton **⚙ Réglages** permet de choisir le mode de réponse (strict, ou
 « augmenté » qui complète avec des connaissances générales), la méthode de
 recherche dans le cours, le modèle LLM **et** le modèle d'embedding (recherche

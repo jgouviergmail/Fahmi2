@@ -301,6 +301,14 @@ le consolidé ou le glossaire est régénéré (avant chaque réponse et à la f
 génération) : inutile de recharger le projet pour repartir sur le document à jour.
 Les **conversations** sont persistées sous `<emplacement>/chat/conversations/`.
 
+> **Langue du corpus (par conversation).** À gauche du panneau Dialogue, un sélecteur
+> de **langue** (visible dès que la génération a produit **≥ 2 langues**) fixe la langue
+> d'une **nouvelle** conversation : le Dialogue lit alors le `consolidated.{langue}.md`
+> correspondant, **cite** et **répond** dans cette langue, et le glossaire cité y est
+> **entièrement localisé** (terme **et** définition). Une conversation = une langue
+> (pour en changer, créez-en une nouvelle). L'index sémantique se construit **à la
+> demande**, une fois par langue utilisée (pas d'embedding des langues non utilisées).
+
 > **Coût exhaustif.** Le coût affiché par échange (et le cumul de la conversation)
 > intègre **toutes** les dépenses : génération de la réponse (DeepSeek), embeddings
 > du retrieval sémantique (**indexation initiale** du corpus à la première question,

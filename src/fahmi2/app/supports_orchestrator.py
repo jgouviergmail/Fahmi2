@@ -24,7 +24,7 @@ from fahmi2.domain.generation import (
     GENERATION_OUTPUT_SUBDIR,
     GENERATION_WORKSPACE_SUBDIR,
 )
-from fahmi2.domain.glossary import Term
+from fahmi2.domain.glossary import Term, localize_glossary_terms
 from fahmi2.domain.pedagogy import PEDAGOGY_WORKSPACE_SUBDIR, PedagogySettings
 from fahmi2.domain.project import Project
 from fahmi2.domain.supports import SupportArtifact
@@ -162,8 +162,11 @@ class SupportsOrchestrator:
         )
 
         # Pré-chargement des entrants par langue (lecture disque hors threads) :
-        # (mtime source, chapitres) résolus une fois, réutilisés par chaque tâche.
-        per_language: dict[Language, tuple[int | None, tuple[Chapter, ...]]] = {}
+        # (langue de contenu, mtime source, chapitres) résolus une fois, réutilisés
+        # par chaque tâche. La langue de contenu sert à localiser le glossaire.
+        per_language: dict[
+            Language, tuple[Language | None, int | None, tuple[Chapter, ...]]
+        ] = {}
         for language in pedagogy.languages:
             content_lang = resolve_content_language(
                 ctx.generation_output_dir, language, source_language
@@ -178,7 +181,7 @@ class SupportsOrchestrator:
                 if content_lang is not None
                 else ()
             )
-            per_language[language] = (source_mtime, chapters)
+            per_language[language] = (content_lang, source_mtime, chapters)
 
         # Unités indépendantes (langue × support), dérivées du registre :
         # ajouter/retirer un support est pris en compte sans toucher ce code.
@@ -203,7 +206,14 @@ class SupportsOrchestrator:
                 with cost_lock:
                     if _ceiling_reached(pedagogy, cost_state["total"]):
                         return 0.0, False, True
-            source_mtime, chapters = per_language[language]
+            content_lang, source_mtime, chapters = per_language[language]
+            # Glossaire localisé dans la langue du contenu chargé (cohérent avec les
+            # chapitres) ; repli sur le glossaire master si aucune langue de contenu.
+            localized_glossary = (
+                localize_glossary_terms(glossary, content_lang)
+                if content_lang is not None
+                else glossary
+            )
             cost, failed = self._run_one(
                 ctx,
                 manifest=manifest,
@@ -211,7 +221,7 @@ class SupportsOrchestrator:
                 support_type=support_type,
                 language=language,
                 chapters=chapters,
-                glossary=glossary,
+                glossary=localized_glossary,
                 settings_hash=settings_hash,
                 source_mtime_ns=source_mtime,
                 regenerate=regenerate,

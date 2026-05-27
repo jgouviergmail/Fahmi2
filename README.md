@@ -52,7 +52,9 @@ LLM DeepSeek v4), entièrement paramétrable via l'interface graphique.
   **diffusées en streaming**, mode **strict** (corpus seul, refus hors-corpus) ou
   **augmenté**. Retrieval **lexical** (TF-IDF, hors-ligne) ou **sémantique**
   (embeddings OpenAI, **modèle configurable**) avec stratégie **AUTO** + expansion
-  de requête. Conversations multiples **persistées et supprimables** ; **coût
+  de requête. **Langue au choix par conversation** (parmi les langues produites) :
+  lecture, **citations** et **réponse** dans cette langue, glossaire cité entièrement
+  localisé. Conversations multiples **persistées et supprimables** ; **coût
   cumulé exhaustif** (réponse + embeddings + reformulation).
 - 4 styles de rendu : décontracté / standard / professionnel / académique +
   directives libres.
@@ -206,7 +208,7 @@ Microsoft YaHei système, retours à la ligne automatiques) et l'**arabe**
 (droite-à-gauche + liaison contextuelle) ; le **glossaire** s'exporte en paysage
 (PDF et Word).
 
-1053 tests passants, `mypy --strict` et `ruff` propres sur 389 fichiers.
+1059 tests passants, `mypy --strict` et `ruff` propres sur 389 fichiers.
 
 ## Licence
 

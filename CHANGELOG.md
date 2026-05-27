@@ -5,6 +5,31 @@ Toutes les évolutions notables du projet Fahmi2.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 et le projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Ajouté — Dialogue : langue du corpus sélectionnable
+
+- **Choix de la langue par conversation.** Le Dialogue ne se limite plus à la langue
+  d'origine : un sélecteur (à gauche, visible dès qu'au moins **2 langues** ont été
+  produites) fixe la langue d'une **nouvelle conversation**. Cette langue pilote
+  **tout** : le document lu, les **références citées** et la **langue de réponse**.
+  Une conversation = une langue (pour en changer, on crée une nouvelle conversation).
+  L'index sémantique reste **par langue** et construit **à la demande** (aucun
+  embedding des langues non utilisées ; le lexical reste gratuit). S'appuie sur
+  `Conversation.language` (déjà persisté) ; aucune migration de données.
+
+### Corrigé — Glossaire entièrement localisé en aval (Pédagogie + Dialogue)
+
+- Les **définitions** du glossaire restaient en **langue source** dans les supports
+  pédagogiques et le Dialogue (seul le terme était localisé). La définition traduite,
+  pourtant **déjà calculée** par la phase 6 (le `glossary.{langue}.md` exporté le
+  prouve) mais **jetée** à la persistance, est désormais **conservée** : `cross_lang`
+  porte **terme + définition** (`LocalizedTerm`). **Aucun appel LLM supplémentaire.**
+  Les chunks de glossaire cités dans le Dialogue et la terminologie injectée aux
+  supports sont donc **entièrement dans la langue cible**. L'`acronym_expansion`
+  (colonne *Signification*) reste invariante (convention métier). Parsing **tolérant**
+  au format historique (terme seul → définition repliée sur la source).
+
 ## [1.4.0] — 2026-05-27
 
 ### Ajouté — 5 langues supplémentaires (allemand, espagnol, italien, chinois, arabe)

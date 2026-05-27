@@ -128,6 +128,14 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   retrieval/embedding agrégé dans `ChatMessage.cost_usd`. Conversations persistées et
   **supprimables** (`app/chat_conversation_store`) ; `ChatSettings` dans le blob v2.
   Citations/chunking bornés au plan du document (`##`/`###`).
+  **Langue du corpus par conversation** : `Conversation.language` pilote la langue
+  **lue/citée ET la langue de réponse** ; un sélecteur (peuplé par
+  `pedagogy.sources.available_content_languages`) la choisit à la création d'une
+  conversation (parmi les `consolidated.{lang}.md` produits ; masqué si une seule
+  langue). Le corpus, le glossaire injecté (pré-localisé terme + définition) et
+  l'index `.npz` (déjà **par langue**, construit **paresseusement**) suivent ;
+  `_resolve_content_language(project, target)` préfère la langue de la conversation,
+  repli source puis 1ʳᵉ produite.
   **Limitation connue (chinois)** : le retrieval **lexical** TF-IDF tokenise sur
   `\b\w+\b`, peu adapté au chinois (pas d'espaces entre les mots) → privilégier le mode
   **sémantique** pour le chinois (le défaut `AUTO` y route dès qu'une clé OpenAI est
@@ -242,9 +250,15 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
   repli sur le terme source). **Propagation** : la **Pédagogie** (`SupportsOrchestrator`)
   et le **Dialogue** (`corpus.load_corpus_chunks`) **pré-localisent** le glossaire à la
   **langue de contenu** qu'ils chargent (générateurs / `format_glossary_terms` /
-  `_glossary_chunks` inchangés). **Limite assumée** : seul le **terme** est porté par
-  `cross_lang` ; en aval, la **définition** reste en langue source (le `glossary.{L}.md`
-  exporté reste, lui, entièrement localisé). Spec : `docs/superpowers/specs/2026-05-27-localisation-terminologique-glossaire-design.md`.
+  `_glossary_chunks` inchangés). `cross_lang` porte **terme + définition**
+  (`domain/glossary.LocalizedTerm` ; persisté par `_persist_cross_lang` **sans appel LLM
+  supplémentaire** car la définition traduite est déjà calculée ; parsing *lenient* :
+  objet `{term,definition}` ou **chaîne legacy** = terme seul, définition repliée sur la
+  source) → le glossaire est **entièrement localisé en aval** (Pédagogie/Dialogue), pas
+  seulement le terme. Seule l'`acronym_expansion` (colonne *Signification*) reste
+  **invariante** par langue (voulu). Specs :
+  `docs/superpowers/specs/2026-05-27-localisation-terminologique-glossaire-design.md`
+  + `docs/superpowers/specs/2026-05-27-dialogue-langue-corpus-design.md`.
 - **Coquille multi-fonctionnalités** : la zone projet est une `QTabWidget` peuplée
   par un `FeatureRegistry` (calqué sur `PhaseRegistry`). Un `Project` ne porte que
   nom + emplacement (immuable après création) ; les réglages métier sont par

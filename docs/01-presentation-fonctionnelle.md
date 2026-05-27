@@ -195,6 +195,10 @@ document consolidé et le glossaire, **citées** (chapitre › section, cliquabl
 - **Recherche de passages** : lexicale (hors-ligne) ou sémantique (embeddings
   OpenAI, **modèle configurable**), avec un mode **automatique** et une
   reformulation de requête à la demande.
+- **Langue au choix par conversation** : si la génération a produit plusieurs
+  langues, un sélecteur fixe la langue d'une nouvelle conversation — le Dialogue
+  **lit, cite et répond** dans cette langue, glossaire cité entièrement localisé
+  (terme + définition).
 - **Conversations** multiples persistées par projet, **supprimables** ; **coût**
   par message et cumulé **exhaustif** (réponse + embeddings + reformulation).
 - Réglages (fidélité, retrieval, modèles LLM/embedding) et **prompts éditables**

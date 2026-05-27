@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import unicodedata
 from pathlib import Path
 from typing import Any, cast
 
@@ -124,6 +125,41 @@ def test_normalize_for_pdf_maps_unrendered_dashes() -> None:
     assert _normalize_for_pdf("mot­coupe") == "motcoupe"
     # Em-dash (—) et en-dash (–) sont conservés (rendus correctement).
     assert _normalize_for_pdf("a—b–c") == "a—b–c"
+
+
+@pytest.mark.skipif(not pdf_fonts_available(), reason="Police Unicode indisponible")
+def test_strip_unrenderable_removes_emoji_keeps_text() -> None:
+    markdown_pdf._ensure_pdf_fonts_registered()
+    # 📖 (U+1F4D6) absent d'Arial → retiré ; le texte reste intact.
+    result = markdown_pdf._strip_unrenderable_for_pdf(
+        "📖 Définition — états financiers", markdown_pdf._PDF_FONT_REGULAR
+    )
+    assert "📖" not in result
+    assert "Définition — états financiers" in result
+
+
+@pytest.mark.skipif(not pdf_fonts_available(), reason="Police Unicode indisponible")
+def test_strip_unrenderable_keeps_format_and_whitespace() -> None:
+    markdown_pdf._ensure_pdf_fonts_registered()
+    # U+E0001 (LANGUAGE TAG, catégorie Cf) : absent de la police mais conservé
+    # (garde-fou format/bidi) ; espaces et sauts de ligne préservés.
+    assert unicodedata.category("\U000e0001") == "Cf"
+    text = "a\U000e0001 b\nc"
+    result = markdown_pdf._strip_unrenderable_for_pdf(text, markdown_pdf._PDF_FONT_REGULAR)
+    assert result == text
+
+
+@pytest.mark.skipif(not pdf_fonts_available(), reason="Police Unicode indisponible")
+def test_render_pdf_strips_emoji_without_crash(tmp_path: Path) -> None:
+    # Un bandeau « 📖 Définition » ne doit pas faire planter le rendu ni laisser de
+    # carré : l'émoji est absent du texte extrait du PDF.
+    out = tmp_path / "emoji.pdf"
+    render_markdown_to_pdf("# Cours\n\n> 📖 **Définition** — un terme.\n", out)
+    pdf = out.read_bytes()
+    assert pdf[:5] == b"%PDF-"
+    text = PdfReader(io.BytesIO(pdf)).pages[0].extract_text()
+    assert "📖" not in text
+    assert "Définition" in text
 
 
 @pytest.mark.skipif(not cjk_font_available(), reason="Police CJK indisponible")

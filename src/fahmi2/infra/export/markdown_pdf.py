@@ -15,7 +15,10 @@ dans ``xhtml2pdf.default.DEFAULT_FONT`` ; garde ``EXPORT.NO_CJK_FONT`` si absent
 **arabe** → ``Arial`` (glyphes arabes) + ``direction:rtl`` + tag ``pdf:language`` qui
 déclenche le reshaping contextuel et la bidi. Quelques tirets Unicode rares
 (U+2010/2011/2012/2015) non rendus par ReportLab+Arial (carré ``□``) sont normalisés
-vers ``-``/``—`` au rendu PDF (cf. ``_PDF_CHAR_REPLACEMENTS``).
+vers ``-``/``—`` au rendu PDF (cf. ``_PDF_CHAR_REPLACEMENTS``) ; plus généralement, tout
+caractère **sans glyphe** dans la police active (émojis décoratifs 📖/📝/💡/🎯…) est
+**retiré** avant rendu (cf. ``_strip_unrenderable_for_pdf``) — ReportLab le dessinerait
+en carré. HTML et DOCX conservent ces caractères (repli natif du navigateur/Word).
 """
 
 from __future__ import annotations
@@ -24,6 +27,7 @@ import functools
 import io
 import os
 import re
+import unicodedata
 from html import escape
 from pathlib import Path
 
@@ -128,6 +132,15 @@ _PDF_CHAR_REPLACEMENTS = str.maketrans(
         "―": "—",  # HORIZONTAL BAR → EM DASH
         "­": "",  # SOFT HYPHEN (invisible → retiré)
     }
+)
+
+#: Catégories Unicode des caractères **conservés** même absents de la police : codes
+#: de contrôle (``\n``, ``\t``), formats (ZWJ/ZWNJ/RLM/LRM — indispensables à la
+#: jonction et à la bidi arabes) et séparateurs d'espace. Tout autre caractère absent
+#: de la police active (émojis…) est retiré au rendu PDF, car ReportLab le dessine en
+#: carré ``□`` (pas de repli de police par glyphe, pas d'émojis couleur).
+_PDF_KEPT_UNRENDERABLE_CATEGORIES: frozenset[str] = frozenset(
+    {"Cc", "Cf", "Zs", "Zl", "Zp"}
 )
 
 #: Préfixe Markdown d'un titre H1 (pour extraire le titre du document HTML).
@@ -409,6 +422,47 @@ def _normalize_for_pdf(text: str) -> str:
     return text.translate(_PDF_CHAR_REPLACEMENTS)
 
 
+@functools.cache
+def _renderable_codepoints(font_name: str) -> frozenset[int]:
+    """Codepoints couverts par une police déjà enregistrée auprès de ReportLab.
+
+    Interroge la table ``charToGlyph`` de la police analysée par ReportLab (aucune
+    dépendance externe : ReportLab est déjà requis). Mémoïsé par police.
+
+    Args:
+        font_name: Nom d'enregistrement de la police (ex. ``AppSans``, ``CJKFont``).
+
+    Returns:
+        L'ensemble des codepoints (``ord``) ayant un glyphe dans la police.
+    """
+    return frozenset(int(cp) for cp in pdfmetrics.getFont(font_name).face.charToGlyph)
+
+
+def _strip_unrenderable_for_pdf(text: str, font_name: str) -> str:
+    """Retire les caractères sans glyphe dans la police (émojis…), source des carrés.
+
+    ReportLab dessine un carré ``□`` pour tout caractère absent de la police et ne
+    fait pas de repli par glyphe. On retire donc les caractères non couverts, en
+    **conservant** les invisibles/structurels (cf. ``_PDF_KEPT_UNRENDERABLE_CATEGORIES``,
+    dont ZWJ/RLM nécessaires à l'arabe). HTML et DOCX, eux, gardent ces caractères
+    (repli natif du navigateur/Word).
+
+    Args:
+        text: Texte Markdown source (idéalement déjà passé par ``_normalize_for_pdf``).
+        font_name: Police active du rendu (Arial pour latin/arabe, YaHei pour le CJK).
+
+    Returns:
+        Le texte privé des caractères non rendus par la police.
+    """
+    covered = _renderable_codepoints(font_name)
+    return "".join(
+        ch
+        for ch in text
+        if ord(ch) in covered
+        or unicodedata.category(ch) in _PDF_KEPT_UNRENDERABLE_CATEGORIES
+    )
+
+
 def _layout_table_cells(body: str, column_widths: tuple[str, ...] | None) -> str:
     """Aménage les cellules de tableau pour un rendu PDF correct (xhtml2pdf).
 
@@ -488,7 +542,13 @@ def render_markdown_to_pdf(
         _ensure_cjk_font_registered()
     elif language is Language.AR:
         _ensure_arabic_font_registered()
-    body = render_markdown_body(_normalize_for_pdf(markdown_text))
+    # Police effective du rendu : YaHei pour le chinois, Arial sinon (couvre latin
+    # et arabe) — sert à filtrer les caractères sans glyphe (émojis → carrés ``□``).
+    render_font = _CJK_FONT_NAME if language is Language.ZH else _PDF_FONT_REGULAR
+    normalized = _strip_unrenderable_for_pdf(
+        _normalize_for_pdf(markdown_text), render_font
+    )
+    body = render_markdown_body(normalized)
     body = _layout_table_cells(body, table_column_widths)
     document = _PDF_HTML_TEMPLATE.format(
         orientation="landscape" if landscape else "portrait",

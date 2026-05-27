@@ -55,6 +55,24 @@ def test_localize_glossary_matches_by_source_and_falls_back(
     assert cost == pytest.approx(0.01)
 
 
+def test_localize_glossary_matches_despite_whitespace(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    payload = {"terms": [{"term": "Bilan", "definition": "doc", "acronym": None}]}
+    ctx, _run = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        # Le LLM réémet le terme source avec un espace de bord.
+        llm_response=_localization_response(
+            [{"source": "  Bilan ", "term": "Balance sheet", "definition": "doc"}]
+        ),
+    )
+    localized, _cost = Phase6TranslationHandler()._localize_glossary(
+        ctx, target=Language.EN, payload=payload
+    )
+    assert localized[0].term == "Balance sheet"  # apparié malgré les espaces
+
+
 def _seed_workspace(
     workspace: Path,
     *,

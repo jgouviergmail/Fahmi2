@@ -328,13 +328,15 @@ class Phase6TranslationHandler(PhaseHandler):
         entries = parse_json_response(response.content, phase_id=self.phase_id)
         if not isinstance(entries, list):
             entries = []  # forme JSON inattendue → repli per-terme (termes source)
+        # Appariement par terme source, normalisé sur les espaces de bord pour
+        # tolérer une réémission imparfaite du LLM (repli per-terme sinon).
         by_source: dict[str, dict[str, Any]] = {
-            str(e.get("source", "")): e for e in entries if isinstance(e, dict)
+            str(e.get("source", "")).strip(): e for e in entries if isinstance(e, dict)
         }
         localized: list[_LocalizedTerm] = []
         for t in master_terms:
             source = str(t.get("term", ""))
-            entry = by_source.get(source, {})
+            entry = by_source.get(source.strip(), {})
             localized.append(
                 _LocalizedTerm(
                     source=source,

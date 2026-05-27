@@ -5,6 +5,9 @@ from __future__ import annotations
 import zipfile
 from pathlib import Path
 
+from docx import Document
+from docx.enum.section import WD_ORIENT
+
 from fahmi2.infra.export.markdown_docx import render_markdown_to_docx
 
 _MD = (
@@ -43,3 +46,24 @@ def test_render_docx_creates_parent_directory(tmp_path: Path) -> None:
     out = tmp_path / "nested" / "doc.docx"
     render_markdown_to_docx("# Titre\n\nTexte.\n", out)
     assert out.exists()
+
+
+def test_render_docx_portrait_by_default(tmp_path: Path) -> None:
+    out = tmp_path / "portrait.docx"
+    render_markdown_to_docx(_MD, out)
+    section = Document(str(out)).sections[0]
+    width, height = section.page_width, section.page_height
+    assert width is not None and height is not None
+    assert section.orientation == WD_ORIENT.PORTRAIT
+    assert height > width
+
+
+def test_render_docx_landscape_sets_orientation(tmp_path: Path) -> None:
+    # Glossaire : paysage (largeur > hauteur) comme le PDF.
+    out = tmp_path / "landscape.docx"
+    render_markdown_to_docx(_MD, out, landscape=True)
+    section = Document(str(out)).sections[0]
+    width, height = section.page_width, section.page_height
+    assert width is not None and height is not None
+    assert section.orientation == WD_ORIENT.LANDSCAPE
+    assert width > height

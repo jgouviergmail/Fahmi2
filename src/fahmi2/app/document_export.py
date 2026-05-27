@@ -28,14 +28,14 @@ from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 class ExportDocument:
     """Un document à exporter : nom de fichier + Markdown + options de rendu.
 
-    Les options ``pdf_*`` n'affectent que le rendu PDF ; ``language`` pilote police
-    et direction des rendus **PDF et HTML** (sans effet sur Markdown ni DOCX, qui
-    s'appuient sur les capacités natives du lecteur).
+    ``landscape`` oriente le **PDF et le DOCX** ; ``pdf_column_widths`` n'affecte que
+    le PDF ; ``language`` pilote police et direction des rendus **PDF et HTML** (sans
+    effet sur Markdown ni DOCX, qui s'appuient sur les capacités natives du lecteur).
 
     Attributes:
         stem: Nom de fichier sans extension.
         markdown: Contenu Markdown (déjà rendu par la fonctionnalité).
-        pdf_landscape: Orientation paysage du PDF (ex: glossaire large).
+        landscape: Orientation paysage du PDF **et** du DOCX (ex: glossaire large).
         pdf_column_widths: Largeurs CSS par colonne pour les tableaux PDF
             (ex: glossaire) ; ``None`` = largeurs automatiques.
         language: Langue du contenu ; pilote la police et la direction du rendu
@@ -44,7 +44,7 @@ class ExportDocument:
 
     stem: str
     markdown: str
-    pdf_landscape: bool = False
+    landscape: bool = False
     pdf_column_widths: tuple[str, ...] | None = None
     language: Language = Language.FR
 
@@ -110,12 +110,12 @@ def write_documents(
             render_markdown_to_pdf(
                 document.markdown,
                 path,
-                landscape=document.pdf_landscape,
+                landscape=document.landscape,
                 table_column_widths=document.pdf_column_widths,
                 language=document.language,
             )
         elif fmt is ExportFormat.DOCX:
-            render_markdown_to_docx(document.markdown, path)
+            render_markdown_to_docx(document.markdown, path, landscape=document.landscape)
         else:  # HTML (seul format documentaire restant après la garde)
             render_markdown_to_html(document.markdown, path, language=document.language)
         paths.append(path)

@@ -26,8 +26,9 @@ from fahmi2.domain.project import Project
 _ENCODING_UTF8 = "utf-8"
 
 #: Le glossaire (tableau Terme / Acronyme / Signification / Définition, dont les 2
-#: colonnes du milieu sont souvent vides) est exporté en **paysage** avec des
-#: largeurs de colonnes dédiées (sinon les définitions sont écrasées et illisibles).
+#: colonnes du milieu sont souvent vides) est exporté en **paysage** (PDF et DOCX)
+#: avec, en PDF, des largeurs de colonnes dédiées (sinon les définitions sont
+#: écrasées et illisibles).
 _GLOSSARY_PDF_COLUMN_WIDTHS: tuple[str, ...] = ("20%", "12%", "23%", "45%")
 
 
@@ -44,7 +45,8 @@ def collect_generation_documents(project: Project) -> list[ExportDocument]:
 
     Returns:
         Liste d'``ExportDocument`` : pour chaque langue, le consolidé puis le
-        glossaire s'ils existent. ``stem`` = nom de fichier privé de ``.md``.
+        glossaire s'ils existent. ``stem`` = nom de fichier privé de ``.md``. Le
+        glossaire est en paysage (PDF + DOCX) ; le consolidé en portrait.
     """
     output_dir = (
         project.workspace_folder
@@ -68,7 +70,7 @@ def collect_generation_documents(project: Project) -> list[ExportDocument]:
                 ExportDocument(
                     stem=glossary.stem,
                     markdown=glossary.read_text(encoding=_ENCODING_UTF8),
-                    pdf_landscape=True,
+                    landscape=True,
                     pdf_column_widths=_GLOSSARY_PDF_COLUMN_WIDTHS,
                     language=language,
                 )

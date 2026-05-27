@@ -32,6 +32,7 @@ from fahmi2.pipeline.handlers._base import (
     build_succeeded_phase,
     invoke_llm,
     language_label,
+    parse_json_response,
     style_label,
     utc_now,
 )
@@ -42,6 +43,7 @@ _CONSOLIDATED_MASTER_FILENAME = "consolidated_master.md"
 _GLOSSARY_MASTER_FILENAME = "glossary_master.json"
 _PER_VIDEO_OUTPUT_SUBDIR = "per-video"
 _TEMPLATE_NAME = "phase_6_translation"
+_GLOSSARY_LOCALIZATION_TEMPLATE = "phase_6_glossary_localization"
 
 
 @dataclass(frozen=True)
@@ -51,6 +53,15 @@ class _TranslationTask:
     source_markdown: str
     target: Language
     target_path: Path
+
+
+@dataclass(frozen=True)
+class _LocalizedTerm:
+    """Terme localisé : forme source (appariement), forme cible, définition cible."""
+
+    source: str
+    term: str
+    definition: str
 
 
 class Phase6TranslationHandler(PhaseHandler):
@@ -240,6 +251,68 @@ class Phase6TranslationHandler(PhaseHandler):
             ctx, phase_id=self.phase_id, system_prompt=None, user_prompt=prompt
         )
         return response.content, response.cost_usd
+
+    def _localize_glossary(
+        self,
+        ctx: PhaseContext,
+        *,
+        target: Language,
+        payload: dict[str, Any],
+    ) -> tuple[list[_LocalizedTerm], float]:
+        """Localise les termes du glossaire master vers ``target`` via le LLM.
+
+        Args:
+            ctx: Contexte d'exécution.
+            target: Langue cible (≠ langue source).
+            payload: Payload JSON du glossaire master.
+
+        Returns:
+            ``(localized, cost)`` : un ``_LocalizedTerm`` par terme master (ordre
+            préservé ; repli sur la forme/définition source si l'entrée LLM manque),
+            et le coût LLM. ``([], 0.0)`` si le glossaire est vide.
+
+        Raises:
+            LLMError / ValidationError: via ``parse_json_response`` si JSON invalide.
+        """
+        master_terms = payload.get("terms", [])
+        if not master_terms:
+            return [], 0.0
+        prompt = ctx.prompts.render(
+            _GLOSSARY_LOCALIZATION_TEMPLATE,
+            source_language_label=language_label(ctx.settings.source_language),
+            target_language_label=language_label(target),
+            style_label=style_label(ctx.settings.style_preset),
+            style_directives=ctx.settings.style_directives,
+            terms=[
+                {
+                    "term": str(t.get("term", "")),
+                    "acronym": t.get("acronym"),
+                    "definition": str(t.get("definition", "")),
+                }
+                for t in master_terms
+            ],
+        )
+        response = invoke_llm(
+            ctx, phase_id=self.phase_id, system_prompt=None, user_prompt=prompt
+        )
+        entries = parse_json_response(response.content, phase_id=self.phase_id)
+        if not isinstance(entries, list):
+            entries = []  # forme JSON inattendue → repli per-terme (termes source)
+        by_source: dict[str, dict[str, Any]] = {
+            str(e.get("source", "")): e for e in entries if isinstance(e, dict)
+        }
+        localized: list[_LocalizedTerm] = []
+        for t in master_terms:
+            source = str(t.get("term", ""))
+            entry = by_source.get(source, {})
+            localized.append(
+                _LocalizedTerm(
+                    source=source,
+                    term=str(entry.get("term") or source),
+                    definition=str(entry.get("definition") or t.get("definition", "")),
+                )
+            )
+        return localized, response.cost_usd
 
 
 def _load_required(path: Path, code: str, user_message: str) -> str:

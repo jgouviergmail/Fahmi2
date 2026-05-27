@@ -26,6 +26,46 @@ def _llm(content: str = "Translated.") -> LLMResponse:
     )
 
 
+def _localization_response(entries: list[dict[str, str]]) -> LLMResponse:
+    return LLMResponse(
+        content=json.dumps(entries, ensure_ascii=False),
+        thinking_content=None,
+        prompt_tokens=100,
+        completion_tokens=100,
+        cached_prompt_tokens=0,
+        cost_usd=0.01,
+    )
+
+
+def test_localize_glossary_matches_by_source_and_falls_back(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    payload = {
+        "terms": [
+            {"term": "Bilan", "definition": "doc comptable", "acronym": None},
+            {"term": "IFRS", "definition": "norme", "acronym": "IFRS"},
+        ]
+    }
+    ctx, _run = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        llm_response=_localization_response(
+            [
+                {"source": "Bilan", "term": "Balance sheet", "definition": "accounting doc"},
+                # "IFRS" volontairement absent → repli attendu
+            ]
+        ),
+    )
+    localized, cost = Phase6TranslationHandler()._localize_glossary(
+        ctx, target=Language.EN, payload=payload
+    )
+    assert localized[0].term == "Balance sheet"
+    assert localized[0].definition == "accounting doc"
+    assert localized[1].term == "IFRS"  # repli (manquant dans la réponse)
+    assert localized[1].definition == "norme"  # repli définition source
+    assert cost == pytest.approx(0.01)
+
+
 def _seed_workspace(
     workspace: Path,
     *,

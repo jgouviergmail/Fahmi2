@@ -68,20 +68,6 @@ class LocalizedTerm:
     definition: str
 
 
-def glossary_term_for_language(term: Term, language: Language) -> str:
-    """Forme localisée d'un terme pour une langue (repli sur le terme source).
-
-    Args:
-        term: Terme du glossaire master.
-        language: Langue cible.
-
-    Returns:
-        ``term.cross_lang[language].term`` s'il existe, sinon ``term.term``.
-    """
-    localized = term.cross_lang.get(language)
-    return localized.term if localized is not None else term.term
-
-
 def localize_glossary_terms(
     terms: Iterable[Term], language: Language
 ) -> tuple[Term, ...]:

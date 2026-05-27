@@ -38,6 +38,8 @@ _NEW_CONVERSATION_LABEL = "＋ Nouvelle conversation"
 _LANGUAGE_COMBO_TOOLTIP = (
     "Langue du corpus pour une nouvelle conversation : lecture, citations et réponse."
 )
+#: Le sélecteur de langue n'a de sens qu'à partir de 2 langues produites (un choix).
+_MIN_LANGUAGES_FOR_SELECTOR = 2
 _DELETE_CONVERSATION_LABEL = "Supprimer la conversation"
 _SEND_LABEL = "Envoyer"
 _INPUT_PLACEHOLDER = "Pose une question sur le cours…"
@@ -155,7 +157,7 @@ class ChatView(QWidget):
         if index >= 0:
             self._language_combo.setCurrentIndex(index)
         self._language_combo.blockSignals(False)
-        self._language_combo.setVisible(len(items) > 1)
+        self._language_combo.setVisible(len(items) >= _MIN_LANGUAGES_FOR_SELECTOR)
 
     def _current_language_code(self) -> str:
         """Code de la langue actuellement sélectionnée (``""`` si aucune)."""

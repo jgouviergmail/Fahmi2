@@ -45,10 +45,11 @@ Ce qui manque : (1) que `Conversation.language` pilote **aussi** le corpus, (2) 
 
 - Nouveau `@dataclass(frozen=True) LocalizedTerm: term: str; definition: str`.
 - `Term.cross_lang: dict[Language, LocalizedTerm]` (au lieu de `dict[Language, str]`).
-- `glossary_term_for_language(term, language)` → `cross_lang[language].term` sinon `term.term`.
 - `localize_glossary_terms(terms, language)` → remplace **terme et définition**
   (`replace(t, term=loc.term, definition=loc.definition)`), repli sur la source ;
-  `acronym`/`acronym_expansion` inchangés.
+  `acronym`/`acronym_expansion` inchangés. (Le helper mono-champ
+  `glossary_term_for_language`, devenu redondant avec ce flux, est **retiré** — sa
+  logique de repli vit désormais ici, source unique.)
 - `parse_glossary_master_terms` — parsing **lenient** d'une valeur `cross_lang` :
   - objet `{"term": …, "definition": …}` → `LocalizedTerm`;
   - chaîne (**legacy**, terme seul) → `LocalizedTerm(term=str, definition=<définition source>)`

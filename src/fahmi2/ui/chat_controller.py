@@ -247,6 +247,19 @@ class ChatController(QObject):
             self._load_corpus(self._project, target)
             self._apply_state()
 
+    def _source_language(self, project: Project) -> Language:
+        """Langue source de la génération du projet (``FR`` si non configurée).
+
+        Args:
+            project: Projet concerné.
+
+        Returns:
+            La langue source, ou ``Language.FR`` si la génération n'est pas réglée.
+        """
+        if project.generation is not None:
+            return project.generation.source_language
+        return Language.FR
+
     def _resolve_content_language(
         self, project: Project, target: Language
     ) -> Language | None:
@@ -262,11 +275,7 @@ class ChatController(QObject):
         Returns:
             La langue de contenu, ou ``None`` si aucun consolidé n'existe.
         """
-        source_language = (
-            project.generation.source_language
-            if project.generation is not None
-            else Language.FR
-        )
+        source_language = self._source_language(project)
         return resolve_content_language(
             self._generation_output_dir(project), target, source_language
         )
@@ -283,11 +292,7 @@ class ChatController(QObject):
         Returns:
             La langue par défaut.
         """
-        source_language = (
-            project.generation.source_language
-            if project.generation is not None
-            else Language.FR
-        )
+        source_language = self._source_language(project)
         available = available_content_languages(self._generation_output_dir(project))
         if source_language in available:
             return source_language

@@ -10,7 +10,6 @@ from fahmi2.domain.glossary import (
     Glossary,
     LocalizedTerm,
     Term,
-    glossary_term_for_language,
     glossary_title,
     localize_glossary_terms,
     parse_glossary_master_terms,
@@ -26,17 +25,6 @@ def test_glossary_headers_exist_for_all_languages() -> None:
         assert all(h for h in headers)
     assert _HEADERS_BY_LANGUAGE[Language.DE][0] == "Begriff"
     assert _HEADERS_BY_LANGUAGE[Language.ZH][3] == "定义"
-
-
-def test_glossary_term_for_language_uses_cross_lang_then_falls_back() -> None:
-    t = Term(
-        term="Bilan",
-        definition="...",
-        cross_lang={Language.EN: LocalizedTerm(term="Balance sheet", definition="...")},
-    )
-    assert glossary_term_for_language(t, Language.EN) == "Balance sheet"
-    # Pas d'entrée DE → repli sur le terme source.
-    assert glossary_term_for_language(t, Language.DE) == "Bilan"
 
 
 def test_localize_glossary_terms_replaces_surface_and_definition_keeps_rest() -> None:

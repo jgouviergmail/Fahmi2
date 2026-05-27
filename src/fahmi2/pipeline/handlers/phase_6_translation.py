@@ -1,11 +1,17 @@
 """Handler Phase 6 — production des artefacts finaux par langue de sortie.
 
-Pour chaque langue de ``settings.output_languages`` :
+Deux étapes pour les langues de ``settings.output_languages`` :
 
-- Si la langue est la langue source : on **copie** les artefacts master sans
-  appel LLM (documents structurés par source + consolidated_master + glossaire
-  master rendu en Markdown).
-- Sinon : on **traduit** chaque artefact via le LLM.
+1. **Localisation du glossaire** (par langue cible ≠ source) : appel LLM structuré
+   (``_localize_glossary``) qui traduit chaque terme vers son équivalent métier
+   consacré (ou le garde si international) et traduit sa définition. On rend
+   ``glossary.{lang}.md`` de façon **déterministe**, on dérive les équivalents
+   ``terme_source -> terme_localisé`` (en mémoire) et on **persiste** ``cross_lang``
+   dans ``glossary_master.json`` (pour l'aval : Pédagogie, Dialogue). Le glossaire de
+   la **langue source** est rendu tel quel (sans appel LLM).
+2. **Traduction documentaire** : la langue source **copie** les docs par source +
+   consolidé ; les autres langues les **traduisent** via le LLM, avec les équivalents
+   de glossaire injectés comme indice terminologique.
 
 Les artefacts produits vivent dans ``output_dir`` :
 
@@ -148,7 +154,10 @@ class Phase6TranslationHandler(PhaseHandler):
                 ctx.output_dir / glossary_doc_filename(ctx.settings.source_language),
                 _render_master_glossary(glossary_master, ctx.settings.source_language),
             )
-        _persist_cross_lang(ctx, glossary_master, cross_lang_by_language)
+        # Persistance pour l'aval : seulement s'il y a des équivalents (sinon pas de
+        # réécriture inutile du master ni de churn de mtime côté Pédagogie/Dialogue).
+        if cross_lang_by_language:
+            _persist_cross_lang(ctx, glossary_master, cross_lang_by_language)
 
         # Étape 2 — traductions documentaires (per-source + consolidé) en parallèle ;
         # l'indice « équivalents » provient de cross_lang_by_language.

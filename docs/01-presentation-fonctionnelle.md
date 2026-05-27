@@ -222,6 +222,12 @@ document consolidé et le glossaire, **citées** (chapitre › section, cliquabl
 - Les termes pertinents sont ré-injectés en contexte LLM lors de la
   reformulation, de la structuration et de la traduction pour garantir
   l'orthographe et le sens cohérents à travers tout le batch.
+- **Localisation des termes par langue** : pour chaque langue produite, les termes
+  du glossaire sont traduits vers leur **équivalent métier consacré** (« Bilan » →
+  « Balance sheet », « Bilanz »…), **sauf** les termes internationaux, noms propres,
+  marques ou normes (IFRS, WACC, ROI, Big Four…) qui sont conservés tels quels — la
+  décision se prenant terme par terme. Le **même terme localisé** est utilisé dans le
+  glossaire, le document consolidé, les supports pédagogiques et le Dialogue.
 - L'**expansion d'acronyme** (champ `acronym_expansion`) est conservée
   dans sa langue d'origine et n'est jamais traduite : un glossaire FR
   expose `ROI = Return On Investment`, un glossaire EN expose

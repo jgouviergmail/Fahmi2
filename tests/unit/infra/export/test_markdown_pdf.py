@@ -75,6 +75,88 @@ def test_render_html_renders_tables(tmp_path: Path) -> None:
     assert "<td>ROI</td>" in content
 
 
+#: Tableau collé à la phrase d'intro **et** indenté dans une liste (cas mock_exam Q8).
+_GLUED_INDENTED_TABLE_MD = (
+    "8. **Complétez** le tableau suivant :\n"
+    "   | Phase | Hormone |\n"
+    "   |-------|---------|\n"
+    "   | Folliculaire | FSH |\n"
+    "9. **Expliquez** la suite.\n"
+)
+
+
+def test_normalize_table_blocks_isolates_glued_indented_table() -> None:
+    normalized = markdown_pdf._normalize_table_blocks(_GLUED_INDENTED_TABLE_MD)
+    lines = normalized.split("\n")
+    # Le tableau est désindenté (flush-left) et précédé d'une ligne vide.
+    assert "| Phase | Hormone |" in lines
+    header_idx = lines.index("| Phase | Hormone |")
+    assert lines[header_idx - 1] == ""  # ligne vide insérée avant
+
+
+def test_normalize_table_blocks_renders_as_table() -> None:
+    html = markdown_pdf.render_markdown_body(_GLUED_INDENTED_TABLE_MD)
+    assert "<table>" in html
+    assert "<th>Phase</th>" in html
+    assert "| Phase |" not in html  # plus de barres littérales
+
+
+def test_normalize_table_blocks_preserves_code_fences() -> None:
+    # Un tableau d'exemple dans un bloc de code ne doit pas être transformé.
+    md = "```\n| a | b |\n|---|---|\n| 1 | 2 |\n```\n"
+    html = markdown_pdf.render_markdown_body(md)
+    assert "<table>" not in html
+    assert "| a | b |" in html  # conservé littéralement dans le bloc de code
+
+
+def test_normalize_table_blocks_idempotent_on_well_formed_table() -> None:
+    # Un tableau déjà correct (glossaire) n'est pas altéré dans son rendu.
+    html = markdown_pdf.render_markdown_body(_TABLE_MD)
+    assert "<table>" in html
+    assert "<td>ROI</td>" in html
+
+
+def test_normalize_table_blocks_ignores_pipes_without_delimiter() -> None:
+    # Deux lignes à barres sans ligne de séparation ne sont pas un tableau :
+    # aucune ligne vide insérée, aucun <table> produit.
+    md = "Texte | avec | barres\nEt | encore | des barres\n"
+    normalized = markdown_pdf._normalize_table_blocks(md)
+    assert "Texte | avec | barres\nEt | encore | des barres" in normalized
+    assert "<table>" not in markdown_pdf.render_markdown_body(md)
+
+
+def test_numbering_continues_after_table_extracted_from_list() -> None:
+    # La liste scindée par un tableau garde une numérotation continue (start).
+    md = (
+        "1. Première question.\n"
+        "2. **Complétez** le tableau :\n"
+        "   | A | B |\n"
+        "   |---|---|\n"
+        "   | 1 | 2 |\n"
+        "3. Troisième question.\n"
+        "4. Quatrième question.\n"
+    )
+    html = markdown_pdf.render_markdown_body(md)
+    assert "<table>" in html
+    # La 2e liste (questions 3-4) reprend à 3 (1ʳᵉ liste = 2 items).
+    assert '<ol start="3">' in html
+
+
+def test_numbering_independent_lists_not_merged() -> None:
+    # Deux listes séparées par un titre restent indépendantes (pas de start forcé).
+    md = (
+        "1. Liste A item un.\n"
+        "2. Liste A item deux.\n"
+        "\n"
+        "## Autre section\n"
+        "\n"
+        "1. Liste B item un.\n"
+        "2. Liste B item deux.\n"
+    )
+    html = markdown_pdf.render_markdown_body(md)
+    assert "start=" not in html  # aucune continuité forcée
+
+
 def test_render_html_toc_links_are_clickable(tmp_path: Path) -> None:
     # L'ancre du sommaire (générée comme phase 5) et l'id du titre (extension toc)
     # doivent coïncider → le sommaire est cliquable.

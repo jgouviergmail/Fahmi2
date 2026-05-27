@@ -65,6 +65,16 @@ EXTENSION_BY_FORMAT: dict[ExportFormat, str] = {
 #: (HTML et PDF). Mêmes extensions pour les deux formats.
 _MARKDOWN_EXTENSIONS: list[str] = ["tables", "toc"]
 
+#: Détection des barrières de bloc de code (``` ou ~~~) : on n'y normalise pas les
+#: tableaux (un tableau d'exemple dans du code ne doit pas être transformé).
+_CODE_FENCE_RE = re.compile(r"^\s*(?:```|~~~)")
+#: Caractères autorisés dans une **ligne de séparation** de tableau GFM
+#: (``|---|:--:|``) : barres, tirets, deux-points, espaces.
+_TABLE_DELIMITER_CHARS = frozenset("|:- ")
+#: Nombre minimal de ``<ol>`` pour qu'une liste ait pu être scindée par un tableau
+#: (en deçà, pas de recollage de numérotation à tenter).
+_MIN_ORDERED_LISTS_FOR_SPLIT = 2
+
 #: Extensions pour un **fragment** HTML inline (réponse de chat, aperçu de passage) :
 #: tableaux GFM, sans sommaire (``toc``) ni enveloppe de document.
 _FRAGMENT_EXTENSIONS: list[str] = ["tables"]
@@ -414,13 +424,128 @@ def _toc_slugify(value: str, separator: str) -> str:
     return slugify_anchor(value)
 
 
+def _is_pipe_row(line: str) -> bool:
+    """Indique si une ligne ressemble à une ligne de tableau pipe (contient ``|``).
+
+    Args:
+        line: Ligne de Markdown.
+
+    Returns:
+        ``True`` si la ligne (sans espaces de bord) contient une barre verticale.
+    """
+    return "|" in line.strip()
+
+
+def _is_table_delimiter(line: str) -> bool:
+    """Indique si une ligne est la **séparation** d'un tableau GFM (``|---|:-:|``).
+
+    Args:
+        line: Ligne de Markdown.
+
+    Returns:
+        ``True`` si la ligne ne contient que des barres/tirets/deux-points/espaces
+        et comporte au moins un tiret et une barre.
+    """
+    stripped = line.strip()
+    return (
+        "|" in stripped
+        and "-" in stripped
+        and set(stripped) <= _TABLE_DELIMITER_CHARS
+    )
+
+
+def _normalize_table_blocks(markdown_text: str) -> str:
+    """Isole les tableaux pipe pour que python-markdown les reconnaisse.
+
+    L'extension ``tables`` n'active un tableau que s'il forme un **bloc** précédé
+    d'une ligne vide et **non indenté**. Les sorties LLM collent souvent le tableau
+    à la phrase qui l'introduit ou l'indentent dans une liste numérotée (le tableau
+    s'affiche alors en barres littérales). On garantit donc une ligne vide avant et
+    après chaque bloc de tableau et on le **désindente**. Les blocs de code (``` /
+    ~~~) sont préservés. *Limitation connue* : python-markdown ne sait pas imbriquer
+    un tableau dans un élément de liste — le tableau en ressort (la liste qui suit
+    peut donc se renuméroter).
+
+    Args:
+        markdown_text: Texte Markdown source.
+
+    Returns:
+        Le Markdown avec les tableaux pipe correctement isolés.
+    """
+    lines = markdown_text.splitlines()
+    out: list[str] = []
+    in_fence = False
+    index = 0
+    total = len(lines)
+    while index < total:
+        if _CODE_FENCE_RE.match(lines[index]):
+            in_fence = not in_fence
+            out.append(lines[index])
+            index += 1
+            continue
+        is_table_start = (
+            not in_fence
+            and _is_pipe_row(lines[index])
+            and index + 1 < total
+            and _is_table_delimiter(lines[index + 1])
+        )
+        if is_table_start:
+            if out and out[-1].strip():
+                out.append("")
+            while index < total and _is_pipe_row(lines[index]):
+                out.append(lines[index].strip())
+                index += 1
+            if index < total and lines[index].strip():
+                out.append("")
+            continue
+        out.append(lines[index])
+        index += 1
+    return "\n".join(out)
+
+
+def _renumber_lists_split_by_tables(body_html: str) -> str:
+    """Recolle la numérotation d'une liste ordonnée scindée par un tableau.
+
+    Quand un tableau est sorti d'un élément de liste (cf. ``_normalize_table_blocks``,
+    limitation python-markdown), la liste qui suit redémarre à 1. On rétablit la
+    continuité en posant l'attribut ``start`` sur tout ``<ol>`` séparé du précédent
+    ``<ol>`` **uniquement** par des ``<table>`` (motif spécifique de l'extraction ;
+    deux listes séparées par un titre/paragraphe restent indépendantes). ``<ol
+    start>`` est honoré par les navigateurs et par xhtml2pdf (PDF).
+
+    Args:
+        body_html: Corps HTML rendu par python-markdown.
+
+    Returns:
+        Le corps HTML avec la numérotation des listes scindées rétablie.
+    """
+    if body_html.count("<ol") < _MIN_ORDERED_LISTS_FOR_SPLIT or "<table" not in body_html:
+        return body_html
+    soup = BeautifulSoup(body_html, "html.parser")
+    for ordered_list in soup.find_all("ol"):
+        sibling = ordered_list.find_previous_sibling()
+        saw_table = False
+        while sibling is not None and sibling.name == "table":
+            saw_table = True
+            sibling = sibling.find_previous_sibling()
+        if not saw_table or sibling is None or sibling.name != "ol":
+            continue
+        start_value = sibling.get("start")
+        previous_start = int(start_value) if isinstance(start_value, str) else 1
+        previous_count = len(sibling.find_all("li", recursive=False))
+        ordered_list["start"] = str(previous_start + previous_count)
+    return str(soup)
+
+
 def render_markdown_body(markdown_text: str) -> str:
     """Convertit un Markdown en corps HTML (tableaux GFM + sommaire ancré).
 
-    Rendu de base **partagé** par les exports HTML, PDF et DOCX : extensions
-    ``tables`` (tableaux pipe) et ``toc`` (ids de titres slugifiés via
-    ``slugify_anchor``, alignés sur les ancres du sommaire). Ne produit que le
-    corps (pas d'enveloppe ``<html>``).
+    Rendu de base **partagé** par les exports HTML, PDF et DOCX : normalisation des
+    blocs de tableau (cf. ``_normalize_table_blocks``) puis extensions ``tables``
+    (tableaux pipe) et ``toc`` (ids de titres slugifiés via ``slugify_anchor``,
+    alignés sur les ancres du sommaire) ; enfin, recollage de la numérotation des
+    listes scindées par un tableau (cf. ``_renumber_lists_split_by_tables``). Ne
+    produit que le corps (pas d'enveloppe ``<html>``).
 
     Args:
         markdown_text: Texte Markdown.
@@ -429,11 +554,11 @@ def render_markdown_body(markdown_text: str) -> str:
         Le corps HTML correspondant.
     """
     html_body: str = markdown.markdown(
-        markdown_text,
+        _normalize_table_blocks(markdown_text),
         extensions=_MARKDOWN_EXTENSIONS,
         extension_configs={"toc": {"slugify": _toc_slugify}},
     )
-    return html_body
+    return _renumber_lists_split_by_tables(html_body)
 
 
 def render_markdown_to_html(

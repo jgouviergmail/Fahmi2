@@ -336,7 +336,14 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
   les champs Markdown en HTML** (`genanki_exporter._md_to_html`) — sauf le texte
   cloze (mécanique `{{cN::}}` préservée). MD/PDF/HTML/DOCX consomment le Markdown rendu
   tel quel ; le **corps HTML est rendu une fois** par `render_markdown_body` (extensions
-  `tables`+`toc`), réutilisé par HTML, PDF **et** DOCX (`markdown_docx` → htmldocx →
+  `tables`+`toc`), réutilisé par HTML, PDF **et** DOCX. **Normalisation des tableaux**
+  (`_normalize_table_blocks`, partagée donc HTML/PDF/DOCX) : les sorties LLM collent
+  souvent un tableau pipe à la phrase qui l'introduit ou l'indentent dans une liste
+  numérotée → python-markdown ne l'active pas (barres littérales). On garantit une ligne
+  vide avant/après + désindentation. *Limite python-markdown* : un tableau ne s'imbrique
+  pas dans un `<li>` → il en ressort ; la numérotation de la liste qui suit est rétablie
+  par `_renumber_lists_split_by_tables` (attribut `<ol start>`, honoré navigateur + PDF
+  xhtml2pdf). Réutilisé par HTML, PDF **et** DOCX (`markdown_docx` → htmldocx →
   python-docx ; Word gère nativement CJK, coupe de ligne et bidi arabe, rien à déclarer
   côté DOCX ; l'**orientation paysage** — option `landscape`, ex: glossaire — est posée
   sur les sections du document via `WD_ORIENT.LANDSCAPE` + permutation largeur/hauteur).

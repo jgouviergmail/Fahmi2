@@ -161,11 +161,12 @@ class SupportsOrchestrator:
             source_language=source_language,
         )
 
-        # Pré-chargement des entrants par langue (lecture disque hors threads) :
-        # (langue de contenu, mtime source, chapitres) résolus une fois, réutilisés
-        # par chaque tâche. La langue de contenu sert à localiser le glossaire.
+        # Pré-chargement des entrants par langue (lecture disque + localisation hors
+        # threads) : (mtime source, chapitres, glossaire localisé dans la langue de
+        # contenu) résolus **une fois** par langue, réutilisés par chaque tâche.
+        # Repli sur le glossaire master si aucune langue de contenu n'est résolue.
         per_language: dict[
-            Language, tuple[Language | None, int | None, tuple[Chapter, ...]]
+            Language, tuple[int | None, tuple[Chapter, ...], tuple[Term, ...]]
         ] = {}
         for language in pedagogy.languages:
             content_lang = resolve_content_language(
@@ -181,7 +182,12 @@ class SupportsOrchestrator:
                 if content_lang is not None
                 else ()
             )
-            per_language[language] = (content_lang, source_mtime, chapters)
+            localized_glossary = (
+                localize_glossary_terms(glossary, content_lang)
+                if content_lang is not None
+                else glossary
+            )
+            per_language[language] = (source_mtime, chapters, localized_glossary)
 
         # Unités indépendantes (langue × support), dérivées du registre :
         # ajouter/retirer un support est pris en compte sans toucher ce code.
@@ -206,14 +212,7 @@ class SupportsOrchestrator:
                 with cost_lock:
                     if _ceiling_reached(pedagogy, cost_state["total"]):
                         return 0.0, False, True
-            content_lang, source_mtime, chapters = per_language[language]
-            # Glossaire localisé dans la langue du contenu chargé (cohérent avec les
-            # chapitres) ; repli sur le glossaire master si aucune langue de contenu.
-            localized_glossary = (
-                localize_glossary_terms(glossary, content_lang)
-                if content_lang is not None
-                else glossary
-            )
+            source_mtime, chapters, localized_glossary = per_language[language]
             cost, failed = self._run_one(
                 ctx,
                 manifest=manifest,

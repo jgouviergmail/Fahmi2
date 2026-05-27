@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 import pytest
+from PySide6.QtCore import QThread
 from PySide6.QtWidgets import QMessageBox
 from pytestqt.qtbot import QtBot
 
@@ -113,6 +114,23 @@ def test_new_conversation_in_other_language_switches_corpus(
     assert controller._conversation.language is Language.EN  # noqa: SLF001
     assert controller._content_language is Language.EN  # noqa: SLF001
     assert {c.chapter_title for c in controller._chunks} == {"Basics"}  # noqa: SLF001
+
+
+def test_new_conversation_ignored_during_streaming(
+    qtbot: QtBot, tmp_path: Path
+) -> None:
+    # Pendant le streaming, créer une conversation (qui rechargerait le corpus)
+    # est ignoré : éviter la course avec le worker qui lit _content_language/_chunks.
+    controller, _view, _pid = _make_controller(tmp_path, with_corpus=True, qtbot=qtbot)
+    before = controller._conversation  # noqa: SLF001
+    thread = QThread()
+    controller._thread = thread  # noqa: SLF001 — simule un streaming en cours
+    try:
+        controller.new_conversation("en")
+    finally:
+        controller._thread = None  # noqa: SLF001
+        thread.deleteLater()
+    assert controller._conversation is before  # noqa: SLF001 — inchangé
 
 
 def test_language_selector_populated_with_produced_languages(

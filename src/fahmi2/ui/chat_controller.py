@@ -444,7 +444,9 @@ class ChatController(QObject):
                 par défaut (source si produite, sinon 1ʳᵉ langue produite). Le corpus,
                 les citations et la réponse suivront cette langue.
         """
-        if self._project is None:
+        # Ignoré pendant le streaming : recharger le corpus muterait l'état
+        # (`_content_language`/`_chunks`) lu par le worker en vol (cf. `_build_retriever`).
+        if self._project is None or self._thread is not None:
             return
         target = (
             Language(language_code)
@@ -465,7 +467,8 @@ class ChatController(QObject):
         Args:
             conversation_id: Identifiant de la conversation.
         """
-        if self._store is None or self._project is None:
+        # Ignoré pendant le streaming (recharge le corpus → course avec le worker).
+        if self._store is None or self._project is None or self._thread is not None:
             return
         conversation = self._store.load(ConversationId(value=conversation_id))
         if conversation is None:

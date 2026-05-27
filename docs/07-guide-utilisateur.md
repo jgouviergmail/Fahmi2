@@ -250,7 +250,9 @@ Pour en **supprimer** une, faites un **clic droit** dessus dans la liste →
 > langues**, un sélecteur de **langue** apparaît au-dessus de **＋ Nouvelle
 > conversation** : choisissez-y la langue **avant** de créer le fil. Le Dialogue
 > lira, **citera** et **répondra** dans cette langue (une conversation = une langue ;
-> pour en changer, créez-en une nouvelle).
+> pour en changer, créez-en une nouvelle). Dans la liste, chaque conversation est
+> **préfixée par son code langue** (ex. *« EN · what is ebida ? »*) pour les repérer
+> d'un coup d'œil.
 
 Le bouton **⚙ Réglages** permet de choisir le mode de réponse (strict, ou
 « augmenté » qui complète avec des connaissances générales), la méthode de

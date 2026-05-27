@@ -60,6 +60,10 @@ from fahmi2.ui.viewmodels.chat_view_model import ChatViewModel
 from fahmi2.ui.widgets.chat_view import ChatView, show_passage_dialog
 
 _INDEX_FILENAME_TEMPLATE = "index.{language}.npz"
+#: Séparateur du préfixe de langue dans la liste des conversations (ex. « EN · Titre »).
+#: Une conversation a une langue **fixe** (choisie à sa création) → on l'affiche pour
+#: lever toute ambiguïté entre conversations de langues différentes.
+_LANGUAGE_BADGE_SEPARATOR = " · "
 _NO_PROJECT_TITLE = "Aucun projet sélectionné"
 _NO_KEY_TITLE = "Clé DeepSeek manquante"
 _NO_KEY_MESSAGE = (
@@ -75,6 +79,25 @@ LlmProviderFactory = Callable[[str], LLMProvider]
 
 #: Empreinte de fraîcheur du corpus : (langue de contenu, mtime consolidé, mtime glossaire).
 _CorpusKey = tuple[str | None, int | None, int | None]
+
+
+def _conversation_list_label(conversation: Conversation) -> str:
+    """Libellé d'une conversation dans la liste : code langue + titre.
+
+    Préfixe le titre par le code langue en majuscules (``EN``, ``FR``, ``ZH``…) car une
+    conversation porte une **langue fixe** ; sans cela, deux conversations de langues
+    différentes seraient indiscernables dans la liste.
+
+    Args:
+        conversation: Conversation à libeller.
+
+    Returns:
+        ``"<CODE> · <titre>"`` (ex. ``"EN · what is ebida ?"``).
+    """
+    return (
+        f"{conversation.language.value.upper()}"
+        f"{_LANGUAGE_BADGE_SEPARATOR}{conversation.title}"
+    )
 
 
 class _ChatWorker(QObject):
@@ -583,7 +606,7 @@ class ChatController(QObject):
         if self._store is None:
             return
         items = [
-            (conversation.conversation_id.value, conversation.title)
+            (conversation.conversation_id.value, _conversation_list_label(conversation))
             for conversation in self._store.list_all()
         ]
         self._view.set_conversations(items)

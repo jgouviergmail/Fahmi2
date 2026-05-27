@@ -13,15 +13,15 @@ from pytestqt.qtbot import QtBot
 from fahmi2.app.project_service import ProjectService
 from fahmi2.app.secrets_service import SecretsService
 from fahmi2.core.config.paths import AppPaths
-from fahmi2.domain.chat import ChatMessage, ChatSettings
+from fahmi2.domain.chat import ChatMessage, ChatSettings, Conversation
 from fahmi2.domain.enums import ChatTabState, Language
-from fahmi2.domain.ids import ProjectId
+from fahmi2.domain.ids import ConversationId, ProjectId
 from fahmi2.infra.llm._fakes import FakeLLMProvider
 from fahmi2.infra.llm.interface import LLMResponse
 from fahmi2.infra.secrets.interface import InMemorySecretsStore
 from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.pedagogy.sources import consolidated_doc_path
-from fahmi2.ui.chat_controller import ChatController
+from fahmi2.ui.chat_controller import ChatController, _conversation_list_label
 from fahmi2.ui.widgets.chat_view import ChatView
 
 _DOC = "# Cours\n\n# 1. Bases\n\nLe produit intérieur brut mesure la richesse.\n"
@@ -146,6 +146,21 @@ def test_language_selector_populated_with_produced_languages(
         for i in range(view._language_combo.count())  # noqa: SLF001
     }
     assert codes == {"fr", "en"}
+
+
+def test_conversation_list_label_prefixes_language() -> None:
+    # La liste préfixe le titre par le code langue : deux conversations de langues
+    # différentes (même titre) restent discernables.
+    conv = Conversation(
+        conversation_id=ConversationId.new(),
+        title="what is ebida ?",
+        language=Language.EN,
+    )
+    assert _conversation_list_label(conv) == "EN · what is ebida ?"
+    conv_fr = Conversation(
+        conversation_id=ConversationId.new(), title="c'est quoi ebida ?", language=Language.FR
+    )
+    assert _conversation_list_label(conv_fr) == "FR · c'est quoi ebida ?"
 
 
 def test_no_corpus_state(qtbot: QtBot, tmp_path: Path) -> None:

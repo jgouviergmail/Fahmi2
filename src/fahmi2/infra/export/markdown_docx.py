@@ -6,10 +6,13 @@ le corps HTML en document Word avec ``htmldocx`` (qui s'appuie sur ``python-docx
 Pur *renderer* : l'orchestration (collecte, dispatch par format) vit dans
 ``app.document_export``.
 
-Word applique nativement la bidirectionnalité (arabe), la substitution de police et
-la coupe de ligne (chinois) à l'affichage : aucune police ni pré-formatage à déclarer
-côté DOCX. L'orientation **paysage** (option ``landscape``, ex: glossaire) est posée
-sur les sections du document, comme le PDF.
+Word applique nativement, **au niveau des runs**, la bidirectionnalité (arabe), la
+substitution de police et la coupe de ligne (chinois) : aucune police ni pré-formatage
+à déclarer côté DOCX. **Limite connue (arabe)** : contrairement au PDF (``direction:rtl``)
+et au HTML (``dir="rtl"``), on ne pose pas de direction RTL explicite ni de ``bidiVisual``
+sur les tableaux — le texte arabe s'affiche correctement (bidi des runs) mais l'ordre des
+colonnes et l'alignement des paragraphes restent LTR. L'orientation **paysage** (option
+``landscape``, ex: glossaire) est posée sur les sections du document, comme le PDF.
 
 ``htmldocx`` ne traduit pas les bordures CSS ni ``width: 100%`` : ses tableaux sortent
 **sans contour** et en largeur **automatique** (ajustée au contenu). On les reformate

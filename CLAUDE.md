@@ -348,9 +348,12 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
   pas dans un `<li>` → il en ressort ; la numérotation de la liste qui suit est rétablie
   par `_renumber_lists_split_by_tables` (attribut `<ol start>`, honoré navigateur + PDF
   xhtml2pdf). Réutilisé par HTML, PDF **et** DOCX (`markdown_docx` → htmldocx →
-  python-docx ; Word gère nativement CJK, coupe de ligne et bidi arabe, rien à déclarer
-  côté DOCX ; l'**orientation paysage** — option `landscape`, ex: glossaire — est posée
-  sur les sections du document via `WD_ORIENT.LANDSCAPE` + permutation largeur/hauteur).
+  python-docx ; Word gère nativement, **au niveau des runs**, CJK, coupe de ligne et
+  bidi arabe, rien à déclarer côté DOCX ; l'**orientation paysage** — option `landscape`,
+  ex: glossaire — est posée sur les sections du document via `WD_ORIENT.LANDSCAPE` +
+  permutation largeur/hauteur. **Limite connue** : pas de direction RTL explicite ni de
+  `bidiVisual` côté DOCX (contrairement à `direction:rtl` PDF / `dir="rtl"` HTML) → l'arabe
+  DOCX a des colonnes/paragraphes en ordre LTR (texte des runs correct).
   **htmldocx ne traduit ni les bordures CSS ni `width:100%`** (tableaux sans contour,
   largeur ajustée au contenu) → `markdown_docx._format_docx_tables` reformate **tous**
   les tableaux après conversion : style intégré `Table Grid` (bordures) + `tblW` à

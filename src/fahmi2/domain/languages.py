@@ -22,6 +22,22 @@ _LANGUAGE_NAMES: dict[Language, str] = {
     Language.AR: "arabe",
 }
 
+#: Langues écrites de **droite à gauche** — source unique partagée par tous les rendus
+#: (direction CSS PDF/HTML, bidi/bidiVisual DOCX).
+_RTL_LANGUAGES: frozenset[Language] = frozenset({Language.AR})
+
+
+def is_rtl(language: Language) -> bool:
+    """Indique si une langue s'écrit de droite à gauche.
+
+    Args:
+        language: Langue.
+
+    Returns:
+        ``True`` pour les langues RTL (arabe), ``False`` sinon.
+    """
+    return language in _RTL_LANGUAGES
+
 
 def language_label(language: Language) -> str:
     """Libellé minuscule d'une langue, pour injection dans les prompts.

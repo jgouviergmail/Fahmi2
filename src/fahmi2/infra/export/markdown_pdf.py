@@ -50,6 +50,7 @@ from fahmi2.core.errors.exceptions import ConfigError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.core.slugify import slugify_anchor
 from fahmi2.domain.enums import ExportFormat, Language
+from fahmi2.domain.languages import is_rtl
 
 #: Extension de fichier par format documentaire (MD/PDF/HTML ; APKG non concerné).
 EXTENSION_BY_FORMAT: dict[ExportFormat, str] = {
@@ -127,11 +128,10 @@ _PDF_ARABIC_FONT_FAMILY = "AppArabic"
 #: Tag xhtml2pdf déclenchant le reshaping + bidi de l'arabe (cf. xhtml2pdf/util.py).
 _PDF_LANGUAGE_TAG_ARABIC = '<pdf:language name="arabic"/>'
 
-#: Directions d'écriture CSS et langues écrites de droite à gauche (source unique
-#: partagée par les rendus PDF et HTML).
+#: Valeurs CSS de direction d'écriture (le **choix** de langue RTL vit dans
+#: ``domain.languages.is_rtl`` — source unique partagée par PDF, HTML et DOCX).
 _DIRECTION_LTR = "ltr"
 _DIRECTION_RTL = "rtl"
-_RTL_LANGUAGES: frozenset[Language] = frozenset({Language.AR})
 
 #: Famille par défaut (latin) : ``AppSans`` est résolu en Helvetica par xhtml2pdf,
 #: qui couvre le Latin-1 (fr/en/de/es/it). Pas de police à embarquer.
@@ -324,7 +324,7 @@ def _text_direction(language: Language) -> str:
     Returns:
         ``"rtl"`` pour les langues de droite à gauche (arabe), ``"ltr"`` sinon.
     """
-    return _DIRECTION_RTL if language in _RTL_LANGUAGES else _DIRECTION_LTR
+    return _DIRECTION_RTL if is_rtl(language) else _DIRECTION_LTR
 
 
 @functools.cache

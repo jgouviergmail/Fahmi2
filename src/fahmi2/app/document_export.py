@@ -29,8 +29,8 @@ class ExportDocument:
     """Un document à exporter : nom de fichier + Markdown + options de rendu.
 
     ``landscape`` oriente le **PDF et le DOCX** ; ``pdf_column_widths`` n'affecte que
-    le PDF ; ``language`` pilote police et direction des rendus **PDF et HTML** (sans
-    effet sur Markdown ni DOCX, qui s'appuient sur les capacités natives du lecteur).
+    le PDF ; ``language`` pilote police et direction des rendus **PDF, HTML et DOCX**
+    (sans effet sur le Markdown brut).
 
     Attributes:
         stem: Nom de fichier sans extension.
@@ -38,8 +38,8 @@ class ExportDocument:
         landscape: Orientation paysage du PDF **et** du DOCX (ex: glossaire large).
         pdf_column_widths: Largeurs CSS par colonne pour les tableaux PDF
             (ex: glossaire) ; ``None`` = largeurs automatiques.
-        language: Langue du contenu ; pilote la police et la direction du rendu
-            PDF/HTML (chinois → police CJK, arabe → RTL). Défaut ``FR``.
+        language: Langue du contenu ; pilote police et direction PDF/HTML/DOCX
+            (chinois → police CJK ; arabe → RTL, y compris en DOCX). Défaut ``FR``.
     """
 
     stem: str
@@ -115,7 +115,12 @@ def write_documents(
                 language=document.language,
             )
         elif fmt is ExportFormat.DOCX:
-            render_markdown_to_docx(document.markdown, path, landscape=document.landscape)
+            render_markdown_to_docx(
+                document.markdown,
+                path,
+                landscape=document.landscape,
+                language=document.language,
+            )
         else:  # HTML (seul format documentaire restant après la garde)
             render_markdown_to_html(document.markdown, path, language=document.language)
         paths.append(path)

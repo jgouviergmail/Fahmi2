@@ -348,12 +348,12 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
   pas dans un `<li>` → il en ressort ; la numérotation de la liste qui suit est rétablie
   par `_renumber_lists_split_by_tables` (attribut `<ol start>`, honoré navigateur + PDF
   xhtml2pdf). Réutilisé par HTML, PDF **et** DOCX (`markdown_docx` → htmldocx →
-  python-docx ; Word gère nativement, **au niveau des runs**, CJK, coupe de ligne et
-  bidi arabe, rien à déclarer côté DOCX ; l'**orientation paysage** — option `landscape`,
-  ex: glossaire — est posée sur les sections du document via `WD_ORIENT.LANDSCAPE` +
-  permutation largeur/hauteur. **Limite connue** : pas de direction RTL explicite ni de
-  `bidiVisual` côté DOCX (contrairement à `direction:rtl` PDF / `dir="rtl"` HTML) → l'arabe
-  DOCX a des colonnes/paragraphes en ordre LTR (texte des runs correct).
+  python-docx ; Word gère nativement CJK et coupe de ligne ; l'**arabe** reçoit une
+  direction RTL explicite (`w:bidi` paragraphes, `w:rtl` runs, `w:bidiVisual` tableaux →
+  colonnes inversées, comme `direction:rtl` PDF / `dir="rtl"` HTML), les toggles insérés
+  à la bonne position du schéma OOXML via `insert_element_before` ; l'**orientation
+  paysage** — option `landscape`, ex: glossaire — est posée sur les sections du document
+  via `WD_ORIENT.LANDSCAPE` + permutation largeur/hauteur.
   **htmldocx ne traduit ni les bordures CSS ni `width:100%`** (tableaux sans contour,
   largeur ajustée au contenu) → `markdown_docx._format_docx_tables` reformate **tous**
   les tableaux après conversion : style intégré `Table Grid` (bordures) + `tblW` à
@@ -395,9 +395,10 @@ barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase �
   formes italiques) → l'arabe en emphase (`*…*`) tombait en carrés ; `_ensure_arabic_font_registered`
   enregistre une famille dédiée `AppArabic` dont **italique/gras-italique pointent sur les
   variantes droites** (régulier/gras), qui couvrent l'arabe.
-  `_text_direction`/`_RTL_LANGUAGES` = source unique de direction (PDF + HTML) ;
-  tailles de police et marge `@page` **centralisées** (source unique gabarit CSS ↔ calcul
-  de largeur du pré-formatage CJK). **Polices toutes système Windows — rien à bundler.**
+  `domain.languages.is_rtl` = **source unique RTL** (PDF `direction`, HTML `dir`, DOCX
+  `bidi`/`bidiVisual`) ; `_text_direction` en dérive la valeur CSS ; tailles de police et
+  marge `@page` **centralisées** (source unique gabarit CSS ↔ calcul de largeur du
+  pré-formatage CJK). **Polices toutes système Windows — rien à bundler.**
 - **Erreurs → UI** : une exception levée par un handler **doit** être une
   `Fahmi2Error` (code + user_message + technical_details). Le moteur la convertit
   en `ErrorInfo`, la propage dans `PhaseFinished.error`, et `generation_controller._to_log_event`

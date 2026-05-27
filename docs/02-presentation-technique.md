@@ -572,7 +572,8 @@ L'architecture est ouverte à des extensions sans casser l'existant :
   en-têtes et son titre de glossaire (`domain/glossary`), ses alias de détection STT
   (`openai_whisper_adapter`) ; pour le PDF, ajouter une police si l'écriture l'exige
   (CJK) et, pour une écriture de droite à gauche, l'inscrire dans
-  `markdown_pdf._RTL_LANGUAGES` (+ `_PDF_LANG_RENDERING`). Tests à compléter.
+  `domain/languages._RTL_LANGUAGES` (source unique RTL pour PDF/HTML/DOCX ;
+  + `markdown_pdf._PDF_LANG_RENDERING` pour le reshaping). Tests à compléter.
 - **Ajouter un provider STT** : implémenter le Protocol `STTProvider`.
 - **Ajouter un provider LLM** : implémenter le Protocol `LLMProvider` +
   ajouter une grille de tarifs dans `_pricing.py`.

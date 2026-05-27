@@ -8,6 +8,7 @@ from pathlib import Path
 from docx import Document
 from docx.enum.section import WD_ORIENT
 
+from fahmi2.domain.enums import Language
 from fahmi2.infra.export.markdown_docx import render_markdown_to_docx
 
 _MD = (
@@ -67,6 +68,28 @@ def test_render_docx_landscape_sets_orientation(tmp_path: Path) -> None:
     assert width is not None and height is not None
     assert section.orientation == WD_ORIENT.LANDSCAPE
     assert width > height
+
+
+def test_render_docx_arabic_applies_rtl(tmp_path: Path) -> None:
+    # Arabe : direction RTL explicite comme le PDF/HTML — tableau (colonnes inversées),
+    # paragraphes et runs.
+    out = tmp_path / "ar.docx"
+    md = "# مسرد\n\n| المصطلح | التعريف |\n|---|---|\n| رأس المال | تعريف |\n"
+    render_markdown_to_docx(md, out, language=Language.AR)
+    xml = _document_xml(out)
+    assert "<w:bidiVisual/>" in xml  # tableau RTL (ordre des colonnes inversé)
+    assert "<w:bidi/>" in xml  # paragraphes RTL
+    assert "<w:rtl/>" in xml  # runs RTL
+
+
+def test_render_docx_latin_is_not_rtl(tmp_path: Path) -> None:
+    # Une langue LTR ne reçoit aucun marqueur RTL.
+    out = tmp_path / "fr.docx"
+    render_markdown_to_docx(_MD, out, language=Language.FR)
+    xml = _document_xml(out)
+    assert "<w:bidiVisual/>" not in xml
+    assert "<w:bidi/>" not in xml
+    assert "<w:rtl/>" not in xml
 
 
 def test_render_docx_tables_have_borders_and_full_width(tmp_path: Path) -> None:

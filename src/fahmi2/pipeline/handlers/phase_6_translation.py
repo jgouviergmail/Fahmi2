@@ -140,10 +140,12 @@ class Phase6TranslationHandler(PhaseHandler):
             pause_token=ctx.pause_token,
         )
         cross_lang_by_language: dict[Language, dict[str, str]] = {}
+        localized_by_language: dict[Language, dict[str, _LocalizedTerm]] = {}
         localization_cost = 0.0
         for target, localized, cost in localization_results:
             localization_cost += cost
             cross_lang_by_language[target] = {loc.source: loc.term for loc in localized}
+            localized_by_language[target] = {loc.source: loc for loc in localized}
             ctx.artifacts.write_text_atomic(
                 ctx.output_dir / glossary_doc_filename(target),
                 _render_localized_glossary(localized, glossary_master, target),
@@ -156,8 +158,8 @@ class Phase6TranslationHandler(PhaseHandler):
             )
         # Persistance pour l'aval : seulement s'il y a des équivalents (sinon pas de
         # réécriture inutile du master ni de churn de mtime côté Pédagogie/Dialogue).
-        if cross_lang_by_language:
-            _persist_cross_lang(ctx, glossary_master, cross_lang_by_language)
+        if localized_by_language:
+            _persist_cross_lang(ctx, glossary_master, localized_by_language)
 
         # Étape 2 — traductions documentaires (per-source + consolidé) en parallèle ;
         # l'indice « équivalents » provient de cross_lang_by_language.
@@ -483,25 +485,31 @@ def _render_localized_glossary(
 def _persist_cross_lang(
     ctx: PhaseContext,
     payload: dict[str, Any],
-    cross_lang_by_language: dict[Language, dict[str, str]],
+    localized_by_language: dict[Language, dict[str, _LocalizedTerm]],
 ) -> None:
     """Réécrit ``glossary_master.json`` en ajoutant ``cross_lang`` à chaque terme.
 
-    Écriture atomique. Clés = codes langue (round-trip ``parse_glossary_master_terms``).
-    Sert l'aval (Pédagogie/Dialogue) ; les étapes de la phase 6 utilisent, elles, le
-    mapping en mémoire.
+    Écriture atomique. Pour chaque langue cible, persiste **terme + définition** traduits
+    (objet ``{"term", "definition"}``) — la définition est déjà calculée par la
+    localisation, on ne la jette plus. Round-trip via ``parse_glossary_master_terms``
+    (tolérant au format legacy terme-seul). Sert l'aval (Pédagogie/Dialogue) ; les étapes
+    de la phase 6 utilisent, elles, le mapping terme-seul en mémoire.
 
     Args:
         ctx: Contexte (artifact store + workspace).
         payload: Payload master (muté : ajout de ``cross_lang`` par terme).
-        cross_lang_by_language: Équivalents ``terme_source -> terme_localisé`` par langue.
+        localized_by_language: Par langue, ``terme_source -> _LocalizedTerm`` (terme +
+            définition localisés).
     """
     for raw in payload.get("terms", []):
         source = str(raw.get("term", ""))
         raw["cross_lang"] = {
-            lang.value: mapping[source]
-            for lang, mapping in cross_lang_by_language.items()
-            if source in mapping
+            lang.value: {
+                "term": localized[source].term,
+                "definition": localized[source].definition,
+            }
+            for lang, localized in localized_by_language.items()
+            if source in localized
         }
     ctx.artifacts.write_json_atomic(
         ctx.workspace / _GLOSSARY_MASTER_FILENAME, payload

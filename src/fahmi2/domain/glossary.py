@@ -50,6 +50,24 @@ def glossary_title(language: Language) -> str:
     return _TITLE_BY_LANGUAGE.get(language, _TITLE_BY_LANGUAGE[Language.EN])
 
 
+@dataclass(frozen=True)
+class LocalizedTerm:
+    """Forme localisée d'un terme du glossaire dans une langue cible.
+
+    Conservée dans ``Term.cross_lang`` (persistée par la phase 6). Porte la **forme
+    traduite du terme** et sa **définition traduite** ; l'``acronym_expansion`` (colonne
+    *Signification*) reste, elle, invariante par langue (intrinsèque à l'acronyme, jamais
+    traduite).
+
+    Attributes:
+        term: Terme traduit dans la langue cible.
+        definition: Définition traduite dans la langue cible.
+    """
+
+    term: str
+    definition: str
+
+
 def glossary_term_for_language(term: Term, language: Language) -> str:
     """Forme localisée d'un terme pour une langue (repli sur le terme source).
 
@@ -58,28 +76,38 @@ def glossary_term_for_language(term: Term, language: Language) -> str:
         language: Langue cible.
 
     Returns:
-        ``term.cross_lang[language]`` s'il existe, sinon ``term.term``.
+        ``term.cross_lang[language].term`` s'il existe, sinon ``term.term``.
     """
-    return term.cross_lang.get(language, term.term)
+    localized = term.cross_lang.get(language)
+    return localized.term if localized is not None else term.term
 
 
 def localize_glossary_terms(
     terms: Iterable[Term], language: Language
 ) -> tuple[Term, ...]:
-    """Vue du glossaire pour une langue : remplace la forme du terme par sa
-    localisation (``cross_lang[language]``) ; définition, acronyme et expansion
-    restent inchangés (la définition reste donc en langue source en aval).
+    """Vue du glossaire pour une langue : remplace **terme et définition** par leur
+    localisation (``cross_lang[language]``) ; ``acronym`` et ``acronym_expansion``
+    restent inchangés (l'expansion d'acronyme est invariante par langue). Repli sur la
+    forme/définition source si la langue n'est pas localisée.
 
     Args:
         terms: Termes du glossaire master.
         language: Langue de la vue voulue.
 
     Returns:
-        Un tuple de ``Term`` dont seul ``term`` est localisé (repli sur la source).
+        Un tuple de ``Term`` dont ``term`` **et** ``definition`` sont localisés (repli
+        sur la source si la langue manque).
     """
-    return tuple(
-        replace(t, term=glossary_term_for_language(t, language)) for t in terms
-    )
+    localized_terms: list[Term] = []
+    for t in terms:
+        loc = t.cross_lang.get(language)
+        if loc is None:
+            localized_terms.append(t)
+        else:
+            localized_terms.append(
+                replace(t, term=loc.term, definition=loc.definition)
+            )
+    return tuple(localized_terms)
 
 
 @dataclass(frozen=True)
@@ -102,7 +130,8 @@ class Term:
         sources: Sources d'où le terme a été extrait.
         aliases: Variantes orthographiques ou rédactionnelles connues
             (différentes de l'acronyme).
-        cross_lang: Mapping ``Language`` → traduction (alimenté par la phase 6).
+        cross_lang: Mapping ``Language`` → ``LocalizedTerm`` (terme **et** définition
+            traduits ; alimenté par la phase 6).
     """
 
     term: str
@@ -111,7 +140,7 @@ class Term:
     acronym_expansion: str | None = None
     sources: tuple[SourceId, ...] = ()
     aliases: tuple[str, ...] = ()
-    cross_lang: dict[Language, str] = field(default_factory=dict)
+    cross_lang: dict[Language, LocalizedTerm] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -170,18 +199,47 @@ def parse_glossary_master_terms(payload: dict[str, Any]) -> tuple[Term, ...]:
         cross_lang_raw = raw.get("cross_lang", {}) or {}
         acronym = raw.get("acronym")
         expansion = raw.get("acronym_expansion")
+        source_definition = str(raw.get("definition", ""))
         result.append(
             Term(
                 term=str(raw.get("term", "")),
-                definition=str(raw.get("definition", "")),
+                definition=source_definition,
                 acronym=str(acronym) if acronym else None,
                 acronym_expansion=str(expansion) if expansion else None,
                 sources=tuple(SourceId(value=str(s)) for s in sources_raw),
                 aliases=tuple(str(a) for a in aliases_raw),
-                cross_lang={Language(k): str(v) for k, v in cross_lang_raw.items()},
+                cross_lang=_parse_cross_lang(cross_lang_raw, source_definition),
             )
         )
     return tuple(result)
+
+
+def _parse_cross_lang(
+    raw: dict[str, Any], source_definition: str
+) -> dict[Language, LocalizedTerm]:
+    """Parse le mapping ``cross_lang`` (tolérant au format legacy terme-seul).
+
+    Args:
+        raw: Mapping brut ``code_langue -> valeur`` ; valeur = objet
+            ``{"term", "definition"}`` (format courant) ou chaîne (legacy = terme seul,
+            définition restée en langue source).
+        source_definition: Définition source, repli quand seul le terme est connu.
+
+    Returns:
+        Mapping ``Language -> LocalizedTerm`` (définition repliée sur la source en legacy).
+    """
+    result: dict[Language, LocalizedTerm] = {}
+    for code, value in raw.items():
+        if isinstance(value, dict):
+            result[Language(code)] = LocalizedTerm(
+                term=str(value.get("term", "")),
+                definition=str(value.get("definition", source_definition)),
+            )
+        else:  # legacy : chaîne = terme localisé seul (définition source conservée)
+            result[Language(code)] = LocalizedTerm(
+                term=str(value), definition=source_definition
+            )
+    return result
 
 
 def _escape_table_cell(value: str) -> str:

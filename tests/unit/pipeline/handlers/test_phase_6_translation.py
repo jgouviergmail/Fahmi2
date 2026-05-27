@@ -260,7 +260,11 @@ def test_execute_localizes_glossary_and_persists_cross_lang(
     master = json.loads(
         (ctx.workspace / "glossary_master.json").read_text(encoding="utf-8")
     )
-    assert master["terms"][0]["cross_lang"]["en"] == "Balance sheet"
+    # cross_lang persiste désormais terme **et** définition traduits (objet).
+    assert master["terms"][0]["cross_lang"]["en"] == {
+        "term": "Balance sheet",
+        "definition": "accounting doc",
+    }
 
 
 def test_execute_raises_when_consolidated_master_missing(

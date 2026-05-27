@@ -116,7 +116,7 @@ def test_load_corpus_chunks_empty_when_no_consolidated(tmp_path: Path) -> None:
     assert chunks == ()
 
 
-def test_corpus_glossary_chunks_use_localized_term(tmp_path: Path) -> None:
+def test_corpus_glossary_chunks_use_localized_term_and_definition(tmp_path: Path) -> None:
     out_dir = tmp_path / "output"
     out_dir.mkdir()
     consolidated_doc_path(out_dir, Language.EN).write_text(
@@ -129,7 +129,12 @@ def test_corpus_glossary_chunks_use_localized_term(tmp_path: Path) -> None:
                     {
                         "term": "Bilan",
                         "definition": "doc comptable",
-                        "cross_lang": {"en": "Balance sheet"},
+                        "cross_lang": {
+                            "en": {
+                                "term": "Balance sheet",
+                                "definition": "accounting statement",
+                            }
+                        },
                     }
                 ]
             }
@@ -140,5 +145,8 @@ def test_corpus_glossary_chunks_use_localized_term(tmp_path: Path) -> None:
         generation_output_dir=out_dir, generation_dir=tmp_path, language=Language.EN
     )
     glossary = [c for c in chunks if c.origin == "glossary"]
-    assert any("Balance sheet" in c.text for c in glossary)
-    assert not any("Bilan" in c.text for c in glossary)
+    # Terme **et** définition localisés ; ni la forme ni la définition source ne subsistent.
+    assert any(
+        "Balance sheet" in c.text and "accounting statement" in c.text for c in glossary
+    )
+    assert not any("Bilan" in c.text or "doc comptable" in c.text for c in glossary)

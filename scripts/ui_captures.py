@@ -23,6 +23,7 @@ restent à venir au fil des lots).
 from __future__ import annotations
 
 import argparse
+import tempfile
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -36,9 +37,13 @@ from PySide6.QtWidgets import (
 )
 
 from fahmi2.app.hardware_probe import probe_hardware
+from fahmi2.app.secrets_service import SecretsService
+from fahmi2.app.theme_controller import ThemeController
 from fahmi2.domain.enums import Language, PhaseStatus, RunStatus
+from fahmi2.infra.secrets.interface import InMemorySecretsStore
 from fahmi2.ui.dialogs.chat_settings_view import ChatSettingsView
 from fahmi2.ui.dialogs.generation_settings_view import GenerationSettingsView
+from fahmi2.ui.dialogs.global_settings_dialog import GlobalSettingsDialog
 from fahmi2.ui.dialogs.new_project_dialog import NewProjectDialog
 from fahmi2.ui.dialogs.pedagogy_settings_view import PedagogySettingsView
 from fahmi2.ui.theme import ThemeMode, apply_theme
@@ -72,8 +77,10 @@ _SETTINGS_DIALOG_WIDTH: Final[int] = 820
 _SETTINGS_DIALOG_HEIGHT: Final[int] = 600
 _CHAT_SETTINGS_WIDTH: Final[int] = 560
 _CHAT_SETTINGS_HEIGHT: Final[int] = 460
-_NEW_PROJECT_WIDTH: Final[int] = 540
-_NEW_PROJECT_HEIGHT: Final[int] = 220
+_NEW_PROJECT_WIDTH: Final[int] = 640
+_NEW_PROJECT_HEIGHT: Final[int] = 360
+_GLOBAL_SETTINGS_WIDTH: Final[int] = 640
+_GLOBAL_SETTINGS_HEIGHT: Final[int] = 520
 #: Données réalistes utilisées par ``_sample_stats_snapshot``.
 _SAMPLE_SOURCES_TOTAL: Final[int] = 5
 _SAMPLE_SOURCES_DONE: Final[int] = 2
@@ -223,6 +230,23 @@ def build_new_project() -> QWidget:
     return dlg
 
 
+def build_global_settings() -> QWidget:
+    """Construit le dialogue Paramètres globaux (avec services en mémoire)."""
+    app = QApplication.instance()
+    assert isinstance(app, QApplication), (
+        "QApplication doit être instanciée avant ce builder."
+    )
+    secrets = SecretsService(InMemorySecretsStore())
+    # ThemeController nécessite un chemin pour la persistance ; on utilise un
+    # temporaire (la préférence ne sera pas écrite tant qu'on n'appelle pas
+    # set_mode — le builder se contente de construire le dialogue).
+    tmp_dir = Path(tempfile.gettempdir())
+    controller = ThemeController(app, tmp_dir / "fahmi2_capture_ui_prefs.json")
+    dlg = GlobalSettingsDialog(secrets, theme_controller=controller)
+    dlg.resize(_GLOBAL_SETTINGS_WIDTH, _GLOBAL_SETTINGS_HEIGHT)
+    return dlg
+
+
 #: Mapping ``nom de capture -> builder du widget``. L'ordre est conservé
 #: (Python 3.7+) pour un ordre de génération déterministe.
 _SCREEN_BUILDERS: Final[dict[str, Callable[[], QWidget]]] = {
@@ -230,6 +254,7 @@ _SCREEN_BUILDERS: Final[dict[str, Callable[[], QWidget]]] = {
     "settings_generation": build_generation_settings,
     "settings_pedagogy": build_pedagogy_settings,
     "settings_chat": build_chat_settings,
+    "settings_global": build_global_settings,
     "dialog_new_project": build_new_project,
 }
 
@@ -264,9 +289,14 @@ def render_all(out_dir: Path) -> None:
     """
     app = QApplication.instance() or QApplication([])
     for mode, subdir in _MODE_SUBDIR.items():
-        apply_theme(app, mode)
         for name, builder in _SCREEN_BUILDERS.items():
+            apply_theme(app, mode)
             widget = builder()
+            # Certains builders construisent un ``ThemeController`` qui
+            # ré-applique le thème depuis la préférence persistée : on
+            # ré-applique explicitement le mode désiré juste avant la
+            # capture pour garantir la cohérence.
+            apply_theme(app, mode)
             _capture_widget(widget, out_dir / subdir / f"{name}.png")
             print(f"Saved: {subdir}/{name}.png")
 

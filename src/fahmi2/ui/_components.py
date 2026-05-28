@@ -23,9 +23,11 @@ from __future__ import annotations
 
 from typing import Final
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication,
     QDialogButtonBox,
+    QFormLayout,
     QFrame,
     QGraphicsDropShadowEffect,
     QLabel,
@@ -66,6 +68,18 @@ _CARD_PADDING_BOTTOM: Final[int] = 20
 _CARD_SPACING: Final[int] = 12
 #: Hauteur fixe d'un séparateur horizontal (``#hsep``).
 _HSEP_FIXED_HEIGHT: Final[int] = 1
+
+# --------------------------------------------------- settings page geometry
+
+#: Marges externes d'une page de réglages (autour de la pile de cartes).
+SETTINGS_PAGE_MARGIN_HORIZONTAL: Final[int] = 22
+SETTINGS_PAGE_MARGIN_VERTICAL: Final[int] = 18
+#: Espacement vertical entre les enfants d'une page de réglages.
+SETTINGS_PAGE_SPACING: Final[int] = 16
+#: Espacement horizontal d'un formulaire (entre étiquette et champ).
+SETTINGS_FORM_HORIZONTAL_SPACING: Final[int] = 18
+#: Espacement vertical d'un formulaire (entre lignes).
+SETTINGS_FORM_VERTICAL_SPACING: Final[int] = 12
 
 # ------------------------------------------------- French standard button labels
 
@@ -129,6 +143,52 @@ def card(
         desc_label.setWordWrap(True)
         layout.addWidget(desc_label)
     return frame, layout
+
+
+def settings_page(parent: QWidget | None = None) -> tuple[QWidget, QVBoxLayout]:
+    """Construit un widget de page de réglages (marges + spacing standards).
+
+    Conventions du système de design (cf. spec § 3.4) : marges externes
+    22×18, spacing vertical 16. Réutilisé par tous les écrans de réglages
+    pour garantir un rythme homogène d'une page à l'autre.
+
+    Args:
+        parent: Parent Qt optionnel.
+
+    Returns:
+        Le couple ``(page, layout)``. Le layout est prêt à recevoir un
+        ``page_header`` puis une pile de cartes.
+    """
+    page = QWidget(parent)
+    layout = QVBoxLayout(page)
+    layout.setContentsMargins(
+        SETTINGS_PAGE_MARGIN_HORIZONTAL,
+        SETTINGS_PAGE_MARGIN_VERTICAL,
+        SETTINGS_PAGE_MARGIN_HORIZONTAL,
+        SETTINGS_PAGE_MARGIN_VERTICAL,
+    )
+    layout.setSpacing(SETTINGS_PAGE_SPACING)
+    return page, layout
+
+
+def settings_form() -> QFormLayout:
+    """Construit un ``QFormLayout`` aux conventions du système de design.
+
+    Étiquettes alignées à gauche, champs étirés à la croissance, spacing
+    horizontal/vertical standardisé (cf. spec § 3.4). Réutilisé par tous les
+    écrans de réglages.
+
+    Returns:
+        Le ``QFormLayout`` configuré.
+    """
+    form = QFormLayout()
+    form.setHorizontalSpacing(SETTINGS_FORM_HORIZONTAL_SPACING)
+    form.setVerticalSpacing(SETTINGS_FORM_VERTICAL_SPACING)
+    form.setLabelAlignment(
+        Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+    )
+    form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+    return form
 
 
 def page_header(
@@ -274,6 +334,11 @@ __all__ = [
     "PAGE_DESC_OBJECT_NAME",
     "PAGE_TITLE_OBJECT_NAME",
     "SECTION_LABEL_OBJECT_NAME",
+    "SETTINGS_FORM_HORIZONTAL_SPACING",
+    "SETTINGS_FORM_VERTICAL_SPACING",
+    "SETTINGS_PAGE_MARGIN_HORIZONTAL",
+    "SETTINGS_PAGE_MARGIN_VERTICAL",
+    "SETTINGS_PAGE_SPACING",
     "card",
     "field_hint",
     "frenchify_button_box",
@@ -282,4 +347,6 @@ __all__ = [
     "page_header",
     "reapply_card_shadows",
     "section_label",
+    "settings_form",
+    "settings_page",
 ]

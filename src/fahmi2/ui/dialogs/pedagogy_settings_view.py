@@ -376,6 +376,12 @@ class PedagogySettingsView(QDialog):
         self._reasoning_combo.addItem(_REASONING_DEFAULT_LABEL, None)
         for effort in ReasoningEffort:
             self._reasoning_combo.addItem(effort.value, effort)
+        # L'intensité de réflexion (``reasoning_effort``) n'a d'effet que si la
+        # réflexion approfondie est activée : on grise le combo quand le
+        # checkbox est décoché. La valeur reste mémorisée et restituée si
+        # l'utilisateur réactive la réflexion ensuite.
+        self._thinking_check.toggled.connect(self._reasoning_combo.setEnabled)
+        self._reasoning_combo.setEnabled(self._thinking_check.isChecked())
         self._temperature_input = QDoubleSpinBox(self)
         self._temperature_input.setRange(_TEMPERATURE_MIN, _TEMPERATURE_MAX)
         self._temperature_input.setSingleStep(_TEMPERATURE_STEP)

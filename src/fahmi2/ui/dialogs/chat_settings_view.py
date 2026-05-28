@@ -203,6 +203,14 @@ class ChatSettingsView(QDialog):
         self._strategy.currentIndexChanged.connect(self._sync_embedding_enabled)
         self._sync_embedding_enabled()
 
+        # L'intensité de réflexion (``reasoning_effort``) n'a d'effet que si la
+        # réflexion approfondie (``thinking``) est activée : on grise le combo
+        # quand le checkbox est décoché, pour signaler visuellement que le
+        # réglage est sans effet (la valeur reste mémorisée et restituée si
+        # l'utilisateur réactive la réflexion).
+        self._thinking.toggled.connect(self._reasoning.setEnabled)
+        self._reasoning.setEnabled(self._thinking.isChecked())
+
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
             parent=self,

@@ -346,6 +346,74 @@
     </message>
 </context>
 <context>
+    <name>ExportUI</name>
+    <message>
+        <location filename="../../ui/_export_ui.py" line="46"/>
+        <source>Aucun format d&apos;export</source>
+        <translation>No export format</translation>
+    </message>
+    <message>
+        <location filename="../../ui/_export_ui.py" line="47"/>
+        <source>Aucun format d&apos;export n&apos;est sélectionné dans les réglages (⚙ Réglages → Export).</source>
+        <translation>No export format is selected in the settings (⚙ Settings → Export).</translation>
+    </message>
+    <message>
+        <location filename="../../ui/_export_ui.py" line="57"/>
+        <source>Exporter</source>
+        <translation>Export</translation>
+    </message>
+    <message>
+        <location filename="../../ui/_export_ui.py" line="58"/>
+        <source>Format :</source>
+        <translation>Format:</translation>
+    </message>
+    <message>
+        <location filename="../../ui/_export_ui.py" line="78"/>
+        <source>Dossier d&apos;export {label}</source>
+        <translation>Export folder for {label}</translation>
+    </message>
+    <message>
+        <location filename="../../ui/_export_ui.py" line="89"/>
+        <source>Export impossible</source>
+        <translation>Export failed</translation>
+    </message>
+    <message>
+        <location filename="../../ui/_export_ui.py" line="96"/>
+        <source>Erreur inattendue</source>
+        <translation>Unexpected error</translation>
+    </message>
+    <message>
+        <location filename="../../ui/_export_ui.py" line="103"/>
+        <source>Rien à exporter</source>
+        <translation>Nothing to export</translation>
+    </message>
+    <message>
+        <location filename="../../ui/_export_ui.py" line="104"/>
+        <source>Aucun document à exporter. Lancez d&apos;abord la génération pour ce projet.</source>
+        <translation>No document to export. Run a generation first for this project.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/_export_ui.py" line="124"/>
+        <source>Export terminé</source>
+        <translation>Export finished</translation>
+    </message>
+    <message>
+        <location filename="../../ui/_export_ui.py" line="125"/>
+        <source>{count} document(s) {label} exporté(s) dans :
+{directory}</source>
+        <translation>{count} {label} document(s) exported to:
+{directory}</translation>
+    </message>
+</context>
+<context>
+    <name>FsHelpers</name>
+    <message>
+        <location filename="../../ui/_fs.py" line="44"/>
+        <source>Échec de la suppression du dossier {label} : {path} ({exc})</source>
+        <translation>Failed to delete the {label} folder: {path} ({exc})</translation>
+    </message>
+</context>
+<context>
     <name>GenerationController</name>
     <message>
         <location filename="../../ui/generation_controller.py" line="501"/>
@@ -441,7 +509,7 @@ This action does not delete the original source files or the intermediate “wor
         <location filename="../../ui/generation_controller.py" line="767"/>
         <location filename="../../ui/generation_controller.py" line="1165"/>
         <source>Configurez d&apos;abord les réglages de génération de ce projet.</source>
-        <translation>Configure this project's generation settings first.</translation>
+        <translation>Configure this project&apos;s generation settings first.</translation>
     </message>
     <message>
         <location filename="../../ui/generation_controller.py" line="779"/>
@@ -1898,6 +1966,34 @@ All generated materials, their intermediate exports, and the execution state wil
     </message>
 </context>
 <context>
+    <name>PedagogyState</name>
+    <message>
+        <location filename="../../ui/viewmodels/pedagogy_state.py" line="60"/>
+        <source>⚙ À configurer</source>
+        <translation>⚙ To configure</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/pedagogy_state.py" line="62"/>
+        <source>⚠ Génération requise</source>
+        <translation>⚠ Generation required</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/pedagogy_state.py" line="64"/>
+        <source>● Prêt à générer</source>
+        <translation>● Ready to generate</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/pedagogy_state.py" line="66"/>
+        <source>✓ Supports à jour</source>
+        <translation>✓ Materials up to date</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/pedagogy_state.py" line="67"/>
+        <source>⟳ Supports à régénérer</source>
+        <translation>⟳ Materials to regenerate</translation>
+    </message>
+</context>
+<context>
     <name>PedagogyTab</name>
     <message>
         <location filename="../../ui/features/pedagogy_tab.py" line="29"/>
@@ -2190,6 +2286,89 @@ Materials: {ped}</translation>
         <location filename="../../ui/dialogs/prompts_editor_dialog.py" line="349"/>
         <source>Vous avez des modifications non enregistrées sur ce prompt. Les abandonner pour changer de phase ?</source>
         <translation>You have unsaved changes on this prompt. Discard them to switch phase?</translation>
+    </message>
+</context>
+<context>
+    <name>RunMatrix</name>
+    <message>
+        <location filename="../../ui/viewmodels/run_matrix.py" line="31"/>
+        <source>Ingestion</source>
+        <translation>Ingestion</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/run_matrix.py" line="32"/>
+        <source>Termes</source>
+        <translation>Terms</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/run_matrix.py" line="33"/>
+        <source>Glossaire</source>
+        <translation>Glossary</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/run_matrix.py" line="36"/>
+        <source>Reformul.</source>
+        <translation>Rephras.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/run_matrix.py" line="37"/>
+        <source>Structur.</source>
+        <translation>Structur.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/run_matrix.py" line="38"/>
+        <source>Consolid.</source>
+        <translation>Consolid.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/run_matrix.py" line="39"/>
+        <source>Traduction</source>
+        <translation>Translation</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/run_matrix.py" line="40"/>
+        <source>Cohérence</source>
+        <translation>Coherence</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/run_matrix.py" line="48"/>
+        <source>en attente</source>
+        <translation>pending</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/run_matrix.py" line="50"/>
+        <source>en cours</source>
+        <translation>running</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/run_matrix.py" line="52"/>
+        <source>terminé</source>
+        <translation>completed</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/run_matrix.py" line="54"/>
+        <source>échec</source>
+        <translation>failed</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/run_matrix.py" line="56"/>
+        <source>déjà fait</source>
+        <translation>already done</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/run_matrix.py" line="143"/>
+        <source>Source</source>
+        <translation>Source</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/run_matrix.py" line="159"/>
+        <source> (coût au niveau du run)</source>
+        <translation> (run-level cost)</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/run_matrix.py" line="163"/>
+        <source>coût</source>
+        <translation>cost</translation>
     </message>
 </context>
 <context>

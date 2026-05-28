@@ -11,6 +11,8 @@ import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
+from PySide6.QtCore import QCoreApplication
+
 from fahmi2.core.errors.severity import Severity
 from fahmi2.core.logging.event import LogEvent
 from fahmi2.ui.widgets.logs_dock import LogsDock
@@ -39,8 +41,9 @@ def remove_feature_dir(logs_dock: LogsDock, path: Path, *, label: str) -> None:
                 timestamp=datetime.now(tz=UTC),
                 severity=Severity.WARNING,
                 code=_RESET_DIR_FAILED_CODE,
-                message=(
-                    f"Échec de la suppression du dossier {label} : {path} ({exc})"
-                ),
+                message=QCoreApplication.translate(
+                    "FsHelpers",
+                    "Échec de la suppression du dossier {label} : {path} ({exc})",
+                ).format(label=label, path=path, exc=exc),
             )
         )

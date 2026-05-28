@@ -44,13 +44,37 @@ _DELETE_CONVERSATION_LABEL = "Supprimer la conversation"
 _SEND_LABEL = "Envoyer"
 _INPUT_PLACEHOLDER = "Pose une question sur le cours…"
 _NO_CORPUS_BANNER = "Lance d'abord une génération pour dialoguer avec ce cours."
-_COST_PREFIX = "Coût cumulé : "
+_COST_PREFIX = "Coût cumulé"
 _ROLE_LABEL = {"user": "Vous", "assistant": "Assistant"}
+_ROLE_USER = "user"
 _ROLE_ASSISTANT = "assistant"
 _CONVERSATION_ID_ROLE = int(Qt.ItemDataRole.UserRole)
-#: Style du fil : liens lisibles (bleu foncé), code et tableaux discrets.
+
+#: Largeur (%) des bulles utilisateur (alignées à droite).
+_USER_BUBBLE_WIDTH_PCT = "72%"
+#: Largeur (%) des bulles assistant (alignées à gauche).
+_ASSISTANT_BUBBLE_WIDTH_PCT = "85%"
+#: Fond et bordure des bulles (HTML inline ; QTextBrowser ne supporte pas
+#: ``border-radius`` — on se contente d'un encadré coloré, plus un alignement
+#: gauche/droite par ``<table align>``). Couleurs alignées sur les tokens
+#: clairs (le thème sombre garde les mêmes contrastes : fond accent doux
+#: pour utilisateur, surface bordée pour assistant).
+_USER_BUBBLE_BG = "#e3f0fb"
+_USER_BUBBLE_BORDER = "#cfe6fa"
+_USER_BUBBLE_TEXT = "#0a4f93"
+_ASSISTANT_BUBBLE_BG = "#ffffff"
+_ASSISTANT_BUBBLE_BORDER = "#e5e7eb"
+_ASSISTANT_BUBBLE_TEXT = "#1f2328"
+#: Chips de source (pastilles inline cliquables sous une bulle assistant).
+_CHIP_BG = "#f0f4f9"
+_CHIP_BORDER = "#d6dae0"
+_CHIP_TEXT = "#0a4f93"
+#: Couleur de la ligne « Sources » (libellé discret au-dessus des chips).
+_SOURCES_LABEL_COLOR = "#8b95a1"
+
+#: Style du fil : liens lisibles, code et tableaux discrets.
 _THREAD_STYLESHEET = (
-    "a { color: #0a4f93; }"
+    "a { color: #0a4f93; text-decoration: none; }"
     " code { background-color: #eef0f4; }"
     " th, td { border: 1px solid #d6dae0; padding: 2px 6px; }"
 )
@@ -108,7 +132,7 @@ class ChatView(QWidget):
             lambda url: self.citation_clicked.emit(url.toString())
         )
         self._thread.document().setDefaultStyleSheet(_THREAD_STYLESHEET)
-        self._cost_label = QLabel(f"{_COST_PREFIX}$0.0000", self)
+        self._cost_label = QLabel(f"{_COST_PREFIX} · $0.0000", self)
         self._input = QLineEdit(self)
         self._input.setPlaceholderText(_INPUT_PLACEHOLDER)
         self._input.returnPressed.connect(self._on_send)
@@ -238,7 +262,7 @@ class ChatView(QWidget):
         Args:
             usd: Coût cumulé en USD.
         """
-        self._cost_label.setText(f"{_COST_PREFIX}${usd:.4f}")
+        self._cost_label.setText(f"{_COST_PREFIX} · ${usd:.4f}")
 
     # ------------------------------------------------------------- internes
     def _on_send(self) -> None:
@@ -278,8 +302,71 @@ class ChatView(QWidget):
 
 
 def _bubble_html(role_label: str, body_html: str) -> str:
-    """Rend une bulle (rôle + corps HTML déjà échappé)."""
-    return f"<p><b>{html.escape(role_label)} :</b><br>{body_html}</p>"
+    """Rend une bulle de chat assistant (alignée à gauche, encadrée discrète).
+
+    Utilisé pour la bulle de streaming en cours (le rôle est forcément
+    « Assistant » à ce stade — l'utilisateur a déjà finalisé son message).
+
+    Args:
+        role_label: Étiquette à afficher en tête.
+        body_html: Corps HTML déjà échappé (deltas du streaming).
+
+    Returns:
+        Le fragment HTML de la bulle.
+    """
+    return _wrap_assistant_bubble(role_label, body_html, citations_html="")
+
+
+def _wrap_user_bubble(role_label: str, body_html: str) -> str:
+    """Rend la bulle utilisateur (alignée à droite, fond accent doux).
+
+    Args:
+        role_label: « Vous ».
+        body_html: Corps HTML (déjà échappé).
+
+    Returns:
+        Le fragment HTML.
+    """
+    return (
+        f'<table align="right" width="{_USER_BUBBLE_WIDTH_PCT}" '
+        f'cellpadding="10" cellspacing="0" '
+        f'bgcolor="{_USER_BUBBLE_BG}" '
+        f'style="margin: 6px 0; border: 1px solid {_USER_BUBBLE_BORDER};">'
+        f"<tr><td>"
+        f'<div style="color: {_USER_BUBBLE_TEXT}; font-weight: 600; '
+        f'font-size: 11px; margin-bottom: 4px;">'
+        f"{html.escape(role_label)}</div>"
+        f'<div style="color: {_USER_BUBBLE_TEXT};">{body_html}</div>'
+        f"</td></tr></table>"
+    )
+
+
+def _wrap_assistant_bubble(
+    role_label: str, body_html: str, *, citations_html: str
+) -> str:
+    """Rend la bulle assistant (alignée à gauche, surface bordée) + citations.
+
+    Args:
+        role_label: « Assistant ».
+        body_html: Corps HTML (Markdown rendu).
+        citations_html: Fragment HTML des citations (ou ``""``).
+
+    Returns:
+        Le fragment HTML.
+    """
+    return (
+        f'<table align="left" width="{_ASSISTANT_BUBBLE_WIDTH_PCT}" '
+        f'cellpadding="12" cellspacing="0" '
+        f'bgcolor="{_ASSISTANT_BUBBLE_BG}" '
+        f'style="margin: 6px 0; border: 1px solid {_ASSISTANT_BUBBLE_BORDER};">'
+        f"<tr><td>"
+        f'<div style="color: {_SOURCES_LABEL_COLOR}; font-weight: 600; '
+        f'font-size: 11px; margin-bottom: 4px;">'
+        f"{html.escape(role_label)}</div>"
+        f'<div style="color: {_ASSISTANT_BUBBLE_TEXT};">{body_html}</div>'
+        f"{citations_html}"
+        f"</td></tr></table>"
+    )
 
 
 def _message_html(message: ChatMessage) -> str:
@@ -289,35 +376,47 @@ def _message_html(message: ChatMessage) -> str:
         message: Message à rendre.
 
     Returns:
-        Le fragment HTML du message (en-tête de rôle + corps + sources).
+        Le fragment HTML du message (bulle + citations si assistant).
     """
     role_label = _ROLE_LABEL.get(message.role, message.role)
-    head = f"<p><b>{html.escape(role_label)} :</b></p>"
     if message.role == _ROLE_ASSISTANT:
         body = render_markdown_fragment(message.content)
-        return f"{head}{body}{_citations_html(message.citations)}"
+        citations = _citations_html(message.citations)
+        return _wrap_assistant_bubble(role_label, body, citations_html=citations)
     body = html.escape(message.content).replace("\n", "<br>")
-    return f"{head}{body}"
+    return _wrap_user_bubble(role_label, body)
 
 
 def _citations_html(citations: tuple[Citation, ...]) -> str:
-    """Rend la ligne « Sources » (liens cliquables), ou ``""`` si aucune.
+    """Rend la ligne « Sources » en chips cliquables, ou ``""`` si aucune.
 
     Args:
         citations: Citations du message assistant.
 
     Returns:
-        Le fragment HTML des sources (vide si aucune citation).
+        Le fragment HTML des sources sous forme de chips inline (vide si
+        aucune citation).
     """
     if not citations:
         return ""
-    items = "".join(
-        f'<li><a href="{html.escape(c.anchor)}" '
-        f'title="{_tooltip(c.snippet)}">[{c.number}] {html.escape(c.chapter_title)} › '
-        f"{html.escape(c.section_title)}</a></li>"
+    chips = "".join(
+        f'<a href="{html.escape(c.anchor)}" '
+        f'title="{_tooltip(c.snippet)}" '
+        f'style="background-color: {_CHIP_BG}; '
+        f"color: {_CHIP_TEXT}; "
+        f"text-decoration: none; "
+        f"padding: 2px 8px; "
+        f"margin-right: 4px; "
+        f'border: 1px solid {_CHIP_BORDER};">'
+        f"[{c.number}] {html.escape(c.chapter_title)} › "
+        f"{html.escape(c.section_title)}</a>"
         for c in citations
     )
-    return f"<p><small>Sources :</small></p><ul>{items}</ul>"
+    return (
+        f'<div style="margin-top: 8px; color: {_SOURCES_LABEL_COLOR}; '
+        f'font-size: 11px;">Sources</div>'
+        f'<div style="margin-top: 4px;">{chips}</div>'
+    )
 
 
 def _tooltip(snippet: str) -> str:

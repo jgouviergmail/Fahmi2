@@ -77,6 +77,18 @@ def test_parse_chat_response_ok_when_finish_reason_stop() -> None:
         _chat_payload(content="complet", finish_reason="stop"), "deepseek-v4-flash"
     )
     assert response.content == "complet"
+    # ``finish_reason`` exposé sur la ``LLMResponse`` pour propagation aux
+    # diagnostics aval (``parse_llm_json`` en cas de ``LLM.INVALID_JSON``).
+    assert response.finish_reason == "stop"
+
+
+def test_parse_chat_response_finish_reason_none_when_absent() -> None:
+    # Le provider peut ne pas renvoyer ``finish_reason`` (rare, mais l'API le
+    # permet) → ``LLMResponse.finish_reason`` vaut ``None``.
+    response = _parse_chat_response(
+        _chat_payload(content="x", finish_reason=None), "deepseek-v4-flash"
+    )
+    assert response.finish_reason is None
 
 
 def test_parse_chat_response_with_cached_tokens() -> None:
@@ -131,6 +143,40 @@ def test_chat_stream_accumulates_and_final_usage() -> None:
     call = mock_client.chat.completions.create.call_args
     assert call.kwargs["stream"] is True
     assert call.kwargs["stream_options"] == {"include_usage": True}
+
+
+def test_chat_stream_captures_finish_reason_from_last_chunk() -> None:
+    """Le ``finish_reason`` exposé sur le dernier chunk doit remonter dans la
+    ``LLMResponse`` finale (utile au diagnostic du chat Dialogue).
+    """
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.return_value = iter(
+        [
+            _stream_chunk({"choices": [{"delta": {"content": "ok"}}], "usage": None}),
+            _stream_chunk(
+                {
+                    "choices": [{"delta": {}, "finish_reason": "stop"}],
+                    "usage": {
+                        "prompt_tokens": 10,
+                        "completion_tokens": 1,
+                        "prompt_cache_hit_tokens": 0,
+                    },
+                }
+            ),
+        ]
+    )
+    adapter = DeepSeekAdapter(api_key="dummy", client=mock_client)
+    chunks = list(
+        adapter.chat_stream(
+            messages=[Message(role="user", content="u")],
+            model="deepseek-v4-flash",
+            thinking=False,
+            temperature=0.3,
+        )
+    )
+    final = chunks[-1]
+    assert final.response is not None
+    assert final.response.finish_reason == "stop"
 
 
 def test_chat_stream_fallback_estimates_usage_when_absent() -> None:

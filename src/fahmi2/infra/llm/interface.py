@@ -44,6 +44,15 @@ class LLMResponse:
         completion_tokens: Total des tokens générés.
         cached_prompt_tokens: Tokens d'entrée servis par le cache prompts.
         cost_usd: Coût total de l'appel en USD.
+        finish_reason: Raison de fin de génération telle que rapportée par le
+            provider (ex: ``"stop"`` quand la génération s'est terminée
+            normalement, ``"length"`` quand le plafond ``max_tokens`` a été
+            atteint, ``"content_filter"``, etc.). ``None`` si le provider ne
+            l'expose pas. **Diagnostic** : précieux pour discriminer une réponse
+            tronquée silencieusement d'une réponse complète mais malformée
+            lorsque le parsing JSON aval échoue (cf. ``parse_llm_json``).
+            **Défaut** : ``None`` pour rester rétrocompatible avec les tests
+            historiques qui construisent ``LLMResponse`` sans ce champ.
     """
 
     content: str
@@ -52,6 +61,7 @@ class LLMResponse:
     completion_tokens: int
     cached_prompt_tokens: int
     cost_usd: float
+    finish_reason: str | None = None
 
 
 @dataclass(frozen=True)

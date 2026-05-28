@@ -86,7 +86,11 @@ class Phase1TermExtractionHandler(PhaseHandler):
             system_prompt=None,
             user_prompt=prompt,
         )
-        payload = parse_json_response(response.content, phase_id=self.phase_id)
+        payload = parse_json_response(
+            response.content,
+            phase_id=self.phase_id,
+            finish_reason=response.finish_reason,
+        )
         candidates_path = (
             ctx.workspace / _CANDIDATES_SUBDIR / f"{source.source_id.value}.json"
         )

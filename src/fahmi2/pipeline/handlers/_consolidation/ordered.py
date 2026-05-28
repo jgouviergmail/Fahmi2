@@ -116,7 +116,11 @@ class OrderedConsolidationStrategy(ConsolidationStrategy):
         response = invoke_llm(
             ctx, phase_id=PhaseId.CONSOLIDATION, system_prompt=None, user_prompt=prompt
         )
-        payload = parse_json_response(response.content, phase_id=PhaseId.CONSOLIDATION)
+        payload = parse_json_response(
+            response.content,
+            phase_id=PhaseId.CONSOLIDATION,
+            finish_reason=response.finish_reason,
+        )
         return dict(payload), response.cost_usd
 
     def _produce_meta(
@@ -141,7 +145,11 @@ class OrderedConsolidationStrategy(ConsolidationStrategy):
         response = invoke_llm(
             ctx, phase_id=PhaseId.CONSOLIDATION, system_prompt=None, user_prompt=prompt
         )
-        payload = parse_json_response(response.content, phase_id=PhaseId.CONSOLIDATION)
+        payload = parse_json_response(
+            response.content,
+            phase_id=PhaseId.CONSOLIDATION,
+            finish_reason=response.finish_reason,
+        )
         return dict(payload), response.cost_usd
 
 

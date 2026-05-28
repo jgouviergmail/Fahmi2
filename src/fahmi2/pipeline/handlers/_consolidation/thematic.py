@@ -155,7 +155,11 @@ def _extract_ledger_one(
     response = invoke_llm(
         ctx, phase_id=PhaseId.CONSOLIDATION, system_prompt=None, user_prompt=prompt
     )
-    payload = parse_json_response(response.content, phase_id=PhaseId.CONSOLIDATION)
+    payload = parse_json_response(
+        response.content,
+        phase_id=PhaseId.CONSOLIDATION,
+        finish_reason=response.finish_reason,
+    )
     return _elements_from_payload(dict(payload), source_id=source_id), response.cost_usd
 
 
@@ -243,7 +247,13 @@ def _plan_thematic(
     response = invoke_llm(
         ctx, phase_id=PhaseId.CONSOLIDATION, system_prompt=None, user_prompt=prompt
     )
-    payload = dict(parse_json_response(response.content, phase_id=PhaseId.CONSOLIDATION))
+    payload = dict(
+        parse_json_response(
+            response.content,
+            phase_id=PhaseId.CONSOLIDATION,
+            finish_reason=response.finish_reason,
+        )
+    )
     global_title = str(payload.get("global_title", "Document consolidé"))
     planned = [
         _PlannedChapter(
@@ -385,7 +395,13 @@ def _write_chapter_body(
     response = invoke_llm(
         ctx, phase_id=PhaseId.CONSOLIDATION, system_prompt=None, user_prompt=prompt
     )
-    payload = dict(parse_json_response(response.content, phase_id=PhaseId.CONSOLIDATION))
+    payload = dict(
+        parse_json_response(
+            response.content,
+            phase_id=PhaseId.CONSOLIDATION,
+            finish_reason=response.finish_reason,
+        )
+    )
     body = str(payload.get("body_markdown", "")).strip()
     used = [str(x) for x in payload.get("used_element_ids", [])]
     return body, used, response.cost_usd
@@ -500,7 +516,13 @@ def _produce_meta(
     response = invoke_llm(
         ctx, phase_id=PhaseId.CONSOLIDATION, system_prompt=None, user_prompt=prompt
     )
-    payload = dict(parse_json_response(response.content, phase_id=PhaseId.CONSOLIDATION))
+    payload = dict(
+        parse_json_response(
+            response.content,
+            phase_id=PhaseId.CONSOLIDATION,
+            finish_reason=response.finish_reason,
+        )
+    )
     payload["global_title"] = payload.get("global_title") or global_title
     return payload, response.cost_usd
 

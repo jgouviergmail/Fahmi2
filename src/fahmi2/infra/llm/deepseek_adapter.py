@@ -213,6 +213,7 @@ class DeepSeekAdapter:
         content_parts: list[str] = []
         reasoning_parts: list[str] = []
         usage: dict[str, Any] | None = None
+        finish_reason: str | None = None
         try:
             stream = self._client.chat.completions.create(**kwargs)
             for raw_chunk in stream:
@@ -231,6 +232,9 @@ class DeepSeekAdapter:
                             content_delta=content_delta,
                             thinking_delta=reasoning_delta,
                         )
+                    chunk_finish_reason = choices[0].get("finish_reason")
+                    if chunk_finish_reason is not None:
+                        finish_reason = str(chunk_finish_reason)
                 if chunk.get("usage"):
                     usage = chunk["usage"]
         except BaseException as exc:  # noqa: BLE001 — mappé vers une LLMError typée
@@ -244,6 +248,7 @@ class DeepSeekAdapter:
                 usage=usage,
                 model=model,
                 prompt_text=prompt_text,
+                finish_reason=finish_reason,
             ),
         )
 
@@ -299,9 +304,12 @@ def _parse_chat_response(payload: dict[str, Any], model: str) -> LLMResponse:
     completion_tokens = int(usage.get("completion_tokens", 0))
     cached_prompt_tokens = int(usage.get(_CACHED_TOKENS_FIELD, 0) or 0)
 
+    finish_reason_raw = choice.get("finish_reason")
+    finish_reason = str(finish_reason_raw) if finish_reason_raw is not None else None
+
     # Troncature à la limite de tokens : ne JAMAIS accepter un contenu coupé en
     # silence (perte de données). On lève une erreur explicite et actionnable.
-    if choice.get("finish_reason") == _FINISH_REASON_LENGTH:
+    if finish_reason == _FINISH_REASON_LENGTH:
         raise LLMError(
             code="LLM.OUTPUT_TRUNCATED",
             user_message=(
@@ -331,6 +339,7 @@ def _parse_chat_response(payload: dict[str, Any], model: str) -> LLMResponse:
         completion_tokens=completion_tokens,
         cached_prompt_tokens=cached_prompt_tokens,
         cost_usd=cost,
+        finish_reason=finish_reason,
     )
 
 
@@ -341,6 +350,7 @@ def _build_stream_response(
     usage: dict[str, Any] | None,
     model: str,
     prompt_text: str,
+    finish_reason: str | None,
 ) -> LLMResponse:
     """Construit la ``LLMResponse`` finale d'un flux (usage exact ou estimé).
 
@@ -350,6 +360,8 @@ def _build_stream_response(
         usage: Bloc ``usage`` du dernier chunk (``None`` → repli par estimation).
         model: Modèle (pour le coût).
         prompt_text: Concaténation des messages (repli d'estimation des tokens).
+        finish_reason: Raison de fin de génération rapportée par le provider
+            (cf. ``LLMResponse.finish_reason``). ``None`` si non capturée.
 
     Returns:
         ``LLMResponse`` (coût exact si ``usage`` présent, sinon estimé).
@@ -374,4 +386,5 @@ def _build_stream_response(
         completion_tokens=completion_tokens,
         cached_prompt_tokens=cached_prompt_tokens,
         cost_usd=cost,
+        finish_reason=finish_reason,
     )

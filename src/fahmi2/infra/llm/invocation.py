@@ -21,7 +21,17 @@ from fahmi2.infra.llm.interface import (
     Message,
 )
 
-_RAW_CONTENT_MAX_CHARS = 500
+#: Limite haute du ``raw_content`` reporté dans les ``technical_details`` d'une
+#: erreur ``LLM.INVALID_JSON``. La précédente valeur (500) était trop courte
+#: pour diagnostiquer un cas réel (glossaire localisé en arabe/allemand : 1 à
+#: 50 ko) — on ne voyait ni la fin du contenu ni si celui-ci était tronqué côté
+#: provider. Cette limite plus haute capture la quasi-totalité des réponses
+#: LLM utiles (les artefacts conservés sur disque vont par ailleurs jusqu'à
+#: plusieurs Mo), tout en évitant qu'un log JSONL ne sature en cas de
+#: déversement texte aberrant. Si le contenu dépasse cette borne, ``raw_content``
+#: est tronqué et un drapeau ``truncated_in_log`` rapporte le fait, en plus de
+#: ``content_length`` qui donne la taille **réelle** émise par le LLM.
+_RAW_CONTENT_MAX_CHARS = 50_000
 
 
 def invoke_llm_chat(
@@ -66,19 +76,36 @@ def invoke_llm_chat(
     )
 
 
-def parse_llm_json(content: str, *, context_label: str) -> Any:  # noqa: ANN401
+def parse_llm_json(
+    content: str,
+    *,
+    context_label: str,
+    finish_reason: str | None = None,
+) -> Any:  # noqa: ANN401
     """Parse une réponse LLM JSON, en isolant d'éventuels délimiteurs.
 
     Args:
         content: Contenu textuel de la réponse LLM.
         context_label: Libellé de contexte pour les messages d'erreur
             (ex: ``"reformulation"``, ``"flashcards_concepts"``).
+        finish_reason: Raison de fin de génération rapportée par le provider
+            (``LLMResponse.finish_reason``). Reportée dans les
+            ``technical_details`` de l'erreur ``LLM.INVALID_JSON`` pour
+            permettre de discriminer une troncature silencieuse (``"length"``,
+            ``"content_filter"`` selon le provider) d'une réponse complète
+            mais malformée (``"stop"`` — le LLM pense avoir fini). **Défaut** :
+            ``None`` pour rester rétrocompatible avec les générateurs/tests
+            qui ne disposent pas de cette information.
 
     Returns:
         L'objet Python décodé.
 
     Raises:
         LLMError: ``LLM.INVALID_JSON`` si le contenu n'est pas du JSON valide.
+            Les ``technical_details`` portent ``context_label``, ``raw_content``
+            (jusqu'à ``_RAW_CONTENT_MAX_CHARS``), ``content_length`` (taille
+            réelle émise), ``truncated_in_log`` (``True`` si le ``raw_content``
+            a été tronqué pour le log), et ``finish_reason`` quand fourni.
     """
     cleaned = content.strip()
     if cleaned.startswith("```"):
@@ -89,6 +116,8 @@ def parse_llm_json(content: str, *, context_label: str) -> Any:  # noqa: ANN401
     try:
         return json.loads(cleaned)
     except json.JSONDecodeError as exc:
+        content_length = len(content)
+        truncated_in_log = content_length > _RAW_CONTENT_MAX_CHARS
         raise LLMError(
             code="LLM.INVALID_JSON",
             user_message=(
@@ -98,5 +127,8 @@ def parse_llm_json(content: str, *, context_label: str) -> Any:  # noqa: ANN401
             technical_details={
                 "context_label": context_label,
                 "raw_content": content[:_RAW_CONTENT_MAX_CHARS],
+                "content_length": content_length,
+                "truncated_in_log": truncated_in_log,
+                "finish_reason": finish_reason,
             },
         ) from exc

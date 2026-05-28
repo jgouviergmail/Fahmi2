@@ -87,12 +87,22 @@ def invoke_llm(
     )
 
 
-def parse_json_response(content: str, *, phase_id: PhaseId) -> Any:  # noqa: ANN401
+def parse_json_response(
+    content: str,
+    *,
+    phase_id: PhaseId,
+    finish_reason: str | None = None,
+) -> Any:  # noqa: ANN401
     """Parse une réponse LLM JSON (délègue à ``parse_llm_json``).
 
     Args:
         content: Contenu textuel de la réponse LLM.
         phase_id: Phase courante (pour le message d'erreur).
+        finish_reason: Raison de fin de génération du provider
+            (``LLMResponse.finish_reason``). Reportée dans les
+            ``technical_details`` de ``LLM.INVALID_JSON`` quand fournie ; aide
+            à discriminer une réponse tronquée (``"length"``, etc.) d'une
+            réponse complète mais malformée (``"stop"``).
 
     Returns:
         L'objet Python décodé.
@@ -100,7 +110,9 @@ def parse_json_response(content: str, *, phase_id: PhaseId) -> Any:  # noqa: ANN
     Raises:
         LLMError: ``LLM.INVALID_JSON`` si le contenu n'est pas du JSON valide.
     """
-    return parse_llm_json(content, context_label=phase_id.value)
+    return parse_llm_json(
+        content, context_label=phase_id.value, finish_reason=finish_reason
+    )
 
 
 def build_succeeded_phase(

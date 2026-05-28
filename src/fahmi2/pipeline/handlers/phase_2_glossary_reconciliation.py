@@ -82,7 +82,11 @@ class Phase2GlossaryReconciliationHandler(PhaseHandler):
         response = invoke_llm(
             ctx, phase_id=self.phase_id, system_prompt=None, user_prompt=prompt
         )
-        payload = parse_json_response(response.content, phase_id=self.phase_id)
+        payload = parse_json_response(
+            response.content,
+            phase_id=self.phase_id,
+            finish_reason=response.finish_reason,
+        )
         out_path = ctx.workspace / _GLOSSARY_MASTER_FILENAME
         ctx.artifacts.write_json_atomic(out_path, payload)
         return build_succeeded_phase(

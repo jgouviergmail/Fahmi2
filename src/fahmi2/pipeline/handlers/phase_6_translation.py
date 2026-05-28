@@ -326,7 +326,11 @@ class Phase6TranslationHandler(PhaseHandler):
         response = invoke_llm(
             ctx, phase_id=self.phase_id, system_prompt=None, user_prompt=prompt
         )
-        entries = parse_json_response(response.content, phase_id=self.phase_id)
+        entries = parse_json_response(
+            response.content,
+            phase_id=self.phase_id,
+            finish_reason=response.finish_reason,
+        )
         dict_entries = (
             [e for e in entries if isinstance(e, dict)]
             if isinstance(entries, list)

@@ -36,12 +36,20 @@ _HEADING_GRADING = "Barème"
 _CHAPTER_JOIN = "\n\n"
 
 
-def _parse_exam(content: str, *, context_label: str) -> MockExam:
+def _parse_exam(
+    content: str,
+    *,
+    context_label: str,
+    finish_reason: str | None = None,
+) -> MockExam:
     """Parse la réponse JSON en un ``MockExam``.
 
     Args:
         content: Contenu JSON renvoyé par le LLM.
         context_label: Libellé de contexte (messages d'erreur).
+        finish_reason: Raison de fin de génération (``LLMResponse.finish_reason``)
+            propagée à ``parse_llm_json`` pour enrichir le diagnostic en cas de
+            ``LLM.INVALID_JSON``.
 
     Returns:
         Le ``MockExam`` reconstruit.
@@ -50,7 +58,9 @@ def _parse_exam(content: str, *, context_label: str) -> MockExam:
         LLMError: Si le JSON est invalide ou de schéma inattendu.
     """
     mapping = require_mapping(
-        parse_llm_json(content, context_label=context_label),
+        parse_llm_json(
+            content, context_label=context_label, finish_reason=finish_reason
+        ),
         context_label=context_label,
     )
     sections: list[MockExamSection] = []
@@ -161,7 +171,11 @@ class MockExamGenerator(SupportGenerator):
             system_prompt=None,
             user_prompt=prompt,
         )
-        exam = _parse_exam(response.content, context_label=self.support_type.value)
+        exam = _parse_exam(
+            response.content,
+            context_label=self.support_type.value,
+            finish_reason=response.finish_reason,
+        )
         separate = self.support_type in ped.separate_correction
         rendered = (
             _render_subject(exam, language=language)

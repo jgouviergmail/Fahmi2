@@ -314,6 +314,7 @@ class _PerChapterLlmGenerator(SupportGenerator, Generic[_ItemT]):
             payload = parse_llm_json(
                 response.content,
                 context_label=f"{self.support_type.value}:{chapter.index}",
+                finish_reason=response.finish_reason,
             )
             items.extend(self._parse_items(payload, chapter=chapter))
         items_t = tuple(items)

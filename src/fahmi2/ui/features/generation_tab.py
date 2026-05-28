@@ -7,6 +7,9 @@ lui sont injectés.
 
 from __future__ import annotations
 
+from typing import cast
+
+from PySide6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from fahmi2.app.hardware_probe import HardwareInfo
@@ -22,10 +25,16 @@ from fahmi2.ui.widgets.logs_dock import LogsDock
 from fahmi2.ui.widgets.project_header_bar import ProjectHeaderBar
 from fahmi2.ui.widgets.stats_strip import StatsStripWidget
 
-_TAB_TITLE = "Génération"
-_EXPORT_TOOLTIP = (
-    "Exporte les livrables de la génération (document consolidé et glossaire) "
-    "dans les formats cochés (Markdown / PDF / HTML)."
+#: Stubs PySide6 : ``QT_TRANSLATE_NOOP`` est typé ``object`` ; on caste car
+#: la fonction renvoie son argument textuel tel quel.
+_TAB_TITLE = cast(str, QT_TRANSLATE_NOOP("GenerationTab", "Génération"))
+_EXPORT_TOOLTIP = cast(
+    str,
+    QT_TRANSLATE_NOOP(
+        "GenerationTab",
+        "Exporte les livrables de la génération (document consolidé et glossaire) "
+        "dans les formats cochés (Markdown / PDF / HTML).",
+    ),
 )
 
 
@@ -60,7 +69,7 @@ class GenerationTab(FeatureTab):
         self._header_bar = ProjectHeaderBar(
             self._widget,
             show_export=True,
-            export_tooltip=_EXPORT_TOOLTIP,
+            export_tooltip=QCoreApplication.translate("GenerationTab", _EXPORT_TOOLTIP),
         )
         self._stats_strip = StatsStripWidget(self._widget)
         self._run_matrix = CostMatrixView(parent=self._widget)
@@ -88,8 +97,8 @@ class GenerationTab(FeatureTab):
 
     @property
     def title(self) -> str:
-        """Libellé de l'onglet."""
-        return _TAB_TITLE
+        """Libellé de l'onglet (traduit dans la langue active)."""
+        return QCoreApplication.translate("GenerationTab", _TAB_TITLE)
 
     @property
     def widget(self) -> QWidget:

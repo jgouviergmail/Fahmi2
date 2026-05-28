@@ -6,6 +6,9 @@ son `ChatController`. Calqué sur `PedagogyTab` (abstraction `FeatureTab`).
 
 from __future__ import annotations
 
+from typing import cast
+
+from PySide6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication
 from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 
 from fahmi2.app.project_service import ProjectService
@@ -17,9 +20,18 @@ from fahmi2.ui.chat_controller import ChatController, LlmProviderFactory
 from fahmi2.ui.features.feature import FeatureId, FeatureTab
 from fahmi2.ui.widgets.chat_view import ChatView
 
-_TAB_TITLE = "Dialogue"
-_SETTINGS_LABEL = "⚙️  Réglages"
-_SETTINGS_TOOLTIP = "Configurer le dialogue (fidélité, retrieval, modèle, coût)."
+#: Libellé source de l'onglet — résolu à la lecture de :py:attr:`ChatTab.title`
+#: (le traducteur n'est pas installé à l'import). Les stubs PySide6 typent
+#: ``QT_TRANSLATE_NOOP`` en ``object`` ; on caste car la fonction renvoie son
+#: argument textuel tel quel (cf. ``QtCore.QT_TRANSLATE_NOOP`` upstream).
+_TAB_TITLE = cast(str, QT_TRANSLATE_NOOP("ChatTab", "Dialogue"))
+_SETTINGS_LABEL = cast(str, QT_TRANSLATE_NOOP("ChatTab", "⚙️  Réglages"))
+_SETTINGS_TOOLTIP = cast(
+    str,
+    QT_TRANSLATE_NOOP(
+        "ChatTab", "Configurer le dialogue (fidélité, retrieval, modèle, coût)."
+    ),
+)
 
 
 class ChatTab(FeatureTab):
@@ -47,9 +59,13 @@ class ChatTab(FeatureTab):
         layout = QVBoxLayout(self._widget)
         layout.setContentsMargins(0, 0, 0, 0)
         settings_button = make_role_button(
-            self._widget, _SETTINGS_LABEL, role=BUTTON_ROLE_DEFAULT
+            self._widget,
+            QCoreApplication.translate("ChatTab", _SETTINGS_LABEL),
+            role=BUTTON_ROLE_DEFAULT,
         )
-        settings_button.setToolTip(_SETTINGS_TOOLTIP)
+        settings_button.setToolTip(
+            QCoreApplication.translate("ChatTab", _SETTINGS_TOOLTIP)
+        )
         settings_row = QHBoxLayout()
         settings_row.setContentsMargins(16, 10, 16, 6)
         settings_row.addWidget(settings_button)
@@ -75,8 +91,8 @@ class ChatTab(FeatureTab):
 
     @property
     def title(self) -> str:
-        """Libellé de l'onglet."""
-        return _TAB_TITLE
+        """Libellé de l'onglet (traduit dans la langue active)."""
+        return QCoreApplication.translate("ChatTab", _TAB_TITLE)
 
     @property
     def widget(self) -> QWidget:

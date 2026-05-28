@@ -7,6 +7,9 @@ lui sont injectés. Calqué sur ``GenerationTab``.
 
 from __future__ import annotations
 
+from typing import cast
+
+from PySide6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from fahmi2.app.project_service import ProjectService
@@ -21,22 +24,40 @@ from fahmi2.ui.widgets.logs_dock import LogsDock
 from fahmi2.ui.widgets.pedagogy_progress_view import PedagogyProgressView
 from fahmi2.ui.widgets.project_header_bar import ProjectHeaderBar
 
-_TAB_TITLE = "Supports pédagogiques"
-_SETTINGS_TOOLTIP = (
-    "Configurer les supports pédagogiques (supports, difficulté, langues, "
-    "modèle & coût)."
+#: Stubs PySide6 : ``QT_TRANSLATE_NOOP`` est typé ``object`` ; on caste car
+#: la fonction renvoie son argument textuel tel quel.
+_TAB_TITLE = cast(str, QT_TRANSLATE_NOOP("PedagogyTab", "Supports pédagogiques"))
+_SETTINGS_TOOLTIP = cast(
+    str,
+    QT_TRANSLATE_NOOP(
+        "PedagogyTab",
+        "Configurer les supports pédagogiques (supports, difficulté, langues, "
+        "modèle & coût).",
+    ),
 )
-_ESTIMATE_TOOLTIP = (
-    "Estime le coût LLM de génération des supports sélectionnés "
-    "(par support × langue × chapitre)."
+_ESTIMATE_TOOLTIP = cast(
+    str,
+    QT_TRANSLATE_NOOP(
+        "PedagogyTab",
+        "Estime le coût LLM de génération des supports sélectionnés "
+        "(par support × langue × chapitre).",
+    ),
 )
-_OPEN_OUTPUT_TOOLTIP = (
-    "Ouvre le dossier « pedagogy » contenant les supports générés "
-    "(JSON + Markdown)."
+_OPEN_OUTPUT_TOOLTIP = cast(
+    str,
+    QT_TRANSLATE_NOOP(
+        "PedagogyTab",
+        "Ouvre le dossier « pedagogy » contenant les supports générés "
+        "(JSON + Markdown).",
+    ),
 )
-_EXPORT_TOOLTIP = (
-    "Exporte les supports vers un paquet Anki (.apkg) : flashcards, cloze et "
-    "QCM (ré-import sans doublon)."
+_EXPORT_TOOLTIP = cast(
+    str,
+    QT_TRANSLATE_NOOP(
+        "PedagogyTab",
+        "Exporte les supports vers un paquet Anki (.apkg) : flashcards, cloze et "
+        "QCM (ré-import sans doublon).",
+    ),
 )
 
 
@@ -70,11 +91,13 @@ class PedagogyTab(FeatureTab):
         layout.setContentsMargins(0, 0, 0, 0)
         self._header_bar = ProjectHeaderBar(
             self._widget,
-            settings_tooltip=_SETTINGS_TOOLTIP,
-            estimate_tooltip=_ESTIMATE_TOOLTIP,
-            open_output_tooltip=_OPEN_OUTPUT_TOOLTIP,
+            settings_tooltip=QCoreApplication.translate("PedagogyTab", _SETTINGS_TOOLTIP),
+            estimate_tooltip=QCoreApplication.translate("PedagogyTab", _ESTIMATE_TOOLTIP),
+            open_output_tooltip=QCoreApplication.translate(
+                "PedagogyTab", _OPEN_OUTPUT_TOOLTIP
+            ),
             show_export=True,
-            export_tooltip=_EXPORT_TOOLTIP,
+            export_tooltip=QCoreApplication.translate("PedagogyTab", _EXPORT_TOOLTIP),
         )
         self._progress_view = PedagogyProgressView(self._widget)
         layout.addWidget(self._header_bar)
@@ -99,8 +122,8 @@ class PedagogyTab(FeatureTab):
 
     @property
     def title(self) -> str:
-        """Libellé de l'onglet."""
-        return _TAB_TITLE
+        """Libellé de l'onglet (traduit dans la langue active)."""
+        return QCoreApplication.translate("PedagogyTab", _TAB_TITLE)
 
     @property
     def widget(self) -> QWidget:

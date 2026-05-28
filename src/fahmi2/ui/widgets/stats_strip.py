@@ -51,12 +51,12 @@ class StatsStripWidget(QWidget):
         layout.setContentsMargins(12, 8, 12, 8)
         layout.setSpacing(10)
 
-        self._card_status = StatCard(icon="●", title="Statut", parent=self)
-        self._card_sources = StatCard(icon="🗂", title="Sources", parent=self)
-        self._card_phases = StatCard(icon="▤", title="Phases", parent=self)
-        self._card_languages = StatCard(icon="🌐", title="Langues", parent=self)
-        self._card_duration = StatCard(icon="⏱", title="Durée", parent=self)
-        self._card_cost = StatCard(icon="$", title="Coût", parent=self)
+        self._card_status = StatCard(icon="●", title=self.tr("Statut"), parent=self)
+        self._card_sources = StatCard(icon="🗂", title=self.tr("Sources"), parent=self)
+        self._card_phases = StatCard(icon="▤", title=self.tr("Phases"), parent=self)
+        self._card_languages = StatCard(icon="🌐", title=self.tr("Langues"), parent=self)
+        self._card_duration = StatCard(icon="⏱", title=self.tr("Durée"), parent=self)
+        self._card_cost = StatCard(icon="$", title=self.tr("Coût"), parent=self)
 
         for card in (
             self._card_status,
@@ -184,13 +184,13 @@ class StatsStripWidget(QWidget):
 
         self._card_sources.set_value(
             f"{snapshot.sources_completed} / {snapshot.sources_total}",
-            "sources terminées",
+            self.tr("sources terminées"),
         )
         self._card_sources.set_accent("neutral")
 
         self._card_phases.set_value(
             f"{snapshot.phases_completed} / {snapshot.phases_total}",
-            "phases terminées",
+            self.tr("phases terminées"),
         )
         self._card_phases.set_accent("neutral")
 
@@ -201,9 +201,9 @@ class StatsStripWidget(QWidget):
             snapshot, datetime.now(tz=UTC)
         )
         if snapshot.finished_at is not None:
-            duration_sub = "terminé"
+            duration_sub = self.tr("terminé")
         elif snapshot.run_status is RunStatus.PAUSED:
-            duration_sub = "en pause (figée)"
+            duration_sub = self.tr("en pause (figée)")
         else:
             duration_sub = status_label
         self._card_duration.set_value(
@@ -213,9 +213,11 @@ class StatsStripWidget(QWidget):
 
         cost_value = f"${snapshot.cost_usd_so_far:.2f}"
         if snapshot.cost_ceiling_usd is not None:
-            cost_sub = f"plafond ${snapshot.cost_ceiling_usd:.2f}"
+            cost_sub = self.tr("plafond ${ceiling:.2f}").format(
+                ceiling=snapshot.cost_ceiling_usd
+            )
         else:
-            cost_sub = "sans plafond"
+            cost_sub = self.tr("sans plafond")
         self._card_cost.set_value(cost_value, cost_sub)
         self._card_cost.set_accent(
             cost_accent(snapshot.cost_usd_so_far, snapshot.cost_ceiling_usd)

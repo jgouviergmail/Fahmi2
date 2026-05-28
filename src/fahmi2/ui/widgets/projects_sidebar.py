@@ -19,7 +19,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Final
 
-from PySide6.QtCore import QPoint, QSize, Qt
+from PySide6.QtCore import QCoreApplication, QPoint, QSize, Qt
 from PySide6.QtGui import QAction, QContextMenuEvent
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -110,6 +110,10 @@ def _aggregated_accent(entry: ProjectListEntry) -> str:
 def _entry_subtitle(entry: ProjectListEntry) -> str:
     """Sous-libellé d'une entrée (statuts en clair, séparés par un ·).
 
+    Les statuts (``en cours``, ``à jour``…) sont récupérés via
+    :func:`run_status_label` qui passe par ``QCoreApplication.translate`` —
+    le sous-libellé est ainsi composé dans la langue active.
+
     Args:
         entry: Entrée à formater.
 
@@ -118,7 +122,12 @@ def _entry_subtitle(entry: ProjectListEntry) -> str:
     """
     gen_label = run_status_label(entry.generation_status)
     ped_label = run_status_label(entry.pedagogy_status)
-    return f"Génération {gen_label.lower()} · Supports {ped_label.lower()}"
+    # ``{gen}`` / ``{ped}`` sont des placeholders nommés (Qt + Python
+    # ``str.format`` les conservent à travers la traduction). Les
+    # traducteurs ne doivent pas les renommer.
+    return QCoreApplication.translate(
+        "ProjectsSidebar", "Génération {gen} · Supports {ped}"
+    ).format(gen=gen_label.lower(), ped=ped_label.lower())
 
 
 def _entry_tooltip(entry: ProjectListEntry) -> str:
@@ -130,9 +139,11 @@ def _entry_tooltip(entry: ProjectListEntry) -> str:
     Returns:
         Texte d'infobulle.
     """
-    return (
-        f"Génération : {run_status_label(entry.generation_status)}\n"
-        f"Supports : {run_status_label(entry.pedagogy_status)}"
+    return QCoreApplication.translate(
+        "ProjectsSidebar", "Génération : {gen}\nSupports : {ped}"
+    ).format(
+        gen=run_status_label(entry.generation_status),
+        ped=run_status_label(entry.pedagogy_status),
     )
 
 
@@ -310,8 +321,8 @@ class ProjectsSidebar(QListWidget):
         project_id = ProjectId(value=value)
 
         menu = QMenu(self)
-        edit_action = QAction("Modifier…", menu)
-        delete_action = QAction("Supprimer…", menu)
+        edit_action = QAction(self.tr("Modifier…"), menu)
+        delete_action = QAction(self.tr("Supprimer…"), menu)
         menu.addAction(edit_action)
         menu.addSeparator()
         menu.addAction(delete_action)

@@ -8,8 +8,9 @@ horodate / code / message, et faciliter le suivi visuel en cours de run.
 from __future__ import annotations
 
 from html import escape
+from typing import cast
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QDockWidget,
@@ -25,13 +26,23 @@ from fahmi2.core.logging.event import LogEvent
 
 _SEVERITY_CHOICES = [Severity.INFO, Severity.WARNING, Severity.ERROR, Severity.FATAL]
 
-# Couleurs et libellés FR par sévérité — alignés sur le thème Clair Fluent.
+#: Couleurs et libellés **sources** par sévérité — alignés sur le thème
+#: Clair Fluent. Les libellés sont marqués par :func:`QT_TRANSLATE_NOOP`
+#: pour extraction ; la résolution effective passe par
+#: :func:`_severity_label` à l'usage (le ``QTranslator`` n'est pas installé
+#: à l'import du module).
 _SEVERITY_STYLE: dict[Severity, tuple[str, str]] = {
-    Severity.INFO: ("#57606a", "INFO"),
-    Severity.WARNING: ("#b45309", "WARN"),
-    Severity.ERROR: ("#cf222e", "ERREUR"),
-    Severity.FATAL: ("#a30713", "FATAL"),
+    Severity.INFO: ("#57606a", cast(str, QT_TRANSLATE_NOOP("LogsDock", "INFO"))),
+    Severity.WARNING: ("#b45309", cast(str, QT_TRANSLATE_NOOP("LogsDock", "WARN"))),
+    Severity.ERROR: ("#cf222e", cast(str, QT_TRANSLATE_NOOP("LogsDock", "ERREUR"))),
+    Severity.FATAL: ("#a30713", cast(str, QT_TRANSLATE_NOOP("LogsDock", "FATAL"))),
 }
+
+
+def _severity_label(severity: Severity) -> str:
+    """Libellé traduit d'une sévérité (combo + rendu HTML d'une ligne)."""
+    _, source = _SEVERITY_STYLE.get(severity, _SEVERITY_STYLE[Severity.INFO])
+    return QCoreApplication.translate("LogsDock", source)
 
 
 class LogsDock(QDockWidget):
@@ -43,7 +54,10 @@ class LogsDock(QDockWidget):
         Args:
             parent: Parent Qt optionnel.
         """
-        super().__init__("Logs", parent)
+        # ``self.tr()`` n'est pas accessible avant ``super().__init__()`` ;
+        # on passe par ``QCoreApplication.translate(<context>, ...)`` qui
+        # est extrait par ``pyside6-lupdate`` au même titre.
+        super().__init__(QCoreApplication.translate("LogsDock", "Logs"), parent)
         self.setAllowedAreas(
             Qt.DockWidgetArea.BottomDockWidgetArea
             | Qt.DockWidgetArea.RightDockWidgetArea
@@ -61,10 +75,10 @@ class LogsDock(QDockWidget):
 
         header_row = QHBoxLayout()
         header_row.setSpacing(8)
-        header_row.addWidget(QLabel("Niveau minimum", container))
+        header_row.addWidget(QLabel(self.tr("Niveau minimum"), container))
         self._level_combo = QComboBox(container)
         for sev in _SEVERITY_CHOICES:
-            self._level_combo.addItem(_SEVERITY_STYLE[sev][1], sev)
+            self._level_combo.addItem(_severity_label(sev), sev)
         self._level_combo.setCurrentIndex(0)
         self._level_combo.currentIndexChanged.connect(self._on_level_changed)
         header_row.addWidget(self._level_combo)
@@ -106,9 +120,10 @@ class LogsDock(QDockWidget):
         Returns:
             La ligne HTML.
         """
-        color, label = _SEVERITY_STYLE.get(
+        color, _source_label = _SEVERITY_STYLE.get(
             event.severity, _SEVERITY_STYLE[Severity.INFO]
         )
+        label = _severity_label(event.severity)
         time_str = event.timestamp.strftime("%H:%M:%S")
         message_html = escape(event.message).replace("\n", "<br>")
         return (

@@ -214,9 +214,27 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   mais s'applique **au prochain démarrage** : Qt ne propage pas
   `LanguageChange` aux chaînes déjà rendues via `tr()` au moment de la
   construction des widgets, et reconstruire l'arbre serait fragile.
-  **Migration en cours** : `MainWindow` (menus, dialogue « À propos ») =
-  pilote ; le reste de l'UI sera migré écran par écran (cf. inventaire
-  `scripts/i18n_inventory.py`).
+  **État de la migration** : pilote `MainWindow` (phase 0) + surface
+  principale du cockpit (sidebar, onglets, bandeau, stats, logs ; phase 1)
+  + **tous les dialogues de configuration** (GlobalSettings, NewProject,
+  GenerationSettings ~80 chaînes, PedagogySettings ~50, ChatSettings ~30,
+  PromptsEditor, CostEstimate) + widgets internes (PhaseConfigs,
+  SourceOrder, LanguageSelection) + helpers (`localize_button_box`
+  remplace `frenchify_button_box` — i18n-aware ; labels centralisés
+  `_model_labels` / `pedagogy_labels` exposés comme **fonctions**
+  retournant des dicts traduits à l'usage ; phase 2). **Reste à migrer** :
+  controllers (`generation_controller` / `pedagogy_controller` /
+  `chat_controller` — surtout des messages d'erreur/log dynamiques), vue
+  Dialogue (`chat_view` / `_chat_bubble`), `cost_matrix_view`,
+  `pedagogy_progress_view`, `pedagogy/labels` (audience/Bloom/densité).
+  **Pièges Qt** : `pyside6-lupdate` n'extrait pas les chaînes passées à un
+  wrapper de fonction (``_tr(source)``) — toujours appeler directement
+  ``QCoreApplication.translate("Context", "literal source")`` avec
+  contexte ET source littéraux. Le `QTranslator` précédemment installé
+  est cleanup via `setParent(None) + deleteLater()` à chaque
+  `install_translator` (sans cela, des QObject orphelins continuent de
+  recevoir des `LanguageChange` et peuvent corrompre la mémoire dans des
+  sessions de tests longues).
 
 ## Le pipeline en 8 phases
 

@@ -1,22 +1,31 @@
 """Composant ``SettingsView`` — réglages en master-detail (catégories + détail).
 
 Liste de catégories à gauche (``QListWidget``), pages de détail à droite
-(``QStackedWidget``). Réutilisable par toute fonctionnalité dont les réglages sont
-nombreux, pour éviter une fenêtre surchargée.
+(``QStackedWidget``). Chaque page de détail est englobée dans un
+``QScrollArea`` (transparent, sans bordure) pour qu'un contenu plus haut
+que la fenêtre devienne défilable verticalement plutôt que clippé.
+
+Réutilisable par toute fonctionnalité dont les réglages sont nombreux,
+pour éviter une fenêtre surchargée.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Final
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QFrame,
     QHBoxLayout,
     QListWidget,
+    QScrollArea,
     QStackedWidget,
     QWidget,
 )
 
-_CATEGORY_LIST_WIDTH_PX = 180
+#: Largeur fixe (px) de la colonne de navigation des catégories.
+_CATEGORY_LIST_WIDTH_PX: Final[int] = 200
 
 
 class SettingsView(QWidget):
@@ -40,11 +49,30 @@ class SettingsView(QWidget):
         self._list = QListWidget(self)
         self._list.setObjectName("settingsCategoryList")
         self._list.setFixedWidth(_CATEGORY_LIST_WIDTH_PX)
+        # Pas de scroll horizontal sur une nav verticale étroite (évite le
+        # tracé d'un scrollbar inutile en bas du panneau).
+        self._list.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
         self._stack = QStackedWidget(self)
 
         for label, page in categories:
             self._list.addItem(label)
-            self._stack.addWidget(page)
+            # Chaque page est englobée dans un ``QScrollArea`` : si le contenu
+            # est plus haut que la zone visible (cas fréquent quand le
+            # dialogue est réduit ou que la page a beaucoup de cartes), un
+            # scrollbar vertical apparaît automatiquement plutôt qu'un
+            # rognage en bas de page.
+            scroll = QScrollArea(self)
+            scroll.setWidget(page)
+            scroll.setWidgetResizable(True)
+            # Pas de cadre autour du QScrollArea (intégration propre dans la
+            # vue ; le fond du dialogue reste visible).
+            scroll.setFrameShape(QFrame.Shape.NoFrame)
+            scroll.setHorizontalScrollBarPolicy(
+                Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+            )
+            self._stack.addWidget(scroll)
 
         self._list.currentRowChanged.connect(self._stack.setCurrentIndex)
         layout.addWidget(self._list)

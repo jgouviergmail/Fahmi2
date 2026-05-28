@@ -11,35 +11,37 @@ from fahmi2.domain.enums import (
     LocalSttModel,
 )
 from fahmi2.ui._model_labels import (
-    CLOUD_STT_MODEL_LABELS,
-    EMBEDDING_MODEL_LABELS,
-    LLM_MODEL_LABELS,
-    LOCAL_STT_MODEL_LABELS,
+    cloud_stt_model_labels,
+    embedding_model_labels,
     labeled_enum_combo,
+    llm_model_labels,
+    local_stt_model_labels,
 )
 
 
 def test_every_model_has_a_label() -> None:
-    # Complétude : un membre sans libellé serait absent du combo (bug silencieux).
-    assert set(LLM_MODEL_LABELS) == set(LLMModel)
-    assert set(EMBEDDING_MODEL_LABELS) == set(EmbeddingModel)
-    assert set(LOCAL_STT_MODEL_LABELS) == set(LocalSttModel)
-    assert set(CLOUD_STT_MODEL_LABELS) == set(CloudSttModel)
+    """Un membre sans libellé serait absent du combo (bug silencieux)."""
+    assert set(llm_model_labels()) == set(LLMModel)
+    assert set(embedding_model_labels()) == set(EmbeddingModel)
+    assert set(local_stt_model_labels()) == set(LocalSttModel)
+    assert set(cloud_stt_model_labels()) == set(CloudSttModel)
 
 
 def test_labels_carry_descriptive_suffix() -> None:
-    # Style « comme le Dialogue » : valeur + parenthèse descriptive.
-    assert LLM_MODEL_LABELS[LLMModel.DEEPSEEK_V4_FLASH] == "DeepSeek V4 Flash (économique)"
-    assert all("(" in label for label in CLOUD_STT_MODEL_LABELS.values())
-    assert all("(" in label for label in LOCAL_STT_MODEL_LABELS.values())
+    """Style « comme le Dialogue » : valeur + parenthèse descriptive."""
+    assert (
+        llm_model_labels()[LLMModel.DEEPSEEK_V4_FLASH]
+        == "DeepSeek V4 Flash (économique)"
+    )
+    assert all("(" in label for label in cloud_stt_model_labels().values())
+    assert all("(" in label for label in local_stt_model_labels().values())
 
 
 def test_labeled_combo_shows_label_and_stores_value(qtbot: QtBot) -> None:
-    combo = labeled_enum_combo(
-        None, LLM_MODEL_LABELS, selected=LLMModel.DEEPSEEK_V4_PRO
-    )
+    labels = llm_model_labels()
+    combo = labeled_enum_combo(None, labels, selected=LLMModel.DEEPSEEK_V4_PRO)
     qtbot.addWidget(combo)
     # Le texte affiché est le libellé descriptif…
-    assert combo.currentText() == LLM_MODEL_LABELS[LLMModel.DEEPSEEK_V4_PRO]
+    assert combo.currentText() == labels[LLMModel.DEEPSEEK_V4_PRO]
     # …et la donnée est la valeur (str), recoercible vers l'enum.
     assert LLMModel(combo.currentData()) is LLMModel.DEEPSEEK_V4_PRO

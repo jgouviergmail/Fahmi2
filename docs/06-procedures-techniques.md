@@ -1,284 +1,358 @@
-# Fahmi2 — Procédures techniques (développeur)
+# Fahmi2 — Technical procedures (developer)
 
-Cookbook de commandes pour la maintenance, le développement et la
-distribution de Fahmi2.
+Cookbook of commands for maintaining, developing, and distributing
+Fahmi2.
 
-## 1. Setup environnement
+## 1. Environment setup
 
-### 1.1 Création du venv et installation
+### 1.1 Creating the venv and installing
 
 ```powershell
-# Python 3.12 explicite (recommandé)
+# Python 3.12 explicit (recommended)
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
-# Mise à jour pip puis installation editable
+# Upgrade pip then editable install
 python -m pip install --upgrade pip
 pip install -e ".[dev]"
 pip install pyinstaller>=6.10
 
-# Activation des hooks pre-commit (lint + types + tests rapides)
+# Activate the pre-commit hooks (lint + types + quick tests)
 pre-commit install
 ```
 
-### 1.2 Mise à jour des dépendances
+### 1.2 Updating dependencies
 
 ```powershell
-# Voir ce qui est obsolète
+# Check what is outdated
 pip list --outdated
 
-# Mettre à jour une dépendance précise
+# Update a specific dependency
 pip install --upgrade <package>
 
-# Mettre à jour le projet en mode editable
+# Reinstall the project in editable mode
 pip install --upgrade -e ".[dev]"
 ```
 
 ## 2. Tests
 
-### 2.1 Lancer toute la suite
+### 2.1 Run the whole suite
 
 ```powershell
 pytest
 ```
 
-### 2.2 Lancer un sous-ensemble
+### 2.2 Run a subset
 
 ```powershell
-# Une couche
+# A layer
 pytest tests/unit/domain
 pytest tests/unit/core
 pytest tests/unit/infra
 pytest tests/unit/app
 pytest tests/unit/ui
 pytest tests/unit/pipeline
+pytest tests/unit/i18n
 pytest tests/e2e
 
-# Un fichier
+# A single file
 pytest tests/unit/core/test_paths.py
 
-# Un seul test
+# A single test
 pytest tests/unit/core/test_paths.py::test_paths_uses_env_appdata -v
 ```
 
-### 2.3 Couverture
+### 2.3 Coverage
 
 ```powershell
-# Affichage en console
+# Console output
 pytest --cov=src/fahmi2 --cov-report=term-missing
 
-# Rapport HTML
+# HTML report
 pytest --cov=src/fahmi2 --cov-report=html
-# Ouvrir htmlcov/index.html
+# Open htmlcov/index.html
 ```
 
-### 2.4 Tests en mode verbeux avec arrêt au premier échec
+### 2.4 Verbose run with first-failure stop
 
 ```powershell
 pytest -v -x
 ```
 
-### 2.5 Re-run uniquement les tests échoués
+### 2.5 Re-run only failed tests
 
 ```powershell
 pytest --lf
 ```
 
-### 2.6 Markers et exclusions
+### 2.6 Markers and exclusions
 
 ```powershell
-# Exclure les tests E2E (rapides uniquement)
+# Skip the E2E tests (fast subset only)
 pytest --ignore=tests/e2e
 
-# Tests qui matchent un pattern
+# Tests matching a pattern
 pytest -k "test_engine"
 ```
 
-## 3. Linting et formatage
+## 3. Linting and formatting
 
 ### 3.1 Ruff (linter + formatter)
 
 ```powershell
-# Linter (check seulement)
+# Linter (check only)
 ruff check .
 
-# Linter avec auto-fix des erreurs corrigibles
+# Linter with auto-fix of fixable issues
 ruff check --fix .
 
-# Formatter (équivalent black)
+# Formatter (equivalent of black)
 ruff format .
 
-# Vérification du formatage sans le modifier
+# Format check without modifying
 ruff format --check .
 ```
 
 ### 3.2 mypy (type checker)
 
 ```powershell
-# Strict (config dans pyproject.toml)
+# Strict (config in pyproject.toml)
 mypy src tests
 
-# Sur un fichier
+# On a single file
 mypy src/fahmi2/pipeline/engine.py
 
-# Mode incrémental (cache)
+# Incremental mode (cache)
 mypy --incremental src tests
 ```
 
-### 3.3 Pre-commit (avant chaque commit)
+### 3.3 Pre-commit (before each commit)
 
 ```powershell
-# Exécuter tous les hooks sur les fichiers modifiés
+# Run every hook on modified files
 pre-commit run
 
-# Exécuter tous les hooks sur toute la base
+# Run every hook on the whole codebase
 pre-commit run --all-files
 
-# Hook spécifique
+# Specific hook
 pre-commit run ruff
 pre-commit run mypy
 ```
 
-## 4. Lancement de l'application en mode dev
+## 4. Running the application in dev mode
 
 ```powershell
-# Lance la fenêtre principale
+# Compile the UI translations first (.qm regenerated)
+.\.venv\Scripts\python.exe scripts\i18n_compile.py
+
+# Launch the main window
 python -m fahmi2.ui.app_main
 
-# Avec un répertoire APPDATA isolé (utile pour tests manuels)
+# With an isolated APPDATA directory (useful for manual tests)
 $env:APPDATA = "C:\Temp\Fahmi2-test"
 python -m fahmi2.ui.app_main
 ```
 
-## 5. Packaging et distribution
+## 5. UI translations (i18n)
 
-### 5.1 Build complet en une commande
+The application's UI is internationalised through the native Qt stack
+(`QTranslator` + `.ts` / `.qm`). Source language: French. Available
+languages: French (source), English. Adding a language only requires
+adding a value to the `AppLanguage` enum + creating/translating a `.ts`.
+
+### 5.1 Extract translatable strings (regenerate `.ts`)
+
+```powershell
+.\.venv\Scripts\python.exe scripts\i18n_extract.py
+```
+
+Wraps `pyside6-lupdate -extensions py`. Updates each
+`src/fahmi2/i18n/translations/fahmi2_<code>.ts` while preserving existing
+translations. Versioned in git.
+
+### 5.2 Compile to `.qm`
+
+```powershell
+.\.venv\Scripts\python.exe scripts\i18n_compile.py
+```
+
+Wraps `pyside6-lrelease`. Generates
+`src/fahmi2/i18n/compiled/fahmi2_<code>.qm`. **Not versioned** (artefact
+derived from `.ts`), regenerated at each build. The `.spec` ships them
+through `("src/fahmi2/i18n/compiled/*.qm", "fahmi2/i18n/compiled")` in
+`datas`.
+
+### 5.3 Inventory of UI strings
+
+```powershell
+.\.venv\Scripts\python.exe scripts\i18n_inventory.py
+```
+
+Counts the literal strings under `src/fahmi2/ui/` per file. Useful to
+estimate the effort of a wave of new translations and to flag files where
+strings have grown.
+
+### 5.4 Adding a new UI language
+
+1. Add the value to `AppLanguage` in `src/fahmi2/i18n/languages.py` (e.g.
+   `DE = "de"`) and its native label to `LANGUAGE_LABELS` (e.g.
+   `AppLanguage.DE: "Deutsch"`).
+2. `python scripts/i18n_extract.py` — generates
+   `fahmi2_de.ts` (target language).
+3. Translate the `<translation type="unfinished"></translation>` entries
+   (in a text editor or Qt Linguist).
+4. `python scripts/i18n_compile.py` — produces `.qm`.
+5. Rebuild the PyInstaller bundle: the `.qm` is shipped via `datas`.
+6. Update the test `tests/unit/i18n/test_i18n.py` with a few smoke
+   assertions for the new language (recommended to keep the
+   anti-regression net).
+
+### 5.5 Translation patterns (i18n source rules)
+
+- `QObject` methods → `self.tr("French source")`.
+- Free functions / module constants → `QCoreApplication.translate("Context",
+  "French source")` with **literal context AND literal source**
+  (`pyside6-lupdate` does not follow a wrapper function nor a variable
+  argument).
+- Module-level constants with deferred resolution → `QT_TRANSLATE_NOOP(
+  "Context", "source")` for extraction marking + later resolution via
+  `QCoreApplication.translate`. Wrap with `typing.cast(str, ...)` if mypy
+  complains (PySide6 stubs type `QT_TRANSLATE_NOOP → object`).
+- The standard button localiser is `ui._components.localize_button_box`
+  (replaces `frenchify_button_box`, kept as a backwards-compatible alias).
+
+## 6. Packaging and distribution
+
+### 6.1 Full build in one command
 
 ```powershell
 .\packaging\build.ps1
 .\packaging\make-portable-zip.ps1
 ```
 
-Le `.zip` final apparaît dans `dist/Fahmi2-<version>-win64.zip`.
+The final `.zip` appears at `dist/Fahmi2-<version>-win64.zip`.
 
-### 5.2 Étapes individuelles
+### 6.2 Individual steps
 
 ```powershell
-# Télécharger ffmpeg portable (idempotent)
+# Download portable ffmpeg (idempotent)
 .\packaging\fetch-ffmpeg.ps1
 
-# Build PyInstaller uniquement
+# Compile UI translations before PyInstaller (otherwise the EN UI stays in FR)
+.\.venv\Scripts\python.exe scripts\i18n_compile.py
+
+# PyInstaller build only
 pyinstaller packaging/fahmi2.spec --noconfirm --clean
 
-# Génération du .zip uniquement (après un build)
+# Zip only (after a build)
 .\packaging\make-portable-zip.ps1
 ```
 
-### 5.3 Tester l'EXE buildé
+### 6.3 Test the built EXE
 
 ```powershell
 .\dist\Fahmi2\Fahmi2.exe
 ```
 
-### 5.4 Vérifier la taille du bundle
+### 6.4 Check the bundle size
 
 ```powershell
 Get-ChildItem dist/Fahmi2 -Recurse | Measure-Object -Property Length -Sum |
     Select-Object @{n='SizeMB';e={[math]::Round($_.Sum / 1MB, 1)}}
 ```
 
-### 5.5 Vérifier le hash SHA256 du .zip distribué
+### 6.5 Verify the SHA-256 of the distributed `.zip`
 
 ```powershell
 Get-FileHash dist/Fahmi2-*.zip -Algorithm SHA256
 ```
 
-## 6. Gestion git
+## 7. Git management
 
-### 6.1 Workflow standard
+### 7.1 Standard workflow
 
 ```powershell
 git status
 git diff
-git add <fichiers>
+git add <files>
 git commit -m "type(scope): message"
 git push
 ```
 
-### 6.2 Conventions de commit
+### 7.2 Commit conventions
 
-- `feat(scope):` nouvelle fonctionnalité
-- `fix(scope):` correction de bug
-- `refactor(scope):` refactorisation sans changement de comportement
+- `feat(scope):` new feature
+- `fix(scope):` bug fix
+- `refactor(scope):` refactor without behaviour change
 - `docs(scope):` documentation
 - `test(scope):` tests
-- `chore:` tâche de maintenance (dépendances, config)
+- `chore:` maintenance task (dependencies, config)
 
-Exemples :
+Examples:
 
 ```
 feat(pipeline/handlers): Phase 5 consolidation
-fix(infra/llm): mapping correct des erreurs DeepSeek 5xx
-docs(installation): clarifier la procédure SmartScreen
-chore(deps): bump scikit-learn vers 1.8
+fix(infra/llm): correct mapping of DeepSeek 5xx errors
+docs(installation): clarify the SmartScreen procedure
+chore(deps): bump scikit-learn to 1.8
 ```
 
-### 6.3 Tags de jalons
+### 7.3 Milestone tags
 
 ```powershell
-# Lister
+# List
 git tag
 
-# Créer un tag annoté
-git tag -a milestone-XX-<nom> -m "Description du jalon"
+# Create an annotated tag
+git tag -a milestone-XX-<name> -m "Milestone description"
 
-# Pousser les tags
+# Push tags
 git push --tags
 ```
 
-## 7. Migrations de schéma SQLite
+## 8. SQLite schema migrations
 
-### 7.1 Créer une nouvelle migration
+### 8.1 Creating a new migration
 
-1. Créer `src/fahmi2/core/migrations/vNN_to_vMM.py` :
+1. Create `src/fahmi2/core/migrations/vNN_to_vMM.py`:
 
 ```python
 from fahmi2.core.migrations.runner import Migration
 
 def _apply(state):
-    # ALTER TABLE ou logique de migration
+    # ALTER TABLE or migration logic
     state.schema_version = MM
 
 def vNN_to_vMM_migration():
     return Migration(from_version=NN, to_version=MM, apply=_apply)
 ```
 
-2. Enregistrer la migration dans le `MigrationRunner` au démarrage (cf.
-   `app_main.py`, à étendre dans une prochaine version).
+2. Register the migration in the `MigrationRunner` at startup (see
+   `app_main.py`, to be extended in a future version).
 
-3. Incrémenter `SCHEMA_VERSION` dans
-   `src/fahmi2/infra/storage/sqlite_state.py`.
+3. Bump `SCHEMA_VERSION` in `src/fahmi2/infra/storage/sqlite_state.py`.
 
-4. Mettre à jour `_schema.sql` pour refléter le schéma cible.
+4. Update `_schema.sql` to reflect the target schema.
 
-5. Ajouter des tests dans `tests/unit/core/`.
+5. Add tests under `tests/unit/core/`.
 
-## 8. Debugging
+## 9. Debugging
 
-### 8.1 Logs de l'app
+### 9.1 App logs
 
 ```powershell
-# En mode dev, les logs sont par défaut sur stderr en plus du fichier
+# In dev mode, logs go to stderr in addition to the file by default
 python -m fahmi2.ui.app_main 2>&1 | Tee-Object -FilePath "debug.log"
 ```
 
-### 8.2 Inspecter une base SQLite
+### 9.2 Inspecting a SQLite database
 
 ```powershell
-# Avec sqlite3 CLI (à installer séparément si absent)
+# With sqlite3 CLI (install separately if missing)
 sqlite3 "$env:APPDATA\Fahmi2\projects.db"
 
-# Quelques requêtes utiles
+# A few useful queries
 .tables
 .schema phase_executions
 SELECT * FROM projects;
@@ -286,197 +360,209 @@ SELECT run_id, phase_id, source_id, status FROM phase_executions
   WHERE run_id = '...' ORDER BY id;
 ```
 
-### 8.3 Inspecter un fichier `events.jsonl`
+### 9.3 Inspecting an `events.jsonl` file
 
 ```powershell
-# Compter par sévérité
+# Count by severity
 Get-Content events.jsonl | ConvertFrom-Json |
     Group-Object severity | Format-Table Name, Count
 
-# Lister les erreurs
+# List errors
 Get-Content events.jsonl | ConvertFrom-Json |
     Where-Object severity -in @("error","fatal") |
     Select-Object timestamp, code, message
 ```
 
-### 8.4 Debugger interactif (pdb)
+### 9.4 Interactive debugger (pdb)
 
 ```python
 import pdb
-pdb.set_trace()  # à insérer dans le code
+pdb.set_trace()  # to insert in the code
 ```
 
-Lancer ensuite `python -m fahmi2.ui.app_main`. Le debugger sera actif au
-point d'insertion.
+Then run `python -m fahmi2.ui.app_main`. The debugger will trigger at the
+insertion point.
 
-### 8.5 Reproduire un bug avec un état SQLite isolé
+### 9.5 Reproducing a bug with an isolated SQLite state
 
 ```powershell
-# Copier une DB de prod vers un espace de test
+# Copy a prod DB into a test space
 Copy-Item "$env:APPDATA\Fahmi2\projects.db" "C:\Temp\bug-repro.db"
 
-# Lancer avec APPDATA redirigé
+# Launch with a redirected APPDATA
 $env:APPDATA = "C:\Temp\bug-repro"
 mkdir "C:\Temp\bug-repro\Fahmi2"
 Copy-Item "C:\Temp\bug-repro.db" "C:\Temp\bug-repro\Fahmi2\projects.db"
 python -m fahmi2.ui.app_main
 ```
 
-## 9. Performances
+## 10. Performance
 
-### 9.1 Profiling
+### 10.1 Profiling
 
 ```powershell
-# Profil cProfile
+# cProfile snapshot
 python -m cProfile -o profile.out -m fahmi2.ui.app_main
 
-# Analyser avec snakeviz
+# Analyse with snakeviz
 pip install snakeviz
 snakeviz profile.out
 ```
 
-### 9.2 Mémoire
+### 10.2 Memory
 
 ```powershell
 pip install memory-profiler
 python -m memory_profiler script.py
 ```
 
-## 10. Mise à jour de la version
+## 11. Bumping the version
 
-1. Modifier `version = "..."` dans `pyproject.toml`.
-2. Ajouter une entrée dans `CHANGELOG.md`.
+1. Edit `version = "..."` in `pyproject.toml`.
+2. Add an entry to `CHANGELOG.md`.
 3. Commit `chore: bump version to X.Y.Z`.
 4. Tag `git tag -a vX.Y.Z -m "..."`.
-5. Push : `git push && git push --tags`.
-6. Builder et distribuer le `.zip` correspondant.
+5. Push: `git push && git push --tags`.
+6. Build and distribute the matching `.zip`.
 
-## 11. Ajouter une nouvelle phase au pipeline
+## 12. Adding a new pipeline phase
 
-1. Créer `src/fahmi2/pipeline/handlers/phase_N_xxx.py` qui hérite de
-   `PhaseHandler`. Si la phase est **per-source et parallélisable** (unités
-   indépendantes, I/O-bound), surcharger `max_parallel_workers(ctx)` pour
-   retourner le pool voulu (défaut hérité : `1` = séquentiel). Pour une phase
-   batch, paralléliser ses boucles internes via `core/concurrency/map_bounded`.
-2. Créer le template Jinja2 par défaut dans
+1. Create `src/fahmi2/pipeline/handlers/phase_N_xxx.py` inheriting from
+   `PhaseHandler`. If the phase is **per-source and parallelisable**
+   (independent units, I/O-bound), override `max_parallel_workers(ctx)` to
+   return the desired pool (inherited default: `1` = sequential). For a
+   batch phase, parallelise its internal loops via
+   `core/concurrency/map_bounded`.
+2. Create the default Jinja2 template at
    `src/fahmi2/infra/prompts/defaults/phase_N_xxx.j2`.
-3. Ajouter `PhaseId.XXX` dans `src/fahmi2/domain/enums.py`.
-4. Mettre à jour `_PIPELINE_ORDER` dans
+3. Add `PhaseId.XXX` to `src/fahmi2/domain/enums.py`.
+4. Update `_PIPELINE_ORDER` in
    `src/fahmi2/pipeline/phase_registry.py`.
-5. Enregistrer le handler dans la construction du `PhaseRegistry` (cf.
-   tests E2E et `app_main.py`).
-6. Ajouter le bind du multiplicateur de coût dans `_LOAD_FACTORS` dans
+5. Register the handler in the `PhaseRegistry` construction (see E2E
+   tests and `app_main.py`).
+6. Add the cost-multiplier binding in `_LOAD_FACTORS` in
    `src/fahmi2/app/cost_estimator.py`.
-7. Écrire les tests : `tests/unit/pipeline/handlers/test_phase_N_xxx.py`.
-8. Lancer la suite complète + lint + types.
+7. Write tests: `tests/unit/pipeline/handlers/test_phase_N_xxx.py`.
+8. Run the full suite + lint + types.
 
-## 12. Ajouter un provider LLM
+## 13. Adding an LLM provider
 
-1. Implémenter `LLMProvider` (Protocol) dans
+1. Implement the `LLMProvider` (Protocol) in
    `src/fahmi2/infra/llm/<provider>_adapter.py`.
-2. Ajouter une grille de tarifs dans `src/fahmi2/infra/llm/_pricing.py`.
-3. Étendre l'enum `LLMModel` dans `src/fahmi2/domain/enums.py`.
-4. Ajouter un **libellé** dans `src/fahmi2/ui/_model_labels.py`
-   (`LLM_MODEL_LABELS`) — **obligatoire** : les combos de réglages sont peuplés
-   par ces dictionnaires de libellés (via `labeled_enum_combo`), pas par l'enum.
-   Un membre sans libellé **n'apparaîtra pas** dans le combo (un test de
-   complétude le détecte, cf. `tests/unit/ui/test_model_labels.py`).
-5. Écrire les tests (avec mock du SDK ou `responses`).
+2. Add a pricing grid in `src/fahmi2/infra/llm/_pricing.py`.
+3. Extend the `LLMModel` enum in `src/fahmi2/domain/enums.py`.
+4. Add a **label** in `src/fahmi2/ui/_model_labels.py` (in
+   `_LLM_MODEL_SOURCES`, returned by `llm_model_labels()`) — **mandatory**:
+   the settings combos are populated by these label dictionaries (via
+   `labeled_enum_combo`), not by the enum itself. A member without a
+   label **will not appear** in the combo (a completeness test detects
+   it; see `tests/unit/ui/test_model_labels.py`).
+5. Write tests (with SDK mocking or `responses`).
 
-## 13. Ajouter un modèle d'embedding (Dialogue) ou de transcription (STT)
+## 14. Adding an embedding model (Dialogue) or a transcription model (STT)
 
-Même recette que les modèles LLM — l'app suit partout le triptyque
-**enum + grille tarifaire + libellé** :
+Same recipe as for LLM models — the app follows the **enum + pricing
+grid + label** triptych everywhere:
 
-- **Embedding** (retrieval sémantique du Dialogue) : enum `EmbeddingModel`
-  (`domain/enums.py`) + tarif `infra/embeddings/_pricing.py` (USD/Mtok) + libellé
-  `EMBEDDING_MODEL_LABELS` (`ui/_model_labels.py`). Le modèle fait partie de
-  l'empreinte d'index → en changer **force la réindexation**.
-- **STT** : enum `LocalSttModel` / `CloudSttModel` + tarif cloud
-  `infra/stt/_pricing.py` (USD/min) + libellés `LOCAL_STT_MODEL_LABELS` /
-  `CLOUD_STT_MODEL_LABELS`. Un modèle cloud sans timestamps (`gpt-4o-*`) bascule
-  l'adapter en `json` (segment unique par tranche) — cf.
-  `OpenAIWhisperAdapter._VERBOSE_JSON_MODELS`.
+- **Embedding** (Dialogue's semantic retrieval): `EmbeddingModel` enum
+  (`domain/enums.py`) + pricing in `infra/embeddings/_pricing.py`
+  (USD/Mtok) + label in `_EMBEDDING_MODEL_SOURCES` (returned by
+  `embedding_model_labels()`). The model is part of the index fingerprint
+  → changing it **forces a reindex**.
+- **STT**: `LocalSttModel` / `CloudSttModel` enums + cloud pricing in
+  `infra/stt/_pricing.py` (USD/min) + labels in `_LOCAL_STT_MODEL_SOURCES`
+  / `_CLOUD_STT_MODEL_SOURCES`. A cloud model without timestamps
+  (`gpt-4o-*`) switches the adapter to `json` (single segment per chunk)
+  — see `OpenAIWhisperAdapter._VERBOSE_JSON_MODELS`.
 
-## 14. Ajouter une langue
+## 15. Adding a content language
 
-L'enum `Language` couvre 7 langues (fr/en/de/es/it/zh/ar). Pour en ajouter une :
+The `Language` enum covers 7 languages (fr/en/de/es/it/zh/ar). To add
+one:
 
-1. Ajouter la valeur à `Language` (`src/fahmi2/domain/enums.py`).
-2. Ajouter son **libellé** dans `domain/languages._LANGUAGE_NAMES` (**source
-   unique** réutilisée par les prompts, l'UI et les rendus).
-3. Ajouter ses **en-têtes** et son **titre** de glossaire dans
-   `domain/glossary._HEADERS_BY_LANGUAGE` / `_TITLE_BY_LANGUAGE` (repli sur l'anglais
-   sinon).
-4. Ajouter ses **alias de détection STT** (nom complet Whisper → code ISO) dans
+1. Add the value to `Language` (`src/fahmi2/domain/enums.py`).
+2. Add its **label** in `domain/languages._LANGUAGE_NAMES` (**single
+   source** reused by prompts, UI, and renderers).
+3. Add its **headers** and **glossary title** in
+   `domain/glossary._HEADERS_BY_LANGUAGE` / `_TITLE_BY_LANGUAGE` (English
+   fallback otherwise).
+4. Add its **STT detection aliases** (full Whisper name → ISO code) in
    `infra/stt/openai_whisper_adapter._WHISPER_LANGUAGE_ALIASES`.
-5. **Rendu PDF** : si l'écriture exige une police dédiée (CJK), l'inscrire dans
-   `markdown_pdf._CJK_LANGUAGES` et brancher sa police système (cf. la résolution
-   YaHei) ; si l'écriture est **droite-à-gauche**, l'inscrire dans
-   `domain/languages._RTL_LANGUAGES` (**source unique RTL** PDF/HTML/DOCX) **et**
-   dans `markdown_pdf._PDF_LANG_RENDERING` (famille de police + tag `pdf:language`
-   pour le reshaping/bidi). Le DOCX (RTL via `is_rtl`) et le HTML (`dir`) se déduisent
-   de `_RTL_LANGUAGES`, sans code dédié.
-6. Écrire/compléter les tests (glossaire, détection STT, rendu PDF/DOCX selon
-   l'écriture), puis lancer la suite complète + lint + types.
+5. **PDF rendering**: if the script requires a dedicated font (CJK),
+   register it in `markdown_pdf._CJK_LANGUAGES` and wire its system font
+   (cf. the YaHei resolution); if the script is **right-to-left**,
+   register it in `domain/languages._RTL_LANGUAGES` (**single RTL
+   source** for PDF/HTML/DOCX) **and** in
+   `markdown_pdf._PDF_LANG_RENDERING` (font family + `pdf:language` tag
+   for reshaping/bidi). DOCX (RTL via `is_rtl`) and HTML (`dir`) are
+   inferred from `_RTL_LANGUAGES`, no dedicated code.
+6. Write/complete tests (glossary, STT detection, PDF/DOCX rendering
+   according to the script), then run the full suite + lint + types.
 
-## 15. Ajouter un format d'export
+## 16. Adding an export format
 
-Les formats documentaires (Markdown / PDF / HTML / DOCX) passent tous par le cœur
-partagé `app/document_export.write_documents` ; l'Anki (`.apkg`) est à part. Pour
-ajouter un format documentaire :
+Document formats (Markdown / PDF / HTML / DOCX) all go through the shared
+core `app/document_export.write_documents`; Anki (`.apkg`) is separate.
+To add a document format:
 
-1. Étendre l'enum `ExportFormat` (`src/fahmi2/domain/enums.py`).
-2. Déclarer son **extension** dans `markdown_pdf.EXTENSION_BY_FORMAT`.
-3. Brancher le rendu dans `app/document_export.write_documents` (+ un *renderer*
-   dans `infra/export/` si le format ne se déduit pas du HTML/Markdown existant).
-4. Ajouter un **libellé** dans `ui/pedagogy_labels.EXPORT_LABELS` (partagé par les
-   sélecteurs d'export des deux onglets).
-5. Pour le proposer aussi en **génération**, l'ajouter à
+1. Extend the `ExportFormat` enum (`src/fahmi2/domain/enums.py`).
+2. Declare its **extension** in `markdown_pdf.EXTENSION_BY_FORMAT`.
+3. Wire the rendering in `app/document_export.write_documents` (+ a
+   *renderer* in `infra/export/` if the format does not derive from the
+   existing HTML/Markdown).
+4. Add a **label** in `ui/pedagogy_labels._EXPORT_SOURCES` (returned by
+   `export_labels()`, shared by both tabs' export pickers).
+5. To also offer it in **generation**, add it to
    `domain/generation.GENERATION_EXPORT_FORMATS`.
-6. Écrire les tests (rendu + collecte) puis lancer la suite complète + lint + types.
+6. Write tests (rendering + collection) then run the full suite + lint
+   + types.
 
-## 16. Le Dialogue (chat) — artefacts et index
+## 17. The Dialogue (chat) — artefacts and index
 
-Artefacts par projet (sous `<emplacement>/chat/`) :
+Per-project artefacts (under `<location>/chat/`):
 
-- `conversations/<conversation_id>.json` — conversations persistées (relisibles
-  hors session ; supprimables depuis l'UI ou en effaçant le fichier).
-- `index.{lang}.npz` — **index sémantique** (embeddings du corpus + empreinte de
-  validité : modèle + langue + mtime du consolidé **et du glossaire** — une édition
-  du glossaire à nombre de termes constant réindexe donc aussi). Pour forcer une réindexation,
-  supprimer ce fichier (ou utiliser `infra.retrieval.semantic.purge_index`) ; il
-  est de toute façon reconstruit dès que l'empreinte change.
+- `conversations/<conversation_id>.json` — persisted conversations
+  (readable off-session; deletable from the UI or by erasing the file).
+- `index.{lang}.npz` — **semantic index** (corpus embeddings + validity
+  fingerprint: model + language + consolidated **and glossary** mtimes —
+  editing the glossary, even with the same number of terms, therefore
+  triggers a reindex). To force a reindex, delete this file (or use
+  `infra.retrieval.semantic.purge_index`); it is rebuilt the moment the
+  fingerprint changes anyway.
 
-Le corpus interrogé est le **document consolidé** (`generation/output/`) + le
-glossaire (`generation/glossary_master.json`), chunké à la volée à chaque session
-(aucune régénération nécessaire après modification du chunking).
+The queried corpus is the **consolidated document**
+(`generation/output/`) + the glossary (`generation/glossary_master.json`),
+chunked on the fly at each session (no regeneration required after
+changing the chunking).
 
-## 17. Audit qualité
+## 18. Quality audit
 
-Avant chaque release, dérouler :
+Before each release, run through:
 
 ```powershell
-# 1. Tests complets
+# 1. Full tests
 pytest --cov=src/fahmi2 --cov-report=term-missing
 
-# 2. Lint propre
+# 2. Lint clean
 ruff check .
 
-# 3. Types stricts
+# 3. Strict types
 mypy src tests
 
-# 4. Couverture seuils
-# (devrait être >= 85 % global)
+# 4. Coverage thresholds
+# (should be >= 85 % overall)
 
-# 5. Build packaging
+# 5. UI translations compiled
+.\.venv\Scripts\python.exe scripts\i18n_compile.py
+
+# 6. Packaging build
 .\packaging\build.ps1
 
-# 6. Test manuel de l'EXE buildé
+# 7. Manual test of the built EXE (verify EN UI switches correctly)
 .\dist\Fahmi2\Fahmi2.exe
 
-# 7. Génération du .zip
+# 8. Zip generation
 .\packaging\make-portable-zip.ps1
 
-# 8. Vérification du .zip sur une machine cible
+# 9. Verify the .zip on a target machine
 ```

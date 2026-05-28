@@ -20,7 +20,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 
-from PySide6.QtCore import QObject, Qt, QThread, Signal
+from PySide6.QtCore import QCoreApplication, QObject, Qt, QThread, Signal
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox, QWidget
 
@@ -89,7 +89,7 @@ from fahmi2.ui._export_ui import choose_export_format, run_document_export
 from fahmi2.ui._file_explorer import open_in_file_explorer
 from fahmi2.ui._fs import remove_feature_dir
 from fahmi2.ui.dialogs.generation_settings_view import GenerationSettingsView
-from fahmi2.ui.pedagogy_labels import EXPORT_LABELS
+from fahmi2.ui.pedagogy_labels import export_labels
 from fahmi2.ui.qt_event_bus import QtEventBus
 from fahmi2.ui.viewmodels.run_matrix import RunMatrixViewModel
 from fahmi2.ui.viewmodels.stats_strip import StatsStripViewModel
@@ -498,15 +498,25 @@ class GenerationController(QObject):
         if self._current_project is None:
             QMessageBox.warning(
                 self._window,
-                "Aucun projet sélectionné",
-                "Sélectionne un projet dans la sidebar avant de lancer.",
+                QCoreApplication.translate(
+                    "GenerationController", "Aucun projet sélectionné"
+                ),
+                QCoreApplication.translate(
+                    "GenerationController",
+                    "Sélectionne un projet dans la sidebar avant de lancer.",
+                ),
             )
             return
         if self._thread is not None:
             QMessageBox.warning(
                 self._window,
-                "Run déjà en cours",
-                "Un run est déjà en cours pour ce projet.",
+                QCoreApplication.translate(
+                    "GenerationController", "Run déjà en cours"
+                ),
+                QCoreApplication.translate(
+                    "GenerationController",
+                    "Un run est déjà en cours pour ce projet.",
+                ),
             )
             return
         if not self._validate_keys(self._current_project):
@@ -520,14 +530,18 @@ class GenerationController(QObject):
         except Fahmi2Error as exc:
             QMessageBox.critical(
                 self._window,
-                "Création du run impossible",
+                QCoreApplication.translate(
+                    "GenerationController", "Création du run impossible"
+                ),
                 f"{exc.code}\n\n{exc.user_message}",
             )
             return
         except Exception as exc:  # noqa: BLE001 — affichage UX puis stop
             QMessageBox.critical(
                 self._window,
-                "Erreur inattendue",
+                QCoreApplication.translate(
+                    "GenerationController", "Erreur inattendue"
+                ),
                 f"{type(exc).__name__} : {exc}",
             )
             return
@@ -558,7 +572,9 @@ class GenerationController(QObject):
         except Fahmi2Error as exc:
             QMessageBox.critical(
                 self._window,
-                "Configuration des providers invalide",
+                QCoreApplication.translate(
+                    "GenerationController", "Configuration des providers invalide"
+                ),
                 f"{exc.code}\n\n{exc.user_message}",
             )
             return
@@ -630,8 +646,9 @@ class GenerationController(QObject):
             return
         reply = QMessageBox.question(
             self._window,
-            "Annuler le run ?",
-            (
+            QCoreApplication.translate("GenerationController", "Annuler le run ?"),
+            QCoreApplication.translate(
+                "GenerationController",
                 "Annuler le run en cours ?\n\n"
                 "Le pipeline s'arrêtera à la prochaine frontière sûre. "
                 "Le dossier de sortie sera ensuite **supprimé** "
@@ -639,7 +656,7 @@ class GenerationController(QObject):
                 "réinitialisé.\n\n"
                 "Cette action ne supprime pas les fichiers source "
                 "originaux ni les artefacts intermédiaires de "
-                "« workspace »."
+                "« workspace ».",
             ),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
@@ -660,28 +677,39 @@ class GenerationController(QObject):
         if project is None:
             QMessageBox.warning(
                 self._window,
-                "Aucun projet sélectionné",
-                "Sélectionne un projet dans la sidebar avant d'exporter.",
+                QCoreApplication.translate(
+                    "GenerationController", "Aucun projet sélectionné"
+                ),
+                QCoreApplication.translate(
+                    "GenerationController",
+                    "Sélectionne un projet dans la sidebar avant d'exporter.",
+                ),
             )
             return
         if project.generation is None:
             QMessageBox.information(
                 self._window,
-                "Génération non configurée",
-                "Configurez d'abord la génération (⚙ Réglages).",
+                QCoreApplication.translate(
+                    "GenerationController", "Génération non configurée"
+                ),
+                QCoreApplication.translate(
+                    "GenerationController",
+                    "Configurez d'abord la génération (⚙ Réglages).",
+                ),
             )
             return
+        labels = export_labels()
         fmt = choose_export_format(
             window=self._window,
             configured_formats=project.generation.export_formats,
-            label_by_format=EXPORT_LABELS,
+            label_by_format=labels,
         )
         if fmt is None:
             return
         run_document_export(
             window=self._window,
             logs_dock=self._logs_dock,
-            label=EXPORT_LABELS[fmt],
+            label=labels[fmt],
             exporter=lambda d: export_generation_documents(
                 project, output_dir=d, fmt=fmt
             ),
@@ -698,9 +726,14 @@ class GenerationController(QObject):
         if output_dir is None or not output_dir.exists():
             QMessageBox.information(
                 self._window,
-                "Aucun dossier de sortie",
-                "Le dossier de sortie n'existe pas encore. Lancez d'abord "
-                "un run pour ce projet.",
+                QCoreApplication.translate(
+                    "GenerationController", "Aucun dossier de sortie"
+                ),
+                QCoreApplication.translate(
+                    "GenerationController",
+                    "Le dossier de sortie n'existe pas encore. "
+                    "Lancez d'abord un run pour ce projet.",
+                ),
             )
             return
         open_in_file_explorer(output_dir)
@@ -716,15 +749,25 @@ class GenerationController(QObject):
         if self._current_project is None:
             QMessageBox.warning(
                 self._window,
-                "Aucun projet sélectionné",
-                "Sélectionne un projet dans la sidebar avant d'estimer.",
+                QCoreApplication.translate(
+                    "GenerationController", "Aucun projet sélectionné"
+                ),
+                QCoreApplication.translate(
+                    "GenerationController",
+                    "Sélectionne un projet dans la sidebar avant d'estimer.",
+                ),
             )
             return
         if self._current_project.generation is None:
             QMessageBox.information(
                 self._window,
-                "Génération non configurée",
-                "Configurez d'abord les réglages de génération de ce projet.",
+                QCoreApplication.translate(
+                    "GenerationController", "Génération non configurée"
+                ),
+                QCoreApplication.translate(
+                    "GenerationController",
+                    "Configurez d'abord les réglages de génération de ce projet.",
+                ),
             )
             return
         settings = self._current_project.generation
@@ -733,7 +776,9 @@ class GenerationController(QObject):
         except Fahmi2Error as exc:
             QMessageBox.warning(
                 self._window,
-                "Dossier d'entrée invalide",
+                QCoreApplication.translate(
+                    "GenerationController", "Dossier d'entrée invalide"
+                ),
                 f"{exc.code}\n\n{exc.user_message}",
             )
             return
@@ -782,9 +827,14 @@ class GenerationController(QObject):
         if self._current_project is None:
             QMessageBox.warning(
                 self._window,
-                "Aucun projet sélectionné",
-                "Sélectionne un projet dans la sidebar avant de configurer la "
-                "génération.",
+                QCoreApplication.translate(
+                    "GenerationController", "Aucun projet sélectionné"
+                ),
+                QCoreApplication.translate(
+                    "GenerationController",
+                    "Sélectionne un projet dans la sidebar avant de configurer la "
+                    "génération.",
+                ),
             )
             return
         project = self._current_project
@@ -916,26 +966,37 @@ class GenerationController(QObject):
         if project is None:
             QMessageBox.warning(
                 self._window,
-                "Aucun projet sélectionné",
-                "Sélectionne un projet dans la sidebar avant de réinitialiser.",
+                QCoreApplication.translate(
+                    "GenerationController", "Aucun projet sélectionné"
+                ),
+                QCoreApplication.translate(
+                    "GenerationController",
+                    "Sélectionne un projet dans la sidebar avant de réinitialiser.",
+                ),
             )
             return
         if self._thread is not None:
             QMessageBox.warning(
                 self._window,
-                "Run en cours",
-                "Impossible de réinitialiser pendant un run. Annule-le d'abord.",
+                QCoreApplication.translate("GenerationController", "Run en cours"),
+                QCoreApplication.translate(
+                    "GenerationController",
+                    "Impossible de réinitialiser pendant un run. Annule-le d'abord.",
+                ),
             )
             return
         reply = QMessageBox.question(
             self._window,
-            "Réinitialiser la génération ?",
-            (
-                f"Réinitialiser la génération de « {project.name} » ?\n\n"
+            QCoreApplication.translate(
+                "GenerationController", "Réinitialiser la génération ?"
+            ),
+            QCoreApplication.translate(
+                "GenerationController",
+                "Réinitialiser la génération de « {name} » ?\n\n"
                 "Tous les livrables produits (transcriptions, glossaire, documents) "
                 "et l'historique des runs en base seront supprimés. Le dossier "
-                "d'entrée n'est pas touché. Cette action est irréversible."
-            ),
+                "d'entrée n'est pas touché. Cette action est irréversible.",
+            ).format(name=project.name),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -983,7 +1044,9 @@ class GenerationController(QObject):
         )
         QMessageBox.critical(
             self._window,
-            "Le run s'est terminé sur une erreur inattendue",
+            QCoreApplication.translate(
+                "GenerationController", "Le run s'est terminé sur une erreur inattendue"
+            ),
             error_message,
         )
         self._header_bar.set_finished()
@@ -1083,25 +1146,40 @@ class GenerationController(QObject):
         if not self._secrets_service.has_deepseek_key():
             QMessageBox.critical(
                 self._window,
-                "Clé DeepSeek manquante",
-                "Renseigne la clé DeepSeek dans "
-                "« Édition → Paramètres globaux ».",
+                QCoreApplication.translate(
+                    "GenerationController", "Clé DeepSeek manquante"
+                ),
+                QCoreApplication.translate(
+                    "GenerationController",
+                    "Renseigne la clé DeepSeek dans "
+                    "« Édition → Paramètres globaux ».",
+                ),
             )
             return False
         if project.generation is None:
             QMessageBox.critical(
                 self._window,
-                "Génération non configurée",
-                "Configurez d'abord les réglages de génération de ce projet.",
+                QCoreApplication.translate(
+                    "GenerationController", "Génération non configurée"
+                ),
+                QCoreApplication.translate(
+                    "GenerationController",
+                    "Configurez d'abord les réglages de génération de ce projet.",
+                ),
             )
             return False
         needs_openai = project.generation.stt_provider is SttProvider.OPENAI_CLOUD
         if needs_openai and not self._secrets_service.has_openai_key():
             QMessageBox.critical(
                 self._window,
-                "Clé OpenAI manquante",
-                "Le provider STT cloud nécessite une clé OpenAI. "
-                "Renseigne-la dans « Édition → Paramètres globaux ».",
+                QCoreApplication.translate(
+                    "GenerationController", "Clé OpenAI manquante"
+                ),
+                QCoreApplication.translate(
+                    "GenerationController",
+                    "Le provider STT cloud nécessite une clé OpenAI. "
+                    "Renseigne-la dans « Édition → Paramètres globaux ».",
+                ),
             )
             return False
         return True

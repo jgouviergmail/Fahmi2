@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
+from PySide6.QtCore import QCoreApplication
+
 from fahmi2.app.project_service import ProjectService
 from fahmi2.domain.enums import Language
 from fahmi2.domain.generation import (
@@ -26,14 +28,6 @@ from fahmi2.pedagogy.sources import (
     resolve_content_language,
     source_mtime_ns,
 )
-
-# Libellés courts façon « pastille de statut » (icône + état), stylés par le QSS
-# via la propriété dynamique ``state`` (#pedagogyStateBanner[state="…"]).
-_MSG_NOT_CONFIGURED = "⚙ À configurer"
-_MSG_GENERATION_REQUIRED = "⚠ Génération requise"
-_MSG_READY = "● Prêt à générer"
-_MSG_UP_TO_DATE = "✓ Supports à jour"
-_MSG_STALE = "⟳ Supports à régénérer"
 
 
 class PedagogyState(StrEnum):
@@ -52,7 +46,7 @@ class PedagogyStateInfo:
 
     Attributes:
         state: État global.
-        message: Texte FR du bandeau.
+        message: Texte traduit du bandeau (calculé via ``_state_message``).
         can_generate: ``True`` si la génération est possible (source disponible).
     """
 
@@ -61,13 +55,17 @@ class PedagogyStateInfo:
     can_generate: bool
 
 
-_MESSAGES: dict[PedagogyState, str] = {
-    PedagogyState.NOT_CONFIGURED: _MSG_NOT_CONFIGURED,
-    PedagogyState.GENERATION_REQUIRED: _MSG_GENERATION_REQUIRED,
-    PedagogyState.READY: _MSG_READY,
-    PedagogyState.UP_TO_DATE: _MSG_UP_TO_DATE,
-    PedagogyState.STALE: _MSG_STALE,
-}
+def _state_message(state: PedagogyState) -> str:
+    """Libellé court traduit pour le bandeau de l'onglet pédagogie."""
+    if state is PedagogyState.NOT_CONFIGURED:
+        return QCoreApplication.translate("PedagogyState", "⚙ À configurer")
+    if state is PedagogyState.GENERATION_REQUIRED:
+        return QCoreApplication.translate("PedagogyState", "⚠ Génération requise")
+    if state is PedagogyState.READY:
+        return QCoreApplication.translate("PedagogyState", "● Prêt à générer")
+    if state is PedagogyState.UP_TO_DATE:
+        return QCoreApplication.translate("PedagogyState", "✓ Supports à jour")
+    return QCoreApplication.translate("PedagogyState", "⟳ Supports à régénérer")
 
 
 class PedagogyStateViewModel:
@@ -185,5 +183,5 @@ class PedagogyStateViewModel:
             ``PedagogyStateInfo``.
         """
         return PedagogyStateInfo(
-            state=state, message=_MESSAGES[state], can_generate=can_generate
+            state=state, message=_state_message(state), can_generate=can_generate
         )

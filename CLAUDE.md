@@ -2,454 +2,603 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Projet
+## Project
 
-Fahmi2 transforme des cours (vidéos, fichiers audio, documents texte —
-pdf/docx/md/txt — **et** liens YouTube unitaires) en documents Markdown
-consolidés (reformulés, structurés, glossaire) via un pipeline STT + 7 phases
-LLM DeepSeek. Application desktop Windows mono-utilisateur, PySide6, packagée en
-`.zip` portable (installation double-clic, ffmpeg bundlé).
+Fahmi2 turns courses (videos, audio files, text documents — pdf/docx/md/txt
+— **and** single YouTube links) into consolidated Markdown documents
+(rephrased, structured, with a glossary) through a STT + 7 DeepSeek LLM
+phase pipeline. Single-user Windows desktop application, PySide6, packaged
+as a portable `.zip` (double-click installation, bundled ffmpeg).
 
-**Langues gérées** (entrée et sortie, pour les 3 fonctionnalités) : français,
-anglais, allemand, espagnol, italien, chinois, arabe (`Language`, 7 valeurs).
+**Supported languages** (input and output, for the 3 features): French,
+English, German, Spanish, Italian, Chinese, Arabic (`Language`, 7 values).
 
-L'app est organisée en **onglets de fonctionnalité** (Génération ; Supports
-pédagogiques — 8 types de supports de révision avec exports Anki/Markdown/PDF/HTML/DOCX ;
-**Dialogue** — chat ancré sur le corpus, réponses citées + streaming, retrieval
-lexical/sémantique) : un `Project` ne porte que son nom + son emplacement, les
-réglages métier vivant par fonctionnalité (`GenerationSettings`, `PedagogySettings`,
-`ChatSettings`).
+The app is organised in **feature tabs** (Generation; Revision materials —
+8 types of revision materials with Anki/Markdown/PDF/HTML/DOCX exports;
+**Dialogue** — chat anchored on the corpus, cited answers + streaming,
+lexical/semantic retrieval): a `Project` only carries its name + location,
+the business settings living per feature (`GenerationSettings`,
+`PedagogySettings`, `ChatSettings`).
 
-## Langue et conventions de travail
+**Interface language**: French (source) or English. Picked from **Edit →
+Global settings → Language**, persisted in `ui_prefs.json`; effective at
+the next launch.
 
-- **Tout en français** : code comments, docstrings, messages utilisateur, logs,
-  commits. Orthographe parfaite avec accents et diacritiques (jamais d'ASCII de
-  substitution). Les identifiants de code restent dans leur forme d'origine.
-- **Google Python Style Guide** : docstrings avec sections `Args`, `Returns`,
-  `Raises` ; docstring de module sur chaque fichier.
-- **Vérification systématique en fin de tâche** : `pytest`, `ruff check .`,
-  `mypy src tests` doivent tous être verts avant de considérer un travail
-  terminé. Repasser autant de fois que nécessaire jusqu'à zéro défaut.
-- Entités domaine immuables (`@dataclass(frozen=True)`) + méthodes `with_*` pour
-  les copies modifiées. Helpers privés `_method`, modules internes `_module.py`
-  (`_base.py`, `_pricing.py`, `_schema.sql`, `_fakes.py`).
+## Language and working conventions
 
-## Commandes
+- **All in French** in **code**: code comments, docstrings, **user-facing
+  messages** (literal FR sources of `tr()` / `QCoreApplication.translate`),
+  logs, **commit messages**. Perfect spelling with accents and diacritics
+  (never ASCII substitutes). Code identifiers stay in their original form.
+- **All in English** in **documentation**: `README.md`, `docs/`,
+  `CHANGELOG.md`, `packaging/README.md`, this file. The session archives
+  `docs/superpowers/specs/` and `docs/superpowers/plans/` stay in French.
+- The English UI is provided by the **i18n stack** (Qt translators),
+  rebuilt from the FR source via `scripts/i18n_extract.py` + `scripts/i18n_compile.py`.
+- **Google Python Style Guide**: docstrings with `Args`, `Returns`,
+  `Raises` sections; module-level docstring on every file.
+- **Systematic end-of-task verification**: `pytest`, `ruff check .`,
+  `mypy src tests` must all be clean before considering work finished. Run
+  as many times as necessary until zero defects.
+- Immutable domain entities (`@dataclass(frozen=True)`) + `with_*` methods
+  for modified copies. Private helpers `_method`, internal modules
+  `_module.py` (`_base.py`, `_pricing.py`, `_schema.sql`, `_fakes.py`).
 
-L'interpréteur du venv est `.venv\Scripts\python.exe` (Python 3.12 — **pas 3.13**,
-contrainte `>=3.11,<3.13` dans `pyproject.toml`). En PowerShell on peut activer
-via `.\.venv\Scripts\Activate.ps1`, mais préférer l'appel direct de l'exe.
+## Commands
+
+The venv interpreter is `.venv\Scripts\python.exe` (Python 3.12 — **not
+3.13**, constraint `>=3.11,<3.13` in `pyproject.toml`). In PowerShell, it
+can be activated via `.\.venv\Scripts\Activate.ps1`, but prefer calling
+the exe directly.
 
 ```powershell
 # Tests
-.venv\Scripts\python.exe -m pytest                              # toute la suite
-.venv\Scripts\python.exe -m pytest tests/unit/app               # une couche
-.venv\Scripts\python.exe -m pytest tests/unit/app/test_x.py::test_name -v   # un seul test
+.venv\Scripts\python.exe -m pytest                              # the whole suite
+.venv\Scripts\python.exe -m pytest tests/unit/app               # one layer
+.venv\Scripts\python.exe -m pytest tests/unit/app/test_x.py::test_name -v   # a single test
 .venv\Scripts\python.exe -m pytest --cov=src/fahmi2 --cov-report=term-missing
 
-# Qualité (les deux doivent être propres)
+# Quality (both must be clean)
 .venv\Scripts\python.exe -m ruff check .
 .venv\Scripts\python.exe -m mypy src tests
 
-# Lancer l'app en dev
+# Run the app in dev
 .venv\Scripts\python.exe -m fahmi2.ui.app_main
 
-# Build du .zip portable Windows (télécharge ffmpeg, valide, build PyInstaller)
+# i18n — UI translations
+.venv\Scripts\python.exe scripts\i18n_extract.py     # FR sources → .ts (Linguist)
+.venv\Scripts\python.exe scripts\i18n_compile.py     # .ts → .qm (runtime)
+
+# Build the Windows portable .zip (downloads ffmpeg, validates, builds with PyInstaller)
 .\packaging\build.ps1
 .\packaging\make-portable-zip.ps1
 ```
 
-Note Windows : git réécrit LF→CRLF (warnings attendus, sans conséquence). Le
-fichier `packaging/fahmi2.spec` est `.gitignore` (`*.spec`) — modifier le `.spec`
-pour bundler de nouvelles ressources ne sera pas versionné.
+Windows note: git rewrites LF→CRLF (expected warnings, harmless). The
+`packaging/fahmi2.spec` file is `.gitignore`d (`*.spec`) — modifying the
+`.spec` to bundle new resources will not be versioned.
 
-Dépendances exports dans le `.spec` (déjà câblées, cf. `packaging/fahmi2.spec`,
-gitignored) : le PDF est rendu par **`xhtml2pdf`** (moteur **`reportlab`**, +
-`html5lib`, `pypdf`, `Pillow`, `svglib`, `arabic-reshaper`, `python-bidi`,
-`pyHanko` — tous Python pur) → `collect_all('xhtml2pdf')` + `collect_all(
-'reportlab')` (données/polices internes) + `collect_all('arabic_reshaper')` ;
-`markdown` charge ses extensions par nom → `collect_submodules('markdown')`.
-**`genanki` 0.13.1 inline le schéma en modules Python** (`apkg_col.py`/
-`apkg_schema.py`) — **aucun fichier de données à collecter**, ses modules sont
-bundlés par l'analyse d'imports. L'**export DOCX** ajoute `htmldocx` (+ `beautifulsoup4`,
-`lxml` déjà tiré par python-docx) → `hiddenimports += ['htmldocx']` +
-`collect_submodules('bs4')`. Le PDF utilise des **polices système Windows** (Arial
-pour latin/arabe, Microsoft YaHei pour le chinois) — **rien à bundler** côté police.
-Détails dans `packaging/README.md`.
+Export dependencies in the `.spec` (already wired, see
+`packaging/fahmi2.spec`, gitignored): the PDF is rendered by **`xhtml2pdf`**
+(engine **`reportlab`**, + `html5lib`, `pypdf`, `Pillow`, `svglib`,
+`arabic-reshaper`, `python-bidi`, `pyHanko` — all pure Python) →
+`collect_all('xhtml2pdf')` + `collect_all('reportlab')` (internal
+data/fonts) + `collect_all('arabic_reshaper')`; `markdown` loads its
+extensions by name → `collect_submodules('markdown')`. **`genanki` 0.13.1
+inlines the schema in Python modules** (`apkg_col.py`/`apkg_schema.py`) —
+**no data file to collect**, its modules are bundled by import analysis.
+The **DOCX export** adds `htmldocx` (+ `beautifulsoup4`, `lxml` already
+pulled by python-docx) → `hiddenimports += ['htmldocx']` +
+`collect_submodules('bs4')`. **i18n** adds the compiled `.qm` files →
+`datas += [("src/fahmi2/i18n/compiled/*.qm",
+"fahmi2/i18n/compiled")]`. The PDF uses **system Windows fonts** (Arial
+for Latin/Arabic, Microsoft YaHei for Chinese) — **nothing to bundle** on
+the font side. Details in `packaging/README.md`.
 
-## Architecture en couches
+## Layered architecture
 
-Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/core).
-`core` et `domain` n'importent ni Qt, ni HTTP, ni SQL.
+Dependencies flow downwards (UI → app → pipeline/infra → domain/core).
+`core` and `domain` import neither Qt, nor HTTP, nor SQL.
 
-- `core/` — transverse : `errors` (hiérarchie `Fahmi2Error` + `ErrorInfo`
-  sérialisable + messages FR), `retry` (`RetryPolicy` + `with_retry`), `logging`
-  (JSONL + redaction secrets), `config/paths` (`AppPaths` Windows + résolution
-  ffmpeg bundlé runtime), `migrations`, `retrieval` (TF-IDF glossaire),
-  `concurrency` (`map_bounded` : pool borné, fail-fast, ordre préservé, honore le
-  `PauseToken` ; partagé pour paralléliser les appels LLM/STT I/O-bound), `ids`,
-  `slugify` (`slugify_anchor` : ancre GFM **source unique** — sommaire du consolidé
-  en génération, parseur de chapitres pédagogiques, ids de titres de l'export HTML).
-- `domain/` — entités pures immuables (`Project` [identité minimale : nom +
-  emplacement + réglages par fonctionnalité], `GenerationSettings`,
-  `PedagogySettings`, `Run`, `InputSource`, `SourceExecution`, `PhaseExecution`, `Term`,
-  `Glossary`, entités de support dans `supports.py` : `Flashcard`, `QcmItem`,
-  `TrueFalseItem`, `ClozeItem`, `OpenQuestion`, `RevisionSheet`, `KeyPoints`,
-  `MockExam`, `SupportArtifact`), enums (génération + pédagogie : `SupportType`×8,
-  `TargetAudience`, `BloomObjective`, `SupportDensity`, `ExportFormat`,
-  `ReasoningEffort`), IDs ULID typés, et **machines d'état** (`state_machine.py`)
-  qui valident les transitions Run et Phase.
-- `pipeline/` — moteur d'exécution pur de la **génération** : `PipelineEngine`
-  (checkpoint SQLite par phase + retry + events + pause/cancel), `PhaseRegistry`
-  (ordre canonique des 8 phases), `PhaseHandler`/`PhaseContext` (DI),
-  `EventBus` (générique), `PauseToken`, `handlers/phase_N_*.py` (un par phase).
-- `pedagogy/` — moteur des **supports de révision** (calqué sur `pipeline/`, mais
-  sans STT/SQLite) : `SupportGenerator` (ABC) + `SupportContext` (DI),
-  `SupportGeneratorRegistry` + `build_default_support_registry`, `chapters`
-  (parseur), `sources`, `events`, `manifest` (fraîcheur), `artifact_writer`/
-  `artifact_reader`, `generators/` (`_base` per-chapitre + mixin évaluatif + 8
-  générateurs LLM : flashcards concepts, QCM, vrai/faux, cloze, questions
-  ouvertes, fiche, points clés, examen blanc), `labels`.
-- `chat/` — moteur du **Dialogue** (chat RAG sur corpus) : `corpus` (chargement +
-  chunking par section + glossaire), `prompt_builder` (système/historique + passages
-  numérotés + garde-fou d'historique), `citations` (`resolve_citations` : réécrit
-  les marqueurs `[§N]` du LLM en liens numérotés cliquables `[[N]](ancre)`, `Citation`
-  portant le `number` d'affichage séquentiel dédupliqué par ancre), `query_expander`
-  (reformulation LLM à la demande), `retriever_factory` (résolution `AUTO` + repli),
-  `chat_service` (`answer`/`stream_answer`). Retrieval en ports : `PassageRetriever`
-  (`core/retrieval`, lexical TF-IDF) + `EmbeddingProvider` (`infra/embeddings`,
-  OpenAI, **modèle configurable** `EmbeddingModel` + `_pricing`) +
-  `SemanticPassageRetriever` (`infra/retrieval`, index `.npz` + empreinte incluant
-  le modèle **+ mtime du consolidé ET du glossaire** → réindexation si changement).
-  **Fraîcheur du corpus** : `ChatController.refresh_corpus_if_stale()` re-dérive le
-  corpus quand le consolidé/glossaire a changé sur disque (clé = langue + 2 mtimes),
-  appelé avant chaque réponse **et** au signal `run_state_changed` de la génération
-  → le Dialogue ne cite jamais un document périmé après régénération (sans recharger
-  le projet). Streaming via `LLMProvider.chat_stream`
-  (extension **additive**). **Coût exhaustif** : `consumed_cost_usd()` sur les ports
-  retrieval/embedding agrégé dans `ChatMessage.cost_usd`. Conversations persistées et
-  **supprimables** (`app/chat_conversation_store`) ; `ChatSettings` dans le blob v2.
-  Citations/chunking bornés au plan du document (`##`/`###`).
-  **Langue du corpus par conversation** : `Conversation.language` pilote la langue
-  **lue/citée ET la langue de réponse** ; un sélecteur (peuplé par
-  `pedagogy.sources.available_content_languages`) la choisit à la création d'une
-  conversation (parmi les `consolidated.{lang}.md` produits ; masqué si une seule
-  langue ; la liste latérale **préfixe** chaque conversation par son code langue, la
-  langue d'une conversation étant **fixe**). Le corpus, le glossaire injecté (pré-localisé terme + définition) et
-  l'index `.npz` (déjà **par langue**, construit **paresseusement**) suivent ;
-  `_resolve_content_language(project, target)` préfère la langue de la conversation,
-  repli source puis 1ʳᵉ produite.
-  **Limitation connue (chinois)** : le retrieval **lexical** TF-IDF tokenise sur
-  `\b\w+\b`, peu adapté au chinois (pas d'espaces entre les mots) → privilégier le mode
-  **sémantique** pour le chinois (le défaut `AUTO` y route dès qu'une clé OpenAI est
-  présente). L'arabe (mots séparés par des espaces) n'est pas concerné.
-- `infra/` — adapters (ports/adapters) : `stt/` (FasterWhisper local + OpenAI
-  cloud + fakes ; **modèle configurable par provider** `LocalSttModel`/`CloudSttModel`
-  + `_pricing` USD/min ; cloud `gpt-4o-*` sans timestamps → segment unique),
-  `embeddings/` (port `EmbeddingProvider` + OpenAI + `_pricing` + fakes),
-  `retrieval/` (`SemanticPassageRetriever`), `llm/` (DeepSeek + `_pricing` +
-  `invocation` + fakes ; `max_tokens` au plafond modèle + garde `finish_reason`
-  anti-troncature),
-  `audio/ffmpeg_extractor` + `cloud_audio_preparer` (compression Opus +
-  découpage aux silences : franchit la limite 25 Mo d'OpenAI Whisper, injecté
-  dans l'adapter STT cloud), `ingestion/` (dispatcher `source → transcription`
-  injecté en phase 0 : `classify` [extensions vidéo/audio/document] + port
-  `SourceIngestor` + `MediaIngestor` [vidéo+audio via ffmpeg+STT] +
-  `DocumentIngestor` [pdf/docx/md/txt → transcription à **segment unique**, via
-  `TextExtractor` pypdf/python-docx] + `YoutubeIngestor` [URL → `YtDlpDownloader`
-  télécharge l'audio (binaire yt-dlp résolu/remplaçable) → délègue au
-  `MediaIngestor`]), `anki/genanki_exporter` (`.apkg`),
-  `export/markdown_pdf` (Markdown + HTML + PDF) + `export/markdown_docx` (DOCX via
-  htmldocx, réutilise `render_markdown_body`), `storage/sqlite_state` (WAL) +
-  `fs_artifacts` (writes atomiques), `secrets/` (DPAPI Windows),
-  `prompts/loader` + `defaults/*.j2` (8 phases + 3 `phase_5_*` thématiques +
-  8 `pedagogy_*` + 3 `chat_*`).
-- `app/` — use-cases : `ProjectService` (+ `get_last_completed_run` ; la
-  suppression d'un projet efface aussi son **dossier workspace** sur disque,
-  best-effort, hors dossier d'entrée et base globale),
+- `core/` — transverse: `errors` (`Fahmi2Error` hierarchy + serialisable
+  `ErrorInfo` + FR messages), `retry` (`RetryPolicy` + `with_retry`),
+  `logging` (JSONL + secrets redaction), `config/paths` (Windows
+  `AppPaths` + runtime resolution of bundled ffmpeg), `migrations`,
+  `retrieval` (TF-IDF glossary), `concurrency` (`map_bounded`: bounded
+  pool, fail-fast, order preserved, honours the `PauseToken`; shared for
+  parallelising I/O-bound LLM/STT calls), `ids`, `slugify`
+  (`slugify_anchor`: GFM anchor **single source** — consolidated TOC in
+  generation, pedagogy chapter parser, HTML export heading ids).
+- `domain/` — pure immutable entities (`Project` [minimal identity: name +
+  location + per-feature settings], `GenerationSettings`,
+  `PedagogySettings`, `Run`, `InputSource`, `SourceExecution`,
+  `PhaseExecution`, `Term`, `Glossary`, support entities in `supports.py`:
+  `Flashcard`, `QcmItem`, `TrueFalseItem`, `ClozeItem`, `OpenQuestion`,
+  `RevisionSheet`, `KeyPoints`, `MockExam`, `SupportArtifact`), enums
+  (generation + pedagogy: `SupportType`×8, `TargetAudience`,
+  `BloomObjective`, `SupportDensity`, `ExportFormat`, `ReasoningEffort`),
+  typed ULID ids, and **state machines** (`state_machine.py`) that
+  validate Run and Phase transitions.
+- `pipeline/` — pure execution engine for **generation**: `PipelineEngine`
+  (per-phase SQLite checkpoint + retry + events + pause/cancel),
+  `PhaseRegistry` (canonical order of the 8 phases),
+  `PhaseHandler`/`PhaseContext` (DI), `EventBus` (generic), `PauseToken`,
+  `handlers/phase_N_*.py` (one per phase).
+- `pedagogy/` — **revision materials** engine (modelled after `pipeline/`
+  but without STT/SQLite): `SupportGenerator` (ABC) + `SupportContext` (DI),
+  `SupportGeneratorRegistry` + `build_default_support_registry`,
+  `chapters` (parser), `sources`, `events`, `manifest` (freshness),
+  `artifact_writer`/`artifact_reader`, `generators/` (`_base` per-chapter +
+  evaluative mixin + 8 LLM generators: concept flashcards, MCQ,
+  true/false, cloze, open questions, sheet, key points, mock exam),
+  `labels` (FR-frozen, used in LLM prompts).
+- `chat/` — **Dialogue** engine (RAG chat on corpus): `corpus` (loading +
+  per-section chunking + glossary), `prompt_builder` (system/history +
+  numbered passages + history guard), `citations` (`resolve_citations`:
+  rewrites the LLM's `[§N]` markers as clickable numbered links
+  `[[N]](anchor)`, `Citation` carrying the `number` of sequential display
+  deduplicated by anchor), `query_expander` (LLM reformulation on demand),
+  `retriever_factory` (`AUTO` resolution + fallback), `chat_service`
+  (`answer`/`stream_answer`). Retrieval as ports: `PassageRetriever`
+  (`core/retrieval`, lexical TF-IDF) + `EmbeddingProvider`
+  (`infra/embeddings`, OpenAI, **configurable model** `EmbeddingModel` +
+  `_pricing`) + `SemanticPassageRetriever` (`infra/retrieval`, `.npz`
+  index + fingerprint including the model **+ mtime of the consolidated
+  document AND glossary** → reindex on change). **Corpus freshness**:
+  `ChatController.refresh_corpus_if_stale()` re-derives the corpus when
+  the consolidated/glossary has changed on disk (key = language + 2
+  mtimes), called before every answer **and** on the generation's
+  `run_state_changed` signal → the Dialogue never cites a stale document
+  after regeneration (without reloading the project). Streaming via
+  `LLMProvider.chat_stream` (**additive** extension). **Exhaustive cost**:
+  `consumed_cost_usd()` on retrieval/embedding ports aggregated into
+  `ChatMessage.cost_usd`. Persisted conversations, **deletable**
+  (`app/chat_conversation_store`); `ChatSettings` in the v2 blob.
+  Citations/chunking bounded to the document outline (`##`/`###`).
+  **Per-conversation corpus language**: `Conversation.language` drives the
+  language **read/cited AND answered in**; a selector (populated by
+  `pedagogy.sources.available_content_languages`) picks it at conversation
+  creation (among the produced `consolidated.{lang}.md`; hidden if a
+  single language; the side list **prefixes** each conversation by its
+  language code, a conversation's language being **fixed**). The corpus,
+  the injected glossary (pre-localised term + definition), and the `.npz`
+  index (already **per language**, built **lazily**) follow;
+  `_resolve_content_language(project, target)` prefers the conversation
+  language, falls back to source then to the 1st produced one.
+  **Known limitation (Chinese)**: the **lexical** TF-IDF retrieval
+  tokenises on `\b\w+\b`, poorly suited to Chinese (no spaces between
+  words) → prefer the **semantic** mode for Chinese (the `AUTO` default
+  routes there as soon as an OpenAI key is present). Arabic (words
+  separated by spaces) is not affected.
+- `infra/` — adapters (ports/adapters): `stt/` (FasterWhisper local +
+  OpenAI cloud + fakes; **per-provider configurable model**
+  `LocalSttModel`/`CloudSttModel` + `_pricing` USD/min; cloud `gpt-4o-*`
+  without timestamps → single segment), `embeddings/` (port
+  `EmbeddingProvider` + OpenAI + `_pricing` + fakes), `retrieval/`
+  (`SemanticPassageRetriever`), `llm/` (DeepSeek + `_pricing` +
+  `invocation` + fakes; `max_tokens` at model ceiling + `finish_reason`
+  anti-truncation guard), `audio/ffmpeg_extractor` +
+  `cloud_audio_preparer` (Opus compression + silence-based splitting:
+  crosses OpenAI Whisper's 25 MB limit, injected into the cloud STT
+  adapter), `ingestion/` (dispatcher `source → transcription` injected in
+  phase 0: `classify` [video/audio/document extensions] +
+  `SourceIngestor` port + `MediaIngestor` [video+audio via ffmpeg+STT] +
+  `DocumentIngestor` [pdf/docx/md/txt → transcription with a **single
+  segment**, via `TextExtractor` pypdf/python-docx] + `YoutubeIngestor`
+  [URL → `YtDlpDownloader` downloads the audio (resolved/replaceable
+  yt-dlp binary) → delegates to `MediaIngestor`]),
+  `anki/genanki_exporter` (`.apkg`), `export/markdown_pdf` (Markdown +
+  HTML + PDF) + `export/markdown_docx` (DOCX via htmldocx, reuses
+  `render_markdown_body`), `storage/sqlite_state` (WAL) + `fs_artifacts`
+  (atomic writes), `secrets/` (Windows DPAPI), `prompts/loader` +
+  `defaults/*.j2` (8 phases + 3 thematic `phase_5_*` + 8 `pedagogy_*` +
+  3 `chat_*`).
+- `app/` — use-cases: `ProjectService` (+ `get_last_completed_run`;
+  deleting a project also wipes its **workspace folder** on disk,
+  best-effort, leaving the input folder and the global database alone),
   `RunOrchestrator`, `SupportsOrchestrator`, `CostEstimator`,
-  `PedagogyCostEstimator`, `pedagogy_export` (Anki/MD/PDF/HTML/DOCX) + `generation_export`
-  (consolidé + glossaire MD/PDF/HTML/DOCX) sur le cœur partagé `document_export`, `_cost_common`,
-  `PromptsService`, `SecretsService`, `input_sources` (`build_input_sources` :
-  scan dossier vidéo+audio → `SourceExecution`),
-  `HardwareProbe`. (Le glossaire est lu sur disque — `glossary_master.json` —
-  comme le pipeline ; parsing/rendu dans `domain/glossary`, pas de service dédié.)
-- `ui/` — PySide6 : `features/` (abstraction onglet : `FeatureId`, `FeatureTab`,
-  `FeatureRegistry`, `GenerationTab`, `PedagogyTab` réel), `viewmodels/` (logique
-  testable **sans Qt**, dont `PedagogyProgressViewModel`/`PedagogyStateViewModel`),
-  `widgets/` (dont `SettingsView` master-detail réutilisable, `PedagogyProgressView`),
-  `dialogs/` (dont `GenerationSettingsView`, `PedagogySettingsView`),
-  `theme/` (QSS Clair Fluent), `pedagogy_labels`, `main_window` (sidebar +
-  `QTabWidget`), `generation_controller`, `pedagogy_controller`, `qt_event_bus`
-  (`QtEventBus` + `PedagogyQtEventBus`), `app_main` (point d'entrée + DI complet).
+  `PedagogyCostEstimator`, `pedagogy_export` (Anki/MD/PDF/HTML/DOCX) +
+  `generation_export` (consolidated + glossary MD/PDF/HTML/DOCX) on the
+  shared `document_export` core, `_cost_common`, `PromptsService`,
+  `SecretsService`, `input_sources` (`build_input_sources`: video+audio
+  folder scan → `SourceExecution`), `HardwareProbe`,
+  `LanguageController` (mirror of `ThemeController`: reads/persists the
+  interface language in `%APPDATA%/Fahmi2/ui_prefs.json`, installs the
+  `QTranslator` **before** widget construction). (The glossary is read
+  from disk — `glossary_master.json` — like the pipeline; parsing/rendering
+  in `domain/glossary`, no dedicated service.)
+- `ui/` — PySide6: `features/` (tab abstraction: `FeatureId`, `FeatureTab`,
+  `FeatureRegistry`, `GenerationTab`, real `PedagogyTab`), `viewmodels/`
+  (logic testable **without Qt**, including `PedagogyProgressViewModel` /
+  `PedagogyStateViewModel`), `widgets/` (including reusable master-detail
+  `SettingsView`, `PedagogyProgressView`), `dialogs/` (including
+  `GenerationSettingsView`, `PedagogySettingsView`), `theme/` (Light
+  Fluent design system **+ mirrored dark mode**, tokens centralised in
+  `_tokens.py` — `ThemeMode { SYSTEM, LIGHT, DARK }`, palettes
+  `LIGHT_TOKENS`/`DARK_TOKENS`, shadows for `QGraphicsDropShadowEffect`;
+  `apply_theme(app, mode)` loads `light_fluent.qss` or `dark_fluent.qss`,
+  updates the active palette and re-installs card shadows; both QSS
+  expose **exactly** the same selector set — guarded by
+  `tests/unit/ui/test_theme_sync.py`), `_components.py` (shared bricks:
+  `card`, `page_header`, `field_hint`, `section_label`,
+  `horizontal_separator`, `install_shadow`, `localize_button_box` —
+  translates standard Qt buttons via `QCoreApplication.translate(
+  "StandardButtons", ...)`; `reapply_card_shadows` iterates over **live
+  top-level widgets** rather than `QApplication.allWidgets()` which would
+  include zombie widgets), `pedagogy_labels` (UI-translated variants of
+  the FR-frozen `pedagogy/labels`), `main_window` (sidebar +
+  `QTabWidget`), `generation_controller`, `pedagogy_controller`,
+  `qt_event_bus` (`QtEventBus` + `PedagogyQtEventBus`), `app_main` (entry
+  point + full DI — instantiates `ThemeController` which reads the
+  appearance preference in `%APPDATA%/Fahmi2/ui_prefs.json` and applies
+  the theme, and `LanguageController` which reads/persists the interface
+  language in the same file and installs the matching `QTranslator`
+  **before** widget construction).
+- `i18n/` — UI internationalisation (source language = French):
+  `languages.py` (enum `AppLanguage { FR, EN }` + native
+  `LANGUAGE_LABELS` + `DEFAULT_LANGUAGE` — module **pure Python with no
+  Qt dependency**, importable by application services without pulling
+  `QTranslator`), `__init__.py` (Qt functions:
+  `install_translator(app, lang, dir)` + `bundled_translations_dir()`),
+  `translations/fahmi2_<code>.ts` (editable sources — versioned),
+  `compiled/fahmi2_<code>.qm` (binaries — **gitignored**, regenerated by
+  `scripts/i18n_compile.py`, bundled at build time via
+  `packaging/fahmi2.spec`). UI strings go through `self.tr(...)`
+  (instance methods) or `QCoreApplication.translate(<context>, ...)`
+  (free functions); extraction via `scripts/i18n_extract.py` (wraps
+  `pyside6-lupdate -extensions py`), compilation via
+  `scripts/i18n_compile.py` (wraps `pyside6-lrelease`). The language
+  change is persisted by `LanguageController.set_language(...)` but
+  applies **at the next launch**: Qt does not propagate `LanguageChange`
+  to strings already rendered via `tr()` at widget construction time,
+  and rebuilding the tree would be brittle.
+  **Migration state: complete** (phases 0 to 4 delivered). **485
+  strings** translated across **≥ 28 Linguist contexts** covering: the
+  `MainWindow` pilot (phase 0); the cockpit surface — sidebar, tabs,
+  dock, stats, logs (phase 1); all configuration dialogs —
+  GlobalSettings, NewProject, GenerationSettings, PedagogySettings,
+  ChatSettings, PromptsEditor, CostEstimate — + internal widgets
+  (PhaseConfigs, SourceOrder, LanguageSelection) + helpers
+  (`localize_button_box` replaces `frenchify_button_box`; centralised
+  labels `_model_labels` / `pedagogy_labels` exposed as **functions**
+  returning dicts translated on use) (phase 2); Dialogue view
+  (`chat_view` / `_chat_bubble`), cost matrix, pedagogy progress view +
+  all the QMessageBoxes of the 3 controllers (phase 3); document-export
+  helper, viewmodels (run_matrix, pedagogy_state) + fs helpers (phase 4).
+  **Frozen FR domain**: `pedagogy/labels.py` stays in French (used in
+  LLM prompts; the quality of materials depends on the linguistic
+  stability of the prompts); the translated UI variants are exposed via
+  `ui/pedagogy_labels.audience_display_label` / `bloom_display_label` /
+  `density_display_label`.
+  **Guard tests**: `tests/unit/i18n/test_i18n.py` parametrises ~60
+  critical strings (≥ 1 per migrated context) which validate end-to-end
+  that the compiled `.qm` contains the expected translation — a FR
+  source rename without re-extraction/compilation fails the suite.
+  **Qt pitfalls**: `pyside6-lupdate` does not extract strings passed to a
+  function wrapper (``_tr(source)``) — always call
+  ``QCoreApplication.translate("Context", "literal source")`` directly
+  with BOTH context and source literal. Same for `self.tr()`: the
+  context is the **class name** where it is called
+  (`PedagogyProgressView`, not `PedagogyProgress` even if there is a
+  human alias). The previously installed `QTranslator` is cleaned up via
+  `setParent(None) + deleteLater()` at each `install_translator`
+  (without this, orphan QObjects continue to receive `LanguageChange`
+  and can corrupt memory in long test sessions). PySide6 stubs type
+  `QT_TRANSLATE_NOOP` as `object` → `typing.cast(str, ...)` required for
+  strict mypy.
 
-## Le pipeline en 8 phases
+## The pipeline in 8 phases
 
-Ordre canonique dans `phase_registry.py`. Chaque handler déclare `is_per_source`
-(une source = vidéo, audio, document ou lien YouTube) :
+Canonical order in `phase_registry.py`. Each handler declares
+`is_per_source` (a source = video, audio, document, or YouTube link):
 
 | Phase | Handler | Mode |
 |-------|---------|------|
-| 0 STT | `phase_0_stt` | **par source** |
-| 1 Extraction termes | `phase_1_term_extraction` | **par source** |
-| 2 Réconciliation glossaire | `phase_2_glossary_reconciliation` | batch |
-| 3 Reformulation | `phase_3_reformulation` | **par source** |
-| 4 Structuration | `phase_4_structuration` | **par source** |
+| 0 STT | `phase_0_stt` | **per source** |
+| 1 Term extraction | `phase_1_term_extraction` | **per source** |
+| 2 Glossary reconciliation | `phase_2_glossary_reconciliation` | batch |
+| 3 Rephrasing | `phase_3_reformulation` | **per source** |
+| 4 Structuring | `phase_4_structuration` | **per source** |
 | 5 Consolidation | `phase_5_consolidation` (dispatcher `ORDERED`/`THEMATIC`) | batch |
-| 6 Traduction (+ localisation glossaire) | `phase_6_translation` | batch (boucle sources × langues) |
-| 7 Cohérence | `phase_7_coherence` | batch (boucle langues) |
+| 6 Translation (+ glossary localisation) | `phase_6_translation` | batch (sources × languages loop) |
+| 7 Coherence | `phase_7_coherence` | batch (languages loop) |
 
-Le `PipelineEngine._execute_one` persiste chaque `PhaseExecution` en SQLite. Une
-phase déjà `SUCCEEDED` est **skippée** (passée en `SKIPPED`). C'est le socle du
-checkpoint/reprise. Les phases batch sont persistées avec `source_id IS NULL`.
+`PipelineEngine._execute_one` persists each `PhaseExecution` in SQLite. A
+phase already `SUCCEEDED` is **skipped** (turned into `SKIPPED`). This is
+the checkpoint/resume base. Batch phases are persisted with
+`source_id IS NULL`.
 
-**Parallélisme** : le moteur exécute les phases per-source via
-`core/concurrency/map_bounded` borné par `PhaseHandler.max_parallel_workers(ctx)`
-(défaut 1 ; phase 0 = `parallelism.stt_cloud_workers` si STT cloud sinon 1 — 1 GPU
-local ; phases 1/3/4 = `parallelism.llm_workers`). Les phases batch parallélisent
-leurs boucles internes : 6 sur `(langue × document)`, 7 sur les langues, 5 sur les
-résumés par source (ordre des résultats préservé → assemblage déterministe). Les
-barrières restent les phases batch 2 et 5 (le moteur reste « phase par phase »).
-`ParallelismConfig` est câblée et réglable dans l'UI (défaut `llm_workers=16`,
-`stt_cloud_workers=3`). Détails : `docs/superpowers/specs/2026-05-21-parallelisation-traitements-design.md`.
+**Parallelism**: the engine executes per-source phases via
+`core/concurrency/map_bounded` bounded by
+`PhaseHandler.max_parallel_workers(ctx)` (default 1; phase 0 =
+`parallelism.stt_cloud_workers` if cloud STT, otherwise 1 — 1 local GPU;
+phases 1/3/4 = `parallelism.llm_workers`). Batch phases parallelise their
+inner loops: 6 over `(language × document)`, 7 over languages, 5 over
+per-source summaries (result order preserved → deterministic assembly).
+The barriers remain the batch phases 2 and 5 (the engine stays
+"phase-by-phase"). `ParallelismConfig` is wired and adjustable in the UI
+(default `llm_workers=16`, `stt_cloud_workers=3`). Details:
+`docs/superpowers/specs/2026-05-21-parallelisation-traitements-design.md`.
 
-## Mécanismes transverses (à connaître avant de modifier)
+## Cross-cutting mechanisms (to know before modifying)
 
-- **Modes de consolidation (phase 5)** : `GenerationSettings.consolidation_mode`
-  (`ConsolidationMode`, défaut `ORDERED`, migration *lenient*) sélectionne une
-  **stratégie** (`pipeline/handlers/_consolidation/` : ABC `ConsolidationStrategy`
-  + helpers déterministes partagés dans `_base.py` ; `ordered.py` = comportement
-  historique ; `thematic.py` = nouveau). `phase_5_consolidation.py` n'est plus
-  qu'un **dispatcher** (+ ré-exports de compat pour les tests historiques).
-  `ORDERED` : 1 source = 1 chapitre, contenu recopié. `THEMATIC` : **refonte
-  thématique transversale** par le LLM (rigueur sur le fond / souplesse sur la
-  forme) en map-reduce à provenance — T1 relevé factuel par source (ids tracés
-  `source#n` + extrait verbatim, artefacts `consolidation/facts_master.json` +
-  `facts.md`), T2 plan thématique (couverture déterministe #1 → chapitre filet
-  « Éléments complémentaires »), T3 rédaction par chapitre (couverture #2,
-  conflits présentés par source), T4 méta + assemblage déterministe réutilisé.
-  **Les identifiants techniques (ULID, `source#n`) ne fuitent jamais dans le
-  livrable** : le LLM ne reçoit que des libellés lisibles « Source N » pour
-  l'attribution, et `_strip_provenance_ids` remplace tout id résiduel (filet
-  déterministe).
-  Reprise intra-phase via *hash de cohérence* (sans toucher `PipelineEngine`).
-  Coût : facteur dédié dans `CostEstimator` (pas d'enforcement runtime en
-  génération). UI : sélecteur dans `GenerationSettingsView` + note « ordre sans
-  effet » sur `SourceOrderView`. 3 prompts `phase_5_fact_ledger`/`_thematic_plan`/
-  `_thematic_chapter`. Spec : `docs/superpowers/specs/2026-05-26-modes-consolidation-thematique-design.md`.
-- **Localisation terminologique du glossaire (phase 6)** : les **termes** du glossaire
-  sont localisés **par langue cible** (traduit-sauf-international ; acronyme conservé ;
-  `acronym_expansion` invariante) par un **appel LLM structuré** (`_localize_glossary`,
-  prompt `phase_6_glossary_localization`). **Appariement par position** (le prompt impose
-  un objet JSON par terme **dans l'ordre**) — robuste à une réémission imparfaite du champ
-  `source` (sinon les **acronymes** voyaient leur **définition** retomber en langue source) ;
-  repli sur l'appariement par terme source puis per-terme si le compte diffère. La
-  **définition est toujours traduite** (même pour un acronyme gardé) ; seule
-  l'`acronym_expansion` reste en langue source. La phase 6 (1) **rend `glossary.{L}.md` de façon déterministe** (le
-  glossaire **n'est plus une `_TranslationTask`**), (2) injecte les vrais équivalents
-  `source → cible` dans la traduction du consolidé/docs par source, (3) **persiste
-  `cross_lang` dans `glossary_master.json`** (écriture atomique, pour l'aval). **Source
-  unique** : `domain/glossary.localize_glossary_terms(terms, language)` (= `cross_lang[L]`,
-  repli sur le terme source). **Propagation** : la **Pédagogie** (`SupportsOrchestrator`)
-  et le **Dialogue** (`corpus.load_corpus_chunks`) **pré-localisent** le glossaire à la
-  **langue de contenu** qu'ils chargent (générateurs / `format_glossary_terms` /
-  `_glossary_chunks` inchangés). `cross_lang` porte **terme + définition**
-  (`domain/glossary.LocalizedTerm` ; persisté par `_persist_cross_lang` **sans appel LLM
-  supplémentaire** car la définition traduite est déjà calculée ; parsing *lenient* :
-  objet `{term,definition}` ou **chaîne legacy** = terme seul, définition repliée sur la
-  source) → le glossaire est **entièrement localisé en aval** (Pédagogie/Dialogue), pas
-  seulement le terme. Seule l'`acronym_expansion` (colonne *Signification*) reste
-  **invariante** par langue (voulu). Specs :
+- **Consolidation modes (phase 5)**: `GenerationSettings.consolidation_mode`
+  (`ConsolidationMode`, default `ORDERED`, *lenient* migration) selects a
+  **strategy** (`pipeline/handlers/_consolidation/`: ABC
+  `ConsolidationStrategy` + deterministic helpers shared in `_base.py`;
+  `ordered.py` = historical behaviour; `thematic.py` = new).
+  `phase_5_consolidation.py` is now just a **dispatcher** (+ compat
+  re-exports for historical tests). `ORDERED`: 1 source = 1 chapter,
+  content copied. `THEMATIC`: **cross-cutting thematic rewrite** by the
+  LLM (strict on facts / flexible on form) as provenance-tracking
+  map-reduce — T1 factual ledger per source (traced ids `source#n` +
+  verbatim excerpt, `consolidation/facts_master.json` + `facts.md`
+  artefacts), T2 thematic plan (deterministic coverage #1 → "Additional
+  elements" safety-net chapter), T3 per-chapter writing (coverage #2,
+  conflicts shown per source), T4 meta + reused deterministic assembly.
+  **Technical identifiers (ULID, `source#n`) never leak into the
+  deliverable**: the LLM only receives readable "Source N" labels for
+  attribution, and `_strip_provenance_ids` replaces any residual id
+  (deterministic safety net). Intra-phase resume via *consistency hash*
+  (without touching `PipelineEngine`). Cost: dedicated factor in
+  `CostEstimator` (no runtime enforcement in generation). UI: selector in
+  `GenerationSettingsView` + "order has no effect" note on
+  `SourceOrderView`. 3 prompts `phase_5_fact_ledger`/`_thematic_plan`/
+  `_thematic_chapter`. Spec:
+  `docs/superpowers/specs/2026-05-26-modes-consolidation-thematique-design.md`.
+- **Glossary terminology localisation (phase 6)**: the glossary **terms**
+  are localised **by target language** (translated-unless-international;
+  acronym preserved; invariant `acronym_expansion`) by a **structured LLM
+  call** (`_localize_glossary`, prompt `phase_6_glossary_localization`).
+  **By-position pairing** (the prompt forces one JSON object per term **in
+  order**) — robust to imperfect re-emission of the `source` field
+  (otherwise **acronyms** had their **definition** falling back to the
+  source language); fallback to source-term pairing then per-term if the
+  count differs. The **definition is always translated** (even for a kept
+  acronym); only the `acronym_expansion` stays in the source language.
+  Phase 6 (1) **renders `glossary.{L}.md` deterministically** (the
+  glossary is **no longer a `_TranslationTask`**), (2) injects the real
+  `source → target` equivalents into the translation of the
+  consolidated/per-source docs, (3) **persists `cross_lang` in
+  `glossary_master.json`** (atomic write, for downstream). **Single
+  source**: `domain/glossary.localize_glossary_terms(terms, language)` (=
+  `cross_lang[L]`, fallback on the source term). **Propagation**: the
+  **Pedagogy** (`SupportsOrchestrator`) and **Dialogue**
+  (`corpus.load_corpus_chunks`) **pre-localise** the glossary to the
+  **content language** they load (generators / `format_glossary_terms` /
+  `_glossary_chunks` unchanged). `cross_lang` carries **term + definition**
+  (`domain/glossary.LocalizedTerm`; persisted by `_persist_cross_lang`
+  **without an additional LLM call** since the translated definition is
+  already computed; *lenient* parsing: `{term,definition}` object or
+  **legacy string** = term only, definition falling back on the source) →
+  the glossary is **fully localised downstream** (Pedagogy/Dialogue), not
+  just the term. Only the `acronym_expansion` (*Meaning* column) stays
+  **invariant** per language (intended). Specs:
   `docs/superpowers/specs/2026-05-27-localisation-terminologique-glossaire-design.md`
   + `docs/superpowers/specs/2026-05-27-dialogue-langue-corpus-design.md`.
-- **Coquille multi-fonctionnalités** : la zone projet est une `QTabWidget` peuplée
-  par un `FeatureRegistry` (calqué sur `PhaseRegistry`). Un `Project` ne porte que
-  nom + emplacement (immuable après création) ; les réglages métier sont par
-  fonctionnalité (`GenerationSettings`, `None` = « à configurer »). Le workspace a un
-  dossier par fonctionnalité (`<emplacement>/generation/…`). Le blob
-  `projects.settings_json` est en **v2** (`{version, workspace_folder, generation,
-  pedagogy}`) avec migration *lenient* v1→v2 à la lecture. Ajouter une fonctionnalité
-  = enregistrer un `FeatureTab`, sans toucher `MainWindow` ni `Project`.
-- **Entrants polymorphes (ingestion)** : la phase 0 délègue à
-  `IngestionDispatcher` (injecté dans `PhaseContext`) qui route selon le
-  `SourceKind` d'un `InputSource` (`SourceExecution.source` ; fichier **ou** URL).
-  `MediaIngestor` (vidéo/audio) extrait l'audio puis STT ; `DocumentIngestor`
-  (pdf/docx/md/txt) extrait le texte en une `Transcription` à **segment unique**
-  (le texte intégral, structure préservée — `_load_transcription_text` joint les
-  segments par une espace, donc *un seul* segment évite tout aplatissement).
-  `build_input_sources` (ex `scan_input_folder`) scanne le dossier via
-  `classify_file`, puis **ajoute après** les liens YouTube de
-  `GenerationSettings.youtube_urls` (**unitaires**, `--no-playlist`) téléchargés
-  par `YtDlpDownloader` (binaire yt-dlp **résolu/remplaçable** :
-  `resolve_ytdlp_binary_or_none`, override `FAHMI2_YTDLP`). Un document n'a pas
-  de STT (`duration_seconds=0`). Le drapeau
-  `GenerationSettings.reformulate_documents` (défaut `True`) : si désactivé, la
-  phase 3 fait un **pass-through** (le document est inséré tel quel, coût 0) au
-  lieu de reformuler. Le `CostEstimator` raisonne en `SourceWeight` (durée audio
-  **ou** tokens texte, drapeau `reformulated`). **Ordre & exclusion** :
-  `source_order` (clés ordonnées des incluses) + `excluded_sources` (clés exclues)
-  sont réconciliés au scan par la fonction pure `reconcile_source_order` (partagée
-  `build_input_sources` ↔ widget UI `SourceOrderView` double liste) ; clés stables
-  = `InputSource.order_key()` (nom de fichier / URL) ; les clés obsolètes sont
-  ignorées, les nouvelles ajoutées en fin.
-- **Checkpoint / reprise après erreur** : un Run garde le même `RunId` du début à
-  la fin. `RunOrchestrator.resume_or_create_run(project)` reprend le dernier Run
-  s'il est `FAILED`/`PAUSED`/`RUNNING`-orphelin (les phases `SUCCEEDED` seront
-  skippées), sinon crée un nouveau Run. La state machine autorise donc
-  `FAILED → RUNNING`. Ne jamais re-`create_run` pour « reprendre » : ça forge un
-  nouveau `RunId` et perd tout le checkpoint.
-- **Piège SQLite `UNIQUE` + `NULL`** : SQLite traite `NULL` comme distinct dans
-  une contrainte `UNIQUE`, donc `ON CONFLICT(run_id, phase_id, source_id)` ne se
-  déclenche **jamais** pour les phases batch (`source_id IS NULL`).
-  `SqliteState.upsert_phase_execution` fait un `DELETE + INSERT` explicite dans ce
-  cas. Toute évolution du schéma passe par `_apply_soft_migrations` (idempotent,
-  `ALTER TABLE ADD COLUMN` ou nettoyage de données).
-- **DeepSeek thinking** : `DeepSeekAdapter` envoie le mode raisonnement via
-  `extra_body={"thinking": {"type": "enabled"|"disabled"}, "reasoning_effort":
-  "high"|"max"}`, configurable **par phase** (`PhaseConfig.thinking_enabled` +
-  `reasoning_effort`). `CostEstimator` applique un multiplicateur sur les tokens
-  de sortie selon ce niveau (×2.5 / ×3.5 HIGH / ×6 MAX) — les tokens de
-  raisonnement sont facturés au tarif output.
-- **Override des prompts** : `PromptLoader` charge prioritairement
-  `%APPDATA%/Fahmi2/prompts/<nom>.j2` s'il existe et est un Jinja2 valide, sinon
-  le défaut bundlé dans `infra/prompts/defaults/`. `PromptsService` +
-  `PromptsEditorDialog` exposent ça dans l'UI. Modifier un `.j2` de `defaults/`
-  change la base pour tous, mais un override `%APPDATA%` le masque. Le catalogue
-  couvre les 8 phases, les **3 templates `phase_5_*` du mode thématique** **et**
-  les 8 templates `pedagogy_*` (tous éditables pareil).
-- **Supports pédagogiques** : 8 types, tous LLM, générés par un **orchestrateur
-  dédié léger** (`SupportsOrchestrator`, **pas** le `PipelineEngine`) qui
-  **parallélise les unités (langue × support)** via `core/concurrency/map_bounded`
-  (borné par `PedagogySettings.llm_workers`, défaut 16, plage 1–64 exposée en
-  réglage ; verrou sur le manifeste, compteur de coût partagé). Le **plafond de
-  coût est best-effort** en parallèle (léger dépassement toléré par les requêtes
-  en vol). Détails : `docs/superpowers/specs/2026-05-21-parallelisation-traitements-design.md`.
-  Les entrants sont lus **sur disque** comme le pipeline :
-  document consolidé (parsé en chapitres ; une **langue de contenu** est résolue
-  parmi les `consolidated.{lang}.md` existants — la langue cible peut donc différer)
-  et glossaire (`glossary_master.json` ; pas de table SQLite). Les supports sont
-  rédigés par le LLM dans la **langue cible** choisie, indépendamment de la langue
-  du document source. Pas de checkpoint SQLite : la fraîcheur est suivie par le
-  `pedagogy/manifest.json` (hash des réglages + mtime source par langue), une source
-  régénérée **périme** les supports (bandeau d'état UI). **Alignement sur la
-  génération** (`_is_complete`) : relancer un ensemble **complet** (tout présent +
-  frais) **régénère** tout (écrase, comme un nouveau run) ; un ensemble **incomplet**
-  (interruption / plafond) est **repris** *coarse* (supports frais skippés, manquants
-  générés). Le statut de la dernière exécution est persisté sur disque
-  (`pedagogy/run_state.json` : `RunStatus` + horodatages + coût) pour un statut
-  homogène avec la génération (sidebar, tuiles), lisible hors session active. Le
-  `SupportsOrchestrator` applique
-  un **plafond de coût** (`PedagogyCostEstimator`). Les générateurs LLM partagent
-  le retry du pipeline (`core/retry/classification.default_classify`) via
-  `pedagogy/generators/_base.py` (parsing JSON typé). Les supports **évaluatifs**
-  « corrigé séparé » produisent un `<support>.corrige.md` distinct du sujet.
-  Exports : `.apkg` (genanki) via `app/pedagogy_export.py`, **Markdown/PDF/HTML/DOCX
-  un fichier par support et par corrigé** (`<support>.<lang>(.corrige).<ext>`) via
-  le cœur partagé `app/document_export.py` (`write_documents` : collecteur →
-  écriture par format ; `infra/export/markdown_pdf` et `markdown_docx` restent de purs
-  *renderers*). `ExportDocument` porte la **langue** du contenu (pilote police/direction
-  du rendu PDF/HTML). La **génération** a son propre export documentaire
-  `app/generation_export.py` (consolidé + glossaire, un fichier par langue,
-  MD/PDF/HTML/DOCX ; réglage `GenerationSettings.export_formats`, opt-in). Côté UI, le helper partagé
-  `ui/_export_ui.py` (`choose_export_format` + `run_document_export`) factorise
-  choix de format → dossier → erreurs → log pour les deux contrôleurs. Les
-  prompts autorisent un Markdown léger dans le contenu ; l'export Anki **convertit
-  les champs Markdown en HTML** (`genanki_exporter._md_to_html`) — sauf le texte
-  cloze (mécanique `{{cN::}}` préservée). MD/PDF/HTML/DOCX consomment le Markdown rendu
-  tel quel ; le **corps HTML est rendu une fois** par `render_markdown_body` (extensions
-  `tables`+`toc`), réutilisé par HTML, PDF **et** DOCX. **Normalisation des tableaux**
-  (`_normalize_table_blocks`, partagée donc HTML/PDF/DOCX) : les sorties LLM collent
-  souvent un tableau pipe à la phrase qui l'introduit ou l'indentent dans une liste
-  numérotée → python-markdown ne l'active pas (barres littérales). On garantit une ligne
-  vide avant/après + désindentation. *Limite python-markdown* : un tableau ne s'imbrique
-  pas dans un `<li>` → il en ressort ; la numérotation de la liste qui suit est rétablie
-  par `_renumber_lists_split_by_tables` (attribut `<ol start>`, honoré navigateur + PDF
-  xhtml2pdf). Réutilisé par HTML, PDF **et** DOCX (`markdown_docx` → htmldocx →
-  python-docx ; Word gère nativement CJK et coupe de ligne ; l'**arabe** reçoit une
-  direction RTL explicite (`w:bidi` paragraphes, `w:rtl` runs, `w:bidiVisual` tableaux →
-  colonnes inversées, comme `direction:rtl` PDF / `dir="rtl"` HTML), les toggles insérés
-  à la bonne position du schéma OOXML via `insert_element_before` ; l'**orientation
-  paysage** — option `landscape`, ex: glossaire — est posée sur les sections du document
-  via `WD_ORIENT.LANDSCAPE` + permutation largeur/hauteur.
-  **htmldocx ne traduit ni les bordures CSS ni `width:100%`** (tableaux sans contour,
-  largeur ajustée au contenu) → `markdown_docx._format_docx_tables` reformate **tous**
-  les tableaux après conversion : style intégré `Table Grid` (bordures) + `tblW` à
-  `pct` 5000 (100 %), pour s'aligner sur HTML/PDF.
-  **Rendu PDF/HTML (`infra/export/markdown_pdf`)** : le **PDF est rendu à partir du
-  HTML via `xhtml2pdf`** (moteur ReportLab, Python pur, *bundleable*) — vraie
-  pagination (listes/tableaux multi-pages), typo CSS, orientation paysage. Gotchas :
-  (1) tableaux pipe GFM → extension python-markdown `tables` (sinon texte littéral) ;
-  (2) sommaire **cliquable** via l'extension `toc` + `core/slugify.slugify_anchor`
-  (ids de titres = ancres du sommaire ; `slugify_anchor` conserve les lettres Unicode
-  → ancres CJK/arabes valides) ; (3) `app.document_export.ExportDocument`
-  porte l'**orientation `landscape`** (PDF **et** DOCX), les **largeurs de colonnes PDF**
-  (`pdf_column_widths`) et la **langue** — le **glossaire** s'exporte en paysage (PDF +
-  DOCX) + largeurs dédiées (PDF) ; (4) xhtml2pdf n'honore les largeurs de colonnes que
-  posées sur **chaque** cellule et effondre les cellules vides → `_layout_table_cells`
-  (largeurs + remplissage `&nbsp;`) ; (5) ReportLab+Arial ne rend pas U+2010/2011/2012/2015
-  (carré) → `_normalize_for_pdf` les normalise (em-dash/en-dash conservés) ; (6) plus
-  largement, tout caractère **sans glyphe** dans la police active (émojis décoratifs
-  📖/📝/💡/🎯…) est **retiré** avant rendu (`_strip_unrenderable_for_pdf` ; couverture
-  via `pdfmetrics.getFont(...).face.charToGlyph`, catégories Cc/Cf/Zs/Zl/Zp conservées
-  dont ZWJ/RLM pour l'arabe) — sinon ReportLab dessine un carré (pas d'émojis couleur,
-  pas de repli par glyphe) ; HTML/DOCX, eux, les conservent ; (7) le **chinois s'écrit
-  sans espaces** et ReportLab ne coupe qu'aux espaces (le mode CSS `-pdf-word-wrap: CJK`
-  de xhtml2pdf 0.2.17 plante sur `<p>`/`<li>`) → la prose CJK est **pré-coupée** par
-  `<br/>` (`_prewrap_cjk_runs` via `reportlab…wordSplit` + BeautifulSoup, largeur dérivée
-  des constantes A4/marge) et les **cellules** par la règle CSS `-pdf-word-wrap: CJK`
-  (seul contexte où elle fonctionne) ; les deux ne s'appliquent qu'aux langues CJK
-  (`_CJK_LANGUAGES`). Le pré-formatage opère **par bloc** (paragraphe/li/titre) sur le
-  **texte aplati** — fragments **gras/italiques inclus** : couper nœud par nœud plaçait
-  la 1ʳᵉ ligne suivant un terme en gras *après* ce terme → débordement à droite. La
-  largeur cible réserve **un idéogramme** (`_CJK_WIDEST_CHAR`) car `wordSplit` dépasse sa
-  cible du dernier caractère ajouté. **Police PDF par langue** : latin
-  (fr/en/de/es/it) → Arial système (résolu en Helvetica par xhtml2pdf, couvre Latin-1) ;
-  **chinois** → Microsoft YaHei (`msyh.ttc` système, chargé via `subfontIndex`) injecté
-  dans `xhtml2pdf.default.DEFAULT_FONT` (garde `EXPORT.NO_CJK_FONT` si absent) ;
-  **arabe** → Arial (glyphes arabes) + `direction:rtl` + tag `<pdf:language name="arabic"/>`
-  qui déclenche le reshaping contextuel + bidi (`arabic-reshaper`/`python-bidi`, transitifs
-  xhtml2pdf). ⚠ **Arial Italic/Bold-Italic n'ont aucun glyphe arabe** (l'arabe n'a pas de
-  formes italiques) → l'arabe en emphase (`*…*`) tombait en carrés ; `_ensure_arabic_font_registered`
-  enregistre une famille dédiée `AppArabic` dont **italique/gras-italique pointent sur les
-  variantes droites** (régulier/gras), qui couvrent l'arabe.
-  `domain.languages.is_rtl` = **source unique RTL** (PDF `direction`, HTML `dir`, DOCX
-  `bidi`/`bidiVisual`) ; `_text_direction` en dérive la valeur CSS ; tailles de police et
-  marge `@page` **centralisées** (source unique gabarit CSS ↔ calcul de largeur du
-  pré-formatage CJK). **Polices toutes système Windows — rien à bundler.**
-- **Erreurs → UI** : une exception levée par un handler **doit** être une
-  `Fahmi2Error` (code + user_message + technical_details). Le moteur la convertit
-  en `ErrorInfo`, la propage dans `PhaseFinished.error`, et `generation_controller._to_log_event`
-  l'expose dans le panneau Logs (code + message + détails) et `events.jsonl`.
-- **UI threading & projet affiché** : un Run tourne dans un `QThread` worker. Le
-  `GenerationController` (découplé du `MainWindow` : il reçoit header/stats/matrice/logs)
-  distingue `_current_project` (affiché dans le dashboard) de
-  `_active_worker_project_id` (projet du worker actif) — les events du pipeline
-  ne rafraîchissent matrice/stats que si les deux coïncident, pour ne pas écraser
-  le dashboard quand l'utilisateur navigue entre projets pendant un Run. Le
-  bridge worker→UI passe par `QtEventBus` (EventBus → Signal Qt).
-- **Secrets** : clés API chiffrées via DPAPI Windows (`DPAPISecretsStore`),
-  jamais en clair sur disque ni dans les logs. Hors Windows (dev), fallback
-  `InMemorySecretsStore`.
+- **Multi-feature shell**: the project area is a `QTabWidget` populated by
+  a `FeatureRegistry` (modelled after `PhaseRegistry`). A `Project` only
+  carries name + location (immutable after creation); the business
+  settings are per feature (`GenerationSettings`, `None` = "to be
+  configured"). The workspace has one folder per feature
+  (`<location>/generation/…`). The `projects.settings_json` blob is in
+  **v2** (`{version, workspace_folder, generation, pedagogy}`) with
+  *lenient* v1→v2 migration on read. Adding a feature = registering a
+  `FeatureTab`, without touching `MainWindow` or `Project`.
+- **Polymorphic inputs (ingestion)**: phase 0 delegates to
+  `IngestionDispatcher` (injected into `PhaseContext`) which routes
+  depending on the `SourceKind` of an `InputSource`
+  (`SourceExecution.source`; file **or** URL). `MediaIngestor`
+  (video/audio) extracts the audio then STT; `DocumentIngestor`
+  (pdf/docx/md/txt) extracts the text into a **single-segment**
+  `Transcription` (the full text, structure preserved —
+  `_load_transcription_text` joins segments by a space, so a *single*
+  segment avoids any flattening). `build_input_sources` (formerly
+  `scan_input_folder`) scans the folder via `classify_file`, then **adds
+  afterwards** the YouTube links from `GenerationSettings.youtube_urls`
+  (**single videos**, `--no-playlist`) downloaded by `YtDlpDownloader`
+  (**resolved/replaceable** yt-dlp binary: `resolve_ytdlp_binary_or_none`,
+  override `FAHMI2_YTDLP`). A document has no STT
+  (`duration_seconds=0`). The `GenerationSettings.reformulate_documents`
+  flag (default `True`): if disabled, phase 3 does a **pass-through** (the
+  document is inserted as-is, cost 0) instead of rephrasing. The
+  `CostEstimator` reasons in `SourceWeight` (audio duration **or** text
+  tokens, `reformulated` flag). **Order & exclusion**: `source_order`
+  (ordered keys of included sources) + `excluded_sources` (excluded
+  keys) are reconciled at scan by the pure function
+  `reconcile_source_order` (shared `build_input_sources` ↔ UI widget
+  `SourceOrderView` dual list); stable keys =
+  `InputSource.order_key()` (file name / URL); obsolete keys are
+  ignored, new ones added at the end.
+- **Checkpoint / resume after error**: a Run keeps the same `RunId` from
+  start to end. `RunOrchestrator.resume_or_create_run(project)` resumes
+  the last Run if it is `FAILED`/`PAUSED`/`RUNNING`-orphan (`SUCCEEDED`
+  phases will be skipped), otherwise creates a new Run. The state
+  machine therefore allows `FAILED → RUNNING`. Never re-`create_run` to
+  "resume": this forges a new `RunId` and loses all the checkpoint.
+- **SQLite `UNIQUE` + `NULL` pitfall**: SQLite treats `NULL` as distinct
+  in a `UNIQUE` constraint, so `ON CONFLICT(run_id, phase_id, source_id)`
+  **never** triggers for batch phases (`source_id IS NULL`).
+  `SqliteState.upsert_phase_execution` does an explicit `DELETE + INSERT`
+  in this case. Any schema evolution goes through `_apply_soft_migrations`
+  (idempotent, `ALTER TABLE ADD COLUMN` or data cleanup).
+- **DeepSeek thinking**: `DeepSeekAdapter` sends the reasoning mode via
+  `extra_body={"thinking": {"type": "enabled"|"disabled"},
+  "reasoning_effort": "high"|"max"}`, configurable **per phase**
+  (`PhaseConfig.thinking_enabled` + `reasoning_effort`). `CostEstimator`
+  applies a multiplier on the output tokens depending on this level (×2.5
+  / ×3.5 HIGH / ×6 MAX) — reasoning tokens are billed at the output
+  rate.
+- **Prompt overrides**: `PromptLoader` loads `%APPDATA%/Fahmi2/prompts/<name>.j2`
+  first if it exists and is a valid Jinja2, otherwise the default bundled
+  in `infra/prompts/defaults/`. `PromptsService` + `PromptsEditorDialog`
+  expose this in the UI. Modifying a `.j2` in `defaults/` changes the
+  base for everyone, but an `%APPDATA%` override masks it. The catalogue
+  covers the 8 phases, the **3 `phase_5_*` templates of the thematic
+  mode**, **and** the 8 `pedagogy_*` templates (all editable the same
+  way).
+- **Revision materials**: 8 types, all LLM, generated by a **dedicated
+  lightweight orchestrator** (`SupportsOrchestrator`, **not** the
+  `PipelineEngine`) which **parallelises the units (language × material)**
+  via `core/concurrency/map_bounded` (bounded by
+  `PedagogySettings.llm_workers`, default 16, range 1–64 exposed as a
+  setting; lock on the manifest, shared cost counter). The **cost cap is
+  best-effort** in parallel (slight overshoot tolerated by in-flight
+  requests). Details:
+  `docs/superpowers/specs/2026-05-21-parallelisation-traitements-design.md`.
+  Inputs are read **from disk** like the pipeline: consolidated document
+  (parsed into chapters; a **content language** is resolved among the
+  existing `consolidated.{lang}.md` — the target language can therefore
+  differ) and glossary (`glossary_master.json`; no SQLite table).
+  Materials are written by the LLM in the chosen **target language**,
+  independently of the source document's language. No SQLite checkpoint:
+  freshness is tracked by `pedagogy/manifest.json` (settings hash +
+  per-language source mtime), a regenerated source **stales** the
+  materials (UI state banner). **Alignment with generation**
+  (`_is_complete`): re-running a **complete** set (all present + fresh)
+  **regenerates** everything (overwrites, like a new run); an
+  **incomplete** set (interruption / cap) is **resumed** *coarsely*
+  (fresh materials skipped, missing ones generated). The status of the
+  last execution is persisted to disk (`pedagogy/run_state.json`:
+  `RunStatus` + timestamps + cost) for a status consistent with the
+  generation (sidebar, tiles), readable outside an active session. The
+  `SupportsOrchestrator` enforces a **cost cap**
+  (`PedagogyCostEstimator`). The LLM generators share the pipeline's
+  retry (`core/retry/classification.default_classify`) via
+  `pedagogy/generators/_base.py` (typed JSON parsing). The "separate
+  answer key" **evaluative** materials produce a `<support>.corrige.md`
+  file distinct from the subject. Exports: `.apkg` (genanki) via
+  `app/pedagogy_export.py`, **one Markdown/PDF/HTML/DOCX file per
+  material and per answer key** (`<support>.<lang>(.corrige).<ext>`) via
+  the shared core `app/document_export.py` (`write_documents`:
+  collector → per-format writing; `infra/export/markdown_pdf` and
+  `markdown_docx` stay pure *renderers*). `ExportDocument` carries the
+  content **language** (drives font/direction of PDF/HTML rendering).
+  The **generation** has its own documentary export
+  `app/generation_export.py` (consolidated + glossary, one file per
+  language, MD/PDF/HTML/DOCX; `GenerationSettings.export_formats`
+  setting, opt-in). On the UI side, the shared helper `ui/_export_ui.py`
+  (`choose_export_format` + `run_document_export`) factorises format
+  choice → folder → errors → log for both controllers. Prompts allow
+  light Markdown in content; the Anki export **converts the Markdown
+  fields to HTML** (`genanki_exporter._md_to_html`) — except for cloze
+  text (mechanics `{{cN::}}` preserved). MD/PDF/HTML/DOCX consume the
+  rendered Markdown as-is; the **HTML body is rendered once** by
+  `render_markdown_body` (extensions `tables`+`toc`), reused by HTML,
+  PDF **and** DOCX. **Table normalisation** (`_normalize_table_blocks`,
+  shared therefore HTML/PDF/DOCX): LLM outputs often glue a pipe table
+  to the introducing sentence or indent it in a numbered list →
+  python-markdown does not activate it (literal bars). We guarantee a
+  blank line before/after + de-indent. *python-markdown limit*: a table
+  cannot be nested in an `<li>` → it comes out; the numbering of the
+  following list is restored by `_renumber_lists_split_by_tables`
+  (`<ol start>` attribute, honoured by the browser + xhtml2pdf PDF).
+  Reused by HTML, PDF **and** DOCX (`markdown_docx` → htmldocx →
+  python-docx; Word natively handles CJK and line breaking; **Arabic**
+  gets explicit RTL direction (`w:bidi` paragraphs, `w:rtl` runs,
+  `w:bidiVisual` tables → inverted columns, like `direction:rtl` PDF /
+  `dir="rtl"` HTML), toggles inserted at the correct OOXML schema
+  position via `insert_element_before`; **landscape orientation** —
+  `landscape` option, e.g. glossary — is set on the document sections
+  via `WD_ORIENT.LANDSCAPE` + width/height swap.
+  **htmldocx translates neither CSS borders nor `width:100%`** (tables
+  without borders, width adjusted to content) →
+  `markdown_docx._format_docx_tables` reformats **all** tables after
+  conversion: built-in `Table Grid` style (borders) + `tblW` to `pct`
+  5000 (100 %), to align with HTML/PDF.
+  **PDF/HTML rendering (`infra/export/markdown_pdf`)**: the **PDF is
+  rendered from the HTML via `xhtml2pdf`** (ReportLab engine, pure
+  Python, *bundleable*) — real pagination (multi-page lists/tables), CSS
+  typography, landscape orientation. Gotchas: (1) GFM pipe tables →
+  python-markdown `tables` extension (otherwise literal text); (2)
+  **clickable** TOC via the `toc` extension + `core/slugify.slugify_anchor`
+  (heading ids = TOC anchors; `slugify_anchor` keeps Unicode letters →
+  valid CJK/Arabic anchors); (3) `app.document_export.ExportDocument`
+  carries the **`landscape` orientation** (PDF **and** DOCX), the **PDF
+  column widths** (`pdf_column_widths`), and the **language** — the
+  **glossary** exports in landscape (PDF + DOCX) + dedicated widths
+  (PDF); (4) xhtml2pdf only honours column widths set on **each** cell
+  and collapses empty cells → `_layout_table_cells` (widths +
+  `&nbsp;` filling); (5) ReportLab+Arial does not render
+  U+2010/2011/2012/2015 (square) → `_normalize_for_pdf` normalises them
+  (em-dash/en-dash kept); (6) more broadly, any character **without a
+  glyph** in the active font (decorative emojis 📖/📝/💡/🎯…) is
+  **stripped** before rendering (`_strip_unrenderable_for_pdf`; coverage
+  via `pdfmetrics.getFont(...).face.charToGlyph`, Cc/Cf/Zs/Zl/Zp
+  categories preserved including ZWJ/RLM for Arabic) — otherwise
+  ReportLab draws a square (no colour emojis, no glyph fallback);
+  HTML/DOCX, on the other hand, keep them; (7) **Chinese is written
+  without spaces** and ReportLab only breaks at spaces (the
+  `-pdf-word-wrap: CJK` CSS mode of xhtml2pdf 0.2.17 crashes on
+  `<p>`/`<li>`) → CJK prose is **pre-broken** with `<br/>`
+  (`_prewrap_cjk_runs` via `reportlab…wordSplit` + BeautifulSoup, width
+  derived from the A4/margin constants) and **cells** by the CSS rule
+  `-pdf-word-wrap: CJK` (the only context where it works); both apply
+  only to CJK languages (`_CJK_LANGUAGES`). The pre-formatting operates
+  **block-by-block** (paragraph/li/heading) on the **flattened text** —
+  **bold/italic fragments included**: cutting node by node placed the
+  1st line following a bold term *after* that term → overflow on the
+  right. The target width reserves **one ideogram** (`_CJK_WIDEST_CHAR`)
+  because `wordSplit` overshoots its target by the last character
+  added. **Per-language PDF font**: Latin (fr/en/de/es/it) → system
+  Arial (resolved as Helvetica by xhtml2pdf, covers Latin-1); **Chinese**
+  → Microsoft YaHei (system `msyh.ttc`, loaded via `subfontIndex`)
+  injected into `xhtml2pdf.default.DEFAULT_FONT` (`EXPORT.NO_CJK_FONT`
+  guard if missing); **Arabic** → Arial (Arabic glyphs) + `direction:rtl`
+  + tag `<pdf:language name="arabic"/>` which triggers contextual
+  reshaping + bidi (`arabic-reshaper`/`python-bidi`, xhtml2pdf
+  transitives). ⚠ **Arial Italic/Bold-Italic have no Arabic glyphs**
+  (Arabic has no italic forms) → Arabic in emphasis (`*…*`) came out as
+  squares; `_ensure_arabic_font_registered` registers a dedicated family
+  `AppArabic` whose **italic/bold-italic point to the upright variants**
+  (regular/bold), which cover Arabic.
+  `domain.languages.is_rtl` = **single RTL source** (PDF `direction`,
+  HTML `dir`, DOCX `bidi`/`bidiVisual`); `_text_direction` derives the
+  CSS value from it; font sizes and `@page` margin **centralised**
+  (single source for the CSS template ↔ CJK pre-formatting width
+  computation). **All system Windows fonts — nothing to bundle.**
+- **Errors → UI**: an exception raised by a handler **must** be a
+  `Fahmi2Error` (code + user_message + technical_details). The engine
+  converts it to an `ErrorInfo`, propagates it in `PhaseFinished.error`,
+  and `generation_controller._to_log_event` exposes it in the Logs panel
+  (code + message + details) and `events.jsonl`.
+- **UI threading & displayed project**: a Run runs in a `QThread`
+  worker. The `GenerationController` (decoupled from `MainWindow`: it
+  receives header/stats/matrix/logs) distinguishes `_current_project`
+  (shown in the dashboard) from `_active_worker_project_id` (project of
+  the active worker) — pipeline events only refresh matrix/stats if the
+  two coincide, to avoid overwriting the dashboard when the user
+  navigates between projects during a Run. The worker→UI bridge passes
+  through `QtEventBus` (EventBus → Qt Signal).
+- **Secrets**: API keys encrypted via Windows DPAPI (`DPAPISecretsStore`),
+  never plaintext on disk or in the logs. Outside Windows (dev),
+  `InMemorySecretsStore` fallback.
 
 ## Tests
 
-Fixtures clés (dans `tests/conftest.py`) : `make_generation_settings` fabrique des
-`GenerationSettings` valides, `make_project` un `Project` minimal ; passer des kwargs
-pour surcharger. Les providers
-réels ont des doubles `_fakes.py` (`FakeLLMProvider`, `FakeSTTProvider`). Les
-viewmodels UI se testent sans Qt ; les widgets ont des smoke tests `pytest-qt`.
-`mypy --strict` est actif : attention au narrowing après un `assert` suivi d'un
-appel mutant (contourner via `getattr` plutôt que d'accepter un faux
-`unreachable`).
+Key fixtures (in `tests/conftest.py`): `make_generation_settings` builds
+valid `GenerationSettings`, `make_project` a minimal `Project`; pass
+kwargs to override. Real providers have `_fakes.py` doubles
+(`FakeLLMProvider`, `FakeSTTProvider`). UI viewmodels are tested without
+Qt; widgets have `pytest-qt` smoke tests. `mypy --strict` is active:
+beware of narrowing after an `assert` followed by a mutating call (work
+around via `getattr` rather than accepting a false `unreachable`).
 
-## Directives systématiques
+## Systematic directives
 
-0. **Toujours valider la complétude du plan**
-1. **Constants centralization** — pas de magic string, magic number, valeur par défaut directement dans le code mais dans des constantes
-2.  Conformity with existing codebase patterns (reuse existing classes, methods, helpers, constants, mixins, base classes)
-3.  Follow the Google Python Style Guide — Google-style docstrings with Args, Returns, Raises sections; module-level docstrings on every file
-4.  Verify naming consistency (imports, classes, methods, variables, constants) and that all arguments are properly defined and passed
+0. **Always validate the completeness of the plan**
+1. **Constants centralization** — no magic string, magic number, or
+   default value directly in the code, only in constants
+2. Conformity with existing codebase patterns (reuse existing classes,
+   methods, helpers, constants, mixins, base classes)
+3. Follow the Google Python Style Guide — Google-style docstrings with
+   Args, Returns, Raises sections; module-level docstrings on every file
+4. Verify naming consistency (imports, classes, methods, variables,
+   constants) and that all arguments are properly defined and passed
 5. Respect framework patterns
-6. Respect DRY, YAGNI, KISS, SRP, SoC, Boy Scout Rule, Composition over Inheritance
-7. Write generic, extensible code — no duplication, reuse validator mixins and base classes
-8. Update all documentation in `docs/` as well as all cross-cutting docs, `README.md`
+6. Respect DRY, YAGNI, KISS, SRP, SoC, Boy Scout Rule, Composition over
+   Inheritance
+7. Write generic, extensible code — no duplication, reuse validator
+   mixins and base classes
+8. Update all documentation in `docs/` as well as all cross-cutting
+   docs, `README.md`

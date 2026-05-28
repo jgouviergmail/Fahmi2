@@ -1,11 +1,14 @@
 """Dialogue ``PedagogySettingsView`` — réglages des supports pédagogiques.
 
-Réorganise les réglages en catégories (Supports, Difficulté, Langues, Modèle &
-coût) via le composant ``SettingsView``. Produit un ``PedagogySettings`` (sans nom
-ni emplacement, qui relèvent du ``Project``).
+Présentation : master-detail (composant
+:class:`~fahmi2.ui.widgets.settings_view.SettingsView`) à cinq catégories.
+
+i18n : tous les libellés passent par :py:meth:`QObject.tr` à l'usage.
 """
 
 from __future__ import annotations
+
+from typing import Final
 
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -13,9 +16,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
-    QFormLayout,
     QGridLayout,
-    QLabel,
     QMessageBox,
     QSpinBox,
     QTextEdit,
@@ -41,48 +42,44 @@ from fahmi2.domain.pedagogy import (
     PedagogySettings,
 )
 from fahmi2.domain.phase import PhaseConfig
-from fahmi2.pedagogy.labels import audience_label, bloom_label, density_label
-from fahmi2.ui._model_labels import LLM_MODEL_LABELS, labeled_enum_combo
-from fahmi2.ui.pedagogy_labels import EXPORT_LABELS, SUPPORT_LABELS
+from fahmi2.ui._components import (
+    card,
+    dialog_footer,
+    field_hint,
+    localize_button_box,
+    page_header,
+    section_label,
+    settings_form,
+    settings_page,
+)
+from fahmi2.ui._model_labels import (
+    labeled_enum_combo,
+    llm_model_labels,
+    no_reasoning_label,
+    reasoning_effort_labels,
+)
+from fahmi2.ui.pedagogy_labels import (
+    audience_display_label,
+    bloom_display_label,
+    density_display_label,
+    export_labels,
+    support_labels,
+)
 from fahmi2.ui.widgets.settings_view import SettingsView
 
-_DIALOG_WIDTH_PX = 720
-_DIALOG_HEIGHT_PX = 600
-_DIRECTIVES_HEIGHT_PX = 90
-_COST_CEILING_MAX_USD = 10_000.0
-_TEMPERATURE_MIN = 0.0
-_TEMPERATURE_MAX = 2.0
-_TEMPERATURE_STEP = 0.1
-_DEFAULT_TEMPERATURE = 0.3
-
-_TITLE_CREATE = "Configurer les supports pédagogiques"
-_TITLE_EDIT = "Réglages des supports pédagogiques"
-
-_CAT_SUPPORTS = "Supports"
-_CAT_DIFFICULTY = "Difficulté"
-_CAT_LANGUAGES = "Langues"
-_CAT_MODEL = "Modèle & coût"
-_CAT_EXPORT = "Export"
-
-_SEPARATE_CORRECTION_LABEL = "corrigé séparé"
-_EXPORT_FORMATS_LABEL = "Formats d'export proposés :"
-_EXPORT_HINT = (
-    "Formats proposés lors de l'export des supports générés (le bouton « Exporter » "
-    "laisse choisir parmi les formats cochés)."
-)
-_LANGUAGES_HINT = (
-    "Les supports sont rédigés dans la langue choisie, même si le document source "
-    "est dans une autre langue."
-)
-_REASONING_DEFAULT_LABEL = "Défaut serveur"
-_DIRECTIVES_PLACEHOLDER = (
-    "Directives pédagogiques libres. Ex : « privilégier des exemples concrets, "
-    "éviter les pièges trop subtils, varier les formulations »."
-)
+_DIALOG_WIDTH: Final[int] = 880
+_DIALOG_HEIGHT: Final[int] = 640
+_DIRECTIVES_HEIGHT_PX: Final[int] = 90
+_OUTER_MARGIN: Final[int] = 0
+_COST_CEILING_MAX_USD: Final[float] = 10_000.0
+_TEMPERATURE_MIN: Final[float] = 0.0
+_TEMPERATURE_MAX: Final[float] = 2.0
+_TEMPERATURE_STEP: Final[float] = 0.1
+_DEFAULT_TEMPERATURE: Final[float] = 0.3
 
 
 class PedagogySettingsView(QDialog):
-    """Dialogue d'édition des réglages pédagogie (master-detail)."""
+    """Dialogue d'édition des réglages pédagogie (master-detail, cartes)."""
 
     def __init__(
         self,
@@ -91,28 +88,25 @@ class PedagogySettingsView(QDialog):
         available_languages: tuple[Language, ...],
         initial: PedagogySettings | None = None,
     ) -> None:
-        """Construit le dialogue.
-
-        Args:
-            parent: Parent Qt optionnel.
-            available_languages: Langues proposées (produites par la génération).
-            initial: Réglages pré-remplis (édition) ou ``None`` (création).
-        """
+        """Construit le dialogue."""
         super().__init__(parent)
         self._is_edit_mode = initial is not None
-        self.setWindowTitle(_TITLE_EDIT if self._is_edit_mode else _TITLE_CREATE)
-        self.resize(_DIALOG_WIDTH_PX, _DIALOG_HEIGHT_PX)
+        self.setWindowTitle(
+            self.tr("Réglages des supports pédagogiques") if self._is_edit_mode
+            else self.tr("Configurer les supports pédagogiques")
+        )
+        self.resize(_DIALOG_WIDTH, _DIALOG_HEIGHT)
         self._available_languages = available_languages
         self._result: PedagogySettings | None = None
 
         self._build_fields()
         settings_view = SettingsView(
             [
-                (_CAT_SUPPORTS, self._build_supports_page()),
-                (_CAT_DIFFICULTY, self._build_difficulty_page()),
-                (_CAT_LANGUAGES, self._build_languages_page()),
-                (_CAT_MODEL, self._build_model_page()),
-                (_CAT_EXPORT, self._build_export_page()),
+                (self.tr("Supports"), self._build_supports_page()),
+                (self.tr("Difficulté"), self._build_difficulty_page()),
+                (self.tr("Langues"), self._build_languages_page()),
+                (self.tr("Génération IA"), self._build_generation_page()),
+                (self.tr("Export"), self._build_export_page()),
             ],
             self,
         )
@@ -125,34 +119,29 @@ class PedagogySettingsView(QDialog):
         buttons = QDialogButtonBox(
             button_label | QDialogButtonBox.StandardButton.Cancel, parent=self
         )
+        localize_button_box(buttons)
         buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
 
         outer = QVBoxLayout(self)
+        outer.setContentsMargins(
+            _OUTER_MARGIN, _OUTER_MARGIN, _OUTER_MARGIN, _OUTER_MARGIN
+        )
+        outer.setSpacing(0)
         outer.addWidget(settings_view, stretch=1)
-        outer.addWidget(buttons)
+        outer.addWidget(dialog_footer(self, buttons))
+
+        self.setSizeGripEnabled(True)
 
         if initial is not None:
             self._populate(initial)
 
-    # --------------------------------------------------------------- public API
-
     def get_pedagogy_settings(self) -> PedagogySettings | None:
-        """Retourne les réglages validés (après accept), ou ``None``.
-
-        Returns:
-            ``PedagogySettings`` ou ``None``.
-        """
+        """Retourne les réglages validés (après accept), ou ``None``."""
         return self._result
 
     def build_settings(self) -> PedagogySettings | None:
-        """Construit les réglages depuis les champs (``None`` si invalide).
-
-        Ne déclenche aucun dialogue : utilisable directement dans les tests.
-
-        Returns:
-            ``PedagogySettings`` valide, ou ``None`` si la saisie est invalide.
-        """
+        """Construit les réglages depuis les champs (``None`` si invalide)."""
         selected = frozenset(
             support
             for support, cb in self._support_checks.items()
@@ -164,9 +153,7 @@ class PedagogySettingsView(QDialog):
             if support in selected and cb.isChecked()
         )
         languages = tuple(
-            lang
-            for lang, cb in self._language_checks.items()
-            if cb.isChecked()
+            lang for lang, cb in self._language_checks.items() if cb.isChecked()
         )
         export_formats = frozenset(
             fmt for fmt, cb in self._export_checks.items() if cb.isChecked()
@@ -176,8 +163,6 @@ class PedagogySettingsView(QDialog):
             if self._cost_ceiling_input.value() > 0
             else None
         )
-        # Qt stocke les ``StrEnum`` (sous-classes de ``str``) comme texte : on
-        # recoerce explicitement vers le type enum attendu.
         reasoning_raw = self._reasoning_combo.currentData()
         reasoning_effort = (
             ReasoningEffort(reasoning_raw) if reasoning_raw is not None else None
@@ -205,48 +190,58 @@ class PedagogySettingsView(QDialog):
             return None
 
     def select_support(self, support: SupportType, *, selected: bool) -> None:
-        """Coche/décoche un support (helper de test/UI).
-
-        Args:
-            support: Support.
-            selected: État de la case.
-        """
+        """Coche/décoche un support (helper de test/UI)."""
         self._support_checks[support].setChecked(selected)
 
     def select_language(self, language: Language, *, selected: bool) -> None:
-        """Coche/décoche une langue (helper de test/UI).
-
-        Args:
-            language: Langue.
-            selected: État de la case.
-        """
+        """Coche/décoche une langue (helper de test/UI)."""
         if language in self._language_checks:
             self._language_checks[language].setChecked(selected)
 
-    # ------------------------------------------------------------------ champs
-
     def _build_fields(self) -> None:
-        """Instancie tous les widgets de champ (avant répartition en pages)."""
+        """Instancie tous les widgets de champ."""
         self._support_checks: dict[SupportType, QCheckBox] = {}
         self._separate_checks: dict[SupportType, QCheckBox] = {}
+        sep_tooltip = self.tr(
+            "Si coché, le corrigé est généré dans un document distinct du sujet "
+            "(utile pour les examens blancs)."
+        )
+        support_lbls = support_labels()
         for support in SupportType:
-            self._support_checks[support] = QCheckBox(SUPPORT_LABELS[support], self)
+            self._support_checks[support] = QCheckBox(support_lbls[support], self)
             if support in EVALUATIVE_SUPPORTS:
-                self._separate_checks[support] = QCheckBox(
-                    _SEPARATE_CORRECTION_LABEL, self
-                )
+                self._separate_checks[support] = QCheckBox("", self)
+                self._separate_checks[support].setToolTip(sep_tooltip)
 
         self._audience_combo = QComboBox(self)
+        self._audience_combo.setToolTip(
+            self.tr(
+                "Niveau d'études supposé du lecteur. Le ton et le vocabulaire s'adaptent."
+            )
+        )
         for audience in TargetAudience:
-            self._audience_combo.addItem(audience_label(audience), audience)
+            self._audience_combo.addItem(audience_display_label(audience), audience)
         self._bloom_combo = QComboBox(self)
+        self._bloom_combo.setToolTip(
+            self.tr(
+                "Niveau de la taxonomie de Bloom : comprendre, appliquer, analyser, etc."
+            )
+        )
         for bloom in BloomObjective:
-            self._bloom_combo.addItem(bloom_label(bloom), bloom)
+            self._bloom_combo.addItem(bloom_display_label(bloom), bloom)
         self._density_combo = QComboBox(self)
+        self._density_combo.setToolTip(
+            self.tr("Volume final des supports (compact, équilibré, dense).")
+        )
         for density in SupportDensity:
-            self._density_combo.addItem(density_label(density), density)
+            self._density_combo.addItem(density_display_label(density), density)
         self._directives_input = QTextEdit(self)
-        self._directives_input.setPlaceholderText(_DIRECTIVES_PLACEHOLDER)
+        self._directives_input.setPlaceholderText(
+            self.tr(
+                "Consignes libres pour l'IA. Ex. : « privilégier des exemples concrets, "
+                "éviter les pièges trop subtils, varier les formulations »."
+            )
+        )
         self._directives_input.setFixedHeight(_DIRECTIVES_HEIGHT_PX)
         self._directives_input.setAcceptRichText(False)
 
@@ -254,12 +249,16 @@ class PedagogySettingsView(QDialog):
         for lang in self._available_languages:
             self._language_checks[lang] = QCheckBox(language_display_label(lang), self)
 
-        self._llm_combo = labeled_enum_combo(self, LLM_MODEL_LABELS)
-        self._thinking_check = QCheckBox("Mode raisonnement (thinking)", self)
+        self._llm_combo = labeled_enum_combo(self, llm_model_labels())
+        self._thinking_check = QCheckBox(
+            self.tr("Activer la réflexion approfondie"), self
+        )
         self._reasoning_combo = QComboBox(self)
-        self._reasoning_combo.addItem(_REASONING_DEFAULT_LABEL, None)
-        for effort in ReasoningEffort:
-            self._reasoning_combo.addItem(effort.value, effort)
+        self._reasoning_combo.addItem(no_reasoning_label(), None)
+        for effort, label in reasoning_effort_labels().items():
+            self._reasoning_combo.addItem(label, effort.value)
+        self._thinking_check.toggled.connect(self._reasoning_combo.setEnabled)
+        self._reasoning_combo.setEnabled(self._thinking_check.isChecked())
         self._temperature_input = QDoubleSpinBox(self)
         self._temperature_input.setRange(_TEMPERATURE_MIN, _TEMPERATURE_MAX)
         self._temperature_input.setSingleStep(_TEMPERATURE_STEP)
@@ -269,108 +268,221 @@ class PedagogySettingsView(QDialog):
         self._cost_ceiling_input.setDecimals(2)
         self._cost_ceiling_input.setValue(0.0)
         self._cost_ceiling_input.setSuffix(" $")
-        self._cost_ceiling_input.setSpecialValueText("Pas de plafond")
+        self._cost_ceiling_input.setSpecialValueText(self.tr("Pas de plafond"))
+        self._cost_ceiling_input.setToolTip(
+            self.tr(
+                "Coût maximal en USD. La génération s'arrête si elle s'en approche. Mettez 0 "
+                "pour désactiver le plafond."
+            )
+        )
         self._workers_input = QSpinBox(self)
         self._workers_input.setRange(1, MAX_PEDAGOGY_LLM_WORKERS)
         self._workers_input.setValue(DEFAULT_PEDAGOGY_LLM_WORKERS)
+        self._workers_input.setToolTip(
+            self.tr(
+                "Nombre de générations IA exécutées en parallèle. Augmenter accélère sans "
+                "changer le coût (DeepSeek facture au token, pas au temps)."
+            )
+        )
         self._export_checks: dict[ExportFormat, QCheckBox] = {}
+        export_lbls = export_labels()
         for fmt in ExportFormat:
-            self._export_checks[fmt] = QCheckBox(EXPORT_LABELS[fmt], self)
-
-    # ------------------------------------------------------------------- pages
+            self._export_checks[fmt] = QCheckBox(export_lbls[fmt], self)
 
     def _build_supports_page(self) -> QWidget:
-        """Construit la page « Supports » (grille + corrigés séparés).
-
-        Returns:
-            Le widget de page.
-        """
-        page = QWidget(self)
-        grid = QGridLayout(page)
-        for row, support in enumerate(SupportType):
+        """Construit la page « Supports »."""
+        page, layout = settings_page(self)
+        layout.addWidget(
+            page_header(
+                page,
+                title=self.tr("Supports"),
+                description=self.tr(
+                    "Sélectionnez les supports de révision à générer. Pour les supports "
+                    "évaluatifs, cochez « Corrigé séparé » pour générer un sujet sans "
+                    "réponses et un corrigé dans un document distinct."
+                ),
+            )
+        )
+        card_frame, card_layout = card(page, title=self.tr("Types de supports"))
+        grid = QGridLayout()
+        type_header = section_label(card_frame, self.tr("Type de support"))
+        separate_header = section_label(card_frame, self.tr("Corrigé séparé"))
+        separate_header.setToolTip(
+            self.tr(
+                "Si coché, le corrigé est généré dans un document distinct du sujet "
+                "(utile pour les examens blancs)."
+            )
+        )
+        grid.addWidget(type_header, 0, 0)
+        grid.addWidget(separate_header, 0, 1)
+        for row, support in enumerate(SupportType, start=1):
             grid.addWidget(self._support_checks[support], row, 0)
             if support in self._separate_checks:
                 grid.addWidget(self._separate_checks[support], row, 1)
-        grid.setRowStretch(len(SupportType), 1)
+        grid.setColumnStretch(2, 1)
+        card_layout.addLayout(grid)
+        layout.addWidget(card_frame)
+        layout.addStretch(1)
         return page
 
     def _build_difficulty_page(self) -> QWidget:
-        """Construit la page « Difficulté ».
+        """Construit la page « Difficulté »."""
+        page, layout = settings_page(self)
+        layout.addWidget(
+            page_header(
+                page,
+                title=self.tr("Difficulté"),
+                description=self.tr(
+                    "Public visé, objectif pédagogique et quantité de contenu — orientent le ton, "
+                    "la difficulté et le volume."
+                ),
+            )
+        )
+        audience_card, audience_layout = card(
+            page,
+            title=self.tr("Public et objectif"),
+            description=self.tr(
+                "À qui les supports sont-ils destinés, et quel niveau d'apprentissage visent-ils ?"
+            ),
+        )
+        audience_form = settings_form()
+        audience_form.addRow(self.tr("Public visé"), self._audience_combo)
+        audience_form.addRow(self.tr("Objectif pédagogique (Bloom)"), self._bloom_combo)
+        audience_layout.addLayout(audience_form)
+        layout.addWidget(audience_card)
 
-        Returns:
-            Le widget de page.
-        """
-        page = QWidget(self)
-        outer = QVBoxLayout(page)
-        form = QFormLayout()
-        form.addRow("Public cible :", self._audience_combo)
-        form.addRow("Objectif (Bloom) :", self._bloom_combo)
-        form.addRow("Densité :", self._density_combo)
-        form.addRow("Directives :", self._directives_input)
-        outer.addLayout(form)
-        outer.addStretch(1)
+        density_card, density_layout = card(
+            page,
+            title=self.tr("Densité"),
+            description=self.tr(
+                "Volume des supports générés : compact pour réviser vite, dense pour creuser."
+            ),
+        )
+        density_form = settings_form()
+        density_form.addRow(self.tr("Quantité de contenu"), self._density_combo)
+        density_layout.addLayout(density_form)
+        layout.addWidget(density_card)
+
+        directives_card, directives_layout = card(
+            page,
+            title=self.tr("Consignes pédagogiques"),
+            description=self.tr(
+                "Optionnel. Indiquez à l'IA toute orientation spécifique."
+            ),
+        )
+        directives_layout.addWidget(self._directives_input)
+        layout.addWidget(directives_card)
+
+        layout.addStretch(1)
         return page
 
     def _build_languages_page(self) -> QWidget:
-        """Construit la page « Langues ».
-
-        Returns:
-            Le widget de page.
-        """
-        page = QWidget(self)
-        outer = QVBoxLayout(page)
-        hint = QLabel(_LANGUAGES_HINT, page)
-        hint.setWordWrap(True)
-        outer.addWidget(hint)
+        """Construit la page « Langues »."""
+        page, layout = settings_page(self)
+        layout.addWidget(
+            page_header(
+                page,
+                title=self.tr("Langues"),
+                description=self.tr(
+                    "Les supports sont rédigés dans les langues choisies, même si le document "
+                    "source est dans une autre langue."
+                ),
+            )
+        )
+        card_frame, card_layout = card(page, title=self.tr("Langues à produire"))
         for cb in self._language_checks.values():
-            outer.addWidget(cb)
-        outer.addStretch(1)
+            card_layout.addWidget(cb)
+        layout.addWidget(card_frame)
+        layout.addStretch(1)
         return page
 
-    def _build_model_page(self) -> QWidget:
-        """Construit la page « Modèle & coût ».
+    def _build_generation_page(self) -> QWidget:
+        """Construit la page « Génération IA »."""
+        page, layout = settings_page(self)
+        layout.addWidget(
+            page_header(
+                page,
+                title=self.tr("Génération IA"),
+                description=self.tr(
+                    "Modèle de génération, intensité de réflexion, budget et performance."
+                ),
+            )
+        )
 
-        Returns:
-            Le widget de page.
-        """
-        page = QWidget(self)
-        outer = QVBoxLayout(page)
-        form = QFormLayout()
-        form.addRow("Modèle LLM :", self._llm_combo)
-        form.addRow("Raisonnement :", self._thinking_check)
-        form.addRow("Niveau d'effort :", self._reasoning_combo)
-        form.addRow("Température :", self._temperature_input)
-        form.addRow("Plafond budget :", self._cost_ceiling_input)
-        form.addRow("Tâches en parallèle :", self._workers_input)
-        outer.addLayout(form)
-        outer.addStretch(1)
+        model_card, model_layout = card(
+            page,
+            title=self.tr("Modèle de génération"),
+            description=self.tr(
+                "Modèle DeepSeek utilisé pour rédiger les supports. « Pro » coûte plus mais "
+                "donne des supports de meilleure qualité."
+            ),
+        )
+        model_form = settings_form()
+        model_form.addRow(self.tr("Modèle"), self._llm_combo)
+        model_form.addRow(self.tr("Température"), self._temperature_input)
+        model_layout.addLayout(model_form)
+        layout.addWidget(model_card)
+
+        thinking_card, thinking_layout = card(
+            page,
+            title=self.tr("Réflexion approfondie"),
+            description=self.tr(
+                "Active un raisonnement étendu avant la génération — meilleure qualité, "
+                "coût plus élevé. Recommandé pour les examens blancs."
+            ),
+        )
+        thinking_layout.addWidget(self._thinking_check)
+        thinking_form = settings_form()
+        thinking_form.addRow(self.tr("Intensité de réflexion"), self._reasoning_combo)
+        thinking_layout.addLayout(thinking_form)
+        layout.addWidget(thinking_card)
+
+        budget_card, budget_layout = card(
+            page,
+            title=self.tr("Budget et performance"),
+            description=self.tr(
+                "Plafond de dépense (la génération s'arrête si le coût l'atteint) et nombre "
+                "de tâches IA traitées en parallèle (plus rapide, n'augmente pas le coût)."
+            ),
+        )
+        budget_form = settings_form()
+        budget_form.addRow(self.tr("Budget maximal"), self._cost_ceiling_input)
+        budget_form.addRow(self.tr("Traitements simultanés"), self._workers_input)
+        budget_layout.addLayout(budget_form)
+        layout.addWidget(budget_card)
+
+        layout.addStretch(1)
         return page
 
     def _build_export_page(self) -> QWidget:
-        """Construit la page « Export » (formats d'export proposés).
-
-        Returns:
-            Le widget de page.
-        """
-        page = QWidget(self)
-        outer = QVBoxLayout(page)
-        hint = QLabel(_EXPORT_HINT, page)
-        hint.setWordWrap(True)
-        outer.addWidget(hint)
-        outer.addWidget(QLabel(_EXPORT_FORMATS_LABEL, page))
+        """Construit la page « Export »."""
+        page, layout = settings_page(self)
+        layout.addWidget(
+            page_header(
+                page,
+                title=self.tr("Export"),
+                description=self.tr(
+                    "Formats proposés lors de l'export depuis l'onglet « Supports pédagogiques »."
+                ),
+            )
+        )
+        card_frame, card_layout = card(page, title=self.tr("Formats à exporter"))
         for cb in self._export_checks.values():
-            outer.addWidget(cb)
-        outer.addStretch(1)
+            card_layout.addWidget(cb)
+        layout.addWidget(card_frame)
+        layout.addWidget(
+            field_hint(
+                page,
+                self.tr(
+                    "Sans sélection, l'export laissera le choix au moment de l'action."
+                ),
+            )
+        )
+        layout.addStretch(1)
         return page
 
-    # ----------------------------------------------------------------- actions
-
     def _populate(self, pedagogy: PedagogySettings) -> None:
-        """Pré-remplit les champs depuis des réglages existants.
-
-        Args:
-            pedagogy: Réglages à éditer.
-        """
+        """Pré-remplit les champs depuis des réglages existants."""
         for support, cb in self._support_checks.items():
             cb.setChecked(support in pedagogy.selected_supports)
         for support, cb in self._separate_checks.items():
@@ -383,7 +495,11 @@ class PedagogySettingsView(QDialog):
             cb.setChecked(lang in pedagogy.languages)
         _select_combo(self._llm_combo, pedagogy.llm_model)
         self._thinking_check.setChecked(pedagogy.llm_config.thinking_enabled)
-        _select_combo(self._reasoning_combo, pedagogy.llm_config.reasoning_effort)
+        effort = pedagogy.llm_config.reasoning_effort
+        _select_combo(
+            self._reasoning_combo,
+            effort.value if effort is not None else None,
+        )
         self._temperature_input.setValue(pedagogy.llm_config.temperature)
         self._cost_ceiling_input.setValue(pedagogy.cost_ceiling_usd or 0.0)
         self._workers_input.setValue(pedagogy.llm_workers)
@@ -396,8 +512,8 @@ class PedagogySettingsView(QDialog):
         if result is None:
             QMessageBox.warning(
                 self,
-                "Réglages incomplets",
-                "Sélectionnez au moins un support et au moins une langue.",
+                self.tr("Réglages incomplets"),
+                self.tr("Sélectionnez au moins un support et au moins une langue."),
             )
             return
         self._result = result
@@ -405,12 +521,7 @@ class PedagogySettingsView(QDialog):
 
 
 def _select_combo(combo: QComboBox, data: object) -> None:
-    """Sélectionne dans ``combo`` l'item dont la donnée vaut ``data``.
-
-    Args:
-        combo: Combo à régler.
-        data: Donnée recherchée (``itemData``).
-    """
+    """Sélectionne dans ``combo`` l'item dont la donnée vaut ``data``."""
     index = combo.findData(data)
     if index >= 0:
         combo.setCurrentIndex(index)

@@ -32,9 +32,6 @@ from PySide6.QtWidgets import (
 from fahmi2.domain.enums import Language
 from fahmi2.domain.languages import language_display_label
 
-_PRODUCED_LABEL = "Produites :"
-_PRIMARY_LABEL = "Principale (originale) :"
-
 
 class LanguageSelectionView(QWidget):
     """Sélecteur unifié : cases « produites » + combo « principale » (originale)."""
@@ -56,7 +53,7 @@ class LanguageSelectionView(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         produced_row = QHBoxLayout()
-        produced_row.addWidget(QLabel(_PRODUCED_LABEL, self))
+        produced_row.addWidget(QLabel(self.tr("Produites"), self))
         for lang in self._languages:
             check = QCheckBox(language_display_label(lang), self)
             check.toggled.connect(partial(self._on_check_toggled, lang))
@@ -66,7 +63,7 @@ class LanguageSelectionView(QWidget):
         layout.addLayout(produced_row)
 
         primary_row = QHBoxLayout()
-        primary_row.addWidget(QLabel(_PRIMARY_LABEL, self))
+        primary_row.addWidget(QLabel(self.tr("Principale (originale)"), self))
         self._primary_combo = QComboBox(self)
         primary_row.addWidget(self._primary_combo)
         primary_row.addStretch(1)

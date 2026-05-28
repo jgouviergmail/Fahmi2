@@ -1,13 +1,21 @@
-"""Dialogue de réglages de l'onglet Dialogue (chat).
+"""Dialogue ``ChatSettingsView`` — réglages de l'onglet Dialogue (chat).
 
-Formulaire simple (peu de réglages → un master-detail serait surdimensionné) :
-fidélité, stratégie de retrieval, query expansion, modèle LLM, modèle d'embedding,
-raisonnement, température, top-K. ``get_chat_settings`` reconstruit un
-``ChatSettings`` immuable. Le combo modèle d'embedding n'est actif qu'en mode cloud
-(retrieval ``AUTO``/``SEMANTIC``) : il est sans effet en lexical (100 % local).
+Présenté en master-detail (composant :class:`~fahmi2.ui.widgets.settings_view.SettingsView`)
+à trois catégories :
+
+- **Mode de réponse** : ``ChatGroundingMode`` (strict / étendu) + nombre de
+  passages cités (``top_k``).
+- **Recherche de passages** : ``RetrievalStrategy`` (méthode de recherche) +
+  reformulation automatique de la question + ``EmbeddingModel``.
+- **Génération IA** : modèle LLM + réflexion approfondie + intensité de
+  réflexion + température.
+
+i18n : tous les libellés passent par :py:meth:`QObject.tr` à l'usage.
 """
 
 from __future__ import annotations
+
+from typing import Final
 
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -15,8 +23,8 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
-    QFormLayout,
     QSpinBox,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -28,37 +36,35 @@ from fahmi2.domain.enums import (
     ReasoningEffort,
     RetrievalStrategy,
 )
-from fahmi2.ui._model_labels import (
-    EMBEDDING_MODEL_LABELS,
-    LLM_MODEL_LABELS,
-    labeled_enum_combo,
+from fahmi2.ui._components import (
+    card,
+    dialog_footer,
+    field_hint,
+    localize_button_box,
+    settings_form,
+    settings_page,
 )
+from fahmi2.ui._model_labels import (
+    embedding_model_labels,
+    labeled_enum_combo,
+    llm_model_labels,
+    no_reasoning_label,
+    reasoning_effort_labels,
+)
+from fahmi2.ui.widgets.settings_view import SettingsView
 
-_DIALOG_TITLE = "Réglages — Dialogue"
-_TEMPERATURE_MIN = 0.0
-_TEMPERATURE_MAX = 2.0
-_TEMPERATURE_STEP = 0.1
-_TOP_K_MIN = 1
-_TOP_K_MAX = 20
-_NO_REASONING_LABEL = "Auto (serveur)"
-
-_GROUNDING_LABELS = {
-    ChatGroundingMode.STRICT: "Ancré strict (citations, refus hors-corpus)",
-    ChatGroundingMode.AUGMENTED: "Augmenté (complément « Au-delà du cours »)",
-}
-_STRATEGY_LABELS = {
-    RetrievalStrategy.AUTO: "Auto (sémantique si possible, sinon lexical)",
-    RetrievalStrategy.LEXICAL: "Lexical (TF-IDF, hors-ligne)",
-    RetrievalStrategy.SEMANTIC: "Sémantique (embeddings OpenAI)",
-}
-_REASONING_LABELS = {
-    ReasoningEffort.HIGH: "Élevé (high)",
-    ReasoningEffort.MAX: "Maximal (max)",
-}
+_DIALOG_WIDTH: Final[int] = 780
+_DIALOG_HEIGHT: Final[int] = 560
+_OUTER_MARGIN: Final[int] = 0
+_TEMPERATURE_MIN: Final[float] = 0.0
+_TEMPERATURE_MAX: Final[float] = 2.0
+_TEMPERATURE_STEP: Final[float] = 0.1
+_TOP_K_MIN: Final[int] = 1
+_TOP_K_MAX: Final[int] = 20
 
 
 class ChatSettingsView(QDialog):
-    """Dialogue de configuration du chat de dialogue."""
+    """Dialogue de configuration du chat de dialogue (master-detail)."""
 
     def __init__(
         self, *, parent: QWidget | None = None, initial: ChatSettings | None = None
@@ -70,23 +76,25 @@ class ChatSettingsView(QDialog):
             initial: Réglages à pré-remplir (défaut ``ChatSettings()``).
         """
         super().__init__(parent)
-        self.setWindowTitle(_DIALOG_TITLE)
+        self.setWindowTitle(self.tr("Réglages — Dialogue"))
+        self.resize(_DIALOG_WIDTH, _DIALOG_HEIGHT)
         settings = initial or ChatSettings()
-        form = QFormLayout(self)
 
         self._grounding = labeled_enum_combo(
-            self, _GROUNDING_LABELS, selected=settings.grounding_mode
+            self, self._grounding_labels(), selected=settings.grounding_mode
         )
         self._strategy = labeled_enum_combo(
-            self, _STRATEGY_LABELS, selected=settings.retrieval_strategy
+            self, self._strategy_labels(), selected=settings.retrieval_strategy
         )
-        self._query_expansion = QCheckBox(self)
+        self._query_expansion = QCheckBox(
+            self.tr("Reformulation automatique des questions"), self
+        )
         self._query_expansion.setChecked(settings.query_expansion_enabled)
-        self._model = labeled_enum_combo(self, LLM_MODEL_LABELS, selected=settings.model)
         self._embedding_model = labeled_enum_combo(
-            self, EMBEDDING_MODEL_LABELS, selected=settings.embedding_model
+            self, embedding_model_labels(), selected=settings.embedding_model
         )
-        self._thinking = QCheckBox(self)
+        self._model = labeled_enum_combo(self, llm_model_labels(), selected=settings.model)
+        self._thinking = QCheckBox(self.tr("Activer la réflexion approfondie"), self)
         self._thinking.setChecked(settings.thinking_enabled)
         self._reasoning = self._build_reasoning_combo(settings.reasoning_effort)
         self._temperature = QDoubleSpinBox(self)
@@ -97,34 +105,167 @@ class ChatSettingsView(QDialog):
         self._top_k.setRange(_TOP_K_MIN, _TOP_K_MAX)
         self._top_k.setValue(settings.top_k)
 
-        form.addRow("Fidélité", self._grounding)
-        form.addRow("Retrieval", self._strategy)
-        form.addRow("Modèle d'embedding", self._embedding_model)
-        form.addRow("Expansion de requête", self._query_expansion)
-        form.addRow("Modèle LLM", self._model)
-        form.addRow("Mode raisonnement", self._thinking)
-        form.addRow("Effort de raisonnement", self._reasoning)
-        form.addRow("Température", self._temperature)
-        form.addRow("Passages (top-K)", self._top_k)
+        settings_view = SettingsView(
+            [
+                (self.tr("Mode de réponse"), self._build_response_page()),
+                (self.tr("Recherche de passages"), self._build_retrieval_page()),
+                (self.tr("Génération IA"), self._build_generation_page()),
+            ],
+            self,
+        )
 
-        # Le modèle d'embedding n'a d'effet qu'en retrieval cloud (AUTO/SEMANTIC).
         self._strategy.currentIndexChanged.connect(self._sync_embedding_enabled)
         self._sync_embedding_enabled()
+
+        self._thinking.toggled.connect(self._reasoning.setEnabled)
+        self._reasoning.setEnabled(self._thinking.isChecked())
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
             parent=self,
         )
+        localize_button_box(buttons)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
-        form.addRow(buttons)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(
+            _OUTER_MARGIN, _OUTER_MARGIN, _OUTER_MARGIN, _OUTER_MARGIN
+        )
+        outer.setSpacing(0)
+        outer.addWidget(settings_view, stretch=1)
+        outer.addWidget(dialog_footer(self, buttons))
+        self.setSizeGripEnabled(True)
+
+    def _grounding_labels(self) -> dict[ChatGroundingMode, str]:
+        """Libellés traduits des modes d'ancrage du chat."""
+        return {
+            ChatGroundingMode.STRICT: self.tr(
+                "Strict — réponses tirées du cours uniquement"
+            ),
+            ChatGroundingMode.AUGMENTED: self.tr(
+                "Étendu — complète au-delà du cours"
+            ),
+        }
+
+    def _strategy_labels(self) -> dict[RetrievalStrategy, str]:
+        """Libellés traduits des stratégies de retrieval."""
+        return {
+            RetrievalStrategy.AUTO: self.tr(
+                "Automatique (sens si clé OpenAI, mots-clés sinon)"
+            ),
+            RetrievalStrategy.LEXICAL: self.tr("Mots-clés (hors ligne, TF-IDF)"),
+            RetrievalStrategy.SEMANTIC: self.tr("Sens (en ligne, OpenAI)"),
+        }
+
+    def _build_response_page(self) -> QWidget:
+        """Construit la page « Mode de réponse »."""
+        page, page_layout = settings_page(self)
+
+        response_card, response_layout = card(
+            page,
+            title=self.tr("Comportement des réponses"),
+            description=self.tr(
+                "Définit jusqu'où l'assistant peut s'éloigner du cours dans ses réponses."
+            ),
+        )
+        response_form = settings_form()
+        response_form.addRow(self.tr("Mode de réponse"), self._grounding)
+        response_layout.addLayout(response_form)
+        page_layout.addWidget(response_card)
+
+        citations_card, citations_layout = card(
+            page,
+            title=self.tr("Passages cités"),
+            description=self.tr(
+                "Nombre de passages du cours utilisés pour étayer chaque réponse."
+            ),
+        )
+        citations_form = settings_form()
+        citations_form.addRow(self.tr("Nombre de passages cités"), self._top_k)
+        citations_layout.addLayout(citations_form)
+        page_layout.addWidget(citations_card)
+
+        page_layout.addStretch(1)
+        return page
+
+    def _build_retrieval_page(self) -> QWidget:
+        """Construit la page « Recherche de passages »."""
+        page, page_layout = settings_page(self)
+
+        method_card, method_layout = card(
+            page,
+            title=self.tr("Méthode de recherche"),
+            description=self.tr(
+                "Comment l'assistant retrouve les passages pertinents dans le cours."
+            ),
+        )
+        method_form = settings_form()
+        method_form.addRow(self.tr("Méthode"), self._strategy)
+        method_layout.addLayout(method_form)
+        method_layout.addWidget(self._query_expansion)
+        method_layout.addWidget(
+            field_hint(
+                method_card,
+                self.tr(
+                    "L'assistant reformule la question pour améliorer la recherche. Recommandé."
+                ),
+            )
+        )
+        page_layout.addWidget(method_card)
+
+        vector_card, vector_layout = card(
+            page,
+            title=self.tr("Modèle de vectorisation"),
+            description=self.tr(
+                "Modèle OpenAI utilisé pour la recherche par sens. Sans effet en mode "
+                "« mots-clés » (entièrement hors ligne)."
+            ),
+        )
+        vector_form = settings_form()
+        vector_form.addRow(self.tr("Modèle"), self._embedding_model)
+        vector_layout.addLayout(vector_form)
+        page_layout.addWidget(vector_card)
+
+        page_layout.addStretch(1)
+        return page
+
+    def _build_generation_page(self) -> QWidget:
+        """Construit la page « Génération IA »."""
+        page, page_layout = settings_page(self)
+
+        model_card, model_layout = card(
+            page,
+            title=self.tr("Modèle de génération"),
+            description=self.tr(
+                "Modèle DeepSeek qui rédige les réponses à partir des passages cités."
+            ),
+        )
+        model_form = settings_form()
+        model_form.addRow(self.tr("Modèle"), self._model)
+        model_form.addRow(self.tr("Température"), self._temperature)
+        model_layout.addLayout(model_form)
+        page_layout.addWidget(model_card)
+
+        thinking_card, thinking_layout = card(
+            page,
+            title=self.tr("Réflexion approfondie"),
+            description=self.tr(
+                "Active un raisonnement étendu avant la réponse — meilleure qualité, "
+                "coût plus élevé."
+            ),
+        )
+        thinking_layout.addWidget(self._thinking)
+        thinking_form = settings_form()
+        thinking_form.addRow(self.tr("Intensité de réflexion"), self._reasoning)
+        thinking_layout.addLayout(thinking_form)
+        page_layout.addWidget(thinking_card)
+
+        page_layout.addStretch(1)
+        return page
 
     def get_chat_settings(self) -> ChatSettings:
-        """Reconstruit les réglages depuis les widgets.
-
-        Returns:
-            Le ``ChatSettings`` saisi.
-        """
+        """Reconstruit les réglages depuis les widgets."""
         return ChatSettings(
             grounding_mode=ChatGroundingMode(self._grounding.currentData()),
             retrieval_strategy=RetrievalStrategy(self._strategy.currentData()),
@@ -138,14 +279,15 @@ class ChatSettingsView(QDialog):
         )
 
     def _sync_embedding_enabled(self) -> None:
-        """Active le combo d'embedding hors mode lexical (cloud uniquement)."""
+        """Active le combo de vectorisation hors mode lexical (cloud uniquement)."""
         is_cloud = self._strategy.currentData() != str(RetrievalStrategy.LEXICAL)
         self._embedding_model.setEnabled(is_cloud)
 
     def _build_reasoning_combo(self, initial: ReasoningEffort | None) -> QComboBox:
+        """Construit le combo d'intensité de réflexion (option « Automatique » en tête)."""
         combo = QComboBox(self)
-        combo.addItem(_NO_REASONING_LABEL, None)
-        for effort, label in _REASONING_LABELS.items():
+        combo.addItem(no_reasoning_label(), None)
+        for effort, label in reasoning_effort_labels().items():
             combo.addItem(label, effort.value)
         if initial is not None:
             index = combo.findData(initial.value)
@@ -154,5 +296,6 @@ class ChatSettingsView(QDialog):
         return combo
 
     def _selected_reasoning(self) -> ReasoningEffort | None:
+        """Lit l'effort de raisonnement sélectionné (``None`` = automatique)."""
         data = self._reasoning.currentData()
         return ReasoningEffort(data) if data is not None else None

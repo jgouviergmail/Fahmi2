@@ -8,13 +8,17 @@ de phase.
 
 Layout :
 
-- Liste à gauche : un item par template (phases 1 à 7 + sous-prompt 5a).
-  Un astérisque ``*`` indique qu'un override est actif pour cette phase.
-- Zone à droite : description courte + éditeur Markdown/Jinja2 monospace.
-- Boutons bas : ``Enregistrer``, ``Réinitialiser au défaut``, ``Fermer``.
+- Liste à gauche : un item par template. Un astérisque ``*`` indique qu'un
+  override est actif pour cette phase.
+- Panneau de droite : en-tête de page (nom du template + description),
+  pastille de statut (override actif / défaut), éditeur Markdown/Jinja2
+  monospace, boutons d'action.
+- Bas du dialogue : bouton « Fermer ».
 """
 
 from __future__ import annotations
+
+from typing import Final
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
@@ -27,7 +31,6 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMessageBox,
     QPlainTextEdit,
-    QPushButton,
     QSplitter,
     QVBoxLayout,
     QWidget,
@@ -35,17 +38,41 @@ from PySide6.QtWidgets import (
 
 from fahmi2.app.prompts_service import PromptsService, PromptTemplateMeta
 from fahmi2.core.errors.exceptions import Fahmi2Error
+from fahmi2.ui._buttons import (
+    BUTTON_ROLE_DEFAULT,
+    BUTTON_ROLE_PRIMARY,
+    make_role_button,
+)
+from fahmi2.ui._components import localize_button_box, page_header
 
-_DIALOG_INITIAL_WIDTH_PX = 1000
-_DIALOG_INITIAL_HEIGHT_PX = 700
-_TEMPLATE_NAME_ROLE = Qt.ItemDataRole.UserRole
-_OVERRIDE_MARKER = " *"
+_DIALOG_INITIAL_WIDTH_PX: Final[int] = 1040
+_DIALOG_INITIAL_HEIGHT_PX: Final[int] = 720
+_LIST_MIN_WIDTH_PX: Final[int] = 300
+_OUTER_MARGIN_HORIZONTAL: Final[int] = 22
+_OUTER_MARGIN_TOP: Final[int] = 22
+_OUTER_MARGIN_BOTTOM: Final[int] = 18
+_OUTER_SPACING: Final[int] = 14
+_RIGHT_PANEL_LEFT_MARGIN: Final[int] = 18
+_RIGHT_PANEL_SPACING: Final[int] = 12
+_ACTIONS_ROW_SPACING: Final[int] = 8
+_EDITOR_FONT_POINT_SIZE: Final[int] = 10
+
+_TEMPLATE_NAME_ROLE: Final[int] = int(Qt.ItemDataRole.UserRole)
+_OVERRIDE_MARKER: Final[str] = " *"
+
+#: Police monospace utilisée par l'éditeur (cohérent avec ``#logsDockArea``).
+_EDITOR_FONT_FAMILY: Final[str] = "Consolas"
+
+#: ``objectName`` du label de statut (stylé via QSS : ``#promptsEditorStatus``).
+_STATUS_OBJECT_NAME: Final[str] = "promptsEditorStatus"
+#: ``objectName`` de la zone d'édition (stylé via QSS : ``#promptsEditorTextArea``).
+_EDITOR_OBJECT_NAME: Final[str] = "promptsEditorTextArea"
 
 
 class PromptsEditorDialog(QDialog):
     """Éditeur des prompts LLM par phase (overrides ``%APPDATA%/Fahmi2/prompts``)."""
 
-    def __init__(  # noqa: PLR0915
+    def __init__(
         self,
         prompts_service: PromptsService,
         parent: QWidget | None = None,
@@ -57,7 +84,7 @@ class PromptsEditorDialog(QDialog):
             parent: Parent Qt optionnel.
         """
         super().__init__(parent)
-        self.setWindowTitle("Modifier les prompts")
+        self.setWindowTitle(self.tr("Modifier les prompts"))
         self.resize(_DIALOG_INITIAL_WIDTH_PX, _DIALOG_INITIAL_HEIGHT_PX)
         self._service = prompts_service
         self._current_name: str | None = None
@@ -65,47 +92,109 @@ class PromptsEditorDialog(QDialog):
         # modifications non sauvegardées avant un changement de sélection.
         self._loaded_source: str = ""
 
-        layout = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(
+            _OUTER_MARGIN_HORIZONTAL,
+            _OUTER_MARGIN_TOP,
+            _OUTER_MARGIN_HORIZONTAL,
+            _OUTER_MARGIN_BOTTOM,
+        )
+        outer.setSpacing(_OUTER_SPACING)
+        outer.addWidget(
+            page_header(
+                self,
+                title=self.tr("Éditeur de prompts"),
+                description=self.tr(
+                    "Personnalisez les prompts Jinja2 utilisés par les phases IA. "
+                    "Vos overrides sont stockés dans %APPDATA%/Fahmi2/prompts "
+                    "et chargés prioritairement au prochain lancement."
+                ),
+            )
+        )
 
         splitter = QSplitter(Qt.Orientation.Horizontal, self)
-        layout.addWidget(splitter, stretch=1)
+        self._list_widget = self._build_left_list(splitter)
+        right_panel = self._build_right_panel(splitter)
+        splitter.addWidget(self._list_widget)
+        splitter.addWidget(right_panel)
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
+        splitter.setSizes(
+            [_LIST_MIN_WIDTH_PX, _DIALOG_INITIAL_WIDTH_PX - _LIST_MIN_WIDTH_PX]
+        )
+        outer.addWidget(splitter, stretch=1)
 
-        # Sidebar : liste des templates
-        self._list_widget = QListWidget(splitter)
-        self._list_widget.setMinimumWidth(280)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Close, parent=self
+        )
+        localize_button_box(buttons)
+        buttons.rejected.connect(self.reject)
+        outer.addWidget(buttons)
+
+        # Sélectionne le premier template par défaut.
+        if self._list_widget.count() > 0:
+            self._list_widget.setCurrentRow(0)
+
+    def _build_left_list(self, parent: QWidget) -> QListWidget:
+        """Construit la liste des templates (sidebar gauche du splitter).
+
+        Args:
+            parent: Parent Qt (typiquement le splitter).
+
+        Returns:
+            Le ``QListWidget`` peuplé avec un item par template.
+        """
+        list_widget = QListWidget(parent)
+        list_widget.setMinimumWidth(_LIST_MIN_WIDTH_PX)
         for meta in self._service.list_templates():
             item = QListWidgetItem(_format_item_label(meta, self._service))
             item.setData(_TEMPLATE_NAME_ROLE, meta.name)
-            self._list_widget.addItem(item)
-        self._list_widget.currentRowChanged.connect(self._on_selection_changed)
-        splitter.addWidget(self._list_widget)
+            list_widget.addItem(item)
+        list_widget.currentRowChanged.connect(self._on_selection_changed)
+        return list_widget
 
-        # Panneau de droite : description + éditeur
-        right_panel = QWidget(splitter)
+    def _build_right_panel(self, parent: QWidget) -> QWidget:
+        """Construit le panneau de droite (description + statut + éditeur + actions).
+
+        Args:
+            parent: Parent Qt (typiquement le splitter).
+
+        Returns:
+            Le widget assemblé.
+        """
+        right_panel = QWidget(parent)
         right_layout = QVBoxLayout(right_panel)
-        right_layout.setContentsMargins(8, 0, 0, 0)
+        right_layout.setContentsMargins(_RIGHT_PANEL_LEFT_MARGIN, 0, 0, 0)
+        right_layout.setSpacing(_RIGHT_PANEL_SPACING)
 
+        # Description dynamique du template (titre + description mis à jour à
+        # chaque ``_load_template``). ``QLabel`` direct avec HTML simple plutôt
+        # qu'un ``page_header`` statique, car le contenu varie par sélection.
         self._description_label = QLabel(right_panel)
         self._description_label.setWordWrap(True)
         right_layout.addWidget(self._description_label)
 
         self._status_label = QLabel(right_panel)
-        self._status_label.setObjectName("promptsEditorStatus")
+        self._status_label.setObjectName(_STATUS_OBJECT_NAME)
         right_layout.addWidget(self._status_label)
 
         self._editor = QPlainTextEdit(right_panel)
-        self._editor.setObjectName("promptsEditorTextArea")
-        editor_font = QFont("Consolas")
+        self._editor.setObjectName(_EDITOR_OBJECT_NAME)
+        editor_font = QFont(_EDITOR_FONT_FAMILY)
         editor_font.setStyleHint(QFont.StyleHint.Monospace)
-        editor_font.setPointSize(10)
+        editor_font.setPointSize(_EDITOR_FONT_POINT_SIZE)
         self._editor.setFont(editor_font)
         right_layout.addWidget(self._editor, stretch=1)
 
-        # Actions
         actions_row = QHBoxLayout()
-        self._save_button = QPushButton("💾  Enregistrer", right_panel)
-        self._reset_button = QPushButton(
-            "↩  Réinitialiser au défaut", right_panel
+        actions_row.setSpacing(_ACTIONS_ROW_SPACING)
+        self._save_button = make_role_button(
+            right_panel, self.tr("💾  Enregistrer"), role=BUTTON_ROLE_PRIMARY
+        )
+        self._reset_button = make_role_button(
+            right_panel,
+            self.tr("↩  Réinitialiser au défaut"),
+            role=BUTTON_ROLE_DEFAULT,
         )
         self._save_button.clicked.connect(self._on_save)
         self._reset_button.clicked.connect(self._on_reset)
@@ -114,20 +203,7 @@ class PromptsEditorDialog(QDialog):
         actions_row.addStretch(1)
         right_layout.addLayout(actions_row)
 
-        splitter.addWidget(right_panel)
-        splitter.setStretchFactor(0, 0)
-        splitter.setStretchFactor(1, 1)
-        splitter.setSizes([280, _DIALOG_INITIAL_WIDTH_PX - 280])
-
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Close, parent=self
-        )
-        buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
-
-        # Sélectionne le premier template par défaut.
-        if self._list_widget.count() > 0:
-            self._list_widget.setCurrentRow(0)
+        return right_panel
 
     # ------------------------------------------------------------------ events
 
@@ -163,7 +239,7 @@ class PromptsEditorDialog(QDialog):
         except Fahmi2Error as exc:
             QMessageBox.critical(
                 self,
-                "Template invalide",
+                self.tr("Template invalide"),
                 f"{exc.code}\n\n{exc.user_message}",
             )
             return
@@ -172,8 +248,8 @@ class PromptsEditorDialog(QDialog):
         self._refresh_status_label()
         QMessageBox.information(
             self,
-            "Prompt enregistré",
-            "L'override est actif au prochain lancement de phase.",
+            self.tr("Prompt enregistré"),
+            self.tr("L'override est actif au prochain lancement de phase."),
         )
 
     def _on_reset(self) -> None:
@@ -183,16 +259,16 @@ class PromptsEditorDialog(QDialog):
         if not self._service.has_override(self._current_name):
             QMessageBox.information(
                 self,
-                "Aucun override actif",
-                "Ce template n'a pas d'override personnalisé.",
+                self.tr("Aucun override actif"),
+                self.tr("Ce template n'a pas d'override personnalisé."),
             )
             return
         reply = QMessageBox.question(
             self,
-            "Réinitialiser au défaut ?",
-            (
-                "Supprimer l'override personnalisé et restaurer le prompt "
-                "par défaut bundlé avec l'application ?"
+            self.tr("Réinitialiser au défaut ?"),
+            self.tr(
+                "Supprimer l'override personnalisé et restaurer le prompt par "
+                "défaut bundlé avec l'application ?"
             ),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
@@ -249,11 +325,11 @@ class PromptsEditorDialog(QDialog):
             return
         if self._service.has_override(self._current_name):
             self._status_label.setText(
-                "✏️ <i>Override personnalisé actif</i>"
+                self.tr("✏️ <i>Override personnalisé actif</i>")
             )
         else:
             self._status_label.setText(
-                "📦 <i>Prompt par défaut (aucun override)</i>"
+                self.tr("📦 <i>Prompt par défaut (aucun override)</i>")
             )
 
     def _has_unsaved_changes(self) -> bool:
@@ -268,8 +344,8 @@ class PromptsEditorDialog(QDialog):
         """
         reply = QMessageBox.question(
             self,
-            "Abandonner les modifications ?",
-            (
+            self.tr("Abandonner les modifications ?"),
+            self.tr(
                 "Vous avez des modifications non enregistrées sur ce prompt. "
                 "Les abandonner pour changer de phase ?"
             ),
@@ -305,9 +381,7 @@ def _format_item_label(meta: PromptTemplateMeta, service: PromptsService) -> str
     return f"{meta.display_name}{marker}"
 
 
-def _find_meta(
-    service: PromptsService, name: str
-) -> PromptTemplateMeta | None:
+def _find_meta(service: PromptsService, name: str) -> PromptTemplateMeta | None:
     """Retourne les métadonnées d'un template par son nom.
 
     Args:

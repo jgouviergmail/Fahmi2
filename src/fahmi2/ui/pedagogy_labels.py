@@ -3,65 +3,165 @@
 Tables de présentation propres à l'UI (le domaine n'a pas à connaître les
 libellés affichés). Partagées par le dialogue de réglages et la vue de
 progression.
+
+i18n : les libellés sont exposés par des **fonctions** retournant des dicts
+traduits à l'usage (pattern Qt ``QCoreApplication.translate`` avec sources
+marquées par ``QT_TRANSLATE_NOOP`` pour extraction par ``pyside6-lupdate``).
 """
 
 from __future__ import annotations
 
-from fahmi2.domain.enums import ExportFormat, PhaseStatus, SupportType
+from typing import cast
 
-SUPPORT_LABELS: dict[SupportType, str] = {
-    SupportType.FLASHCARDS_CONCEPTS: "Flashcards — Concepts",
-    SupportType.QCM: "QCM",
-    SupportType.TRUE_FALSE: "Vrai / Faux",
-    SupportType.CLOZE: "Textes à trous",
-    SupportType.OPEN_QUESTIONS: "Questions ouvertes",
-    SupportType.REVISION_SHEET: "Fiche de révision",
-    SupportType.KEY_POINTS: "Points clés",
-    SupportType.MOCK_EXAM: "Examen blanc",
+from PySide6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication
+
+from fahmi2.domain.enums import (
+    BloomObjective,
+    ExportFormat,
+    PhaseStatus,
+    SupportDensity,
+    SupportType,
+    TargetAudience,
+)
+
+_SUPPORT_SOURCES: dict[SupportType, str] = {
+    SupportType.FLASHCARDS_CONCEPTS: cast(
+        str, QT_TRANSLATE_NOOP("PedagogyLabels", "Flashcards — Concepts")
+    ),
+    SupportType.QCM: cast(str, QT_TRANSLATE_NOOP("PedagogyLabels", "QCM")),
+    SupportType.TRUE_FALSE: cast(
+        str, QT_TRANSLATE_NOOP("PedagogyLabels", "Vrai / Faux")
+    ),
+    SupportType.CLOZE: cast(
+        str, QT_TRANSLATE_NOOP("PedagogyLabels", "Textes à trous")
+    ),
+    SupportType.OPEN_QUESTIONS: cast(
+        str, QT_TRANSLATE_NOOP("PedagogyLabels", "Questions ouvertes")
+    ),
+    SupportType.REVISION_SHEET: cast(
+        str, QT_TRANSLATE_NOOP("PedagogyLabels", "Fiche de révision")
+    ),
+    SupportType.KEY_POINTS: cast(
+        str, QT_TRANSLATE_NOOP("PedagogyLabels", "Points clés")
+    ),
+    SupportType.MOCK_EXAM: cast(
+        str, QT_TRANSLATE_NOOP("PedagogyLabels", "Examen blanc")
+    ),
 }
 
-EXPORT_LABELS: dict[ExportFormat, str] = {
-    ExportFormat.APKG: "Anki (.apkg)",
-    ExportFormat.MARKDOWN: "Markdown",
-    ExportFormat.PDF: "PDF",
-    ExportFormat.HTML: "HTML",
-    ExportFormat.DOCX: "Word (.docx)",
+_EXPORT_SOURCES: dict[ExportFormat, str] = {
+    ExportFormat.APKG: cast(str, QT_TRANSLATE_NOOP("PedagogyLabels", "Anki (.apkg)")),
+    ExportFormat.MARKDOWN: cast(str, QT_TRANSLATE_NOOP("PedagogyLabels", "Markdown")),
+    ExportFormat.PDF: cast(str, QT_TRANSLATE_NOOP("PedagogyLabels", "PDF")),
+    ExportFormat.HTML: cast(str, QT_TRANSLATE_NOOP("PedagogyLabels", "HTML")),
+    ExportFormat.DOCX: cast(str, QT_TRANSLATE_NOOP("PedagogyLabels", "Word (.docx)")),
 }
 
-#: Libellés FR des statuts d'un support dans la table de progression.
-SUPPORT_STATUS_LABELS: dict[PhaseStatus, str] = {
-    PhaseStatus.PENDING: "En attente",
-    PhaseStatus.RUNNING: "En cours",
-    PhaseStatus.SUCCEEDED: "Généré",
-    PhaseStatus.SKIPPED: "À jour",
-    PhaseStatus.FAILED: "Échec",
+_AUDIENCE_SOURCES: dict[TargetAudience, str] = {
+    TargetAudience.DISCOVERY: cast(
+        str, QT_TRANSLATE_NOOP("PedagogyLabels", "grand public (découverte)")
+    ),
+    TargetAudience.HIGH_SCHOOL: cast(
+        str, QT_TRANSLATE_NOOP("PedagogyLabels", "lycée")
+    ),
+    TargetAudience.LICENCE: cast(
+        str,
+        QT_TRANSLATE_NOOP(
+            "PedagogyLabels", "licence (premier cycle universitaire)"
+        ),
+    ),
+    TargetAudience.MASTER_EXPERT: cast(
+        str, QT_TRANSLATE_NOOP("PedagogyLabels", "master / expert")
+    ),
 }
 
-#: Libellé affiché pour une cellule non encore démarrée (statut ``None``).
-SUPPORT_STATUS_WAITING = "En attente"
+_BLOOM_SOURCES: dict[BloomObjective, str] = {
+    BloomObjective.AUTO: cast(
+        str,
+        QT_TRANSLATE_NOOP("PedagogyLabels", "automatique (adapté au public cible)"),
+    ),
+    BloomObjective.RESTITUTE: cast(
+        str,
+        QT_TRANSLATE_NOOP("PedagogyLabels", "restituer (mémorisation, définitions)"),
+    ),
+    BloomObjective.UNDERSTAND_APPLY: cast(
+        str, QT_TRANSLATE_NOOP("PedagogyLabels", "comprendre et appliquer")
+    ),
+    BloomObjective.ANALYZE_BEYOND: cast(
+        str,
+        QT_TRANSLATE_NOOP(
+            "PedagogyLabels", "analyser et au-delà (synthèse, évaluation)"
+        ),
+    ),
+}
+
+_DENSITY_SOURCES: dict[SupportDensity, str] = {
+    SupportDensity.LIGHT: cast(str, QT_TRANSLATE_NOOP("PedagogyLabels", "légère")),
+    SupportDensity.STANDARD: cast(
+        str, QT_TRANSLATE_NOOP("PedagogyLabels", "standard")
+    ),
+    SupportDensity.DENSE: cast(str, QT_TRANSLATE_NOOP("PedagogyLabels", "dense")),
+}
+
+_SUPPORT_STATUS_SOURCES: dict[PhaseStatus, str] = {
+    PhaseStatus.PENDING: cast(
+        str, QT_TRANSLATE_NOOP("PedagogyLabels", "En attente")
+    ),
+    PhaseStatus.RUNNING: cast(
+        str, QT_TRANSLATE_NOOP("PedagogyLabels", "En cours")
+    ),
+    PhaseStatus.SUCCEEDED: cast(
+        str, QT_TRANSLATE_NOOP("PedagogyLabels", "Généré")
+    ),
+    PhaseStatus.SKIPPED: cast(
+        str, QT_TRANSLATE_NOOP("PedagogyLabels", "À jour")
+    ),
+    PhaseStatus.FAILED: cast(str, QT_TRANSLATE_NOOP("PedagogyLabels", "Échec")),
+}
+
+
+def _tr(source: str) -> str:
+    """Traduit ``source`` dans la langue active via le contexte ``PedagogyLabels``."""
+    return QCoreApplication.translate("PedagogyLabels", source)
+
+
+def support_labels() -> dict[SupportType, str]:
+    """Libellés traduits des types de support."""
+    return {kind: _tr(source) for kind, source in _SUPPORT_SOURCES.items()}
+
+
+def export_labels() -> dict[ExportFormat, str]:
+    """Libellés traduits des formats d'export."""
+    return {fmt: _tr(source) for fmt, source in _EXPORT_SOURCES.items()}
+
+
+def support_status_labels() -> dict[PhaseStatus, str]:
+    """Libellés traduits des statuts de support."""
+    return {status: _tr(source) for status, source in _SUPPORT_STATUS_SOURCES.items()}
 
 
 def support_label(support_type: SupportType) -> str:
-    """Libellé d'affichage d'un type de support.
-
-    Args:
-        support_type: Type de support.
-
-    Returns:
-        Le libellé FR.
-    """
-    return SUPPORT_LABELS[support_type]
+    """Libellé d'affichage traduit d'un type de support."""
+    return _tr(_SUPPORT_SOURCES[support_type])
 
 
 def status_label(status: PhaseStatus | None) -> str:
-    """Libellé d'affichage d'un statut de support (``None`` = en attente).
-
-    Args:
-        status: Statut, ou ``None``.
-
-    Returns:
-        Le libellé FR.
-    """
+    """Libellé d'affichage traduit d'un statut (``None`` = en attente)."""
     if status is None:
-        return SUPPORT_STATUS_WAITING
-    return SUPPORT_STATUS_LABELS[status]
+        return _tr(_SUPPORT_STATUS_SOURCES[PhaseStatus.PENDING])
+    return _tr(_SUPPORT_STATUS_SOURCES[status])
+
+
+def audience_display_label(audience: TargetAudience) -> str:
+    """Libellé UI traduit d'un public cible (≠ libellé prompt en FR figé)."""
+    return _tr(_AUDIENCE_SOURCES[audience])
+
+
+def bloom_display_label(bloom: BloomObjective) -> str:
+    """Libellé UI traduit d'un objectif Bloom (≠ libellé prompt en FR figé)."""
+    return _tr(_BLOOM_SOURCES[bloom])
+
+
+def density_display_label(density: SupportDensity) -> str:
+    """Libellé UI traduit d'une densité (≠ libellé prompt en FR figé)."""
+    return _tr(_DENSITY_SOURCES[density])

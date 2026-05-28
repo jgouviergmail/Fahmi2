@@ -4,10 +4,17 @@ Convertit un ``Run`` + ses ``PhaseExecution`` SQLite en ``CostMatrixSnapshot``
 (lignes = sources, colonnes = phases). Les phases **batch** (non per-source) affichent
 leur statut sur chaque ligne mais leur **coût n'est porté que par le total de
 colonne** (coût au niveau du run, ``—`` en cellule) ; le total de ligne ne somme que
-les phases par-source. Sans logique Qt.
+les phases par-source. Sans logique Qt en dehors des libellés traduits exposés
+par :func:`column_labels` / :func:`_tooltip`.
+
+i18n : les libellés courts des phases et les libellés de statut viennent de
+``QCoreApplication.translate("RunMatrix", "literal")`` — résolus à l'usage
+pour suivre la langue active à chaque construction de snapshot.
 """
 
 from __future__ import annotations
+
+from PySide6.QtCore import QCoreApplication
 
 from fahmi2.domain.enums import PhaseId, PhaseStatus
 from fahmi2.domain.ids import SourceId
@@ -17,26 +24,40 @@ from fahmi2.infra.storage.sqlite_state import PhaseCell, SqliteState
 from fahmi2.pipeline.phase_registry import PhaseRegistry
 from fahmi2.ui.viewmodels.cost_matrix import CostMatrixCell, CostMatrixSnapshot
 
-_ROW_HEADER = "Source"
 
-_PHASE_SHORT_LABELS: dict[PhaseId, str] = {
-    PhaseId.STT: "Ingestion",
-    PhaseId.TERM_EXTRACTION: "Termes",
-    PhaseId.GLOSSARY_RECONCILIATION: "Glossaire",
-    PhaseId.REFORMULATION: "Reformul.",
-    PhaseId.STRUCTURATION: "Structur.",
-    PhaseId.CONSOLIDATION: "Consolid.",
-    PhaseId.TRANSLATION: "Traduction",
-    PhaseId.COHERENCE: "Cohérence",
-}
+def _phase_short_label(phase_id: PhaseId) -> str:
+    """Libellé court traduit d'une phase (colonnes de la matrice)."""
+    mapping = {
+        PhaseId.STT: QCoreApplication.translate("RunMatrix", "Ingestion"),
+        PhaseId.TERM_EXTRACTION: QCoreApplication.translate("RunMatrix", "Termes"),
+        PhaseId.GLOSSARY_RECONCILIATION: QCoreApplication.translate(
+            "RunMatrix", "Glossaire"
+        ),
+        PhaseId.REFORMULATION: QCoreApplication.translate("RunMatrix", "Reformul."),
+        PhaseId.STRUCTURATION: QCoreApplication.translate("RunMatrix", "Structur."),
+        PhaseId.CONSOLIDATION: QCoreApplication.translate("RunMatrix", "Consolid."),
+        PhaseId.TRANSLATION: QCoreApplication.translate("RunMatrix", "Traduction"),
+        PhaseId.COHERENCE: QCoreApplication.translate("RunMatrix", "Cohérence"),
+    }
+    return mapping.get(phase_id, phase_id.value)
 
-_STATUS_LABEL: dict[PhaseStatus, str] = {
-    PhaseStatus.PENDING: "en attente",
-    PhaseStatus.RUNNING: "en cours",
-    PhaseStatus.SUCCEEDED: "terminé",
-    PhaseStatus.FAILED: "échec",
-    PhaseStatus.SKIPPED: "déjà fait",
-}
+
+def _status_label(status: PhaseStatus) -> str:
+    """Libellé traduit d'un statut de phase (tooltip de cellule)."""
+    if status is PhaseStatus.PENDING:
+        return QCoreApplication.translate("RunMatrix", "en attente")
+    if status is PhaseStatus.RUNNING:
+        return QCoreApplication.translate("RunMatrix", "en cours")
+    if status is PhaseStatus.SUCCEEDED:
+        return QCoreApplication.translate("RunMatrix", "terminé")
+    if status is PhaseStatus.FAILED:
+        return QCoreApplication.translate("RunMatrix", "échec")
+    # ``status`` est une enum exhaustive (5 valeurs traitées ci-dessus) — le
+    # ``return`` final n'est jamais atteint en pratique, mais reste comme repli
+    # défensif si un nouvel état était introduit sans mise à jour ici.
+    if status is PhaseStatus.SKIPPED:
+        return QCoreApplication.translate("RunMatrix", "déjà fait")
+    return str(status.value)  # type: ignore[unreachable]
 
 
 class RunMatrixViewModel:
@@ -53,24 +74,13 @@ class RunMatrixViewModel:
         self._registry = registry
 
     def _phases(self) -> tuple[tuple[PhaseId, bool], ...]:
-        """Phases dans l'ordre canonique + drapeau per-source.
-
-        Returns:
-            Tuple de ``(phase_id, is_per_source)``.
-        """
+        """Phases dans l'ordre canonique + drapeau per-source."""
         return tuple(
             (h.phase_id, h.is_per_source) for h in self._registry.ordered_handlers()
         )
 
     def cost_matrix_snapshot(self, run: Run) -> CostMatrixSnapshot:
-        """Construit la matrice sources × phases (statut + coût + totaux).
-
-        Args:
-            run: Run en cours ou terminé.
-
-        Returns:
-            ``CostMatrixSnapshot`` (coût batch porté par les totaux de colonne).
-        """
+        """Construit la matrice sources × phases (statut + coût + totaux)."""
         cells_by_key: dict[tuple[PhaseId, SourceId | None], PhaseCell] = {
             (c.phase_id, c.source_id): c for c in self._state.list_phase_cells(run.id)
         }
@@ -79,14 +89,7 @@ class RunMatrixViewModel:
     def preview_cost_matrix(
         self, sources: tuple[SourceExecution, ...]
     ) -> CostMatrixSnapshot:
-        """Matrice de prévisualisation (toutes phases ``PENDING``, coût 0).
-
-        Args:
-            sources: Sources détectées.
-
-        Returns:
-            ``CostMatrixSnapshot`` sans coût.
-        """
+        """Matrice de prévisualisation (toutes phases ``PENDING``, coût 0)."""
         return self._build(sources, self._phases(), {})
 
     def _build(
@@ -95,17 +98,8 @@ class RunMatrixViewModel:
         phases: tuple[tuple[PhaseId, bool], ...],
         cells_by_key: dict[tuple[PhaseId, SourceId | None], PhaseCell],
     ) -> CostMatrixSnapshot:
-        """Assemble le snapshot (cellules + totaux, gestion batch).
-
-        Args:
-            sources: Sources (lignes).
-            phases: Phases + drapeau per-source (colonnes).
-            cells_by_key: Statut/coût par ``(phase, source|None)``.
-
-        Returns:
-            Le ``CostMatrixSnapshot`` complet.
-        """
-        column_labels = tuple(_PHASE_SHORT_LABELS.get(p, p.value) for p, _ in phases)
+        """Assemble le snapshot (cellules + totaux, gestion batch)."""
+        column_labels = tuple(_phase_short_label(p) for p, _ in phases)
         grid: list[tuple[CostMatrixCell, ...]] = []
         row_totals: list[float] = []
         for source in sources:
@@ -149,7 +143,7 @@ class RunMatrixViewModel:
                 grand_total += batch_cost
 
         return CostMatrixSnapshot(
-            row_header=_ROW_HEADER,
+            row_header=QCoreApplication.translate("RunMatrix", "Source"),
             column_labels=column_labels,
             row_labels=tuple(s.source.display_name() for s in sources),
             cells=tuple(grid),
@@ -162,17 +156,12 @@ class RunMatrixViewModel:
 def _tooltip(
     phase_id: PhaseId, status: PhaseStatus, cost: float, *, batch: bool = False
 ) -> str:
-    """Construit l'infobulle d'une cellule.
-
-    Args:
-        phase_id: Phase.
-        status: Statut.
-        cost: Coût.
-        batch: ``True`` si phase batch (coût au niveau du run).
-
-    Returns:
-        Texte d'infobulle.
-    """
-    label = _STATUS_LABEL.get(status, status.value)
-    suffix = " (coût au niveau du run)" if batch else ""
-    return f"{phase_id.value} — {label} — coût: ${cost:.4f}{suffix}"
+    """Construit l'infobulle d'une cellule."""
+    label = _status_label(status)
+    suffix = (
+        QCoreApplication.translate("RunMatrix", " (coût au niveau du run)")
+        if batch
+        else ""
+    )
+    cost_label = QCoreApplication.translate("RunMatrix", "coût")
+    return f"{phase_id.value} — {label} — {cost_label}: ${cost:.4f}{suffix}"

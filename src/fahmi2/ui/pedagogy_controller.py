@@ -16,7 +16,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import assert_never, cast
 
-from PySide6.QtCore import QObject, QThread, Signal
+from PySide6.QtCore import QCoreApplication, QObject, QThread, Signal
 from PySide6.QtWidgets import (
     QDialog,
     QFileDialog,
@@ -69,7 +69,7 @@ from fahmi2.ui._export_ui import choose_export_format, run_document_export
 from fahmi2.ui._file_explorer import open_in_file_explorer
 from fahmi2.ui._fs import remove_feature_dir
 from fahmi2.ui.dialogs.pedagogy_settings_view import PedagogySettingsView
-from fahmi2.ui.pedagogy_labels import EXPORT_LABELS, support_label
+from fahmi2.ui.pedagogy_labels import export_labels, support_label
 from fahmi2.ui.qt_event_bus import PedagogyQtEventBus
 from fahmi2.ui.viewmodels.pedagogy_progress import PedagogyProgressViewModel
 from fahmi2.ui.viewmodels.pedagogy_state import PedagogyStateViewModel
@@ -296,8 +296,13 @@ class PedagogyController(QObject):
         if self._current_project is None:
             QMessageBox.warning(
                 self._window,
-                "Aucun projet sélectionné",
-                "Sélectionne un projet dans la sidebar avant de configurer.",
+                QCoreApplication.translate(
+                    "PedagogyController", "Aucun projet sélectionné"
+                ),
+                QCoreApplication.translate(
+                    "PedagogyController",
+                    "Sélectionne un projet dans la sidebar avant de configurer.",
+                ),
             )
             return
         project = self._current_project
@@ -322,8 +327,13 @@ class PedagogyController(QObject):
         if project is None or project.pedagogy is None:
             QMessageBox.information(
                 self._window,
-                "Supports non configurés",
-                "Configurez d'abord les supports pédagogiques (⚙ Réglages).",
+                QCoreApplication.translate(
+                    "PedagogyController", "Supports non configurés"
+                ),
+                QCoreApplication.translate(
+                    "PedagogyController",
+                    "Configurez d'abord les supports pédagogiques (⚙ Réglages).",
+                ),
             )
             return
         pedagogy = project.pedagogy
@@ -350,15 +360,25 @@ class PedagogyController(QObject):
         if project is None:
             QMessageBox.warning(
                 self._window,
-                "Aucun projet sélectionné",
-                "Sélectionne un projet dans la sidebar avant de générer.",
+                QCoreApplication.translate(
+                    "PedagogyController", "Aucun projet sélectionné"
+                ),
+                QCoreApplication.translate(
+                    "PedagogyController",
+                    "Sélectionne un projet dans la sidebar avant de générer.",
+                ),
             )
             return
         if self._thread is not None:
             QMessageBox.warning(
                 self._window,
-                "Génération déjà en cours",
-                "Une génération de supports est déjà en cours.",
+                QCoreApplication.translate(
+                    "PedagogyController", "Génération déjà en cours"
+                ),
+                QCoreApplication.translate(
+                    "PedagogyController",
+                    "Une génération de supports est déjà en cours.",
+                ),
             )
             return
         if not self._validate(project):
@@ -439,8 +459,13 @@ class PedagogyController(QObject):
         if not pedagogy_dir.exists():
             QMessageBox.information(
                 self._window,
-                "Aucun dossier de supports",
-                "Aucun support n'a encore été généré pour ce projet.",
+                QCoreApplication.translate(
+                    "PedagogyController", "Aucun dossier de supports"
+                ),
+                QCoreApplication.translate(
+                    "PedagogyController",
+                    "Aucun support n'a encore été généré pour ce projet.",
+                ),
             )
             return
         open_in_file_explorer(pedagogy_dir)
@@ -456,26 +481,40 @@ class PedagogyController(QObject):
         if project is None:
             QMessageBox.warning(
                 self._window,
-                "Aucun projet sélectionné",
-                "Sélectionne un projet dans la sidebar avant de réinitialiser.",
+                QCoreApplication.translate(
+                    "PedagogyController", "Aucun projet sélectionné"
+                ),
+                QCoreApplication.translate(
+                    "PedagogyController",
+                    "Sélectionne un projet dans la sidebar avant de réinitialiser.",
+                ),
             )
             return
         if self._thread is not None:
             QMessageBox.warning(
                 self._window,
-                "Génération en cours",
-                "Impossible de réinitialiser pendant une génération. Annule-la "
-                "d'abord.",
+                QCoreApplication.translate(
+                    "PedagogyController", "Génération en cours"
+                ),
+                QCoreApplication.translate(
+                    "PedagogyController",
+                    "Impossible de réinitialiser pendant une génération. "
+                    "Annule-la d'abord.",
+                ),
             )
             return
         reply = QMessageBox.question(
             self._window,
-            "Réinitialiser les supports ?",
-            (
-                f"Réinitialiser les supports pédagogiques de « {project.name} » ?\n\n"
-                "Tous les supports générés, leurs exports intermédiaires et l'état "
-                "d'exécution seront supprimés. Cette action est irréversible."
+            QCoreApplication.translate(
+                "PedagogyController", "Réinitialiser les supports ?"
             ),
+            QCoreApplication.translate(
+                "PedagogyController",
+                "Réinitialiser les supports pédagogiques de « {name} » ?\n\n"
+                "Tous les supports générés, leurs exports intermédiaires et "
+                "l'état d'exécution seront supprimés. "
+                "Cette action est irréversible.",
+            ).format(name=project.name),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -503,13 +542,18 @@ class PedagogyController(QObject):
         if project is None:
             QMessageBox.warning(
                 self._window,
-                "Aucun projet sélectionné",
-                "Sélectionne un projet dans la sidebar avant d'exporter.",
+                QCoreApplication.translate(
+                    "PedagogyController", "Aucun projet sélectionné"
+                ),
+                QCoreApplication.translate(
+                    "PedagogyController",
+                    "Sélectionne un projet dans la sidebar avant d'exporter.",
+                ),
             )
             return
         path_str, _ = QFileDialog.getSaveFileName(
             self._window,
-            "Exporter vers Anki",
+            QCoreApplication.translate("PedagogyController", "Exporter vers Anki"),
             f"{project.name}{_APKG_SUFFIX}",
             _APKG_FILTER,
         )
@@ -519,20 +563,29 @@ class PedagogyController(QObject):
             result = export_pedagogy_to_apkg(project, output_path=Path(path_str))
         except Fahmi2Error as exc:
             QMessageBox.critical(
-                self._window, "Export impossible", f"{exc.code}\n\n{exc.user_message}"
+                self._window,
+                QCoreApplication.translate("PedagogyController", "Export impossible"),
+                f"{exc.code}\n\n{exc.user_message}",
             )
             return
         except Exception as exc:  # noqa: BLE001 — affichage UX puis stop
             QMessageBox.critical(
-                self._window, "Erreur inattendue", f"{type(exc).__name__} : {exc}"
+                self._window,
+                QCoreApplication.translate("PedagogyController", "Erreur inattendue"),
+                f"{type(exc).__name__} : {exc}",
             )
             return
         if result.note_count == 0:
             QMessageBox.information(
                 self._window,
-                "Aucun support exportable",
-                "Aucune carte Anki à exporter (flashcards, cloze ou QCM requis). "
-                "Générez d'abord des supports exportables.",
+                QCoreApplication.translate(
+                    "PedagogyController", "Aucun support exportable"
+                ),
+                QCoreApplication.translate(
+                    "PedagogyController",
+                    "Aucune carte Anki à exporter (flashcards, cloze ou QCM requis). "
+                    "Générez d'abord des supports exportables.",
+                ),
             )
             return
         self._logs_dock.append_event(
@@ -548,9 +601,11 @@ class PedagogyController(QObject):
         )
         QMessageBox.information(
             self._window,
-            "Export terminé",
-            f"{result.note_count} carte(s) Anki exportée(s) vers :\n"
-            f"{result.output_path}",
+            QCoreApplication.translate("PedagogyController", "Export terminé"),
+            QCoreApplication.translate(
+                "PedagogyController",
+                "{count} carte(s) Anki exportée(s) vers :\n{path}",
+            ).format(count=result.note_count, path=result.output_path),
         )
 
     def _on_export_requested(self) -> None:
@@ -563,21 +618,32 @@ class PedagogyController(QObject):
         if project is None:
             QMessageBox.warning(
                 self._window,
-                "Aucun projet sélectionné",
-                "Sélectionne un projet dans la sidebar avant d'exporter.",
+                QCoreApplication.translate(
+                    "PedagogyController", "Aucun projet sélectionné"
+                ),
+                QCoreApplication.translate(
+                    "PedagogyController",
+                    "Sélectionne un projet dans la sidebar avant d'exporter.",
+                ),
             )
             return
         if project.pedagogy is None:
             QMessageBox.information(
                 self._window,
-                "Supports non configurés",
-                "Configurez d'abord les supports pédagogiques (⚙ Réglages).",
+                QCoreApplication.translate(
+                    "PedagogyController", "Supports non configurés"
+                ),
+                QCoreApplication.translate(
+                    "PedagogyController",
+                    "Configurez d'abord les supports pédagogiques (⚙ Réglages).",
+                ),
             )
             return
+        labels = export_labels()
         fmt = choose_export_format(
             window=self._window,
             configured_formats=project.pedagogy.export_formats,
-            label_by_format=EXPORT_LABELS,
+            label_by_format=labels,
         )
         if fmt is None:
             return
@@ -587,7 +653,7 @@ class PedagogyController(QObject):
         run_document_export(
             window=self._window,
             logs_dock=self._logs_dock,
-            label=EXPORT_LABELS[fmt],
+            label=labels[fmt],
             exporter=lambda d: export_pedagogy_documents(
                 project, output_dir=d, fmt=fmt
             ),
@@ -647,7 +713,10 @@ class PedagogyController(QObject):
         )
         QMessageBox.critical(
             self._window,
-            "La génération s'est terminée sur une erreur inattendue",
+            QCoreApplication.translate(
+                "PedagogyController",
+                "La génération s'est terminée sur une erreur inattendue",
+            ),
             error_message,
         )
         if self._worker_on_current_project():

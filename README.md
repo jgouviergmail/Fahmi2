@@ -1,133 +1,145 @@
 # Fahmi2
 
-> Transformez vos entrants — **vidéos, fichiers audio, liens YouTube ou documents
-> texte** (PDF, Word, Markdown, txt) — en un **document consolidé et structuré**
-> (reformulé, chapitré, avec **glossaire**, **multilingue** : français, anglais,
-> allemand, espagnol, italien, chinois, arabe), assemblé **dans l'ordre** des sources
-> ou par **refonte thématique** transversale. Le consolidé et le glossaire
-> s'**exportent** en **Markdown / PDF / HTML / Word (`.docx`)** — le **chinois** et
-> l'**arabe** (droite-à-gauche) y sont rendus correctement. Puis exploitez ce corpus
-> sans effort : **supports de révision** (flashcards, QCM, fiches, examen blanc…,
-> exports **Anki / Markdown / PDF / HTML / Word**) et **Dialogue** (chat ancré sur le
-> cours, réponses **citées** et diffusées en **streaming**). Le tout en **quelques
-> minutes** et **sans intervention manuelle**.
+> Turn your inputs — **videos, audio files, YouTube links, or text documents**
+> (PDF, Word, Markdown, txt) — into a **consolidated, structured document**
+> (rephrased, chaptered, with a **glossary**, **multilingual**: French, English,
+> German, Spanish, Italian, Chinese, Arabic), assembled either **in source
+> order** or via a **cross-cutting thematic rewrite**. The consolidated document
+> and the glossary **export** to **Markdown / PDF / HTML / Word (`.docx`)** —
+> **Chinese** and **Arabic** (right-to-left) render correctly. Then make use of
+> this corpus effortlessly: **revision aids** (flashcards, MCQs, summary sheets,
+> mock exam…, **Anki / Markdown / PDF / HTML / Word** exports) and **Dialogue**
+> (chat anchored on the course, **cited** answers **streamed** live). All in **a
+> few minutes** with **no manual intervention**.
 
-Application desktop Windows, mono-utilisateur, **installation en double-clic**
-(aucune dépendance système à installer — **ffmpeg et yt-dlp bundlés**). Interface
-organisée en **onglets de fonctionnalité** — **Génération** · **Supports
-pédagogiques** · **Dialogue**. La génération repose sur un pipeline en 8 phases
-(ingestion polymorphe — transcription Whisper ou extraction de texte — puis 7 phases
-LLM DeepSeek v4), entièrement paramétrable via l'interface graphique.
+Windows desktop application, single-user, **double-click install** (no system
+dependency to install — **ffmpeg and yt-dlp are bundled**). The interface is
+organised around **feature tabs** — **Generation** · **Revision materials** ·
+**Dialogue**. Generation relies on an 8-phase pipeline (polymorphic ingestion —
+Whisper transcription or text extraction — followed by 7 DeepSeek v4 LLM
+phases), fully configurable from the graphical interface.
 
-## Capacités
+The user interface is **fully internationalised** (French / English) via the
+native Qt translation stack (`QTranslator` + `.qm` files compiled from `.ts`
+sources). The language is selected from **Edit → Global settings → Language**
+and takes effect at the next launch.
 
-- **Entrées polymorphes** : vidéos (MP4, MKV, MOV, WebM…), fichiers audio (WAV,
-  MP3, M4A, FLAC, OGG…), **liens YouTube** (vidéos unitaires ; l'audio est
-  téléchargé par yt-dlp) et **documents texte** (PDF, Word, Markdown, txt —
-  reformulés comme une transcription orale, ou insérés tels quels). Sources
-  mixtes acceptées dans un même projet.
-- **Ordre & exclusion des sources** : l'ordre de traitement (donc l'ordre des
-  chapitres du document final) est réglable par glisser-déposer ; toute source
-  peut être exclue puis réincluse.
-- **Mode de consolidation** : **ordonné** (1 source = 1 chapitre, contenu recopié
-  dans l'ordre choisi) ou **refonte thématique** — le LLM agrège et restructure
-  transversalement les contenus de tous les entrants par thème, à la manière d'une
-  synthèse journalistique (rigueur sur le fond : aucun fait inventé, conflits entre
-  sources présentés ; souplesse sur la forme : fusion, déduplication, transitions).
-- 7 langues de sortie : **français**, **anglais**, **allemand**, **espagnol**,
-  **italien**, **chinois**, **arabe** (STT, glossaire, supports et Dialogue
-  inclus). Note : pour le chinois, le Dialogue privilégie le retrieval **sémantique**
-  (la recherche lexicale est peu adaptée aux langues sans espaces).
-- 2 providers STT (**modèle configurable par provider**) : **faster-whisper**
-  local (GPU NVIDIA ; `large-v3-turbo` par défaut, ou `large-v3`/`medium`/`small`,
-  téléchargés à la demande) ou **OpenAI** cloud (`whisper-1` par défaut, ou
-  `gpt-4o-transcribe`/`gpt-4o-mini-transcribe`) — ce dernier gère **toute durée de
-  cours** (compression Opus + découpage aux silences automatiques pour franchir la
-  limite des 25 Mo d'OpenAI, de façon transparente).
-- 2 modèles LLM : **DeepSeek v4 Flash** (économique) ou **Pro** (capacité
-  supérieure). Mode raisonnement (`thinking` + `reasoning_effort`
-  HIGH/MAX) et température configurables **par phase**.
-- **Dialogue (chat ancré sur le corpus)** : pose des questions en langage naturel
-  sur un cours généré. Réponses **citées** (chapitre › section, cliquables) et
-  **diffusées en streaming**, mode **strict** (corpus seul, refus hors-corpus) ou
-  **augmenté**. Retrieval **lexical** (TF-IDF, hors-ligne) ou **sémantique**
-  (embeddings OpenAI, **modèle configurable**) avec stratégie **AUTO** + expansion
-  de requête. **Langue au choix par conversation** (parmi les langues produites) :
-  lecture, **citations** et **réponse** dans cette langue, glossaire cité entièrement
-  localisé. Conversations multiples **persistées et supprimables** ; **coût
-  cumulé exhaustif** (réponse + embeddings + reformulation).
-- 4 styles de rendu : décontracté / standard / professionnel / académique +
-  directives libres.
-- **Document consolidé navigable** : titres numérotés hiérarchiquement
-  (1, 1.1, 1.1.1), sommaire automatique avec ancres cliquables,
-  admonitions élégantes (blockquote + emoji).
-- **Glossaire en tableau** 4 colonnes Terme / Acronyme / Signification /
-  Définition, avec l'expansion d'acronyme conservée dans sa langue
-  d'origine (ROI = *Return On Investment* même dans un glossaire FR). Les **termes**
-  sont **localisés par langue cible** (un `glossary.{langue}.md` par langue).
-- **Export documentaire** (opt-in) : le **consolidé** et le **glossaire**
-  s'exportent en **Markdown / PDF / HTML / Word (`.docx`)**, un fichier par langue ;
-  les **supports** ajoutent l'**Anki `.apkg`**. Le rendu PDF gère le **chinois**
-  (police système Microsoft YaHei, coupe de ligne automatique) et l'**arabe**
-  (droite-à-gauche + liaison contextuelle, y compris en Word) ; le **glossaire**
-  s'exporte en **paysage** (PDF et Word).
-- **Estimation de coût pré-run** prenant en compte le thinking par
-  phase + **plafond budget** avec arrêt propre.
-- **Édition des prompts** depuis l'UI (menu Édition → Modifier les
-  prompts…) avec validation Jinja2 et restauration au défaut.
-- **Checkpointing fin par phase** : aucun travail perdu en cas de pause,
-  annulation ou crash.
-- **Traitement parallèle** : sources (phases per-source) et supports pédagogiques
-  traités concurremment, avec un nombre de workers réglable, pour réduire le
-  délai sur les gros lots.
-- **Concept de Projet persistant** avec historique de runs et reprise.
-- **Stockage chiffré** des clés API (Windows DPAPI).
+## Capabilities
+
+- **Polymorphic inputs**: videos (MP4, MKV, MOV, WebM…), audio files (WAV, MP3,
+  M4A, FLAC, OGG…), **YouTube links** (single videos; audio is downloaded by
+  yt-dlp) and **text documents** (PDF, Word, Markdown, txt — either rephrased
+  like a spoken transcript or inserted as-is). Mixed sources are accepted in
+  the same project.
+- **Source ordering & exclusion**: the processing order (hence the chapter
+  order of the final document) is configurable via drag and drop; any source
+  can be excluded and re-included.
+- **Consolidation mode**: **ordered** (1 source = 1 chapter, content copied
+  in the chosen order) or **thematic rewrite** — the LLM aggregates and
+  restructures the contents of all inputs cross-cuttingly by theme, like an
+  investigative-style synthesis (factual rigour: no invented facts, conflicts
+  between sources surfaced; formal flexibility: fusion, deduplication,
+  transitions).
+- 7 output languages: **French**, **English**, **German**, **Spanish**,
+  **Italian**, **Chinese**, **Arabic** (STT, glossary, materials, and Dialogue
+  included). Note: for Chinese, the Dialogue prefers **semantic** retrieval
+  (lexical search is poorly suited to whitespace-less languages).
+- 2 STT providers (**model configurable per provider**): **faster-whisper**
+  local (NVIDIA GPU; `large-v3-turbo` by default, or
+  `large-v3`/`medium`/`small`, downloaded on demand) or **OpenAI** cloud
+  (`whisper-1` by default, or `gpt-4o-transcribe`/`gpt-4o-mini-transcribe`) —
+  the latter handles **any course length** (automatic Opus compression +
+  silence-based chunking to clear OpenAI's 25 MB limit, transparently).
+- 2 LLM models: **DeepSeek v4 Flash** (economical) or **Pro** (higher
+  capacity). Reasoning mode (`thinking` + `reasoning_effort` HIGH/MAX) and
+  temperature are configurable **per phase**.
+- **Dialogue (chat anchored on the corpus)**: ask questions in natural language
+  about a generated course. **Cited** answers (chapter › section, clickable)
+  and **streamed** live, in **strict** mode (corpus only, refuses out-of-corpus
+  topics) or **augmented** mode. **Lexical** retrieval (TF-IDF, offline) or
+  **semantic** retrieval (OpenAI embeddings, **model configurable**), with an
+  **AUTO** strategy + query expansion. **Language per conversation**
+  (chosen from the produced ones): the chat reads, **cites**, and **answers**
+  in that language, with the cited glossary fully localised. Multiple
+  conversations **persisted and deletable**; **exhaustive cumulative cost**
+  (answer + embeddings + rephrasing).
+- 4 rendering styles: casual / standard / professional / academic + free
+  directives.
+- **Navigable consolidated document**: hierarchically numbered headings (1,
+  1.1, 1.1.1), automatic table of contents with clickable anchors, elegant
+  admonitions (blockquote + emoji).
+- **Glossary as a table** — 4 columns Term / Acronym / Meaning / Definition,
+  with the acronym expansion kept in its original language (ROI = *Return On
+  Investment* even in a French glossary). **Terms** are **localised per
+  target language** (a `glossary.{lang}.md` per language).
+- **Document exports** (opt-in): the **consolidated document** and the
+  **glossary** export to **Markdown / PDF / HTML / Word (`.docx`)**, one file
+  per language; **materials** additionally export to **Anki `.apkg`**. The PDF
+  renderer handles **Chinese** (Microsoft YaHei system font, automatic line
+  breaks) and **Arabic** (right-to-left + contextual shaping, including in
+  Word); the **glossary** exports in **landscape** orientation (PDF and Word).
+- **Pre-run cost estimate** that takes phase-level thinking into account
+  + **budget cap** with clean stop.
+- **Prompt editing** from the UI (Edit → Edit prompts…) with Jinja2 validation
+  and reset-to-default.
+- **Fine-grained per-phase checkpointing**: no work lost on pause,
+  cancellation, or crash.
+- **Parallel processing**: sources (per-source phases) and revision materials
+  are processed concurrently, with a configurable worker count, to cut the
+  wall-clock on large batches.
+- **Persistent Project** concept with run history and resume.
+- **Encrypted storage** of API keys (Windows DPAPI).
+- **Internationalised UI** (FR / EN) with `LanguageController` mirroring the
+  theme controller; preferences persisted in `%APPDATA%/Fahmi2/ui_prefs.json`.
 
 ## Documentation
 
-| Document | Pour qui ? |
-|----------|------------|
-| [Présentation fonctionnelle](docs/01-presentation-fonctionnelle.md) | Décideur / utilisateur souhaitant comprendre la valeur |
-| [Présentation technique](docs/02-presentation-technique.md) | Architecte / développeur souhaitant comprendre l'implémentation |
-| [Installation](docs/03-installation.md) | Utilisateur final + développeur |
-| [Paramétrage](docs/04-parametrage.md) | Utilisateur final (configuration complète) |
-| [Exploitation](docs/05-exploitation.md) | Utilisateur quotidien (suivi, incidents, livrables) |
-| [Procédures techniques](docs/06-procedures-techniques.md) | Développeur / mainteneur |
-| [Guide utilisateur](docs/07-guide-utilisateur.md) | Utilisateur final non-technicien (démarrage rapide) |
-| [CHANGELOG](CHANGELOG.md) | Historique des versions |
-| [Spec design v1](docs/superpowers/specs/2026-05-19-fahmi2-design.md) | Architecture détaillée |
-| [Plans d'implémentation](docs/superpowers/plans/) | Détail des jalons d'implémentation |
-| [Packaging](packaging/README.md) | Build et distribution |
+| Document | For whom? |
+|----------|-----------|
+| [Functional overview](docs/01-presentation-fonctionnelle.md) | Decision-maker / user who wants to understand the value |
+| [Technical overview](docs/02-presentation-technique.md) | Architect / developer who wants to understand the implementation |
+| [Installation](docs/03-installation.md) | End user + developer |
+| [Configuration](docs/04-parametrage.md) | End user (full configuration) |
+| [Operations](docs/05-exploitation.md) | Daily user (monitoring, incidents, deliverables) |
+| [Technical procedures](docs/06-procedures-techniques.md) | Developer / maintainer |
+| [User guide](docs/07-guide-utilisateur.md) | Non-technical end user (quick start) |
+| [CHANGELOG](CHANGELOG.md) | Version history |
+| [v1 design spec](docs/superpowers/specs/2026-05-19-fahmi2-design.md) | Detailed architecture (French — archive) |
+| [Implementation plans](docs/superpowers/plans/) | Detailed implementation milestones (French — archive) |
+| [Packaging](packaging/README.md) | Build and distribution |
 
-## Démarrage rapide (utilisateur final)
+> The design spec and implementation plans under `docs/superpowers/` remain in
+> French — they are session-level planning archives, kept verbatim for
+> auditability.
 
-1. Téléchargez `Fahmi2-X.Y.Z-win64.zip`.
-2. Décompressez où vous voulez (ex: `C:\Apps\Fahmi2\`).
-3. Double-cliquez sur `Fahmi2.exe`.
-4. Au 1er lancement, cliquez sur *« Plus d'infos »* → *« Exécuter quand
-   même »* lorsque SmartScreen le demande.
-5. **Édition → Paramètres globaux** : saisir vos clés API (DeepSeek
-   obligatoire, OpenAI optionnel).
-6. **Fichier → Nouveau projet** : donner un nom + choisir l'emplacement du
-   projet, valider.
-7. Onglet **Génération → ⚙ Réglages** : choisir le dossier d'entrée (vidéos,
-   audios et/ou documents) et/ou coller des liens YouTube, ordonner ou exclure
-   les sources, puis régler les langues, le style et le modèle ; valider.
-8. (Optionnel) Cliquer sur **💵 Estimer le coût** pour voir le budget
-   avant le lancement.
-9. Cliquer sur **▶ Lancer**. Récupérer les livrables Markdown à la fin
-   via le bouton **📂 Dossier de sortie** (ou dans
-   `<emplacement>/generation/output/`). Pour obtenir le consolidé et le
-   glossaire en **PDF / HTML / Word**, cocher d'abord les formats dans
-   **⚙ Réglages → Export**, puis utiliser le bouton **📦 Exporter**.
+## Quick start (end user)
 
-Voir [docs/07-guide-utilisateur.md](docs/07-guide-utilisateur.md) pour le
-guide détaillé.
+1. Download `Fahmi2-X.Y.Z-win64.zip`.
+2. Unzip wherever you like (e.g. `C:\Apps\Fahmi2\`).
+3. Double-click `Fahmi2.exe`.
+4. On first launch, click *"More info"* → *"Run anyway"* when SmartScreen
+   asks.
+5. **Edit → Global settings**: enter your API keys (DeepSeek mandatory,
+   OpenAI optional).
+6. **File → New project**: give the project a name and pick its location,
+   confirm.
+7. **Generation tab → ⚙ Settings**: pick the input folder (videos, audio,
+   and/or documents) and/or paste YouTube links, order or exclude the
+   sources, then set the languages, style, and model; confirm.
+8. (Optional) Click **💵 Estimate cost** to see the budget before launching.
+9. Click **▶ Run**. Pick up the Markdown deliverables at the end via the
+   **📂 Output folder** button (or in
+   `<location>/generation/output/`). To obtain the consolidated document
+   and the glossary in **PDF / HTML / Word**, first tick the formats under
+   **⚙ Settings → Export**, then use the **📦 Export** button.
 
-## Démarrage rapide (développeur)
+See [docs/07-guide-utilisateur.md](docs/07-guide-utilisateur.md) for the
+detailed walkthrough.
+
+## Quick start (developer)
 
 ```powershell
-# Cloner et préparer
+# Clone and set up
 git clone <url> Fahmi2
 cd Fahmi2
 py -3.12 -m venv .venv
@@ -136,92 +148,113 @@ pip install -e ".[dev]"
 pip install pyinstaller>=6.10
 pre-commit install
 
-# Vérifier
+# Compile UI translations (.ts → .qm) before launching the app
+.\.venv\Scripts\python.exe scripts\i18n_compile.py
+
+# Verify
 pytest
 ruff check .
 mypy src tests
 
-# Lancer en mode dev
+# Run in dev mode
 python -m fahmi2.ui.app_main
 
-# Builder le .zip portable
+# Build the portable .zip
 .\packaging\build.ps1
 .\packaging\make-portable-zip.ps1
 ```
 
-Voir [docs/06-procedures-techniques.md](docs/06-procedures-techniques.md)
-pour le détail.
+See [docs/06-procedures-techniques.md](docs/06-procedures-techniques.md) for
+the details.
 
 ## Architecture
 
-Architecture en couches inspirée des principes hexagonaux :
+Layered architecture inspired by hexagonal principles:
 
 ```
 src/fahmi2/
 ├── core/         logging, errors, retry, config, migrations, retrieval, ids
-├── domain/       entités pures (Project, Run, PhaseExecution, Glossary, …)
-├── pipeline/     PipelineEngine + 8 handlers de phase
+├── domain/       pure entities (Project, Run, PhaseExecution, Glossary, …)
+├── pipeline/     PipelineEngine + 8 phase handlers
 ├── infra/        adapters (STT, LLM, ffmpeg, SQLite WAL, DPAPI, prompts)
-├── app/          use-cases (ProjectService, RunOrchestrator, CostEstimator…)
-└── ui/           PySide6 (MainWindow à onglets, features/, widgets, dialogues)
+├── app/          use cases (ProjectService, RunOrchestrator, CostEstimator…)
+├── i18n/         Qt translation stack (AppLanguage enum, install_translator,
+│                 .ts sources + .qm compiled files)
+└── ui/           PySide6 (tabbed MainWindow, features/, widgets, dialogs)
 ```
 
-Voir [docs/02-presentation-technique.md](docs/02-presentation-technique.md)
-pour le détail complet.
+See [docs/02-presentation-technique.md](docs/02-presentation-technique.md) for
+the full breakdown.
 
-## Statut
+## Status
 
-**v1.4.3** — Dialogue : citations affichées en **repères numérotés `[1]` cliquables**
-au fil de la réponse, reliés à une liste « Sources » **numérotée** ; cliquer un repère
-ou une source ouvre l'aperçu de l'extrait.
+**v1.5.0** — **UI/UX redesign** (Light Fluent design system + mirrored
+**dark mode** + cards with soft shadows on the 6 settings screens +
+plain-language glossary labels + redesigned project sidebar with status
+pill / name / subtitle + aligned chat bubbles with citation chips) **and
+native Qt internationalisation** (UI fully localised in **French** and
+**English**, picked from Edit → Global settings → Language, persisted
+in `ui_prefs.json`, applied at next launch). All user-facing
+documentation translated to English.
 
-**v1.4.2** — Dialogue : chaque conversation de la liste est **préfixée par son code
-langue** (ex. « EN · … »), une conversation gardant une langue fixe.
+**v1.4.3** — Dialogue: citations are shown as **numbered `[1]` clickable
+markers** inline in the answer, linked to a **numbered** "Sources" list;
+clicking either the marker or a source opens the cited excerpt preview.
 
-**v1.4.1** — **Dialogue : langue du corpus sélectionnable par conversation** (le
-chat lit, **cite** et **répond** dans la langue choisie parmi celles produites) ;
-**glossaire entièrement localisé** en aval (terme **et** définition) dans les Supports
-pédagogiques et le Dialogue.
+**v1.4.2** — Dialogue: each conversation in the list is **prefixed by its
+language code** (e.g. "EN · …"), a conversation keeping a fixed language.
 
-**v1.4.0** — **5 langues supplémentaires** (allemand, espagnol, italien, chinois,
-arabe → **7 au total**, en entrée comme en sortie, pour les 3 fonctionnalités) ;
-**export Word (`.docx`)** pour la Génération et les Supports pédagogiques ; **rendu
-PDF du chinois** (police Microsoft YaHei, coupe de ligne automatique) **et de
-l'arabe** (droite-à-gauche + liaison contextuelle, y compris en Word) ;
-**localisation terminologique du glossaire** par langue cible (phase 6) ;
-**normalisation du rendu des tableaux** (Markdown/PDF/HTML/DOCX).
+**v1.4.1** — **Dialogue: corpus language selectable per conversation** (the
+chat reads, **cites**, and **answers** in the chosen language among the
+produced ones); **fully localised glossary** downstream (term **and**
+definition) in Revision materials and the Dialogue.
 
-**v1.3.0** — **mode de consolidation « refonte thématique »** (le LLM agrège et
-restructure transversalement les contenus par thème, à côté du mode ordonné par
-défaut ; rigueur sur le fond / souplesse sur la forme) ; le **Dialogue recharge
-automatiquement** son corpus après régénération (plus de citations périmées) ; la
-**suppression d'un projet** efface aussi son dossier workspace sur disque. v1.2.0 :
-nouvel onglet **Dialogue** (chat ancré sur le corpus : réponses citées + streaming,
-retrieval lexical/sémantique, coût exhaustif, conversations persistées/supprimables) ;
-**modèles configurables** (LLM, embeddings, STT) ; plafond de sortie au maximum du
-modèle (anti-troncature) sur **tous** les appels DeepSeek. v1.1.0 : entrants élargis
-(**vidéos, audio, YouTube, documents texte**)
-avec ordre/exclusion des sources. Socle v1.0.0 : pipeline complet, UI cockpit
-thème Clair Fluent, packaging Windows portable, document consolidé navigable,
-glossaire en tableau, édition des prompts, estimation de coût alignée sur l'usage.
-Cf. [CHANGELOG.md](CHANGELOG.md).
+**v1.4.0** — **5 additional languages** (German, Spanish, Italian, Chinese,
+Arabic → **7 in total**, on input and output, for all 3 features); **Word
+(`.docx`) export** for Generation and Revision materials; **Chinese PDF
+rendering** (Microsoft YaHei font, automatic line breaks) **and Arabic**
+(right-to-left + contextual shaping, including in Word); **terminological
+localisation of the glossary** per target language (phase 6); **table
+rendering normalisation** (Markdown/PDF/HTML/DOCX).
 
-Interface réorganisée en **onglets de fonctionnalité** (Génération + Supports
-pédagogiques : 8 types de supports de révision générés à partir du document
-consolidé et du glossaire + **Dialogue** : chat conversationnel ancré sur le
-corpus, réponses citées et diffusées en streaming, retrieval lexical ou
-sémantique) ; identité projet réduite à nom + emplacement, réglages
-par fonctionnalité.
+**v1.3.0** — **"thematic rewrite" consolidation mode** (the LLM aggregates
+and restructures the contents cross-cuttingly by theme, alongside the
+default ordered mode; factual rigour / formal flexibility); the **Dialogue
+automatically reloads** its corpus after regeneration (no more stale
+citations); **deleting a project** also wipes its workspace folder on disk.
+v1.2.0: new **Dialogue** tab (chat anchored on the corpus: cited and
+streamed answers, lexical/semantic retrieval, exhaustive cost, persisted
+and deletable conversations); **configurable models** (LLM, embeddings,
+STT); output cap raised to the model's maximum (anti-truncation) on **all**
+DeepSeek calls. v1.1.0: broader inputs (**videos, audio, YouTube, text
+documents**) with source ordering/exclusion. v1.0.0 baseline: full pipeline,
+Light Fluent themed cockpit UI, portable Windows packaging, navigable
+consolidated document, glossary table, prompt editing, usage-aligned cost
+estimation. See [CHANGELOG.md](CHANGELOG.md).
 
-Export des supports en **Anki `.apkg`** (flashcards / cloze / QCM, ré-import sans
-doublon), **Markdown**, **PDF**, **HTML** et **Word (`.docx`)** (documents
-autonomes, sujet / corrigé séparés). Le rendu PDF gère le **chinois** (police
-Microsoft YaHei système, retours à la ligne automatiques) et l'**arabe**
-(droite-à-gauche + liaison contextuelle) ; le **glossaire** s'exporte en paysage
-(PDF et Word).
+The interface is organised as **feature tabs** (Generation + Revision
+materials: 8 types of revision aids generated from the consolidated document
+and the glossary + **Dialogue**: conversational chat anchored on the corpus,
+cited and streamed answers, lexical or semantic retrieval); a project's
+identity is reduced to name + location, with settings split per feature.
 
-1059 tests passants, `mypy --strict` et `ruff` propres sur 389 fichiers.
+Revision materials export to **Anki `.apkg`** (flashcards / cloze / MCQs,
+re-import without duplicates), **Markdown**, **PDF**, **HTML**, and **Word
+(`.docx`)** (self-contained documents, question / answer key separated).
+PDF rendering handles **Chinese** (system Microsoft YaHei font, automatic
+line breaks) and **Arabic** (right-to-left + contextual shaping); the
+**glossary** exports in landscape (PDF and Word).
+
+**Internationalisation**: the UI is fully translated to English via the
+native Qt stack (485 strings, ≥ 28 Linguist contexts). The migration is
+covered by ~60 parametric end-to-end tests verifying that the bundled `.qm`
+contains the expected translation for each migrated context — a rename in
+the source without re-extraction fails the suite rather than silently
+falling back to French at runtime.
+
+1188 tests passing × 3 runs, `mypy --strict` and `ruff` clean on 405 source
+files.
 
 ## Licence
 
-Propriétaire.
+Proprietary.

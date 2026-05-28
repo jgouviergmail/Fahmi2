@@ -1,4 +1,10 @@
-"""Widget ``ProjectHeaderBar`` — barre d'actions du Run (boutons principaux)."""
+"""Widget ``ProjectHeaderBar`` — barre d'actions du Run (boutons principaux).
+
+i18n : tous les libellés et tooltips passent par :py:meth:`QObject.tr` à
+l'instanciation. Les défauts de tooltips acceptent ``None`` : la valeur
+traduite par défaut est calculée dans ``__init__`` (impossible à
+l'évaluation de la signature de la classe).
+"""
 
 from __future__ import annotations
 
@@ -6,23 +12,6 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QWidget
 
 from fahmi2.ui._buttons import make_role_button
-
-_DEFAULT_SETTINGS_TOOLTIP = (
-    "Configurer les réglages de génération (entrée, langues, style, "
-    "transcription, modèle, phases)."
-)
-_DEFAULT_ESTIMATE_TOOLTIP = (
-    "Estime à l'avance le coût total du Run en analysant la durée "
-    "des sources du dossier d'entrée (STT + LLM)."
-)
-_DEFAULT_OPEN_OUTPUT_TOOLTIP = (
-    "Ouvre dans l'explorateur le dossier contenant les fichiers Markdown "
-    "produits (consolidated, glossary, per-video par langue)."
-)
-_DEFAULT_RESET_TOOLTIP = (
-    "Supprime tout ce qui a été généré pour cette fonctionnalité (livrables sur "
-    "disque et état en base). Action irréversible."
-)
 
 
 class ProjectHeaderBar(QWidget):
@@ -42,24 +31,27 @@ class ProjectHeaderBar(QWidget):
         self,
         parent: QWidget | None = None,
         *,
-        settings_tooltip: str = _DEFAULT_SETTINGS_TOOLTIP,
-        estimate_tooltip: str = _DEFAULT_ESTIMATE_TOOLTIP,
-        open_output_tooltip: str = _DEFAULT_OPEN_OUTPUT_TOOLTIP,
+        settings_tooltip: str | None = None,
+        estimate_tooltip: str | None = None,
+        open_output_tooltip: str | None = None,
         show_export: bool = False,
         export_tooltip: str = "",
-        reset_tooltip: str = _DEFAULT_RESET_TOOLTIP,
+        reset_tooltip: str | None = None,
     ) -> None:
         """Construit la barre.
 
         Args:
             parent: Parent Qt optionnel.
             settings_tooltip: Infobulle du bouton « Réglages » (contexte de
-                la fonctionnalité).
+                la fonctionnalité). ``None`` = défaut traduit.
             estimate_tooltip: Infobulle du bouton « Estimer le coût ».
+                ``None`` = défaut traduit.
             open_output_tooltip: Infobulle du bouton « Dossier de sortie ».
+                ``None`` = défaut traduit.
             show_export: Affiche le bouton « Exporter » (masqué par défaut).
             export_tooltip: Infobulle du bouton « Exporter ».
             reset_tooltip: Infobulle du bouton « Réinitialiser ».
+                ``None`` = défaut traduit.
         """
         super().__init__(parent)
         self.setObjectName("projectHeaderBar")
@@ -67,10 +59,35 @@ class ProjectHeaderBar(QWidget):
         layout.setContentsMargins(16, 10, 16, 10)
         layout.setSpacing(8)
 
-        self._settings_button = self._make_button("⚙️  Réglages", role="default")
+        # Défauts traduits : les calculer ici (et non comme constantes de
+        # module) garantit qu'ils suivent la langue active au moment de la
+        # construction du widget — pas celle au moment du chargement du
+        # module Python.
+        if settings_tooltip is None:
+            settings_tooltip = self.tr(
+                "Configurer les réglages de génération (entrée, langues, style, "
+                "transcription, modèle, phases)."
+            )
+        if estimate_tooltip is None:
+            estimate_tooltip = self.tr(
+                "Estime à l'avance le coût total du Run en analysant la durée "
+                "des sources du dossier d'entrée (STT + LLM)."
+            )
+        if open_output_tooltip is None:
+            open_output_tooltip = self.tr(
+                "Ouvre dans l'explorateur le dossier contenant les fichiers Markdown "
+                "produits (consolidated, glossary, per-video par langue)."
+            )
+        if reset_tooltip is None:
+            reset_tooltip = self.tr(
+                "Supprime tout ce qui a été généré pour cette fonctionnalité (livrables sur "
+                "disque et état en base). Action irréversible."
+            )
+
+        self._settings_button = self._make_button(self.tr("⚙️  Réglages"), role="default")
         self._settings_button.setToolTip(settings_tooltip)
         self._estimate_cost_button = self._make_button(
-            "💵  Estimer le coût", role="default"
+            self.tr("💵  Estimer le coût"), role="default"
         )
         self._estimate_cost_button.setToolTip(estimate_tooltip)
         # Hiérarchie : un seul bouton « plein » (Lancer) attire l'œil ; les actions
@@ -78,18 +95,18 @@ class ProjectHeaderBar(QWidget):
         # en contour neutre. Reprendre, Pause… restent neutres (un seul accent).
         # Icônes : emojis colorés homogènes (le sélecteur U+FE0F force le rendu
         # couleur des glyphes média ▶️/⏸️ sous Segoe UI Emoji).
-        self._start_button = self._make_button("🚀  Lancer", role="primary")
-        self._pause_button = self._make_button("⏸️  Pause", role="default")
-        self._resume_button = self._make_button("▶️  Reprendre", role="default")
-        self._cancel_button = self._make_button("❌  Annuler", role="danger")
+        self._start_button = self._make_button(self.tr("🚀  Lancer"), role="primary")
+        self._pause_button = self._make_button(self.tr("⏸️  Pause"), role="default")
+        self._resume_button = self._make_button(self.tr("▶️  Reprendre"), role="default")
+        self._cancel_button = self._make_button(self.tr("❌  Annuler"), role="danger")
         self._open_output_button = self._make_button(
-            "📂  Dossier de sortie", role="default"
+            self.tr("📂  Dossier de sortie"), role="default"
         )
         self._open_output_button.setToolTip(open_output_tooltip)
-        self._export_button = self._make_button("📦  Exporter", role="default")
+        self._export_button = self._make_button(self.tr("📦  Exporter"), role="default")
         self._export_button.setToolTip(export_tooltip)
         self._export_button.setVisible(show_export)
-        self._reset_button = self._make_button("🗑️  Réinitialiser", role="danger")
+        self._reset_button = self._make_button(self.tr("🗑️  Réinitialiser"), role="danger")
         self._reset_button.setToolTip(reset_tooltip)
 
         self._settings_button.clicked.connect(self.settings_requested)

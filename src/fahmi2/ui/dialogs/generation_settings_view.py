@@ -1,14 +1,27 @@
-"""Dialogue ``GenerationSettingsView`` — réglages de génération (master-detail).
+"""Dialogue ``GenerationSettingsView`` — réglages de la génération.
 
-Réorganise les réglages de la fonctionnalité Génération en catégories (Entrée &
-langues, Style, Transcription, Modèle & coût, Phases) via le composant
-``SettingsView``. Produit un ``GenerationSettings`` (sans nom ni emplacement, qui
-relèvent du ``Project``).
+Présenté en master-detail (composant
+:class:`~fahmi2.ui.widgets.settings_view.SettingsView`) à six catégories,
+chacune assemblée à partir des briques partagées
+(:func:`~fahmi2.ui._components.card`, :func:`~fahmi2.ui._components.page_header`,
+:func:`~fahmi2.ui._components.field_hint`).
+
+- *Sources* : dossier d'entrée, vidéos YouTube, langues, ordre et exclusions.
+- *Style* : préréglage de style, mode d'assemblage, consignes, traitement des
+  documents texte.
+- *Transcription* : moteur (local/en ligne), modèle, performance.
+- *Génération IA* : modèle, budget, performance.
+- *Phases IA* : réglages détaillés par phase LLM.
+- *Export* : formats à exporter.
+
+i18n : tous les libellés passent par :py:meth:`QObject.tr` à l'usage dans
+``__init__`` et les méthodes ``_build_*``.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Final
 
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -17,7 +30,6 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QDoubleSpinBox,
     QFileDialog,
-    QFormLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -53,83 +65,37 @@ from fahmi2.domain.generation import (
     ParallelismConfig,
 )
 from fahmi2.domain.source import InputSource
-from fahmi2.ui._model_labels import (
-    CLOUD_STT_MODEL_LABELS,
-    LLM_MODEL_LABELS,
-    LOCAL_STT_MODEL_LABELS,
-    labeled_enum_combo,
+from fahmi2.ui._components import (
+    card,
+    dialog_footer,
+    field_hint,
+    localize_button_box,
+    page_header,
+    settings_form,
+    settings_page,
 )
-from fahmi2.ui.pedagogy_labels import EXPORT_LABELS
+from fahmi2.ui._model_labels import (
+    cloud_stt_model_labels,
+    labeled_enum_combo,
+    llm_model_labels,
+    local_stt_model_labels,
+)
+from fahmi2.ui.pedagogy_labels import export_labels
 from fahmi2.ui.widgets.language_selection_view import LanguageSelectionView
 from fahmi2.ui.widgets.phase_configs_widget import PhaseConfigsWidget
 from fahmi2.ui.widgets.settings_view import SettingsView
 from fahmi2.ui.widgets.source_order_view import SourceOrderView
 
-_DIALOG_WIDTH_PX = 760
-_DIALOG_HEIGHT_PX = 620
-_DIRECTIVES_HEIGHT_PX = 90
-_COST_CEILING_MAX_USD = 10_000.0
-
-_TITLE_CREATE = "Configurer la génération"
-_TITLE_EDIT = "Réglages de la génération"
-
-_CAT_INPUT = "Entrée & langues"
-_CAT_STYLE = "Style"
-_CAT_STT = "Transcription"
-_CAT_MODEL = "Modèle & coût"
-_CAT_PHASES = "Phases"
-_CAT_EXPORT = "Export"
-_EXPORT_HINT = (
-    "Formats proposés lors de l'export des livrables de la génération (le bouton "
-    "« Exporter » liste les formats cochés). Sans sélection, l'export invite à en "
-    "choisir ici."
-)
-_EXPORT_FORMATS_LABEL = "Formats d'export :"
-
-_DIRECTIVES_PLACEHOLDER = (
-    "Directives libres pour orienter la reformulation. Ex : « ton chaleureux mais "
-    "rigoureux, exemples concrets, éviter le jargon inutile »."
-)
-
-_KEEP_AUDIO_LABEL = "Conserver les fichiers audio extraits"
-_KEEP_AUDIO_TOOLTIP = (
-    "Si coché, les fichiers .wav extraits des médias (vidéo/audio/YouTube) ne "
-    "sont pas supprimés "
-    "après la transcription (utile pour réécouter / déboguer)."
-)
-
-_REFORMULATE_DOCS_LABEL = "Reformuler les documents texte"
-_REFORMULATE_DOCS_TOOLTIP = (
-    "Si coché (défaut), les documents (PDF, Word, Markdown, texte) passent par "
-    "la reformulation comme une transcription orale. Décoché : le texte est "
-    "inséré tel quel (utile pour un cours déjà bien rédigé)."
-)
-
-_CONSOLIDATION_MODE_LABEL = "Mode de consolidation :"
-#: Libellés du mode de consolidation (spécifique à la Génération, d'où sa place
-#: ici plutôt que dans ``_model_labels`` qui regroupe les libellés partagés).
-_CONSOLIDATION_MODE_LABELS: dict[ConsolidationMode, str] = {
-    ConsolidationMode.ORDERED: "Ordonné (1 source = 1 chapitre)",
-    ConsolidationMode.THEMATIC: "Refonte thématique (synthèse transversale)",
-}
-_CONSOLIDATION_MODE_TOOLTIP = (
-    "Ordonné : assemble les sources dans l'ordre choisi (contenu recopié tel "
-    "quel). Refonte thématique : le LLM agrège et restructure les contenus de "
-    "tous les entrants par thème (fidélité du fond préservée, forme retravaillée ; "
-    "l'ordre des sources est alors sans effet)."
-)
-
-_FOLDER_LABEL = "Dossier d'entrée :"
-_YOUTUBE_URLS_LABEL = "Liens YouTube :"
-_YOUTUBE_URLS_HEIGHT_PX = 70
-_YOUTUBE_URLS_PLACEHOLDER = (
-    "Un lien YouTube par ligne (vidéos unitaires).\n"
-    "Ex : https://youtu.be/XXXXXXXXXXX"
-)
+_DIALOG_WIDTH: Final[int] = 920
+_DIALOG_HEIGHT: Final[int] = 680
+_DIRECTIVES_HEIGHT_PX: Final[int] = 90
+_YOUTUBE_URLS_HEIGHT_PX: Final[int] = 80
+_OUTER_MARGIN: Final[int] = 0
+_COST_CEILING_MAX_USD: Final[float] = 10_000.0
 
 
 class GenerationSettingsView(QDialog):
-    """Dialogue d'édition des réglages de génération (master-detail)."""
+    """Dialogue d'édition des réglages de génération (master-detail, cartes)."""
 
     def __init__(
         self,
@@ -148,19 +114,22 @@ class GenerationSettingsView(QDialog):
         super().__init__(parent)
         self._hardware = hardware
         self._is_edit_mode = initial is not None
-        self.setWindowTitle(_TITLE_EDIT if self._is_edit_mode else _TITLE_CREATE)
-        self.resize(_DIALOG_WIDTH_PX, _DIALOG_HEIGHT_PX)
+        self.setWindowTitle(
+            self.tr("Réglages de la génération") if self._is_edit_mode
+            else self.tr("Configurer la génération")
+        )
+        self.resize(_DIALOG_WIDTH, _DIALOG_HEIGHT)
         self._result: GenerationSettings | None = None
 
         self._build_fields()
         settings_view = SettingsView(
             [
-                (_CAT_STYLE, self._build_style_page()),
-                (_CAT_INPUT, self._build_input_page()),
-                (_CAT_STT, self._build_stt_page()),
-                (_CAT_MODEL, self._build_model_page()),
-                (_CAT_PHASES, self._build_phases_page()),
-                (_CAT_EXPORT, self._build_export_page()),
+                (self.tr("Style"), self._build_style_page()),
+                (self.tr("Sources"), self._build_sources_page()),
+                (self.tr("Transcription"), self._build_transcription_page()),
+                (self.tr("Génération IA"), self._build_generation_page()),
+                (self.tr("Phases IA"), self._build_phases_page()),
+                (self.tr("Export"), self._build_export_page()),
             ],
             self,
         )
@@ -173,12 +142,19 @@ class GenerationSettingsView(QDialog):
         buttons = QDialogButtonBox(
             button_label | QDialogButtonBox.StandardButton.Cancel, parent=self
         )
+        localize_button_box(buttons)
         buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
 
         outer = QVBoxLayout(self)
+        outer.setContentsMargins(
+            _OUTER_MARGIN, _OUTER_MARGIN, _OUTER_MARGIN, _OUTER_MARGIN
+        )
+        outer.setSpacing(0)
         outer.addWidget(settings_view, stretch=1)
-        outer.addWidget(buttons)
+        outer.addWidget(dialog_footer(self, buttons))
+
+        self.setSizeGripEnabled(True)
 
         if initial is not None:
             self._populate(initial)
@@ -186,220 +162,476 @@ class GenerationSettingsView(QDialog):
         self._sync_order_irrelevant()
 
     def get_generation_settings(self) -> GenerationSettings | None:
-        """Retourne les réglages construits, ou ``None`` si annulation/invalide.
-
-        Returns:
-            ``GenerationSettings`` ou ``None``.
-        """
+        """Retourne les réglages construits, ou ``None`` si annulation/invalide."""
         return self._result
 
-    # ------------------------------------------------------------------ champs
+    def _style_preset_labels(self) -> dict[StylePreset, str]:
+        """Libellés traduits des préréglages de style (utilisés dans la combo)."""
+        return {
+            StylePreset.DECONTRACTE: self.tr("Décontracté"),
+            StylePreset.STANDARD: self.tr("Standard"),
+            StylePreset.PROFESSIONNEL: self.tr("Professionnel"),
+            StylePreset.ACADEMIQUE: self.tr("Académique"),
+        }
+
+    def _consolidation_mode_labels(self) -> dict[ConsolidationMode, str]:
+        """Libellés traduits des modes d'assemblage."""
+        return {
+            ConsolidationMode.ORDERED: self.tr(
+                "Conserver l'ordre — 1 source = 1 chapitre"
+            ),
+            ConsolidationMode.THEMATIC: self.tr(
+                "Synthèse thématique — refonte transversale"
+            ),
+        }
+
+    def _stt_provider_labels(self) -> dict[SttProvider, str]:
+        """Libellés traduits des moteurs de transcription."""
+        return {
+            SttProvider.FASTER_WHISPER_LOCAL: self.tr(
+                "Hors ligne (GPU local, gratuit)"
+            ),
+            SttProvider.OPENAI_CLOUD: self.tr("En ligne (OpenAI, payant)"),
+        }
 
     def _build_fields(self) -> None:
         """Instancie tous les widgets de champ (avant répartition en pages)."""
-        self._input_folder_input = QLineEdit(self)
-        self._input_folder_input.setReadOnly(True)
-        self._browse_btn = QPushButton("Parcourir…", self)
-        self._browse_btn.clicked.connect(self._browse_input_folder)
-
         self._build_source_fields()
-
-        self._languages_view = LanguageSelectionView(tuple(Language), self)
-
-        self._style_combo = QComboBox(self)
-        for style in StylePreset:
-            self._style_combo.addItem(style.value, style)
-
-        self._consolidation_mode_combo = labeled_enum_combo(
-            self, _CONSOLIDATION_MODE_LABELS
-        )
-        self._consolidation_mode_combo.setToolTip(_CONSOLIDATION_MODE_TOOLTIP)
-        self._consolidation_mode_combo.currentIndexChanged.connect(
-            self._sync_order_irrelevant
-        )
-
-        self._style_directives_input = QTextEdit(self)
-        self._style_directives_input.setPlaceholderText(_DIRECTIVES_PLACEHOLDER)
-        self._style_directives_input.setFixedHeight(_DIRECTIVES_HEIGHT_PX)
-        self._style_directives_input.setAcceptRichText(False)
-
-        self._stt_combo = QComboBox(self)
-        for provider in SttProvider:
-            self._stt_combo.addItem(provider.value, provider)
-        self._stt_combo.currentIndexChanged.connect(self._on_stt_changed)
-
-        self._stt_local_model_combo = labeled_enum_combo(self, LOCAL_STT_MODEL_LABELS)
-        self._stt_cloud_model_combo = labeled_enum_combo(self, CLOUD_STT_MODEL_LABELS)
-
-        self._keep_audio_checkbox = QCheckBox(_KEEP_AUDIO_LABEL, self)
-        self._keep_audio_checkbox.setToolTip(_KEEP_AUDIO_TOOLTIP)
-
-        self._reformulate_documents_checkbox = QCheckBox(_REFORMULATE_DOCS_LABEL, self)
-        self._reformulate_documents_checkbox.setToolTip(_REFORMULATE_DOCS_TOOLTIP)
-        self._reformulate_documents_checkbox.setChecked(True)
-
-        self._llm_combo = labeled_enum_combo(self, LLM_MODEL_LABELS)
-
-        self._cost_ceiling_input = QDoubleSpinBox(self)
-        self._cost_ceiling_input.setRange(0.0, _COST_CEILING_MAX_USD)
-        self._cost_ceiling_input.setDecimals(2)
-        self._cost_ceiling_input.setValue(0.0)
-        self._cost_ceiling_input.setSuffix(" $")
-        self._cost_ceiling_input.setSpecialValueText("Pas de plafond")
-
-        self._phase_configs_widget = PhaseConfigsWidget(self)
-
-        defaults = ParallelismConfig()
-        self._stt_workers_input = QSpinBox(self)
-        self._stt_workers_input.setRange(1, MAX_STT_CLOUD_WORKERS)
-        self._stt_workers_input.setValue(defaults.stt_cloud_workers)
-        self._stt_workers_input.setToolTip(
-            "Transcriptions cloud simultanées (sans effet en STT local : 1 GPU)."
-        )
-        self._llm_workers_input = QSpinBox(self)
-        self._llm_workers_input.setRange(1, MAX_LLM_WORKERS)
-        self._llm_workers_input.setValue(defaults.llm_workers)
-        self._llm_workers_input.setToolTip(
-            "Appels LLM simultanés (limite DeepSeek par concurrence, très haute)."
-        )
-
-        self._export_checks: dict[ExportFormat, QCheckBox] = {}
-        for fmt in ExportFormat:
-            if fmt in GENERATION_EXPORT_FORMATS:
-                self._export_checks[fmt] = QCheckBox(EXPORT_LABELS[fmt], self)
+        self._build_style_fields()
+        self._build_stt_fields()
+        self._build_llm_fields()
+        self._build_export_fields()
 
     def _build_source_fields(self) -> None:
-        """Instancie les widgets de saisie des sources (URLs + ordre/exclusion)."""
+        """Instancie les widgets de saisie des sources (dossier + URLs + ordre)."""
+        self._input_folder_input = QLineEdit(self)
+        self._input_folder_input.setReadOnly(True)
+        self._input_folder_input.setToolTip(
+            self.tr(
+                "Dossier scanné en mode automatique : tous les fichiers vidéo, audio et "
+                "documents (PDF, Word, Markdown, texte) y sont ramassés."
+            )
+        )
+        self._browse_btn = QPushButton(self.tr("Choisir…"), self)
+        self._browse_btn.setToolTip(
+            self.tr("Choisir le dossier contenant les sources à traiter.")
+        )
+        self._browse_btn.clicked.connect(self._browse_input_folder)
+
         self._youtube_urls_input = QTextEdit(self)
-        self._youtube_urls_input.setPlaceholderText(_YOUTUBE_URLS_PLACEHOLDER)
+        self._youtube_urls_input.setPlaceholderText(
+            self.tr(
+                "Une vidéo YouTube par ligne (liens unitaires).\nEx. : https://youtu.be/XXXXXXXXXXX"
+            )
+        )
         self._youtube_urls_input.setFixedHeight(_YOUTUBE_URLS_HEIGHT_PX)
         self._youtube_urls_input.setAcceptRichText(False)
 
         self._source_order_view = SourceOrderView(self)
         self._source_order_view.refresh_requested.connect(self._refresh_source_order)
 
-    # ------------------------------------------------------------------- pages
+        self._languages_view = LanguageSelectionView(tuple(Language), self)
 
-    def _build_input_page(self) -> QWidget:
-        """Construit la page « Entrée & langues ».
+    def _build_style_fields(self) -> None:
+        """Instancie les widgets de la page « Style »."""
+        self._style_combo = QComboBox(self)
+        self._style_combo.setToolTip(
+            self.tr(
+                "Détermine le ton et le registre du document final (décontracté, standard, "
+                "professionnel ou académique)."
+            )
+        )
+        for style, label in self._style_preset_labels().items():
+            self._style_combo.addItem(label, style)
 
-        Returns:
-            Le widget de page.
-        """
-        page = QWidget(self)
-        outer = QVBoxLayout(page)
-        top_form = QFormLayout()
-        folder_row = QHBoxLayout()
-        folder_row.addWidget(self._input_folder_input)
-        folder_row.addWidget(self._browse_btn)
-        top_form.addRow(_FOLDER_LABEL, folder_row)
-        top_form.addRow(_YOUTUBE_URLS_LABEL, self._youtube_urls_input)
-        outer.addLayout(top_form)
-        # La double liste (ordre/exclusion) prend tout l'espace vertical restant :
-        # ajoutée directement au QVBoxLayout avec stretch (un QFormLayout n'étire
-        # pas verticalement une ligne).
-        outer.addWidget(self._source_order_view, stretch=1)
-        # Titre au-dessus du bloc langues (et non en libellé de colonne à gauche).
-        outer.addWidget(QLabel("Langues du document", page))
-        outer.addWidget(self._languages_view)
-        return page
+        self._consolidation_mode_combo = labeled_enum_combo(
+            self, self._consolidation_mode_labels()
+        )
+        self._consolidation_mode_combo.setToolTip(
+            self.tr(
+                "Conserver l'ordre : assemble les sources dans l'ordre choisi (contenu recopié "
+                "tel quel). Synthèse thématique : l'IA refond tout par thème (l'ordre n'a "
+                "alors plus d'effet)."
+            )
+        )
+        self._consolidation_mode_combo.currentIndexChanged.connect(
+            self._sync_order_irrelevant
+        )
+
+        self._style_directives_input = QTextEdit(self)
+        self._style_directives_input.setPlaceholderText(
+            self.tr(
+                "Consignes libres pour orienter la reformulation. Ex. : « ton chaleureux mais "
+                "rigoureux, exemples concrets, éviter le jargon inutile »."
+            )
+        )
+        self._style_directives_input.setFixedHeight(_DIRECTIVES_HEIGHT_PX)
+        self._style_directives_input.setAcceptRichText(False)
+
+        self._reformulate_documents_checkbox = QCheckBox(
+            self.tr("Reformuler les documents (PDF, Word, Markdown, texte)"), self
+        )
+        self._reformulate_documents_checkbox.setToolTip(
+            self.tr(
+                "Si coché (défaut), les documents texte passent par la reformulation comme "
+                "une transcription orale. Décoché : le texte est inséré tel quel "
+                "(cours déjà bien rédigé)."
+            )
+        )
+        self._reformulate_documents_checkbox.setChecked(True)
+
+    def _build_stt_fields(self) -> None:
+        """Instancie les widgets de la page « Transcription »."""
+        self._stt_combo = QComboBox(self)
+        self._stt_combo.setToolTip(
+            self.tr(
+                "Mode hors ligne : GPU NVIDIA requis, sans coût. Mode en ligne : OpenAI, "
+                "facturé à la minute, recommandé pour les longues durées."
+            )
+        )
+        for provider, label in self._stt_provider_labels().items():
+            self._stt_combo.addItem(label, provider)
+        self._stt_combo.currentIndexChanged.connect(self._on_stt_changed)
+
+        self._stt_local_model_combo = labeled_enum_combo(self, local_stt_model_labels())
+        self._stt_cloud_model_combo = labeled_enum_combo(self, cloud_stt_model_labels())
+
+        self._keep_audio_checkbox = QCheckBox(
+            self.tr("Conserver les fichiers audio (réécoute / dépannage)"), self
+        )
+        self._keep_audio_checkbox.setToolTip(
+            self.tr(
+                "Si coché, les fichiers .wav extraits des médias (vidéo/audio/YouTube) ne sont "
+                "pas supprimés après la transcription."
+            )
+        )
+
+        defaults = ParallelismConfig()
+        self._stt_workers_input = QSpinBox(self)
+        self._stt_workers_input.setRange(1, MAX_STT_CLOUD_WORKERS)
+        self._stt_workers_input.setValue(defaults.stt_cloud_workers)
+        self._stt_workers_input.setToolTip(
+            self.tr(
+                "Transcriptions cloud simultanées (sans effet en STT local : 1 GPU)."
+            )
+        )
+
+    def _build_llm_fields(self) -> None:
+        """Instancie les widgets de la page « Génération IA » + « Phases IA »."""
+        self._llm_combo = labeled_enum_combo(self, llm_model_labels())
+
+        self._cost_ceiling_input = QDoubleSpinBox(self)
+        self._cost_ceiling_input.setRange(0.0, _COST_CEILING_MAX_USD)
+        self._cost_ceiling_input.setDecimals(2)
+        self._cost_ceiling_input.setValue(0.0)
+        self._cost_ceiling_input.setSuffix(" $")
+        self._cost_ceiling_input.setSpecialValueText(self.tr("Pas de plafond"))
+        self._cost_ceiling_input.setToolTip(
+            self.tr(
+                "Coût maximal en USD. La génération s'arrête si elle s'en approche. Mettez 0 "
+                "pour désactiver le plafond."
+            )
+        )
+
+        self._phase_configs_widget = PhaseConfigsWidget(self)
+
+        defaults = ParallelismConfig()
+        self._llm_workers_input = QSpinBox(self)
+        self._llm_workers_input.setRange(1, MAX_LLM_WORKERS)
+        self._llm_workers_input.setValue(defaults.llm_workers)
+        self._llm_workers_input.setToolTip(
+            self.tr(
+                "Appels IA simultanés (le compte concurrence DeepSeek est élevé)."
+            )
+        )
+
+    def _build_export_fields(self) -> None:
+        """Instancie les cases à cocher de formats d'export."""
+        self._export_checks: dict[ExportFormat, QCheckBox] = {}
+        labels = export_labels()
+        for fmt in ExportFormat:
+            if fmt in GENERATION_EXPORT_FORMATS:
+                self._export_checks[fmt] = QCheckBox(labels[fmt], self)
 
     def _build_style_page(self) -> QWidget:
-        """Construit la page « Style ».
+        """Construit la page « Style »."""
+        page, layout = settings_page(self)
+        layout.addWidget(
+            page_header(
+                page,
+                title=self.tr("Style"),
+                description=self.tr(
+                    "Ton, mise en forme et mode d'assemblage du document consolidé."
+                ),
+            )
+        )
 
-        Returns:
-            Le widget de page.
-        """
-        page = QWidget(self)
-        outer = QVBoxLayout(page)
-        form = QFormLayout()
-        form.addRow("Style :", self._style_combo)
-        form.addRow(_CONSOLIDATION_MODE_LABEL, self._consolidation_mode_combo)
-        form.addRow("Directives stylistiques :", self._style_directives_input)
-        form.addRow(self._reformulate_documents_checkbox)
-        outer.addLayout(form)
-        outer.addStretch(1)
-        return page
+        format_card, format_layout = card(
+            page,
+            title=self.tr("Mise en forme"),
+            description=self.tr(
+                "Préréglage de style, mode d'assemblage des sources et consignes libres pour "
+                "orienter l'écriture."
+            ),
+        )
+        form = settings_form()
+        form.addRow(self.tr("Préréglage de style"), self._style_combo)
+        form.addRow(self.tr("Mode d'assemblage"), self._consolidation_mode_combo)
+        format_layout.addLayout(form)
+        directives_label = QLabel(self.tr("Consignes de style"), format_card)
+        format_layout.addWidget(directives_label)
+        format_layout.addWidget(self._style_directives_input)
+        format_layout.addWidget(
+            field_hint(
+                format_card,
+                self.tr(
+                    "Optionnel — laissez vide pour le comportement par défaut."
+                ),
+            )
+        )
+        layout.addWidget(format_card)
 
-    def _build_stt_page(self) -> QWidget:
-        """Construit la page « Transcription ».
+        docs_card, docs_layout = card(
+            page,
+            title=self.tr("Documents texte"),
+            description=self.tr(
+                "Comportement appliqué aux fichiers PDF, Word, Markdown et texte."
+            ),
+        )
+        docs_layout.addWidget(self._reformulate_documents_checkbox)
+        docs_layout.addWidget(
+            field_hint(
+                docs_card,
+                self.tr(
+                    "Décochez pour les cours déjà rédigés (insertion telle quelle, coût nul)."
+                ),
+            )
+        )
+        layout.addWidget(docs_card)
 
-        Returns:
-            Le widget de page.
-        """
-        page = QWidget(self)
-        outer = QVBoxLayout(page)
-        form = QFormLayout()
-        form.addRow("Provider STT :", self._stt_combo)
-        form.addRow("Modèle local :", self._stt_local_model_combo)
-        form.addRow("Modèle cloud :", self._stt_cloud_model_combo)
-        form.addRow(self._keep_audio_checkbox)
-        form.addRow("Transcriptions en parallèle :", self._stt_workers_input)
-        outer.addLayout(form)
-        outer.addStretch(1)
-        return page
-
-    def _build_model_page(self) -> QWidget:
-        """Construit la page « Modèle & coût ».
-
-        Returns:
-            Le widget de page.
-        """
-        page = QWidget(self)
-        outer = QVBoxLayout(page)
-        form = QFormLayout()
-        form.addRow("Modèle LLM :", self._llm_combo)
-        form.addRow("Plafond budget :", self._cost_ceiling_input)
-        form.addRow("Appels LLM en parallèle :", self._llm_workers_input)
-        outer.addLayout(form)
-        outer.addStretch(1)
-        return page
-
-    def _build_phases_page(self) -> QWidget:
-        """Construit la page « Phases (1–7) ».
-
-        Returns:
-            Le widget de page.
-        """
-        page = QWidget(self)
-        layout = QVBoxLayout(page)
-        layout.addWidget(self._phase_configs_widget)
         layout.addStretch(1)
         return page
 
-    def _build_export_page(self) -> QWidget:
-        """Construit la page « Export » (formats d'export proposés).
+    def _build_sources_page(self) -> QWidget:
+        """Construit la page « Sources »."""
+        page, layout = settings_page(self)
+        layout.addWidget(
+            page_header(
+                page,
+                title=self.tr("Sources"),
+                description=self.tr(
+                    "Dossier des fichiers à traiter, vidéos YouTube, langues à produire et ordre "
+                    "d'apparition des sources dans le document."
+                ),
+            )
+        )
 
-        Returns:
-            Le widget de page.
-        """
-        page = QWidget(self)
-        outer = QVBoxLayout(page)
-        hint = QLabel(_EXPORT_HINT, page)
-        hint.setWordWrap(True)
-        outer.addWidget(hint)
-        outer.addWidget(QLabel(_EXPORT_FORMATS_LABEL, page))
-        for cb in self._export_checks.values():
-            outer.addWidget(cb)
-        outer.addStretch(1)
+        folder_card, folder_layout = card(
+            page,
+            title=self.tr("Dossier des sources"),
+            description=self.tr(
+                "Dossier scanné pour les vidéos, audios et documents à traiter."
+            ),
+        )
+        folder_row = QHBoxLayout()
+        folder_row.addWidget(self._input_folder_input, stretch=1)
+        folder_row.addWidget(self._browse_btn)
+        folder_layout.addLayout(folder_row)
+        layout.addWidget(folder_card)
+
+        youtube_card, youtube_layout = card(
+            page,
+            title=self.tr("Vidéos YouTube"),
+            description=self.tr(
+                "Liens YouTube unitaires (une URL par ligne). La vidéo est téléchargée puis "
+                "transcrite comme une vidéo locale."
+            ),
+        )
+        youtube_layout.addWidget(self._youtube_urls_input)
+        layout.addWidget(youtube_card)
+
+        languages_card, languages_layout = card(
+            page,
+            title=self.tr("Langues du document"),
+            description=self.tr(
+                "Langues à produire pour le document consolidé. La langue « principale » est "
+                "l'originale ; les autres en sont des traductions automatiques."
+            ),
+        )
+        languages_layout.addWidget(self._languages_view)
+        layout.addWidget(languages_card)
+
+        order_card, order_layout = card(
+            page,
+            title=self.tr("Ordre et exclusions"),
+            description=self.tr(
+                "Ordre d'apparition des sources dans le document, et exclusions éventuelles."
+            ),
+        )
+        order_layout.addWidget(self._source_order_view)
+        layout.addWidget(order_card, stretch=1)
         return page
 
-    # ----------------------------------------------------------------- actions
+    def _build_transcription_page(self) -> QWidget:
+        """Construit la page « Transcription »."""
+        page, layout = settings_page(self)
+        layout.addWidget(
+            page_header(
+                page,
+                title=self.tr("Transcription"),
+                description=self.tr(
+                    "Moteur et modèle utilisés pour transcrire les vidéos et fichiers audio."
+                ),
+            )
+        )
+
+        engine_card, engine_layout = card(
+            page,
+            title=self.tr("Moteur de transcription"),
+            description=self.tr(
+                "Mode hors ligne (GPU local, sans coût) ou en ligne (OpenAI, plus précis sur "
+                "les longues durées)."
+            ),
+        )
+        engine_form = settings_form()
+        engine_form.addRow(self.tr("Moteur"), self._stt_combo)
+        engine_layout.addLayout(engine_form)
+        layout.addWidget(engine_card)
+
+        model_card, model_layout = card(
+            page,
+            title=self.tr("Modèle de transcription"),
+            description=self.tr(
+                "Choix du modèle ; un seul est actif à la fois, selon le moteur choisi."
+            ),
+        )
+        model_form = settings_form()
+        model_form.addRow(self.tr("Modèle hors ligne (GPU)"), self._stt_local_model_combo)
+        model_form.addRow(self.tr("Modèle en ligne (OpenAI)"), self._stt_cloud_model_combo)
+        model_layout.addLayout(model_form)
+        layout.addWidget(model_card)
+
+        perf_card, perf_layout = card(
+            page,
+            title=self.tr("Performance et conservation"),
+            description=self.tr(
+                "Parallélisme des transcriptions en ligne et gestion des fichiers audio extraits."
+            ),
+        )
+        perf_form = settings_form()
+        perf_form.addRow(self.tr("Transcriptions simultanées"), self._stt_workers_input)
+        perf_layout.addLayout(perf_form)
+        perf_layout.addWidget(self._keep_audio_checkbox)
+        layout.addWidget(perf_card)
+
+        layout.addStretch(1)
+        return page
+
+    def _build_generation_page(self) -> QWidget:
+        """Construit la page « Génération IA »."""
+        page, layout = settings_page(self)
+        layout.addWidget(
+            page_header(
+                page,
+                title=self.tr("Génération IA"),
+                description=self.tr(
+                    "Modèle de génération, plafond de budget et nombre de traitements en parallèle."
+                ),
+            )
+        )
+        model_card, model_layout = card(
+            page,
+            title=self.tr("Modèle de génération"),
+            description=self.tr(
+                "Modèle DeepSeek utilisé pour les phases de reformulation, structuration, "
+                "consolidation, traduction et cohérence."
+            ),
+        )
+        model_form = settings_form()
+        model_form.addRow(self.tr("Modèle"), self._llm_combo)
+        model_layout.addLayout(model_form)
+        layout.addWidget(model_card)
+
+        budget_card, budget_layout = card(
+            page,
+            title=self.tr("Budget"),
+            description=self.tr(
+                "Plafond de dépense — la génération s'arrête si le coût l'atteint."
+            ),
+        )
+        budget_form = settings_form()
+        budget_form.addRow(self.tr("Budget maximal"), self._cost_ceiling_input)
+        budget_layout.addLayout(budget_form)
+        layout.addWidget(budget_card)
+
+        perf_card, perf_layout = card(
+            page,
+            title=self.tr("Performance"),
+            description=self.tr(
+                "Nombre d'appels IA simultanés. Plus rapide, n'augmente pas le coût."
+            ),
+        )
+        perf_form = settings_form()
+        perf_form.addRow(self.tr("Traitements IA simultanés"), self._llm_workers_input)
+        perf_layout.addLayout(perf_form)
+        layout.addWidget(perf_card)
+
+        layout.addStretch(1)
+        return page
+
+    def _build_phases_page(self) -> QWidget:
+        """Construit la page « Phases IA »."""
+        page, layout = settings_page(self)
+        layout.addWidget(
+            page_header(
+                page,
+                title=self.tr("Phases IA"),
+                description=self.tr(
+                    "Réglages fins pour chacune des 7 phases IA du pipeline (thinking, intensité, "
+                    "température, retries). Laissez les valeurs par défaut sauf cas particulier."
+                ),
+            )
+        )
+        self._phase_configs_widget.setTitle("")
+        layout.addWidget(self._phase_configs_widget, stretch=1)
+        return page
+
+    def _build_export_page(self) -> QWidget:
+        """Construit la page « Export »."""
+        page, layout = settings_page(self)
+        layout.addWidget(
+            page_header(
+                page,
+                title=self.tr("Export"),
+                description=self.tr(
+                    "Formats proposés lors de l'export du document consolidé et du glossaire."
+                ),
+            )
+        )
+        card_frame, card_layout = card(page, title=self.tr("Formats à exporter"))
+        for cb in self._export_checks.values():
+            card_layout.addWidget(cb)
+        layout.addWidget(card_frame)
+        layout.addWidget(
+            field_hint(
+                page,
+                self.tr(
+                    "Sans sélection, l'export laissera le choix au moment de l'action."
+                ),
+            )
+        )
+        layout.addStretch(1)
+        return page
 
     def _browse_input_folder(self) -> None:
         """Ouvre un sélecteur de dossier d'entrée et rafraîchit la liste."""
-        folder = QFileDialog.getExistingDirectory(self, "Dossier d'entrée")
+        folder = QFileDialog.getExistingDirectory(self, self.tr("Dossier des sources"))
         if folder:
             self._input_folder_input.setText(folder)
             self._refresh_source_order()
 
     def _parse_youtube_urls(self) -> tuple[str, ...]:
-        """Extrait les liens YouTube saisis (une URL non vide par ligne, dédupliquée).
-
-        Returns:
-            Les URLs non vides, sans doublon, dans l'ordre de saisie
-            (``dict.fromkeys`` préserve l'ordre d'insertion).
-        """
+        """Extrait les liens YouTube saisis (une URL non vide par ligne, dédupliquée)."""
         lines = (
             line.strip()
             for line in self._youtube_urls_input.toPlainText().splitlines()
@@ -407,13 +639,7 @@ class GenerationSettingsView(QDialog):
         return tuple(dict.fromkeys(line for line in lines if line))
 
     def _scan_available(self) -> list[InputSource]:
-        """Liste les sources disponibles depuis les champs courants (best-effort).
-
-        Returns:
-            Les ``InputSource`` du dossier + URLs ; liste vide si le dossier est
-            inaccessible et qu'aucune URL n'est saisie. Tant qu'aucun dossier
-            n'est sélectionné, seules les URLs YouTube sont collectées.
-        """
+        """Liste les sources disponibles depuis les champs courants (best-effort)."""
         folder_text = self._input_folder_input.text().strip()
         folder = Path(folder_text) if folder_text else None
         try:
@@ -426,17 +652,7 @@ class GenerationSettingsView(QDialog):
         source_order: tuple[str, ...] | None = None,
         excluded: tuple[str, ...] | None = None,
     ) -> None:
-        """Re-scanne les sources, réconcilie l'ordre/exclusion et repeuple la liste.
-
-        La réconciliation (fonction pure ``reconcile_source_order``) est faite ici
-        : le widget ``SourceOrderView`` ne reçoit que des clés déjà résolues.
-
-        Args:
-            source_order: État d'ordre à appliquer (``None`` = état courant du
-                widget — utilisé par le bouton « Rafraîchir » qui conserve les
-                exclusions).
-            excluded: État d'exclusion à appliquer (``None`` = état courant).
-        """
+        """Re-scanne les sources, réconcilie l'ordre/exclusion et repeuple la liste."""
         order = (
             source_order
             if source_order is not None
@@ -458,13 +674,7 @@ class GenerationSettingsView(QDialog):
         )
 
     def _on_stt_changed(self, index: int) -> None:
-        """Bloque ``faster_whisper_local`` sans GPU CUDA.
-
-        Args:
-            index: Index sélectionné dans le combo STT.
-        """
-        # ``itemData`` peut « dégrader » le StrEnum en str : on recoerce en enum
-        # pour que la comparaison d'identité (et l'avertissement GPU) fonctionne.
+        """Bloque ``faster_whisper_local`` sans GPU CUDA."""
         provider = SttProvider(self._stt_combo.itemData(index))
         if (
             provider is SttProvider.FASTER_WHISPER_LOCAL
@@ -472,9 +682,11 @@ class GenerationSettingsView(QDialog):
         ):
             QMessageBox.warning(
                 self,
-                "GPU NVIDIA introuvable",
-                "Le mode de transcription locale nécessite un GPU NVIDIA "
-                "compatible CUDA.\n\nVeuillez utiliser le mode OpenAI cloud.",
+                self.tr("GPU NVIDIA introuvable"),
+                self.tr(
+                    "Le mode de transcription locale nécessite un GPU NVIDIA compatible CUDA.\n\n"
+                    "Veuillez utiliser le mode OpenAI en ligne."
+                ),
             )
             cloud_index = self._stt_combo.findData(SttProvider.OPENAI_CLOUD)
             if cloud_index >= 0:
@@ -482,11 +694,7 @@ class GenerationSettingsView(QDialog):
         self._sync_stt_model_enabled()
 
     def _sync_stt_model_enabled(self) -> None:
-        """Active le combo modèle correspondant au provider STT sélectionné.
-
-        ``QComboBox`` peut restituer un ``str`` plutôt que le membre ``StrEnum``
-        stocké en donnée : on recoerce en enum (cohérent avec ``_on_stt_changed``).
-        """
+        """Active le combo modèle correspondant au provider STT sélectionné."""
         provider = SttProvider(self._stt_combo.currentData())
         self._stt_local_model_combo.setEnabled(
             provider is SttProvider.FASTER_WHISPER_LOCAL
@@ -494,22 +702,14 @@ class GenerationSettingsView(QDialog):
         self._stt_cloud_model_combo.setEnabled(provider is SttProvider.OPENAI_CLOUD)
 
     def _sync_order_irrelevant(self) -> None:
-        """Signale (note UI) que l'ordre des sources est ignoré en mode thématique.
-
-        ``QComboBox`` peut restituer un ``str`` plutôt que le ``StrEnum`` : on
-        recoerce en enum avant la comparaison d'identité.
-        """
+        """Signale (note UI) que l'ordre des sources est ignoré en mode thématique."""
         mode = ConsolidationMode(self._consolidation_mode_combo.currentData())
         self._source_order_view.set_order_irrelevant(
             mode is ConsolidationMode.THEMATIC
         )
 
     def _populate(self, generation: GenerationSettings) -> None:
-        """Pré-remplit les champs depuis des réglages existants.
-
-        Args:
-            generation: Réglages à éditer.
-        """
+        """Pré-remplit les champs depuis des réglages existants."""
         self._input_folder_input.setText(str(generation.input_folder))
         self._youtube_urls_input.setPlainText("\n".join(generation.youtube_urls))
         self._languages_view.set_selection(
@@ -554,12 +754,12 @@ class GenerationSettingsView(QDialog):
         if not input_folder_text:
             QMessageBox.warning(
                 self,
-                "Dossier d'entrée manquant",
-                "Veuillez sélectionner le dossier d'entrée (vidéos, audios, "
-                "documents).",
+                self.tr("Dossier des sources manquant"),
+                self.tr(
+                    "Veuillez sélectionner le dossier des sources (vidéos, audios, documents)."
+                ),
             )
             return
-        # Le widget garantit l'invariant du domaine : la principale ∈ langues incluses.
         source_lang = self._languages_view.primary_language()
         output_langs = self._languages_view.output_languages()
         cost_ceiling = (

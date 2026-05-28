@@ -1,397 +1,406 @@
-# Fahmi2 — Guide utilisateur
+# Fahmi2 — User guide
 
-Document destiné à l'utilisateur final non-technicien. Démarrage en moins
-de 10 minutes.
+Document aimed at the non-technical end user. Up and running in under 10
+minutes.
 
-## 1. Qu'est-ce que Fahmi2 ?
+## 1. What is Fahmi2?
 
-Fahmi2 transforme automatiquement vos cours — **vidéos, fichiers audio, liens
-YouTube ou documents texte** (PDF, Word, Markdown, txt) — en documents écrits
-structurés en Markdown, avec un glossaire et un document consolidé, dans la
-langue de votre choix (FR ou EN).
+Fahmi2 automatically turns your courses — **videos, audio files, YouTube
+links, or text documents** (PDF, Word, Markdown, txt) — into structured
+written Markdown documents, with a glossary and a consolidated document,
+in the language of your choice (FR or EN; up to 7 languages on the
+generation side).
 
-L'application tourne **entièrement sur votre poste** : pas de serveur, pas
-de cloud sauf si vous choisissez explicitement OpenAI Whisper cloud ou
-DeepSeek (les contenus envoyés au cloud le sont alors exclusivement par
-ces deux APIs, sous vos clés).
+The application runs **entirely on your machine**: no server, no cloud
+unless you explicitly choose OpenAI cloud Whisper or DeepSeek (the
+content sent to the cloud then goes exclusively through those two APIs,
+under your keys).
+
+The interface is available in **French and English**: pick it from **Edit
+→ Global settings → Language** (the change applies at the next launch).
 
 ## 2. Installation
 
-1. Téléchargez `Fahmi2-X.Y.Z-win64.zip`.
-2. Décompressez-le dans un dossier (par exemple, sur votre Bureau ou dans
-   `C:\Apps\Fahmi2\`).
-3. Double-cliquez sur **`Fahmi2.exe`**.
-4. Au tout premier lancement, Windows peut afficher *« Windows a protégé
-   votre PC »* (éditeur inconnu). Cliquez sur **« Plus d'infos »** puis
-   **« Exécuter quand même »**. Cet avertissement n'apparaîtra qu'une seule
-   fois.
+1. Download `Fahmi2-X.Y.Z-win64.zip`.
+2. Unzip it to a folder (e.g. on your Desktop or in `C:\Apps\Fahmi2\`).
+3. Double-click **`Fahmi2.exe`**.
+4. On the very first launch, Windows may show *"Windows protected your
+   PC"* (unknown publisher). Click **"More info"** then **"Run anyway"**.
+   This warning will only appear once.
 
-Vous y êtes. Pas d'installation système, pas de droits administrateur.
+You're in. No system install, no admin rights.
 
-## 3. Première configuration : clés API
+## 3. First configuration: API keys
 
-Pour fonctionner, l'application a besoin d'une ou deux clés d'API que vous
-devez obtenir auprès des fournisseurs :
+To work, the application needs one or two API keys you must obtain from
+the providers:
 
-- **Clé DeepSeek** (obligatoire) — pour la reformulation et la
-  structuration. Inscrivez-vous sur https://platform.deepseek.com et
-  générez une clé.
-- **Clé OpenAI** (optionnelle) — uniquement si vous utilisez Whisper
-  cloud pour la transcription. Inscrivez-vous sur
-  https://platform.openai.com.
+- **DeepSeek key** (mandatory) — for rephrasing and structuring. Sign up
+  at <https://platform.deepseek.com> and generate a key.
+- **OpenAI key** (optional) — only if you use cloud Whisper for
+  transcription. Sign up at <https://platform.openai.com>.
 
-**Pour les saisir** :
+**To enter them**:
 
-1. Menu **Édition → Paramètres globaux**.
-2. Collez vos clés dans les champs correspondants.
-3. Cliquez sur **Save**.
+1. Menu **Edit → Global settings**.
+2. Paste your keys into the matching fields.
+3. Click **Save**.
 
-Vos clés sont **chiffrées sur votre disque** par le système Windows
-(DPAPI). Elles ne peuvent être déchiffrées que par votre compte Windows.
+Your keys are **encrypted on your disk** by Windows (DPAPI). They can
+only be decrypted by your Windows account.
 
-## 4. Créer un projet
+## 4. Creating a project
 
-**Fichier → Nouveau projet** : donnez un **nom** et choisissez un **emplacement**
-(dossier de travail du projet), puis cliquez sur **OK**. Le projet apparaît dans
-la liste à gauche.
+**File → New project**: give the project a **name** and pick a
+**location** (the project's working folder), then click **OK**. The
+project appears in the list on the left.
 
-Sélectionnez-le, puis dans l'onglet **Génération** cliquez sur **⚙ Réglages** pour
-configurer la génération (vue à 6 catégories) :
+Select it, then in the **Generation** tab click **⚙ Settings** to
+configure the generation (6-category view):
 
-| Catégorie | Champs |
-|-----------|--------|
-| **Entrée & langues** | Dossier d'entrée (vidéos/audios/documents) · Liens YouTube · Ordre & exclusion des sources · Langues du document (langues produites + laquelle est la **principale**/originale) |
-| **Style** | Style (`décontracté`/`standard`/`professionnel`/`académique`) · **Mode de consolidation** (Ordonné : un chapitre par source, dans l'ordre ; ou Refonte thématique : l'IA réorganise et fusionne tout par thèmes, comme une synthèse — l'ordre des sources n'a alors plus d'effet) · Directives libres |
-| **Transcription** | Provider STT (`openai_cloud` sans GPU, sinon `faster_whisper_local`) · *Transcriptions en parallèle* (cloud) |
-| **Modèle & coût** | Modèle LLM (`deepseek-v4-flash` pour démarrer) · Plafond budget · *Appels LLM en parallèle* |
-| **Phases** | Thinking, effort, température, retries par phase LLM (avancé) |
-| **Export** | Formats d'export proposés : Markdown / PDF / HTML / Word (`.docx`) (aucun par défaut) |
+| Category | Fields |
+|----------|--------|
+| **Sources** | Input folder (videos/audio/documents) · YouTube links · Source ordering & exclusion |
+| **Style** | Style (`casual`/`standard`/`professional`/`academic`) · **Consolidation mode** (Ordered: one chapter per source, in order; or Thematic rewrite: the AI reorganises and merges everything by themes, like a synthesis — source order then has no effect) · Free directives · Document languages (produced languages + which one is the **primary**/original) |
+| **Transcription** | STT provider (`openai_cloud` without a GPU, otherwise `faster_whisper_local`) · *Simultaneous transcriptions* (cloud) |
+| **AI generation** | LLM model (`deepseek-v4-flash` to start) · Budget cap · *Simultaneous AI calls* |
+| **AI phases** | Thinking, effort, temperature, retries per LLM phase (advanced) |
+| **Export** | Offered export formats: Markdown / PDF / HTML / Word (`.docx`) (none by default) |
 
-Validez : l'aperçu des sources détectées s'affiche dans le cockpit.
+Validate: the detected sources preview appears in the cockpit.
 
-## 5. Lancer le traitement
+## 5. Launching the processing
 
-1. Sélectionnez votre projet dans la liste à gauche.
-   L'application présente deux onglets : **Génération** (le cockpit ci-dessous) et
-   **Supports pédagogiques** (flashcards, QCM, fiches… à générer une fois la
-   Génération terminée — voir §8).
-2. (Optionnel mais recommandé) Cliquez sur **💵 Estimer le coût** pour
-   voir le budget prévu avant de lancer. Le dialogue affiche les sources
-   détectées, la durée totale, une **décomposition par phase** (en tenant
-   compte du mode raisonnement si activé) et un **total sous forme de
-   fourchette indicative** (≈ X, fourchette ±33 %), avec un avertissement
-   si le haut de fourchette peut dépasser le plafond.
-3. Cliquez sur **▶ Lancer** en haut.
+1. Pick your project in the list on the left.
+   The application shows three tabs: **Generation** (the cockpit below),
+   **Revision materials** (flashcards, MCQs, summary sheets… generated
+   once the Generation has finished — see §8), and **Dialogue** (chat
+   anchored on the corpus — see §9).
+2. (Optional but recommended) Click **💵 Estimate cost** to see the
+   expected budget before launching. The dialog shows the detected
+   sources, the total duration, a **per-phase breakdown** (accounting for
+   reasoning mode if enabled) and a **total as an indicative range**
+   (≈ X, ±33 % range), with a warning if the upper end of the range may
+   exceed the cap.
+3. Click **▶ Run** at the top.
 
-La grille au centre commence à se remplir :
+The central grid starts filling:
 
-- Une **ligne par source** (vidéo, audio, document ou lien YouTube).
-- Une **colonne par phase** (8 colonnes : STT, Termes, Glossaire,
-  Reformul., Structur., Consolid., Traduction, Cohérence).
-- Chaque case montre l'avancement avec **couleur + symbole** :
-  - `·` gris : en attente
-  - `▶` bleu : en cours
-  - `✓` vert : terminé
-  - `✗` rouge : échec (rare, voir [Dépannage](#10-dépannage))
-  - `↷` indigo : sauté (déjà fait au précédent run)
+- **One row per source** (video, audio, document, or YouTube link).
+- **One column per phase** (8 columns: STT, Terms, Glossary, Rephras.,
+  Structur., Consolid., Translation, Coherence).
+- Each cell shows progress through **colour + symbol**:
+  - `·` grey: pending
+  - `▶` blue: running
+  - `✓` green: completed
+  - `✗` red: failed (rare, see [Troubleshooting](#10-troubleshooting))
+  - `↷` indigo: skipped (already done in the previous run)
 
-En haut, **6 cartes** affichent :
+At the top, **6 cards** display:
 
-- **Statut** du projet (En cours / En pause / Terminé…)
-- **Sources** terminées (ex: *« 3 / 12 »*)
-- **Phases** terminées (ex: *« 15 / 96 »*)
-- **Langues** de sortie (nombre de langues produites)
-- **Durée** écoulée (mise à jour en direct chaque seconde)
-- **Coût** cumulé en USD (avec plafond si défini)
+- **Status** of the project (Running / Paused / Completed…)
+- **Sources** completed (e.g. *"3 / 12"*)
+- **Phases** completed (e.g. *"15 / 96"*)
+- **Languages** of output (number of produced languages)
+- **Duration** elapsed (refreshed every second)
+- **Cost** cumulative in USD (with cap if set)
 
-En bas, le panneau **Logs** liste les dernières actions et messages,
-colorés par niveau (gris/orange/rouge).
+At the bottom, the **Logs** panel lists recent actions and messages,
+coloured by level (grey/amber/red).
 
-## 6. Mettre en pause ou annuler
+## 6. Pausing or cancelling
 
-- **⏸ Pause** : interrompt le traitement à la prochaine étape sûre. Vous
-  pouvez fermer l'application — le travail est sauvegardé.
-- **▶ Reprendre** : reprend exactement là où vous vous étiez arrêté. Aucun
-  travail n'est refait.
-- **✕ Annuler** : marque le run comme annulé. Vous pourrez relancer plus
-  tard si vous le souhaitez.
-- **↺ Réinitialiser** : supprime **tout ce qui a été généré** pour l'onglet
-  courant (livrables et historique pour la Génération ; supports pour les Supports
-  pédagogiques), après confirmation. Irréversible ; indisponible pendant un run.
+- **⏸ Pause**: interrupts the processing at the next safe step. You can
+  close the application — the work is saved.
+- **▶ Resume**: picks up exactly where you stopped. No work is redone.
+- **✕ Cancel**: marks the run as cancelled. You can re-run later if you
+  want.
+- **↺ Reset**: deletes **everything that has been generated** for the
+  current tab (deliverables and history for Generation; materials for
+  Revision materials), after confirmation. Irreversible; unavailable
+  during a run.
 
-Dans la liste des projets (gauche), chaque projet est préfixé par deux icônes de
-statut — **G** (Génération) puis **P** (Supports pédagogiques) — reflétant le
-dernier état de chaque fonctionnalité (créé, en cours ▶, terminé ✓, échec ✗,
-annulé ⊘) ; survolez pour le détail.
+In the projects list (left), each project shows a coloured **status dot**
+reflecting the worst-of-two status (Generation / Revision materials)
+(created, running ▶, completed ✓, failed ✗, cancelled ⊘); hover for the
+detail.
 
-## 7. Récupérer les fichiers produits
+## 7. Retrieving the produced files
 
-Quand le projet est terminé (statut **Terminé**), cliquez sur le bouton
-**📂 Dossier de sortie** en haut à droite : l'explorateur Windows
-s'ouvre directement sur le bon dossier. Vous y trouverez :
+When the project is finished (status **Completed**), click the **📂
+Output folder** button at the top right: Windows Explorer opens directly
+on the right folder. You'll find:
 
 ```
-<emplacement>/generation/output/
-├── consolidated.fr.md     ← Le document consolidé en français (navigable)
-├── consolidated.en.md     ← Le document consolidé en anglais (si demandé)
-├── glossary.fr.md         ← Le glossaire en français (tableau)
-├── glossary.en.md         ← Le glossaire en anglais
+<location>/generation/output/
+├── consolidated.fr.md     ← Consolidated French document (navigable)
+├── consolidated.en.md     ← Consolidated English document (if requested)
+├── glossary.fr.md         ← French glossary (table)
+├── glossary.en.md         ← English glossary
 └── per-video/
     ├── fr/
-    │   ├── XXX.md         ← Un fichier par source (FR)
+    │   ├── XXX.md         ← One file per source (FR)
     │   └── …
     └── en/
         └── …
 ```
 
-**Document consolidé** : titre global, introduction, **sommaire
-cliquable** vers chaque chapitre et sous-section, chapitres
-**numérotés hiérarchiquement** (1, 1.1, 1.1.1…), conclusion.
-Insertions sémantiques élégantes : 📝 Remarque, 💡 Exemple, 📖
-Définition, 🎯 Exercice.
-
-**Glossaire** : tableau **Terme / Acronyme / Signification /
-Définition**. La colonne *Signification* reste dans la langue
-d'origine de l'acronyme (par exemple ROI = *Return On Investment*,
-même dans un glossaire en français).
-
-Tous les fichiers sont en **Markdown**, lisibles dans n'importe quel
-éditeur (Bloc-notes, VS Code, Typora, Obsidian…). Le sommaire avec
-liens cliquables s'affiche directement dans VS Code, Obsidian, GitHub,
-GitLab, etc.
-
-**Exporter en PDF, HTML ou Word** : le bouton **📦 Exporter** (en haut à droite)
-écrit le document consolidé et le glossaire — un fichier par langue
-(`consolidated.{langue}`, `glossary.{langue}`) — dans le format choisi
-(**Markdown**, **PDF**, **HTML** ou **Word `.docx`**), vers un dossier de votre
-choix. Cochez d'abord les formats voulus dans **⚙ Réglages → Export** (aucun n'est
-coché par défaut). Le HTML est un document autonome, ouvrable dans un navigateur ;
-le PDF gère aussi le **chinois** et l'**arabe** (droite-à-gauche).
-
-## 8. Générer des supports de révision
-
-Une fois la Génération terminée, l'onglet **Supports pédagogiques** transforme le
-document consolidé et le glossaire en matériel de révision : flashcards, QCM,
-vrai/faux, textes à trous, questions ouvertes, fiches de révision, points clés et
-examen blanc.
-
-> **Prérequis** : avoir lancé au moins une fois la **Génération** sur le projet
-> (un document consolidé et un glossaire doivent exister). Les supports sont
-> produits **à partir** de ce contenu.
-
-### Configurer
-
-Sélectionnez le projet, ouvrez l'onglet **Supports pédagogiques**, puis cliquez
-sur **⚙ Réglages** (même vue à catégories que la Génération) :
-
-| Catégorie | Champs |
-|-----------|--------|
-| **Supports** | Types à générer (flashcards, QCM, fiches…) · corrigé séparé pour les supports évaluatifs |
-| **Difficulté** | Public cible (requis) · objectif Bloom (`Auto` / `Restituer` / `Comprendre & Appliquer` / `Analyser & au-delà`) · directives pédagogiques libres · densité (`léger` / `standard` / `dense`) |
-| **Langues** | Langues des supports (par défaut : celles effectivement produites par la Génération) |
-| **Modèle & coût** | Modèle LLM · mode raisonnement · plafond de coût · *Tâches en parallèle* |
+**Consolidated document**: global title, introduction, **clickable table
+of contents** to every chapter and sub-section, chapters **hierarchically
+numbered** (1, 1.1, 1.1.1…), conclusion. Elegant semantic insertions:
+📝 Note, 💡 Example, 📖 Definition, 🎯 Exercise.
+
+**Glossary**: **Term / Acronym / Meaning / Definition** table. The
+*Meaning* column stays in the original language of the acronym (for
+example ROI = *Return On Investment*, even in a French glossary).
+
+All files are in **Markdown**, readable in any editor (Notepad, VS Code,
+Typora, Obsidian…). The TOC with clickable links is displayed directly
+in VS Code, Obsidian, GitHub, GitLab, etc.
+
+**Exporting to PDF, HTML, or Word**: the **📦 Export** button (top
+right) writes the consolidated document and the glossary — one file per
+language (`consolidated.{lang}`, `glossary.{lang}`) — in the chosen
+format (**Markdown**, **PDF**, **HTML**, or **Word `.docx`**), to a
+folder of your choice. First tick the desired formats under **⚙ Settings
+→ Export** (none is ticked by default). HTML is a self-contained
+document, openable in a browser; PDF also handles **Chinese** and
+**Arabic** (right-to-left).
+
+## 8. Generating revision materials
+
+Once the Generation has finished, the **Revision materials** tab turns
+the consolidated document and the glossary into revision material:
+flashcards, MCQs, true/false, cloze, open questions, summary sheets, key
+points, and a mock exam.
+
+> **Prerequisite**: having launched the **Generation** at least once on
+> the project (a consolidated document and a glossary must exist). The
+> materials are produced **from** that content.
+
+### Configuring
+
+Pick the project, open the **Revision materials** tab, then click
+**⚙ Settings** (same category view as Generation):
+
+| Category | Fields |
+|----------|--------|
+| **Materials** | Types to generate (flashcards, MCQs, summary sheets…) · separate answer key for evaluative materials |
+| **Difficulty** | Target audience (required) · Bloom objective (`Auto` / `Restitute` / `Understand & Apply` / `Analyse & Beyond`) · free teaching directives · density (`light` / `standard` / `dense`) |
+| **Languages** | Material languages (default: the ones actually produced by Generation) |
+| **Model & cost** | LLM model · reasoning mode · cost cap · *Parallel tasks* |
+
+### Estimating and generating
+
+1. (Recommended) **💵 Estimate cost**: shows the expected budget (per
+   material × language × chapter, depending on density and reasoning
+   mode).
+2. **▶ Run**: the progress table fills (one row per material × language).
+   A coloured **status badge** at the top shows freshness at a glance:
+   *⚙ To configure* → *⚠ Generation required* → *● Ready to generate* →
+   *✓ Materials up to date* (green) → *⟳ Materials to regenerate*
+   (amber).
+
+If you relaunch Generation later, the existing materials are marked
+**stale**: regenerate them to realign on the new content. Materials
+already up to date are **skipped** (no unnecessary regeneration).
+
+### Retrieving and exporting
+
+Materials are written to `<location>/pedagogy/{material}/{lang}/`
+(structured `.json` + readable `.md`, plus `.corrige.md` for evaluative
+items with a separate answer key). You can edit them directly.
 
-### Estimer et générer
+The **📦 Export** button offers the formats you ticked in the settings
+("⚙ Settings → Export → Offered export formats"):
 
-1. (Recommandé) **💵 Estimer le coût** : affiche le budget prévu (par support ×
-   langue × chapitre, selon la densité et le mode raisonnement).
-2. **▶ Lancer** : la table de progression se remplit (une ligne par support ×
-   langue). Une **pastille d'état** colorée en haut indique la fraîcheur d'un
-   coup d'œil : *⚙ À configurer* → *⚠ Génération requise* → *● Prêt à générer*
-   → *✓ Supports à jour* (vert) → *⟳ Supports à régénérer* (ambre).
+- **Anki (`.apkg`)**: importable into Anki — sub-decks per material,
+  Basic / Cloze / MCQ cards, tags (material / language / level /
+  chapter). Re-imports do not create duplicates (stable identifiers).
+  The Markdown formatting of the cards (lists, bold) is rendered as
+  HTML inside Anki.
+- **Markdown**: one file per material and per answer key, per language.
+- **PDF**: same documents, ready to print (Chinese and Arabic handled).
+- **HTML**: self-contained document (openable in a browser, formatting
+  included).
+- **Word (`.docx`)**: same documents, editable in Word/LibreOffice.
 
-Si vous relancez la Génération plus tard, les supports existants sont marqués
-**périmés** : régénérez-les pour les réaligner sur le nouveau contenu. Les
-supports déjà à jour sont **sautés** (pas de re-génération inutile).
+## 9. Dialoguing with your course
 
-### Récupérer et exporter
+Once the Generation has finished, the **Dialogue** tab lets you **ask
+questions** about your course and obtain **cited** natural-language
+answers.
 
-Les supports sont écrits sous `<emplacement>/pedagogy/{support}/{langue}/`
-(`.json` structuré + `.md` lisible, plus `.corrige.md` pour les sujets évaluatifs
-avec corrigé séparé). Vous pouvez les éditer directement.
+> **Prerequisite**: having launched the **Generation** at least once (a
+> consolidated document must exist). Otherwise the tab invites you to do
+> so.
 
-Le bouton **📦 Exporter** propose les formats que vous avez cochés dans les
-réglages (« ⚙ Réglages → Export → Formats d'export proposés ») :
+1. Pick the project, open the **Dialogue** tab.
+2. Type your question at the bottom, click **Send** (or Enter).
+3. The answer is written progressively, **formatted** (bold, lists,
+   tables). By default, the assistant answers **only from your course**
+   and indicates its **sources**; click a source to read the excerpt. If
+   it cannot find the information, it answers "This point is not covered
+   by the course."
+4. The **cost** of the exchange is displayed under the answer (and the
+   conversation **cumulative cost**). It is complete: it includes the
+   answer **and** the semantic-retrieval embeddings (the **lexical**
+   mode, on the other hand, is free).
 
-- **Anki (`.apkg`)** : paquet importable dans Anki — sous-decks par support,
-  cartes Basic / Cloze / QCM, étiquettes (support / langue / niveau / chapitre).
-  Les ré-imports ne créent pas de doublons (identifiants stables). La mise en
-  forme Markdown des cartes (listes, gras) est rendue en HTML dans Anki.
-- **Markdown** : un fichier par support et par corrigé, par langue.
-- **PDF** : mêmes documents, prêts à imprimer (chinois et arabe gérés).
-- **HTML** : document autonome (ouvrable dans un navigateur, mise en forme incluse).
-- **Word (`.docx`)** : mêmes documents, éditables dans Word/LibreOffice.
+You can open several **conversations** (the **＋ New conversation**
+button); they are preserved even after closing the application. To
+**delete** one, **right-click** it in the list → *"Delete conversation"*
+(confirmation requested).
 
-## 9. Dialoguer avec votre cours
+> **Dialoguing in another language.** If your course has been generated
+> in **several** languages, a **language** selector appears above
+> **＋ New conversation**: pick the language **before** creating the
+> thread. The Dialogue will read, **cite**, and **answer** in that
+> language (one conversation = one language; to switch, create a new
+> one). In the list, each conversation is **prefixed by its language
+> code** (e.g. *"EN · what is ebitda?"*) for quick recognition.
 
-Une fois la Génération terminée, l'onglet **Dialogue** vous permet de **poser des
-questions** sur votre cours et d'obtenir des réponses **citées**, en langage
-naturel.
+The **⚙ Settings** button lets you choose the answering mode (strict, or
+"augmented" supplementing with general knowledge), the way the course is
+searched, the LLM model **and** the embedding model (semantic search) —
+see [04-parametrage.md](04-parametrage.md) §3ter.
 
-> **Prérequis** : avoir lancé au moins une fois la **Génération** (un document
-> consolidé doit exister). Sinon, l'onglet vous invite à le faire.
+## 10. Troubleshooting
 
-1. Sélectionnez le projet, ouvrez l'onglet **Dialogue**.
-2. Tapez votre question en bas, cliquez **Envoyer** (ou Entrée).
-3. La réponse s'écrit progressivement, **mise en forme** (gras, listes, tableaux).
-   Par défaut, l'assistant répond **uniquement d'après votre cours** et indique ses
-   **sources** ; cliquez une source pour lire l'extrait. S'il ne trouve pas
-   l'information, il répond « Ce point n'est pas couvert par le cours. »
-4. Le **coût** de l'échange s'affiche sous la réponse (et le **cumul** de la
-   conversation). Il est complet : il comprend la réponse **et** les embeddings du
-   retrieval sémantique (le mode **lexical**, lui, est gratuit).
+### *"Windows protected your PC"*
 
-Vous pouvez ouvrir plusieurs **conversations** (bouton **＋ Nouvelle
-conversation**) ; elles sont conservées même après fermeture de l'application.
-Pour en **supprimer** une, faites un **clic droit** dessus dans la liste →
-*« Supprimer la conversation »* (confirmation demandée).
+Normal on the first launch. Click *"More info"* → *"Run anyway"*. It
+will not come back.
 
-> **Dialoguer dans une autre langue.** Si votre cours a été généré en **plusieurs
-> langues**, un sélecteur de **langue** apparaît au-dessus de **＋ Nouvelle
-> conversation** : choisissez-y la langue **avant** de créer le fil. Le Dialogue
-> lira, **citera** et **répondra** dans cette langue (une conversation = une langue ;
-> pour en changer, créez-en une nouvelle). Dans la liste, chaque conversation est
-> **préfixée par son code langue** (ex. *« EN · what is ebida ? »*) pour les repérer
-> d'un coup d'œil.
+### *"NVIDIA GPU not found"*
 
-Le bouton **⚙ Réglages** permet de choisir le mode de réponse (strict, ou
-« augmenté » qui complète avec des connaissances générales), la méthode de
-recherche dans le cours, le modèle LLM **et** le modèle d'embedding (recherche
-sémantique) — voir [04-parametrage.md](04-parametrage.md) §3ter.
+You selected local mode without having an NVIDIA GPU. Open the
+**Generation → ⚙ Settings → Transcription** tab and switch to
+`openai_cloud`.
 
-## 10. Dépannage
+### *"Invalid DeepSeek key"*
 
-### *« Windows a protégé votre PC »*
+Check the key in **Edit → Global settings** (copy-paste recommended to
+avoid stray spaces).
 
-Normal au 1er lancement. Cliquer *« Plus d'infos »* → *« Exécuter quand
-même »*. Cela ne reviendra pas.
+### *"DeepSeek rate limit reached"*
 
-### *« GPU NVIDIA introuvable »*
+The application retries automatically. No action required.
 
-Vous avez sélectionné le mode local sans avoir de GPU NVIDIA. Ouvrez l'onglet
-**Génération → ⚙ Réglages → Transcription** et basculez sur `openai_cloud`.
+### *"Budget cap reached"*
 
-### *« Clé DeepSeek invalide »*
+You set a cap and it is reached. To continue:
 
-Vérifiez la clé dans **Édition → Paramètres globaux** (copier-coller
-recommandé pour éviter les espaces parasites).
+1. Menu **Edit → Global settings** (or re-edit the project).
+2. Raise or remove the cap.
+3. Come back to the project, click **▶ Resume**.
 
-### *« Limite de débit DeepSeek atteinte »*
+### A source failed (`✗` cell)
 
-L'application réessaie automatiquement. Aucune action requise.
+Double-click the red cell to see the error detail. To re-run just this
+phase: click *"Replay this phase"* in the detail window.
 
-### *« Plafond de budget atteint »*
+### The application crashed
 
-Vous avez fixé un plafond et il est atteint. Pour continuer :
+Relaunch `Fahmi2.exe`. The state is saved: your project is intact, click
+**▶ Resume** to continue.
 
-1. Menu **Édition → Paramètres globaux** (ou reéditer le projet).
-2. Augmentez ou supprimez le plafond.
-3. Revenez sur le projet, cliquez sur **▶ Reprendre**.
+## 11. Application upgrades
 
-### Une source a échoué (case `✗`)
+When a new version is available:
 
-Double-cliquez sur la case rouge pour voir le détail de l'erreur. Pour
-relancer juste cette phase : cliquer *« Rejouer cette phase »* dans la
-fenêtre de détail.
+1. Download the new `.zip`.
+2. Close Fahmi2 if open.
+3. Unzip the new `.zip` (you can overwrite the previous folder).
+4. Relaunch `Fahmi2.exe`.
 
-### L'application a planté
+Your projects and keys are **automatically preserved**. If an internal
+adaptation is needed (database upgrade), it is applied automatically
+with a prior safety backup.
 
-Relancez `Fahmi2.exe`. L'état est sauvegardé : votre projet est intact,
-cliquez **▶ Reprendre** pour continuer.
+## 12. Uninstall
 
-## 11. Mise à jour de l'application
+1. Delete the folder where you unzipped Fahmi2.
+2. If you also want to wipe **all your projects and keys**:
+   - In Windows Explorer, type `%APPDATA%\Fahmi2` in the address bar and
+     press Enter → delete that folder.
+   - Same with `%LOCALAPPDATA%\Fahmi2`.
 
-Quand une nouvelle version est disponible :
+Nothing else stays on your system.
 
-1. Téléchargez le nouveau `.zip`.
-2. Fermez Fahmi2 si ouvert.
-3. Décompressez le nouveau `.zip` (vous pouvez écraser l'ancien dossier).
-4. Relancez `Fahmi2.exe`.
+## 13. Tips
 
-Vos projets et vos clés sont **automatiquement conservés**. Si une
-adaptation interne est nécessaire (mise à jour de la base), elle est
-appliquée automatiquement avec une sauvegarde préalable de sécurité.
+### Switching the interface language
 
-## 12. Désinstaller
+**Edit → Global settings → Language**: pick *Français* or *English*. The
+change applies at the next launch (Qt does not relocalise widgets
+already shown).
 
-1. Supprimez le dossier où vous aviez décompressé Fahmi2.
-2. Si vous voulez aussi effacer **tous vos projets et clés** :
-   - Dans l'explorateur Windows, tapez `%APPDATA%\Fahmi2` dans la barre
-     d'adresse et appuyez sur Entrée → supprimer ce dossier.
-   - Idem avec `%LOCALAPPDATA%\Fahmi2`.
+### Test before a large processing
 
-Rien d'autre ne reste sur votre système.
+Before launching a project on 50 videos, create a "test" project with
+2–3 videos only, in `deepseek-v4-flash` without thinking. Check the
+rendering quality before launching the definitive project (perhaps in
+`deepseek-v4-pro` with thinking for maximum quality).
 
-## 13. Astuces
+### Estimate cost before every launch
 
-### Tester avant un gros traitement
+The **💵 Estimate cost** button shows the expected budget in a few
+seconds. **Important**: if you turn on reasoning mode (*thinking*) for
+the phases, the cost may be 2 to 6× higher. The estimation accounts for
+it.
 
-Avant de lancer un projet sur 50 vidéos, créez un projet « test » avec 2-3
-vidéos seulement, en `deepseek-v4-flash` sans thinking. Vérifiez la
-qualité du rendu avant de lancer le projet définitif (peut-être en
-`deepseek-v4-pro` avec thinking pour la qualité maximale).
+### Budget cap for safety
 
-### Estimer le coût avant chaque lancement
+Always set a cost cap, even a generous one. If something goes wrong (an
+LLM call looping for example), the cap limits the damage.
 
-Le bouton **💵 Estimer le coût** affiche le budget prévu en quelques
-secondes. **Important** : si vous activez le mode raisonnement
-(*thinking*) sur les phases, le coût peut être 2 à 6× supérieur. Le
-calcul d'estimation en tient compte.
+### Customising prompts
 
-### Plafond budget par sécurité
+If you want to fine-tune the tone or format beyond the *Style
+directives*, open **Edit → Edit prompts…** Pick a prompt on the left,
+edit the text on the right, click **💾 Save**. To go back to the
+original version shipped with the application, click **↩ Reset to
+default**. No need to restart: the new prompt is used at the next
+launch. The catalogue covers the **generation phases** **and** the
+**revision materials** prompts (`pedagogy_*`): you customise the
+flashcards / MCQs / sheet generation instructions the same way.
 
-Mettez toujours un plafond de coût, même large. Si quelque chose ne va pas
-(par exemple un appel LLM qui boucle), le plafond limite les dégâts.
+### Keeping intermediate artefacts
 
-### Personnaliser les prompts
+The `<location>/generation/` folder contains the working files. If you
+only want the final deliverables, you can delete this folder after
+retrieval. But keep it if you might re-edit or re-run specific phases.
 
-Si vous voulez ajuster finement le ton ou le format au-delà des
-*Directives stylistiques*, ouvrez **Édition → Modifier les prompts…**
-Sélectionnez un prompt à gauche, éditez le texte à droite,
-cliquez **💾 Enregistrer**. Pour revenir à la version d'origine
-livrée avec l'application, cliquez sur **↩ Réinitialiser au défaut**.
-Pas besoin de redémarrer : le nouveau prompt est utilisé au prochain
-lancement. Le catalogue couvre les **phases de génération** **et** les
-prompts des **supports pédagogiques** (`pedagogy_*`) : vous personnalisez
-de la même façon la consigne de génération des flashcards, QCM, fiches, etc.
+### Rendering style
 
-### Conserver les artefacts intermédiaires
+If you don't like the rendering (too dry, too verbose, etc.), edit the
+**Style directives** field in **Generation → ⚙ Settings → Style** and
+relaunch. No need to redo everything — resume skips already-done phases.
 
-Le dossier `<emplacement>/generation/` contient les fichiers de travail. Si vous
-voulez juste les livrables finaux, vous pouvez supprimer ce dossier après
-récupération. Mais conservez-le si vous pensez ré-éditer ou rejouer
-certaines phases.
+### Homogeneous glossary
 
-### Style du rendu
+The glossary is built in two passes (extraction then cross-source
+reconciliation). The more sources on the same domain in your folder, the
+richer and more consistent the glossary will be. Acronyms (ROI, PIB,
+IFRS…) come with their **original meaning** alongside the definition —
+which stays in the language where the acronym was coined (*Return On
+Investment* for ROI, even in a French glossary).
 
-Si le rendu ne vous plaît pas (trop sec, trop verbeux, etc.), modifiez le
-champ **Directives stylistiques** dans l'onglet **Génération → ⚙ Réglages → Style**
-et relancez.
-Pas besoin de tout refaire — la reprise saute les phases déjà bien faites.
+## 14. Privacy
 
-### Glossaire homogène
+- **No telemetry** is sent by the application.
+- **Your content never leaves your machine** except towards the APIs you
+  have explicitly configured (DeepSeek + possibly OpenAI for cloud
+  Whisper).
+- **Your API keys are encrypted** on disk by Windows DPAPI: only your
+  Windows account can read them.
 
-Le glossaire est construit en deux passes (extraction puis réconciliation
-cross-sources). Plus votre dossier contient de sources sur le même domaine,
-plus le glossaire sera riche et cohérent. Les acronymes (ROI, PIB,
-IFRS…) sont accompagnés de leur **signification d'origine** en plus de
-la définition — celle-ci reste dans la langue où l'acronyme a été forgé
-(*Return On Investment* pour ROI, même dans un glossaire FR).
+## 15. Need help?
 
-## 14. Confidentialité
-
-- **Aucune télémétrie** n'est envoyée par l'application.
-- **Vos contenus ne sortent jamais de votre poste** sauf vers les APIs que
-  vous avez explicitement configurées (DeepSeek + éventuellement OpenAI
-  pour Whisper cloud).
-- **Vos clés API sont chiffrées** sur disque par Windows DPAPI : seul
-  votre compte Windows peut les lire.
-
-## 15. Besoin d'aide ?
-
-- Pour les questions fonctionnelles : voir
+- For functional questions: see
   [01-presentation-fonctionnelle.md](01-presentation-fonctionnelle.md).
-- Pour le détail des paramètres : voir
+- For the detailed parameters: see
   [04-parametrage.md](04-parametrage.md).
-- Pour le pilotage avancé (logs, sauvegardes…) : voir
+- For advanced operation (logs, backups…): see
   [05-exploitation.md](05-exploitation.md).

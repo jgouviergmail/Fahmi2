@@ -1,18 +1,22 @@
 """Widget conversationnel de l'onglet Dialogue.
 
-Fil de messages (``QTextBrowser`` HTML), zone de saisie, liste latérale des
+Fil de messages (bulles arrondies, widgets natifs — cf.
+:mod:`fahmi2.ui.widgets._chat_bubble`), zone de saisie, liste latérale des
 conversations et libellé de coût cumulé. Le rendu du message assistant est
 incrémental (deltas du streaming) puis finalisé avec ses citations cliquables.
 Le widget est passif : il **émet** des signaux et **expose** des méthodes pilotées
 par le ``ChatController`` (toute la logique d'état vit dans le ViewModel/contrôleur).
+
+Les helpers :func:`_message_html` et :func:`_citations_html` restent fournis
+pour les tests historiques (rendu HTML des messages), mais le fil utilise
+désormais les bulles QPainter.
 """
 
 from __future__ import annotations
 
 import html
 
-from PySide6.QtCore import QPoint, Qt, Signal
-from PySide6.QtGui import QTextCursor
+from PySide6.QtCore import QCoreApplication, QPoint, Qt, Signal
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -33,24 +37,49 @@ from fahmi2.domain.chat import ChatMessage, Citation
 from fahmi2.domain.enums import ChatTabState
 from fahmi2.infra.export.markdown_pdf import render_markdown_fragment
 from fahmi2.ui._buttons import BUTTON_ROLE_PRIMARY, make_role_button
+from fahmi2.ui._components import localize_button_box
+from fahmi2.ui.widgets._chat_bubble import ChatThread
 
-_NEW_CONVERSATION_LABEL = "＋ Nouvelle conversation"
-_LANGUAGE_COMBO_TOOLTIP = (
-    "Langue du corpus pour une nouvelle conversation : lecture, citations et réponse."
-)
 #: Le sélecteur de langue n'a de sens qu'à partir de 2 langues produites (un choix).
 _MIN_LANGUAGES_FOR_SELECTOR = 2
-_DELETE_CONVERSATION_LABEL = "Supprimer la conversation"
-_SEND_LABEL = "Envoyer"
-_INPUT_PLACEHOLDER = "Pose une question sur le cours…"
-_NO_CORPUS_BANNER = "Lance d'abord une génération pour dialoguer avec ce cours."
-_COST_PREFIX = "Coût cumulé : "
-_ROLE_LABEL = {"user": "Vous", "assistant": "Assistant"}
+_ROLE_USER = "user"
 _ROLE_ASSISTANT = "assistant"
+
+
+def _role_label(role: str) -> str:
+    """Libellé traduit d'un rôle de message (« Vous » / « Assistant »)."""
+    if role == _ROLE_USER:
+        return QCoreApplication.translate("ChatView", "Vous")
+    if role == _ROLE_ASSISTANT:
+        return QCoreApplication.translate("ChatView", "Assistant")
+    return role
 _CONVERSATION_ID_ROLE = int(Qt.ItemDataRole.UserRole)
-#: Style du fil : liens lisibles (bleu foncé), code et tableaux discrets.
+
+#: Largeur (%) des bulles utilisateur (alignées à droite).
+_USER_BUBBLE_WIDTH_PCT = "72%"
+#: Largeur (%) des bulles assistant (alignées à gauche).
+_ASSISTANT_BUBBLE_WIDTH_PCT = "85%"
+#: Fond et bordure des bulles (HTML inline ; QTextBrowser ne supporte pas
+#: ``border-radius`` — on se contente d'un encadré coloré, plus un alignement
+#: gauche/droite par ``<table align>``). Couleurs alignées sur les tokens
+#: clairs (le thème sombre garde les mêmes contrastes : fond accent doux
+#: pour utilisateur, surface bordée pour assistant).
+_USER_BUBBLE_BG = "#e3f0fb"
+_USER_BUBBLE_BORDER = "#cfe6fa"
+_USER_BUBBLE_TEXT = "#0a4f93"
+_ASSISTANT_BUBBLE_BG = "#ffffff"
+_ASSISTANT_BUBBLE_BORDER = "#e5e7eb"
+_ASSISTANT_BUBBLE_TEXT = "#1f2328"
+#: Chips de source (pastilles inline cliquables sous une bulle assistant).
+_CHIP_BG = "#f0f4f9"
+_CHIP_BORDER = "#d6dae0"
+_CHIP_TEXT = "#0a4f93"
+#: Couleur de la ligne « Sources » (libellé discret au-dessus des chips).
+_SOURCES_LABEL_COLOR = "#8b95a1"
+
+#: Style du fil : liens lisibles, code et tableaux discrets.
 _THREAD_STYLESHEET = (
-    "a { color: #0a4f93; }"
+    "a { color: #0a4f93; text-decoration: none; }"
     " code { background-color: #eef0f4; }"
     " th, td { border: 1px solid #d6dae0; padding: 2px 6px; }"
 )
@@ -74,8 +103,6 @@ class ChatView(QWidget):
             parent: Parent Qt optionnel.
         """
         super().__init__(parent)
-        self._finalized_html: list[str] = []
-        self._pending_html: str | None = None
 
         root = QHBoxLayout(self)
 
@@ -89,9 +116,14 @@ class ChatView(QWidget):
             self._on_conversation_menu
         )
         self._language_combo = QComboBox(self)
-        self._language_combo.setToolTip(_LANGUAGE_COMBO_TOOLTIP)
+        self._language_combo.setToolTip(
+            self.tr(
+                "Langue du corpus pour une nouvelle conversation : "
+                "lecture, citations et réponse."
+            )
+        )
         self._language_combo.setVisible(False)  # masqué tant qu'il n'y a pas >1 langue
-        self._new_button = QPushButton(_NEW_CONVERSATION_LABEL, self)
+        self._new_button = QPushButton(self.tr("＋ Nouvelle conversation"), self)
         self._new_button.clicked.connect(self._on_new_conversation)
         left = QVBoxLayout()
         left.addWidget(self._language_combo)
@@ -99,21 +131,26 @@ class ChatView(QWidget):
         left.addWidget(self._conversations, stretch=1)
         root.addLayout(left)
 
-        self._banner = QLabel(_NO_CORPUS_BANNER, self)
+        self._banner = QLabel(
+            self.tr(
+                "Lance d'abord une génération pour dialoguer avec ce cours."
+            ),
+            self,
+        )
         self._banner.setWordWrap(True)
         self._banner.setVisible(False)
-        self._thread = QTextBrowser(self)
-        self._thread.setOpenLinks(False)
-        self._thread.anchorClicked.connect(
-            lambda url: self.citation_clicked.emit(url.toString())
+        # Fil de bulles arrondies (widgets natifs peints via QPainter, plus de
+        # QTextBrowser : QTextDocument ne supporte pas border-radius).
+        self._thread = ChatThread(self)
+        self._thread.citation_clicked.connect(self.citation_clicked.emit)
+        self._cost_label = QLabel(
+            self.tr("Coût cumulé · ${cost}").format(cost="0.0000"), self
         )
-        self._thread.document().setDefaultStyleSheet(_THREAD_STYLESHEET)
-        self._cost_label = QLabel(f"{_COST_PREFIX}$0.0000", self)
         self._input = QLineEdit(self)
-        self._input.setPlaceholderText(_INPUT_PLACEHOLDER)
+        self._input.setPlaceholderText(self.tr("Pose une question sur le cours…"))
         self._input.returnPressed.connect(self._on_send)
         self._send_button = make_role_button(
-            self, _SEND_LABEL, role=BUTTON_ROLE_PRIMARY
+            self, self.tr("Envoyer"), role=BUTTON_ROLE_PRIMARY
         )
         self._send_button.clicked.connect(self._on_send)
         input_row = QHBoxLayout()
@@ -174,9 +211,7 @@ class ChatView(QWidget):
         Args:
             messages: Messages à afficher.
         """
-        self._finalized_html = [_message_html(m) for m in messages]
-        self._pending_html = None
-        self._render()
+        self._thread.show_conversation(messages)
 
     def add_user_message(self, text: str) -> None:
         """Ajoute une bulle utilisateur.
@@ -184,15 +219,11 @@ class ChatView(QWidget):
         Args:
             text: Texte de la question.
         """
-        self._finalized_html.append(
-            _message_html(ChatMessage(role="user", content=text))
-        )
-        self._render()
+        self._thread.add_user_message(text)
 
     def start_assistant_bubble(self) -> None:
         """Initialise une bulle assistant vide (début du streaming)."""
-        self._pending_html = ""
-        self._render()
+        self._thread.start_assistant_bubble()
 
     def append_delta(self, text: str) -> None:
         """Ajoute un fragment de réponse à la bulle assistant en cours.
@@ -200,8 +231,7 @@ class ChatView(QWidget):
         Args:
             text: Incrément de texte.
         """
-        self._pending_html = (self._pending_html or "") + html.escape(text)
-        self._render()
+        self._thread.append_delta(text)
 
     def finalize_message(self, message: ChatMessage) -> None:
         """Remplace la bulle en cours par le message finalisé (citations + sources).
@@ -209,9 +239,7 @@ class ChatView(QWidget):
         Args:
             message: Message assistant complet.
         """
-        self._pending_html = None
-        self._finalized_html.append(_message_html(message))
-        self._render()
+        self._thread.finalize_message(message)
 
     def set_state(self, state: ChatTabState) -> None:
         """Active/désactive la saisie et le bandeau selon l'état.
@@ -238,7 +266,9 @@ class ChatView(QWidget):
         Args:
             usd: Coût cumulé en USD.
         """
-        self._cost_label.setText(f"{_COST_PREFIX}${usd:.4f}")
+        self._cost_label.setText(
+            self.tr("Coût cumulé · ${cost}").format(cost=f"{usd:.4f}")
+        )
 
     # ------------------------------------------------------------- internes
     def _on_send(self) -> None:
@@ -262,24 +292,77 @@ class ChatView(QWidget):
         if not isinstance(conversation_id, str):
             return
         menu = QMenu(self._conversations)
-        delete_action = menu.addAction(_DELETE_CONVERSATION_LABEL)
+        delete_action = menu.addAction(self.tr("Supprimer la conversation"))
         chosen = menu.exec(self._conversations.mapToGlobal(pos))
         if chosen is delete_action:
             self.conversation_delete_requested.emit(conversation_id)
 
-    def _render(self) -> None:
-        blocks = list(self._finalized_html)
-        if self._pending_html is not None:
-            blocks.append(
-                _bubble_html(_ROLE_LABEL["assistant"], self._pending_html or "…")
-            )
-        self._thread.setHtml("".join(blocks))
-        self._thread.moveCursor(QTextCursor.MoveOperation.End)
-
-
 def _bubble_html(role_label: str, body_html: str) -> str:
-    """Rend une bulle (rôle + corps HTML déjà échappé)."""
-    return f"<p><b>{html.escape(role_label)} :</b><br>{body_html}</p>"
+    """Rend une bulle de chat assistant (alignée à gauche, encadrée discrète).
+
+    Utilisé pour la bulle de streaming en cours (le rôle est forcément
+    « Assistant » à ce stade — l'utilisateur a déjà finalisé son message).
+
+    Args:
+        role_label: Étiquette à afficher en tête.
+        body_html: Corps HTML déjà échappé (deltas du streaming).
+
+    Returns:
+        Le fragment HTML de la bulle.
+    """
+    return _wrap_assistant_bubble(role_label, body_html, citations_html="")
+
+
+def _wrap_user_bubble(role_label: str, body_html: str) -> str:
+    """Rend la bulle utilisateur (alignée à droite, fond accent doux).
+
+    Args:
+        role_label: « Vous ».
+        body_html: Corps HTML (déjà échappé).
+
+    Returns:
+        Le fragment HTML.
+    """
+    return (
+        f'<table align="right" width="{_USER_BUBBLE_WIDTH_PCT}" '
+        f'cellpadding="10" cellspacing="0" '
+        f'bgcolor="{_USER_BUBBLE_BG}" '
+        f'style="margin: 6px 0; border: 1px solid {_USER_BUBBLE_BORDER};">'
+        f"<tr><td>"
+        f'<div style="color: {_USER_BUBBLE_TEXT}; font-weight: 600; '
+        f'font-size: 11px; margin-bottom: 4px;">'
+        f"{html.escape(role_label)}</div>"
+        f'<div style="color: {_USER_BUBBLE_TEXT};">{body_html}</div>'
+        f"</td></tr></table>"
+    )
+
+
+def _wrap_assistant_bubble(
+    role_label: str, body_html: str, *, citations_html: str
+) -> str:
+    """Rend la bulle assistant (alignée à gauche, surface bordée) + citations.
+
+    Args:
+        role_label: « Assistant ».
+        body_html: Corps HTML (Markdown rendu).
+        citations_html: Fragment HTML des citations (ou ``""``).
+
+    Returns:
+        Le fragment HTML.
+    """
+    return (
+        f'<table align="left" width="{_ASSISTANT_BUBBLE_WIDTH_PCT}" '
+        f'cellpadding="12" cellspacing="0" '
+        f'bgcolor="{_ASSISTANT_BUBBLE_BG}" '
+        f'style="margin: 6px 0; border: 1px solid {_ASSISTANT_BUBBLE_BORDER};">'
+        f"<tr><td>"
+        f'<div style="color: {_SOURCES_LABEL_COLOR}; font-weight: 600; '
+        f'font-size: 11px; margin-bottom: 4px;">'
+        f"{html.escape(role_label)}</div>"
+        f'<div style="color: {_ASSISTANT_BUBBLE_TEXT};">{body_html}</div>'
+        f"{citations_html}"
+        f"</td></tr></table>"
+    )
 
 
 def _message_html(message: ChatMessage) -> str:
@@ -289,35 +372,60 @@ def _message_html(message: ChatMessage) -> str:
         message: Message à rendre.
 
     Returns:
-        Le fragment HTML du message (en-tête de rôle + corps + sources).
+        Le fragment HTML du message (bulle + citations si assistant).
     """
-    role_label = _ROLE_LABEL.get(message.role, message.role)
-    head = f"<p><b>{html.escape(role_label)} :</b></p>"
+    role_label = _role_label(message.role)
     if message.role == _ROLE_ASSISTANT:
         body = render_markdown_fragment(message.content)
-        return f"{head}{body}{_citations_html(message.citations)}"
+        citations = _citations_html(message.citations)
+        return _wrap_assistant_bubble(role_label, body, citations_html=citations)
     body = html.escape(message.content).replace("\n", "<br>")
-    return f"{head}{body}"
+    return _wrap_user_bubble(role_label, body)
 
 
 def _citations_html(citations: tuple[Citation, ...]) -> str:
-    """Rend la ligne « Sources » (liens cliquables), ou ``""`` si aucune.
+    """Rend la ligne « Sources » en chips cliquables, ou ``""`` si aucune.
 
     Args:
         citations: Citations du message assistant.
 
     Returns:
-        Le fragment HTML des sources (vide si aucune citation).
+        Le fragment HTML des sources sous forme de chips inline (vide si
+        aucune citation).
     """
     if not citations:
         return ""
-    items = "".join(
-        f'<li><a href="{html.escape(c.anchor)}" '
-        f'title="{_tooltip(c.snippet)}">[{c.number}] {html.escape(c.chapter_title)} › '
-        f"{html.escape(c.section_title)}</a></li>"
+    # ``QTextDocument`` n'applique pas ``background-color`` / ``border`` aux
+    # ``<a>`` ; on enveloppe le texte dans un ``<span>`` qui, lui, prend bien
+    # les propriétés inline. Chaque source est placée sur sa propre ligne
+    # (``<div>`` par citation) pour faciliter la lecture quand il y en a
+    # plusieurs.
+    line_template = (
+        '<div style="margin: 2px 0;">'
+        '<a href="{href}" title="{tip}" style="text-decoration: none;">'
+        '<span style="background-color: {bg}; color: {color}; '
+        'padding: 2px 8px;">[{num}] {chapter} › {section}</span>'
+        "</a>"
+        "</div>"
+    )
+    chips = "".join(
+        line_template.format(
+            href=html.escape(c.anchor),
+            tip=_tooltip(c.snippet),
+            bg=_CHIP_BG,
+            color=_CHIP_TEXT,
+            num=c.number,
+            chapter=html.escape(c.chapter_title),
+            section=html.escape(c.section_title),
+        )
         for c in citations
     )
-    return f"<p><small>Sources :</small></p><ul>{items}</ul>"
+    sources_label = QCoreApplication.translate("ChatView", "Sources")
+    return (
+        f'<div style="margin-top: 8px; color: {_SOURCES_LABEL_COLOR}; '
+        f'font-size: 11px;">{sources_label}</div>'
+        f'<div style="margin-top: 4px;">{chips}</div>'
+    )
 
 
 def _tooltip(snippet: str) -> str:
@@ -349,6 +457,7 @@ def show_passage_dialog(parent: QWidget, *, title: str, markdown_text: str) -> N
     browser.setHtml(render_markdown_fragment(markdown_text))
     layout.addWidget(browser)
     buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close, parent=dialog)
+    localize_button_box(buttons)
     buttons.rejected.connect(dialog.reject)
     layout.addWidget(buttons)
     dialog.exec()

@@ -1,221 +1,230 @@
-# Fahmi2 — Guide de paramétrage
+# Fahmi2 — Configuration guide
 
-Cette documentation détaille tous les paramètres disponibles dans Fahmi2 et
-leurs implications.
+This documentation details every parameter available in Fahmi2 and their
+implications.
 
-## 1. Paramètres globaux (toute l'application)
+## 1. Global settings (application-wide)
 
-Accès : menu **Édition → Paramètres globaux**.
+Access: menu **Edit → Global settings**.
 
-### 1.1 Clés API
+### 1.1 API keys
 
-| Clé | Usage | Obtention |
-|-----|-------|-----------|
-| **Clé OpenAI** | Provider STT cloud (Whisper) **et** embeddings du retrieval sémantique du Dialogue | https://platform.openai.com/api-keys |
-| **Clé DeepSeek** | Toutes les phases LLM | https://platform.deepseek.com/api-keys |
+| Key | Purpose | Where to get it |
+|-----|---------|-----------------|
+| **OpenAI key** | Cloud STT provider (Whisper) **and** embeddings for the Dialogue's semantic retrieval | <https://platform.openai.com/api-keys> |
+| **DeepSeek key** | All LLM phases | <https://platform.deepseek.com/api-keys> |
 
-Les clés sont **chiffrées via Windows DPAPI** et stockées dans
-`%APPDATA%\Fahmi2\secrets.dat`. Elles ne sont jamais visibles en clair sur
-disque ni dans les logs. Seul l'utilisateur Windows qui les a saisies peut
-les déchiffrer (le fichier `secrets.dat` ne fonctionne pas sur une autre
-machine ou sous un autre compte).
+Keys are **encrypted via Windows DPAPI** and stored under
+`%APPDATA%\Fahmi2\secrets.dat`. They are never visible in plain text on
+disk or in the logs. Only the Windows user who entered them can decrypt
+them (the `secrets.dat` file does not work on another machine or under
+another account).
 
-### 1.2 Thème
+### 1.2 Appearance (theme)
 
-- `system` (recommandé) : suit le thème Windows en cours.
-- `light` : thème clair forcé.
-- `dark` : thème sombre forcé.
+- `system` (recommended): follows the current Windows theme.
+- `light`: forced light theme.
+- `dark`: forced dark theme.
 
-### 1.3 Niveau de logs UI
+### 1.3 Interface language
 
-Niveau plancher affiché dans le panneau Logs. Par défaut `INFO`. Les
-événements plus bas sont silencieusement filtrés à l'affichage (mais
-toujours écrits dans le fichier `events.jsonl`).
+- **Français** (source language).
+- **English**.
 
-## 2. Paramètres d'un projet
+Selected from **Edit → Global settings → Language**. The choice is
+persisted in `%APPDATA%\Fahmi2\ui_prefs.json` and **takes effect at the
+next launch** (Qt does not propagate `LanguageChange` to strings already
+rendered through `tr()` at widget construction time).
 
-L'**identité** du projet (nom + emplacement) se définit via **Fichier → Nouveau
-projet** (renommage via *Éditer* dans la sidebar ; l'emplacement est immuable
-après création). Tous les autres paramètres ci-dessous sont les **réglages de
-génération**, édités depuis l'onglet **Génération → ⚙ Réglages** (vue
-master-detail) ; ils incluent le **dossier des vidéos**.
+### 1.4 UI log level
+
+Floor level shown in the Logs panel. Default `INFO`. Lower events are
+silently filtered out of the display (but still written to the
+`events.jsonl` file).
+
+## 2. Project settings
+
+The project's **identity** (name + location) is set through **File → New
+project** (renaming via *Edit* in the sidebar; the location is immutable
+after creation). All the other settings below are **generation settings**,
+edited from the **Generation → ⚙ Settings** tab (master-detail view);
+they include the **sources folder**.
 
 ### 2.1 Identification
 
-| Paramètre | Description |
+| Parameter | Description |
 |-----------|-------------|
-| **Nom** | Libre, sert d'étiquette dans la sidebar. Ex: « Cours macroéconomie L3 ». |
-| **Emplacement** | Dossier de travail du projet (artefacts + livrables). Immuable après création. |
+| **Name** | Free, used as a label in the sidebar. E.g. "3rd-year macroeconomics". |
+| **Location** | Project working folder (artefacts + deliverables). Immutable after creation. |
 
-> Le **dossier d'entrée** (sources) est un réglage de génération : il se choisit
-> dans l'onglet **Génération → ⚙ Réglages → Entrée & langues**. Il peut contenir
-> des **vidéos**, des **fichiers audio** et des **documents texte** (PDF, Word,
-> Markdown, txt) ; on peut aussi y ajouter des **liens YouTube** (un par ligne).
-> Un composant **double liste** permet d'**ordonner** les sources (l'ordre fixe
-> l'ordre des chapitres) et d'en **exclure** ; la case **« Reformuler les
-> documents texte »** (cochée par défaut) insère sinon les documents tels quels.
+> The **input folder** (sources) is a generation setting: it is chosen
+> from the **Generation → ⚙ Settings → Sources** tab. It can contain
+> **videos**, **audio files**, and **text documents** (PDF, Word,
+> Markdown, txt); you can also add **YouTube links** (one per line). A
+> **dual-list** component lets you **order** the sources (the order
+> drives the chapter order) and **exclude** some of them; the **"Rephrase
+> documents"** checkbox (on by default) inserts text documents as-is when
+> unchecked.
 
-### 2.2 Langues
+### 2.2 Languages
 
-Un **contrôle unique** « Langues du document » : une ligne de cases
-**Produites** (langues générées) et un menu déroulant **Principale** qui ne
-propose que les langues produites. **7 langues** sont disponibles, en entrée
-comme en sortie : **français, anglais, allemand, espagnol, italien, chinois,
-arabe**.
+A **single control** "Document languages": a row of **Produced** checkboxes
+(generated languages) and a **Primary** dropdown that only offers the
+produced languages. **7 languages** are available, on input and output:
+**French, English, German, Spanish, Italian, Chinese, Arabic**.
 
-| Élément | Description |
+| Element | Description |
 |---------|-------------|
-| **Produites** | Chaque langue cochée produit un `consolidated.{lang}.md`. Au moins une langue reste toujours produite. |
-| **Principale** | La version **originale**, rédigée **directement** depuis les entrées (toute langue d'entrée y est unifiée) ; c'est aussi l'indice de langue donné au STT pour les médias, et le **pivot** des traductions. Choisie parmi les langues produites (donc toujours produite) ; les autres langues produites en sont des **traductions**. |
+| **Produced** | Each ticked language produces a `consolidated.{lang}.md`. At least one language must always be produced. |
+| **Primary** | The **original** version, drafted **directly** from the inputs (any input language is unified into it); it is also the language hint given to STT for media, and the **pivot** for translations. Chosen from the produced languages (hence always produced); the other produced languages are **translations** from it. |
 
-> Exemple : entrées EN + FR, **principale = FR**, **incluses = {FR, EN}** → un
-> `consolidated.fr.md` (rédigé directement, les passages EN unifiés en FR) **et** un
-> `consolidated.en.md` (traduit depuis le FR).
+> Example: EN + FR inputs, **primary = FR**, **produced = {FR, EN}** → one
+> `consolidated.fr.md` (drafted directly, EN passages unified into FR)
+> **and** one `consolidated.en.md` (translated from FR).
 
 ### 2.3 Style
 
-| Paramètre | Description |
+| Parameter | Description |
 |-----------|-------------|
-| **Style** | `décontracté`, `standard`, `professionnel`, ou `académique`. Affecte le ton, le vocabulaire et le niveau de formalisme. |
-| **Mode de consolidation** | `Ordonné` (défaut : 1 source = 1 chapitre, contenu recopié dans l'ordre choisi) ou `Refonte thématique` (le LLM agrège et restructure transversalement les contenus de toutes les sources par thème — rigueur sur le fond, souplesse sur la forme). En mode thématique, l'ordre des sources est **sans effet** (note affichée sur la page « Entrée & langues ») et le coût de la phase 5 est sensiblement plus élevé. Artefacts conservés sous `<workspace>/generation/consolidation/` (dont `facts.md`, relevé factuel lisible). |
-| **Directives stylistiques** | Texte libre qui sera concaténé aux prompts. Ex: « voix professorale, ton chaleureux mais rigoureux, éviter le jargon ». |
+| **Style** | `casual`, `standard`, `professional`, or `academic`. Affects tone, vocabulary, and formality. |
+| **Consolidation mode** | `Ordered` (default: 1 source = 1 chapter, content copied in the chosen order) or `Thematic rewrite` (the LLM aggregates and restructures cross-cuttingly the contents of all sources by theme — factual rigour, formal flexibility). In thematic mode, source order has **no effect** (note shown on the "Sources" page) and phase 5 costs noticeably more. Artefacts are kept under `<workspace>/generation/consolidation/` (including `facts.md`, a readable factual ledger). |
+| **Style directives** | Free text that will be concatenated to the prompts. E.g. "warm but rigorous lecturer voice, avoid jargon". |
 
 ### 2.4 Providers
 
-| Paramètre | Description | Coût indicatif |
-|-----------|-------------|----------------|
-| **Provider STT** | `faster_whisper_local` (GPU NVIDIA requis) ou `openai_cloud`. En mode cloud, l'audio est **compressé en Opus** (et découpé aux silences si > ~2 h) pour respecter la limite **25 Mo** d'OpenAI Whisper — transparent, toute durée, et l'upload est bien plus rapide. | Local : gratuit / Cloud : ~0,003-0,006 $/min |
-| **Modèle local** | Modèle faster-whisper (actif en mode local) : `large-v3-turbo` (défaut, équilibré), `large-v3` (précision max), `medium` ou `small` (plus rapides, VRAM réduite). **Téléchargé au 1er usage** (mis en cache `%LOCALAPPDATA%/Fahmi2/models/`) — aucun poids n'est packagé. | gratuit |
-| **Modèle cloud** | Modèle de transcription OpenAI (actif en mode cloud) : `whisper-1` (défaut, timestamps fins), `gpt-4o-transcribe` (précision supérieure) ou `gpt-4o-mini-transcribe` (2× moins cher). Les modèles `gpt-4o-*` ne renvoient pas de timestamps de segments (le contenu transcrit reste identique). | whisper-1 / gpt-4o : 0,006 $/min ; gpt-4o-mini : 0,003 $/min |
-| **Modèle LLM** | `deepseek-v4-flash` (rapide/économique) ou `deepseek-v4-pro` (capacité supérieure). | Flash : ~0,14-0,28 $/Mt / Pro : ~0,435-0,87 $/Mt |
+| Parameter | Description | Indicative cost |
+|-----------|-------------|------------------|
+| **STT provider** | `faster_whisper_local` (NVIDIA GPU required) or `openai_cloud`. In cloud mode, audio is **compressed to Opus** (and split on silences if > ~2 h) to fit OpenAI Whisper's **25 MB** limit — transparent, any duration, and the upload is much faster. | Local: free / Cloud: ~$0.003–0.006/min |
+| **Local model** | faster-whisper model (active in local mode): `large-v3-turbo` (default, balanced), `large-v3` (max precision), `medium` or `small` (faster, lower VRAM). **Downloaded on first use** (cached under `%LOCALAPPDATA%/Fahmi2/models/`) — no weights are packaged. | free |
+| **Cloud model** | OpenAI transcription model (active in cloud mode): `whisper-1` (default, fine-grained timestamps), `gpt-4o-transcribe` (higher precision) or `gpt-4o-mini-transcribe` (2× cheaper). The `gpt-4o-*` models do not return segment timestamps (the transcribed content is identical). | whisper-1 / gpt-4o: $0.006/min; gpt-4o-mini: $0.003/min |
+| **LLM model** | `deepseek-v4-flash` (fast/economical) or `deepseek-v4-pro` (higher capacity). | Flash: ~$0.14–0.28/Mt / Pro: ~$0.435–0.87/Mt |
 
-Le combo modèle non pertinent (local en mode cloud, ou inverse) est **grisé**.
+The non-relevant model combo (local in cloud mode, or the other way
+around) is **greyed out**.
 
-**Blocage automatique** : si vous sélectionnez `faster_whisper_local` sans
-GPU CUDA détecté, l'application affichera un avertissement et basculera
-automatiquement sur `openai_cloud`. Ce comportement est délibéré : la
-transcription locale en CPU pur prendrait des dizaines d'heures pour un
-batch normal.
+**Automatic block**: if you select `faster_whisper_local` with no
+detected CUDA GPU, the application shows a warning and automatically
+switches to `openai_cloud`. This is deliberate: CPU-only local
+transcription would take tens of hours for a normal batch.
 
-### 2.5 Configuration par phase
+### 2.5 Per-phase configuration
 
-Pour chaque phase LLM (phases 1 à 7), vous pouvez configurer :
+For each LLM phase (phases 1 to 7) you can configure:
 
-| Paramètre | Description | Plage | Recommandation |
+| Parameter | Description | Range | Recommendation |
 |-----------|-------------|-------|----------------|
-| **Thinking activé** | Mode raisonnement DeepSeek (envoie `{"thinking": {"type": "enabled"}}`). Le modèle produit des tokens de raisonnement avant la réponse finale. | bool | Off par défaut, on pour phases critiques (structuration, consolidation, cohérence) |
-| **Effort de raisonnement** | Niveau d'effort transmis à DeepSeek (envoie `{"reasoning_effort": "high"}` ou `"max"`). Pris en compte uniquement si Thinking est coché. | `(défaut serveur)` / `HIGH` / `MAX` | `HIGH` pour la plupart des cas, `MAX` pour les phases les plus difficiles ou en cas de qualité insuffisante |
-| **Température** | Variabilité de la sortie LLM | 0.0 — 2.0 | 0.2-0.4 pour structuration ; 0.0-0.2 pour traduction ; 0.3-0.6 pour reformulation |
-| **Max retries** | Tentatives en cas d'erreur transitoire | 0 — ∞ | 5 par défaut |
+| **Thinking enabled** | DeepSeek reasoning mode (sends `{"thinking": {"type": "enabled"}}`). The model produces reasoning tokens before the final answer. | bool | Off by default, on for critical phases (structuring, consolidation, coherence) |
+| **Reasoning effort** | Effort level sent to DeepSeek (sends `{"reasoning_effort": "high"}` or `"max"`). Only honoured if Thinking is ticked. | `(server default)` / `HIGH` / `MAX` | `HIGH` for most cases, `MAX` for the hardest phases or when quality is still insufficient |
+| **Temperature** | LLM output variability | 0.0 — 2.0 | 0.2–0.4 for structuring; 0.0–0.2 for translation; 0.3–0.6 for rephrasing |
+| **Max retries** | Retries on transient errors | 0 — ∞ | 5 by default |
 
-**⚠ Impact coût du thinking.** Activer le thinking peut multiplier le
-coût d'une phase par 2 à 6 selon le niveau d'effort, car les tokens de
-raisonnement sont facturés au tarif `output` standard. L'estimation
-pré-run en tient compte (voir section 2.6 ci-dessous).
+**⚠ Thinking cost impact.** Enabling thinking can multiply a phase's cost
+by 2 to 6 depending on the effort level, because reasoning tokens are
+billed at the standard `output` rate. The pre-run estimate accounts for
+this (see § 2.6 below).
 
-### 2.6 Plafond budget et estimation pré-run
+### 2.6 Budget cap and pre-run estimate
 
-| Paramètre | Description |
+| Parameter | Description |
 |-----------|-------------|
-| **Plafond USD** | Coût maximum autorisé pour le run. À 0 ou non défini : pas de plafond. Sinon, le run se met en pause propre dès que le coût cumulé approche du plafond. |
+| **USD cap** | Maximum allowed cost for the run. Set to 0 or unset: no cap. Otherwise, the run cleanly pauses as soon as the cumulative cost approaches the cap. |
 
-L'arrêt est toujours **propre** : jamais d'interruption au milieu d'un
-appel LLM en cours. La pause se produit à la prochaine frontière sûre.
+The stop is always **clean**: never a brutal interruption in the middle of
+an in-flight LLM call. The pause happens at the next safe boundary.
 
-**Estimation pré-run accessible à tout moment** depuis la barre
-d'en-tête (bouton **💵 Estimer le coût**). Le dialogue présente une
-**décomposition par phase** et un **total sous forme de fourchette ±33 %**
-(« estimation indicative »), avec un avertissement si le haut de fourchette
-peut dépasser le plafond. Le calcul intègre :
+**Pre-run estimate is accessible at any time** from the header bar (the
+**💵 Estimate cost** button). The dialog presents a **per-phase
+breakdown** and a **total as a ±33 % range** ("indicative estimate"), with
+a warning if the upper end of the range may exceed the cap. The
+calculation accounts for:
 
-- La durée audio totale des vidéos détectées (probe `ffprobe`).
-- Le provider STT (`faster_whisper_local` = gratuit, `openai_cloud` = tarif du
-  modèle choisi : 0,006 $/min pour `whisper-1`/`gpt-4o-transcribe`, 0,003 $/min
-  pour `gpt-4o-mini-transcribe`).
-- Le modèle LLM (grille tarifaire Flash vs Pro).
-- Le nombre de langues de sortie + de traductions nécessaires.
-- **La configuration par phase** : `thinking_enabled` et
-  `reasoning_effort` sont traduits en un multiplicateur appliqué aux
-  tokens de complétion estimés :
+- The total audio duration of detected videos (`ffprobe` probe).
+- The STT provider (`faster_whisper_local` = free, `openai_cloud` = chosen
+  model's tariff: $0.006/min for `whisper-1`/`gpt-4o-transcribe`,
+  $0.003/min for `gpt-4o-mini-transcribe`).
+- The LLM model (Flash vs Pro pricing grid).
+- The number of output languages + required translations.
+- **The per-phase configuration**: `thinking_enabled` and
+  `reasoning_effort` are translated into a multiplier applied to estimated
+  completion tokens:
 
-| `thinking_enabled` | `reasoning_effort` | Multiplicateur output |
+| `thinking_enabled` | `reasoning_effort` | Output multiplier |
 |---|---|---|
 | `false` | (n/a) | ×1.0 |
-| `true` | (défaut serveur) | ×2.5 |
+| `true` | (server default) | ×2.5 |
 | `true` | `HIGH` | ×3.5 |
 | `true` | `MAX` | ×6.0 |
 
-L'écart résiduel est de l'ordre de ±20 % selon le contenu des vidéos.
+The residual spread is around ±20 % depending on the video content.
 
-### 2.7 Paramètres avancés
+### 2.7 Advanced parameters
 
-| Paramètre | Description | Défaut |
-|-----------|-------------|--------|
-| **Emplacement (workspace)** | Dossier de travail choisi à la création. Les artefacts de génération vont sous `<emplacement>/generation/` (livrables sous `<emplacement>/generation/output/`). | choisi à la création |
-| **Delete audio after STT** | Supprime les WAV extraits après transcription | `True` (économise du disque) |
-| **Transcriptions en parallèle** (`stt_cloud_workers`) | Transcriptions STT cloud simultanées (effectif ; sans effet en STT local : 1 GPU). Réglable 1–8 (page Transcription). | 3 |
-| **Appels LLM en parallèle** (`llm_workers`) | Appels LLM simultanés du pipeline (phases per-source + traduction/cohérence/résumés). Effectif ; la limite DeepSeek étant par concurrence, une valeur élevée reste sûre. Réglable 1–64 (page Modèle & coût). | 16 |
-| **Formats d'export** (`export_formats`) | Formats proposés par le bouton **Exporter** de l'onglet Génération (page **Export**) : **Markdown / PDF / HTML / Word (`.docx`)**. À l'export, le **consolidé** et le **glossaire** sont écrits, un fichier par langue, dans le format choisi (`consolidated.{lang}.<ext>`, `glossary.{lang}.<ext>`). Le PDF gère le chinois (police YaHei, retours à la ligne automatiques) et l'arabe (RTL) ; le glossaire est mis en **paysage** (PDF et Word). | aucun (opt-in) |
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| **Location (workspace)** | Working folder picked at creation. Generation artefacts live under `<location>/generation/` (deliverables under `<location>/generation/output/`). | chosen at creation |
+| **Delete audio after STT** | Deletes the extracted WAVs after transcription | `True` (saves disk) |
+| **Simultaneous transcriptions** (`stt_cloud_workers`) | Concurrent cloud STT transcriptions (effective; no effect in local STT: single GPU). Range 1–8 (Transcription page). | 3 |
+| **Simultaneous LLM calls** (`llm_workers`) | Concurrent pipeline LLM calls (per-source phases + translation/coherence/summaries). Effective; DeepSeek's limit being per-concurrency, a high value stays safe. Range 1–64 (Model & cost page). | 16 |
+| **Export formats** (`export_formats`) | Formats offered by the **Export** button of the Generation tab (page **Export**): **Markdown / PDF / HTML / Word (`.docx`)**. On export, the **consolidated document** and the **glossary** are written, one file per language, in the chosen format (`consolidated.{lang}.<ext>`, `glossary.{lang}.<ext>`). PDF handles Chinese (YaHei font, automatic line breaks) and Arabic (RTL); the glossary is laid out in **landscape** (PDF and Word). | none (opt-in) |
 
-## 3. Surcouche des prompts (avancé)
+## 3. Prompt overrides (advanced)
 
-Les prompts LLM par défaut peuvent être personnalisés sans toucher au
-code source. Deux moyens : l'**éditeur intégré** (recommandé) ou le dépôt
-manuel d'un fichier `.j2`.
+The default LLM prompts can be customised without touching the source
+code. Two ways: the **built-in editor** (recommended) or manually dropping
+a `.j2` file.
 
-### 3.1 Via l'éditeur intégré (recommandé)
+### 3.1 Through the built-in editor (recommended)
 
-Menu **Édition → Modifier les prompts…** ouvre un dialogue dédié :
+**Edit → Edit prompts…** opens a dedicated dialog:
 
-- **Sidebar gauche** : liste de **tous** les templates LLM éditables — phases de
-  génération (1-7, dont les sous-prompts de consolidation, les variantes du mode
-  **refonte thématique** et la **localisation du glossaire**), supports pédagogiques
-  et Dialogue. Un astérisque ` *` est ajouté en face d'un template pour lequel un
-  override est actif.
-- **Description** courte de chaque phase et de son rôle dans le
-  pipeline.
-- **Bandeau d'état** : *« 📦 Prompt par défaut »* ou *« ✏️ Override
-  personnalisé actif »*.
-- **Éditeur monospace** avec coloration QSS, taille redimensionnable.
-- **Bouton « 💾 Enregistrer »** : valide la syntaxe Jinja2 avant
-  écriture dans `%APPDATA%\Fahmi2\prompts\`. Refus immédiat si le
-  template contient une erreur de syntaxe, avec affichage du message
-  d'erreur Jinja2 brut.
-- **Bouton « ↩ Réinitialiser au défaut »** : supprime l'override (après
-  confirmation) et restaure le template bundlé.
-- Confirmation au changement de phase si des modifications ne sont pas
-  sauvegardées (évite la perte involontaire).
+- **Left sidebar**: list of **every** editable LLM template — generation
+  phases (1–7, including the consolidation sub-prompts, the **thematic
+  rewrite** variants and the **glossary localisation**), revision
+  materials, and Dialogue. An asterisk ` *` is appended next to a
+  template that has an active override.
+- **Short description** of each phase and its role in the pipeline.
+- **Status banner**: *"📦 Default prompt"* or *"✏️ Custom override
+  active"*.
+- **Monospace editor** with QSS colouring, resizable.
+- **"💾 Save" button**: validates the Jinja2 syntax before writing to
+  `%APPDATA%\Fahmi2\prompts\`. Immediate refusal if the template contains
+  a syntax error, with the raw Jinja2 error message displayed.
+- **"↩ Reset to default" button**: removes the override (after
+  confirmation) and restores the bundled template.
+- Confirmation on phase change if changes are not saved (prevents
+  unintended loss).
 
-Les overrides sont actifs **au prochain lancement de la phase**.
+Overrides become active **at the next phase launch**.
 
-### 3.2 Via dépôt manuel (alternatif)
+### 3.2 Through manual drop (alternative)
 
-Pour les workflows scriptés, vous pouvez déposer directement les
-fichiers :
+For scripted workflows you can drop the files directly:
 
-1. Le dossier `%APPDATA%\Fahmi2\prompts\` est créé automatiquement au
-   premier lancement.
-2. Y déposer un fichier `.j2` (Jinja2) avec le **même nom** que le
-   template par défaut. Templates disponibles :
+1. The `%APPDATA%\Fahmi2\prompts\` folder is created automatically at
+   first launch.
+2. Drop a `.j2` (Jinja2) file with the **same name** as the default
+   template. Available templates:
    - `phase_1_term_extraction.j2`
    - `phase_2_glossary_reconciliation.j2`
    - `phase_3_reformulation.j2`
    - `phase_4_structuration.j2`
    - `phase_5_consolidation.j2`
-   - `phase_5_video_summary.j2` (mode ordonné)
+   - `phase_5_video_summary.j2` (ordered mode)
    - `phase_5_fact_ledger.j2`, `phase_5_thematic_plan.j2`,
-     `phase_5_thematic_chapter.j2` (mode **refonte thématique**)
+     `phase_5_thematic_chapter.j2` (**thematic rewrite** mode)
    - `phase_6_translation.j2`
-   - `phase_6_glossary_localization.j2` (localisation des termes du glossaire par langue)
+   - `phase_6_glossary_localization.j2` (per-language localisation of
+     glossary terms)
    - `phase_7_coherence.j2`
-   - les 8 templates `pedagogy_*.j2` (supports de révision)
-   - `chat_strict.j2`, `chat_augmented.j2`, `chat_query_expansion.j2` (Dialogue)
-3. Le prompt sera utilisé automatiquement au prochain run (ou à la prochaine
-   réponse du Dialogue).
+   - the 8 `pedagogy_*.j2` templates (revision materials)
+   - `chat_strict.j2`, `chat_augmented.j2`, `chat_query_expansion.j2`
+     (Dialogue)
+3. The prompt will be used automatically on the next run (or the next
+   Dialogue answer).
 
-### 3.3 Variables disponibles dans chaque template
+### 3.3 Variables available in each template
 
-| Template | Variables clés |
+| Template | Key variables |
 |----------|----------------|
 | `phase_1_term_extraction` | `source_language_label`, `style_label`, `style_directives`, `transcription_text` |
 | `phase_2_glossary_reconciliation` | `source_language_label`, `style_label`, `style_directives`, `candidates_json` |
@@ -230,141 +239,152 @@ fichiers :
 | `phase_6_glossary_localization` | `source_language_label`, `target_language_label`, `style_label`, `style_directives`, `terms` (`term`, `definition`) |
 | `phase_7_coherence` | `output_language_label`, `style_label`, `style_directives`, `glossary_terms`, `consolidated_markdown` |
 | `pedagogy_flashcards_concepts` | `output_language_label`, `audience_label`, `bloom_label`, `density_label`, `pedagogy_directives`, `glossary_terms`, `chapter_title`, `chapter_markdown` |
-| `pedagogy_qcm` | *(idem flashcards concepts)* |
-| `pedagogy_true_false` | *(idem flashcards concepts)* |
-| `pedagogy_cloze` | *(idem flashcards concepts)* |
-| `pedagogy_open_questions` | *(idem flashcards concepts)* |
-| `pedagogy_revision_sheet` | *(idem flashcards concepts)* |
-| `pedagogy_key_points` | *(idem flashcards concepts)* |
+| `pedagogy_qcm` | *(same as flashcards concepts)* |
+| `pedagogy_true_false` | *(same as flashcards concepts)* |
+| `pedagogy_cloze` | *(same as flashcards concepts)* |
+| `pedagogy_open_questions` | *(same as flashcards concepts)* |
+| `pedagogy_revision_sheet` | *(same as flashcards concepts)* |
+| `pedagogy_key_points` | *(same as flashcards concepts)* |
 | `pedagogy_mock_exam` | `output_language_label`, `audience_label`, `bloom_label`, `density_label`, `pedagogy_directives`, `glossary_terms`, `consolidated_markdown` |
 | `chat_strict` | `output_language_label`, `glossary_terms`, `passages` |
 | `chat_augmented` | `output_language_label`, `glossary_terms`, `passages` |
 | `chat_query_expansion` | `question` |
 
-> Les 8 templates `pedagogy_*` (supports de révision) **et** les 3 templates
-> `chat_*` (Dialogue) s'éditent dans le **même éditeur** (Édition → Modifier les
-> prompts) que les phases de génération.
+> The 8 `pedagogy_*` templates (revision materials) **and** the 3 `chat_*`
+> templates (Dialogue) are edited from the **same editor** (Edit → Edit
+> prompts) as the generation phases.
+>
+> The prompts deliberately stay in **French** (Fahmi2's source language)
+> regardless of the UI language: the prompt design has been tuned for
+> French and the LLM-rendered output is requested directly in the target
+> language via `output_language_label`. Changing the UI language does
+> **not** rewrite the prompts.
 
-### 3.4 Validation et restauration
+### 3.4 Validation and restoration
 
-- L'éditeur intégré refuse d'enregistrer une syntaxe invalide.
-- Si un override déposé manuellement est invalide, le `PromptLoader`
-  retombe automatiquement sur le template par défaut et logge
-  `PROMPT.INVALID_OVERRIDE` (consultable dans le panneau Logs).
-- **Restaurer le défaut** : via le bouton *« ↩ Réinitialiser au défaut »*
-  dans l'éditeur, ou en supprimant manuellement le fichier `.j2` dans
-  `%APPDATA%\Fahmi2\prompts\`. Important : « défaut » = le template
-  bundlé avec la version installée de l'application ; il n'y a pas de
-  notion de « version d'usine » historique.
+- The built-in editor refuses to save invalid syntax.
+- If a manually-dropped override is invalid, the `PromptLoader`
+  automatically falls back to the default template and logs
+  `PROMPT.INVALID_OVERRIDE` (visible in the Logs panel).
+- **Reset to default**: through the *"↩ Reset to default"* button in
+  the editor, or by manually deleting the `.j2` file in
+  `%APPDATA%\Fahmi2\prompts\`. Important: "default" = the template
+  bundled with the installed application version; there is no notion of
+  a historical "factory version".
 
-## 3bis. Réglages des supports pédagogiques
+## 3bis. Revision materials settings
 
-Onglet **Supports pédagogiques → ⚙ Réglages** (vue master-detail) :
+**Revision materials → ⚙ Settings** (master-detail view):
 
-| Catégorie | Réglages |
-|-----------|----------|
-| **Supports** | Sélection parmi les 8 types ; case « corrigé séparé » sur les supports évaluatifs (QCM, vrai/faux, cloze, questions ouvertes, examen blanc). |
-| **Difficulté** | Public cible (découverte / lycée / licence / master-expert), objectif Bloom (auto / restituer / comprendre & appliquer / analyser & au-delà), densité (légère / standard / dense), directives libres. |
-| **Langues** | Toutes les langues supportées : les supports sont rédigés dans la langue choisie même si le document source est dans une autre langue (l'orchestrateur résout une langue de contenu à partir d'un `consolidated.{lang}.md` existant). |
-| **Modèle & coût** | Modèle LLM, mode raisonnement + niveau d'effort, température, **plafond budget** (interrompt proprement ; en génération parallèle, léger dépassement toléré par les requêtes déjà en vol), **tâches en parallèle** (défaut 16, plage 1–64 : nombre d'appels LLM concurrents pour générer les supports — la limite DeepSeek étant par concurrence, une valeur élevée reste sûre ; le parallélisme effectif est borné par le nombre de supports × langues). |
-| **Export** | Formats proposés au bouton **Exporter** : Anki (`.apkg`), Markdown, PDF, HTML, Word (`.docx`). Le Markdown des champs est converti en HTML à l'export Anki ; Markdown/PDF/HTML/DOCX produisent **un fichier par support et par corrigé**. |
+| Category | Settings |
+|----------|----------|
+| **Materials** | Pick among the 8 types; "separate answer key" checkbox on evaluative materials (MCQs, true/false, cloze, open questions, mock exam). |
+| **Difficulty** | Target audience (discovery / high school / undergraduate / master–expert), Bloom objective (auto / restitute / understand & apply / analyse & beyond), density (light / standard / dense), free directives. |
+| **Languages** | All supported languages: the materials are written in the chosen language even when the source document is in another language (the orchestrator resolves a content language from an existing `consolidated.{lang}.md`). |
+| **Model & cost** | LLM model, reasoning mode + effort level, temperature, **budget cap** (clean interruption; in parallel generation, a slight overshoot is tolerated by in-flight requests), **parallel tasks** (default 16, range 1–64: number of concurrent LLM calls to generate materials — DeepSeek's limit being per-concurrency, a high value stays safe; effective parallelism is bounded by the number of materials × languages). |
+| **Export** | Formats offered by the **Export** button: Anki (`.apkg`), Markdown, PDF, HTML, Word (`.docx`). The Markdown of fields is converted to HTML on Anki export; Markdown/PDF/HTML/DOCX produce **one file per material and per answer key**. |
 
-Le bouton **Estimer le coût** donne un ordre de grandeur (par support × langue ×
-chapitre, selon densité et thinking) ; **Générer** lance la génération (progression
-par support × langue, reprise *coarse* des supports déjà à jour) ; **Ouvrir le
-dossier** ouvre `<emplacement>/pedagogy/` ; **Exporter** propose 5 formats :
-- **Anki `.apkg`** (flashcards → Basic, textes à trous → Cloze, QCM → note custom ;
-  GUID stables, sous-decks par support, tags support/langue/niveau/chapitre) ;
-- **Markdown**, **PDF**, **HTML** et **Word (`.docx`)** : **un fichier par support et
-  par corrigé**, nommés `<support>.<langue>.<ext>` et `<support>.<langue>.corrige.<ext>`
-  (le HTML est un document autonome avec feuille de style intégrée).
+The **Estimate cost** button gives an order of magnitude (per material ×
+language × chapter, depending on density and thinking); **Generate**
+launches the generation (progress per material × language, *coarse*
+resume of materials already up to date); **Open folder** opens
+`<location>/pedagogy/`; **Export** offers 5 formats:
+- **Anki `.apkg`** (flashcards → Basic, cloze → Cloze, MCQs → custom
+  note; stable GUIDs, sub-decks per material, support/language/level/
+  chapter tags);
+- **Markdown**, **PDF**, **HTML** and **Word (`.docx`)**: **one file per
+  material and per answer key**, named `<material>.<lang>.<ext>` and
+  `<material>.<lang>.corrige.<ext>` (HTML is a self-contained document
+  with embedded stylesheet).
 
-## 3ter. Réglages du Dialogue (chat)
+## 3ter. Dialogue (chat) settings
 
-Onglet **Dialogue → ⚙ Réglages** :
+**Dialogue → ⚙ Settings**:
 
-| Réglage | Description |
+| Setting | Description |
 |---------|-------------|
-| **Fidélité** | `strict` (défaut : répond uniquement à partir du cours, cite ses sources par des repères numérotés `[N]` cliquables, refuse poliment hors-corpus) ou `augmenté` (peut compléter avec ses connaissances générales dans une section « Au-delà du cours » balisée). |
-| **Retrieval** | `auto` (défaut : sémantique si une clé OpenAI est présente, sinon lexical), `lexical` (TF-IDF, 100 % hors-ligne) ou `sémantique` (embeddings OpenAI). |
-| **Modèle d'embedding** | Modèle OpenAI du retrieval **cloud** (auto/sémantique) : `text-embedding-3-small` (défaut, économique), `text-embedding-3-large` (précision supérieure) ou `text-embedding-ada-002` (génération précédente). Sans effet en lexical (combo grisé). **Changer de modèle force une réindexation** du corpus à la prochaine question (l'empreinte d'index inclut le modèle). |
-| **Expansion de requête** | Activée par défaut : reformule la question en mots-clés via le LLM quand le retrieval lexical est faible (améliore le rappel). |
-| **Modèle & raisonnement** | Modèle LLM (`deepseek-v4-flash`/`pro`), mode raisonnement + effort, température. |
-| **Passages (top-K)** | Nombre d'extraits du cours injectés en contexte (défaut 6). |
+| **Fidelity** | `strict` (default: answers only from the course, cites its sources via numbered clickable `[N]` markers, politely refuses out-of-corpus) or `augmented` (can supplement with its general knowledge in a flagged "Beyond the course" section). |
+| **Retrieval** | `auto` (default: semantic if an OpenAI key is present, otherwise lexical), `lexical` (TF-IDF, 100 % offline) or `semantic` (OpenAI embeddings). |
+| **Embedding model** | OpenAI model for the **cloud** retrieval (auto/semantic): `text-embedding-3-small` (default, economical), `text-embedding-3-large` (higher precision) or `text-embedding-ada-002` (previous generation). No effect in lexical (combo greyed out). **Changing the model forces a corpus reindex** at the next question (the index fingerprint includes the model). |
+| **Query expansion** | On by default: rephrases the question into keywords via the LLM when lexical retrieval is weak (improves recall). |
+| **Model & reasoning** | LLM model (`deepseek-v4-flash`/`pro`), reasoning mode + effort, temperature. |
+| **Passages (top-K)** | Number of course excerpts injected as context (default 6). |
 
-Le corpus interrogé = document **consolidé** + **glossaire** de la génération
-(découpé par section). Le retrieval **sémantique** construit un index local
-(`<emplacement>/chat/index.{langue}.npz`) réutilisé tant que le cours n'a pas
-changé (empreinte : modèle d'embedding + horodatage du consolidé **et du
-glossaire** + langue). Le Dialogue **recharge automatiquement** son corpus dès que
-le consolidé ou le glossaire est régénéré (avant chaque réponse et à la fin d'une
-génération) : inutile de recharger le projet pour repartir sur le document à jour.
-Les **conversations** sont persistées sous `<emplacement>/chat/conversations/`.
+The queried corpus = the **consolidated** document + **glossary** of the
+generation (chunked by section). **Semantic** retrieval builds a local
+index (`<location>/chat/index.{lang}.npz`) reused as long as the course
+hasn't changed (fingerprint: embedding model + consolidated **and
+glossary** mtime + language). The Dialogue **automatically reloads** its
+corpus as soon as the consolidated document or the glossary is
+regenerated (before each answer and at the end of a generation): no need
+to reload the project to start over with the up-to-date document.
+**Conversations** are persisted under `<location>/chat/conversations/`.
 
-> **Langue du corpus (par conversation).** À gauche du panneau Dialogue, un sélecteur
-> de **langue** (visible dès que la génération a produit **≥ 2 langues**) fixe la langue
-> d'une **nouvelle** conversation : le Dialogue lit alors le `consolidated.{langue}.md`
-> correspondant, **cite** et **répond** dans cette langue, et le glossaire cité y est
-> **entièrement localisé** (terme **et** définition). Une conversation = une langue
-> (pour en changer, créez-en une nouvelle). L'index sémantique se construit **à la
-> demande**, une fois par langue utilisée (pas d'embedding des langues non utilisées).
+> **Corpus language (per conversation).** On the left of the Dialogue
+> panel, a **language** selector (visible as soon as the generation has
+> produced **≥ 2 languages**) fixes the language of a **new** conversation:
+> the Dialogue then reads the corresponding `consolidated.{lang}.md`,
+> **cites** and **answers** in that language, and the cited glossary is
+> **fully localised** there (term **and** definition). One conversation
+> = one language (to switch language, create a new one). The semantic
+> index is built **on demand**, once per language used (no embedding of
+> unused languages).
 
-> **Coût exhaustif.** Le coût affiché par échange (et le cumul de la conversation)
-> intègre **toutes** les dépenses : génération de la réponse (DeepSeek), embeddings
-> du retrieval sémantique (**indexation initiale** du corpus à la première question,
-> puis embedding de **chaque question**) et reformulation éventuelle de l'expansion
-> de requête. Le coût des embeddings suit une grille tarifaire **par modèle**
-> (générique : changer ou ajouter un modèle d'embedding ne touche qu'une table de
-> prix). En mode **lexical**, le retrieval est gratuit (local) : seul le coût
-> DeepSeek est compté.
+> **Exhaustive cost.** The cost shown per exchange (and the conversation
+> total) includes **all** spend: answer generation (DeepSeek), semantic
+> retrieval embeddings (**initial indexing** of the corpus on the first
+> question, then embedding of **each question**) and any query-expansion
+> rephrasing. Embedding cost follows a **per-model** pricing grid (generic:
+> changing or adding an embedding model only touches a price table). In
+> **lexical** mode, retrieval is free (local): only DeepSeek's cost is
+> counted.
 
-> **Confidentialité** : le retrieval **sémantique** envoie le corpus et les
-> questions à **OpenAI** (calcul des embeddings). En mode **lexical**, le
-> retrieval reste **100 % local** (seule la génération de la réponse appelle
-> DeepSeek, comme tout le LLM de l'application).
+> **Privacy**: **semantic** retrieval sends the corpus and the questions
+> to **OpenAI** (embedding computation). In **lexical** mode, retrieval
+> stays **100 % local** (only answer generation calls DeepSeek, as does
+> the whole LLM tier of the application).
 
-## 4. Variables d'environnement (debug)
+## 4. Environment variables (debug)
 
-L'application respecte les variables Windows standards :
+The application honours the standard Windows variables:
 
-| Variable | Effet |
-|----------|-------|
-| `APPDATA` | Dossier racine des données utilisateur. Défaut : `%USERPROFILE%\AppData\Roaming`. |
-| `LOCALAPPDATA` | Dossier racine du cache. Défaut : `%USERPROFILE%\AppData\Local`. |
-| `USERPROFILE` | Profil utilisateur. Utilisé en fallback si `APPDATA`/`LOCALAPPDATA` sont absents. |
+| Variable | Effect |
+|----------|--------|
+| `APPDATA` | Root folder of user data. Default: `%USERPROFILE%\AppData\Roaming`. |
+| `LOCALAPPDATA` | Root cache folder. Default: `%USERPROFILE%\AppData\Local`. |
+| `USERPROFILE` | User profile. Used as a fallback when `APPDATA`/`LOCALAPPDATA` are missing. |
 
-Ces variables permettent de **rediriger les données utilisateur** vers un
-autre emplacement (utile pour les tests ou les installations atypiques).
+These variables let you **redirect user data** to another location (useful
+for tests or atypical installs).
 
-## 5. Recommandations par usage
+## 5. Recommendations by usage
 
-### 5.1 Petit projet de test (1-5 vidéos courtes)
+### 5.1 Small test project (1–5 short videos)
 
-- Provider STT : `openai_cloud` (rapide et négligeable en coût)
-- Modèle LLM : `deepseek-v4-flash`
-- Thinking : désactivé partout
-- Température : 0.3 partout
-- Plafond budget : 1 $
+- STT provider: `openai_cloud` (fast and negligible in cost)
+- LLM model: `deepseek-v4-flash`
+- Thinking: off everywhere
+- Temperature: 0.3 everywhere
+- Budget cap: $1
 
-### 5.2 Production académique (30-50 vidéos)
+### 5.2 Academic production (30–50 videos)
 
-- Provider STT : `faster_whisper_local` si GPU disponible (gratuit), sinon
-  `openai_cloud`
-- Modèle LLM : `deepseek-v4-pro` (qualité supérieure)
-- Thinking activé + `HIGH` pour phases 4 (structuration), 5
-  (consolidation), 7 (cohérence). `MAX` réservé si la qualité reste
-  insuffisante (×6 sur l'output).
-- Température : 0.2 pour traduction, 0.4 ailleurs
-- Style : `académique`
-- Plafond budget : 20-30 $ (vérifier d'abord avec **💵 Estimer le coût**)
+- STT provider: `faster_whisper_local` if a GPU is available (free),
+  otherwise `openai_cloud`
+- LLM model: `deepseek-v4-pro` (higher quality)
+- Thinking on + `HIGH` for phases 4 (structuring), 5 (consolidation), 7
+  (coherence). `MAX` reserved if quality is still insufficient (×6 on
+  output).
+- Temperature: 0.2 for translation, 0.4 elsewhere
+- Style: `academic`
+- Budget cap: $20–30 (check first with **💵 Estimate cost**)
 
-### 5.3 Itération rapide sur un cours en cours d'écriture
+### 5.3 Rapid iteration on a course in progress
 
-- Provider STT : `openai_cloud`
-- Modèle LLM : `deepseek-v4-flash`
-- Style : `standard` ou personnalisé via directives
-- Plafond budget : 5 $
-- Utiliser la **reprise** : modifier les prompts via l'éditeur intégré
-  (Édition → Modifier les prompts…), relancer uniquement les phases
-  impactées en supprimant manuellement les artefacts correspondants
-  dans `workspace/`.
+- STT provider: `openai_cloud`
+- LLM model: `deepseek-v4-flash`
+- Style: `standard` or customised through directives
+- Budget cap: $5
+- Use the **resume**: edit prompts via the built-in editor (Edit → Edit
+  prompts…), relaunch only the impacted phases by manually deleting the
+  matching artefacts in `workspace/`.

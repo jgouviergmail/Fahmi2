@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 
 from fahmi2.domain.enums import PhaseId, ReasoningEffort
 from fahmi2.domain.phase import PhaseConfig
+from fahmi2.ui._model_labels import no_reasoning_label, reasoning_effort_labels
 
 _LLM_PHASES_ORDER: tuple[PhaseId, ...] = (
     PhaseId.TERM_EXTRACTION,
@@ -36,16 +37,6 @@ _LLM_PHASES_ORDER: tuple[PhaseId, ...] = (
     PhaseId.TRANSLATION,
     PhaseId.COHERENCE,
 )
-
-_PHASE_LABELS: dict[PhaseId, str] = {
-    PhaseId.TERM_EXTRACTION: "1. Extraction des termes",
-    PhaseId.GLOSSARY_RECONCILIATION: "2. Réconciliation glossaire",
-    PhaseId.REFORMULATION: "3. Reformulation",
-    PhaseId.STRUCTURATION: "4. Structuration",
-    PhaseId.CONSOLIDATION: "5. Consolidation",
-    PhaseId.TRANSLATION: "6. Traduction",
-    PhaseId.COHERENCE: "7. Cohérence finale",
-}
 
 _REASONING_EFFORT_LEVELS: tuple[ReasoningEffort, ...] = (
     ReasoningEffort.HIGH,
@@ -69,7 +60,7 @@ class PhaseConfigsWidget(QGroupBox):
         Args:
             parent: Parent Qt optionnel.
         """
-        super().__init__("Configuration des phases LLM", parent)
+        super().__init__(self.tr("Configuration des phases LLM"), parent)
         outer = QVBoxLayout(self)
         outer.setContentsMargins(8, 12, 8, 8)
 
@@ -77,40 +68,45 @@ class PhaseConfigsWidget(QGroupBox):
         grid.setHorizontalSpacing(16)
         grid.setVerticalSpacing(4)
 
-        grid.addWidget(QLabel("<b>Phase</b>"), 0, 0)
-        grid.addWidget(QLabel("<b>Thinking</b>"), 0, 1)
-        grid.addWidget(QLabel("<b>Effort</b>"), 0, 2)
-        grid.addWidget(QLabel("<b>Température</b>"), 0, 3)
-        grid.addWidget(QLabel("<b>Max retries</b>"), 0, 4)
+        grid.addWidget(QLabel(self.tr("<b>Phase</b>")), 0, 0)
+        grid.addWidget(QLabel(self.tr("<b>Thinking</b>")), 0, 1)
+        grid.addWidget(QLabel(self.tr("<b>Effort</b>")), 0, 2)
+        grid.addWidget(QLabel(self.tr("<b>Température</b>")), 0, 3)
+        grid.addWidget(QLabel(self.tr("<b>Max retries</b>")), 0, 4)
 
+        phase_labels = self._phase_labels()
         self._rows: dict[
             PhaseId,
             tuple[QCheckBox, QComboBox, QDoubleSpinBox, QSpinBox],
         ] = {}
         for row_idx, phase_id in enumerate(_LLM_PHASES_ORDER, start=1):
-            grid.addWidget(QLabel(_PHASE_LABELS[phase_id]), row_idx, 0)
+            grid.addWidget(QLabel(phase_labels[phase_id]), row_idx, 0)
 
             thinking_cb = QCheckBox(self)
             thinking_cb.setToolTip(
-                "Active le mode raisonnement DeepSeek pour cette phase "
-                '(envoie {"thinking": {"type": "enabled"}}). Qualité '
-                "supérieure, coût plus élevé."
+                self.tr(
+                    "Active le mode raisonnement DeepSeek pour cette phase "
+                    '(envoie {"thinking": {"type": "enabled"}}). Qualité '
+                    "supérieure, coût plus élevé."
+                )
             )
             grid.addWidget(thinking_cb, row_idx, 1)
 
             effort_combo = QComboBox(self)
-            effort_combo.addItem("(défaut serveur)", None)
+            effort_combo.addItem(no_reasoning_label(), None)
+            effort_levels = reasoning_effort_labels()
             for level in _REASONING_EFFORT_LEVELS:
-                effort_combo.addItem(level.value, level)
+                effort_combo.addItem(effort_levels[level], level)
             effort_combo.setToolTip(
-                "Niveau d'effort de raisonnement (envoie "
-                '{"reasoning_effort": "<valeur>"}). Pris en compte '
-                "uniquement si Thinking est activé."
+                self.tr(
+                    "Niveau d'effort de raisonnement (envoie "
+                    '{"reasoning_effort": "<valeur>"}). Pris en compte '
+                    "uniquement si Thinking est activé."
+                )
             )
             effort_combo.setEnabled(False)
             grid.addWidget(effort_combo, row_idx, 2)
 
-            # Désactive le combo si Thinking est décoché
             thinking_cb.toggled.connect(effort_combo.setEnabled)
 
             temp_sb = QDoubleSpinBox(self)
@@ -119,9 +115,11 @@ class PhaseConfigsWidget(QGroupBox):
             temp_sb.setDecimals(2)
             temp_sb.setValue(_DEFAULT_TEMPERATURE)
             temp_sb.setToolTip(
-                "Température LLM : 0.0 = déterministe, 2.0 = très créatif. "
-                "0.2-0.4 pour structuration/reformulation, 0.0-0.2 pour "
-                "traduction, 0.4-0.6 pour idées créatives."
+                self.tr(
+                    "Température LLM : 0.0 = déterministe, 2.0 = très créatif. "
+                    "0.2-0.4 pour structuration/reformulation, 0.0-0.2 pour "
+                    "traduction, 0.4-0.6 pour idées créatives."
+                )
             )
             grid.addWidget(temp_sb, row_idx, 3)
 
@@ -129,8 +127,10 @@ class PhaseConfigsWidget(QGroupBox):
             retries_sb.setRange(0, _MAX_RETRIES_RANGE)
             retries_sb.setValue(_DEFAULT_MAX_RETRIES)
             retries_sb.setToolTip(
-                "Nombre de tentatives en cas d'erreur transitoire "
-                "(rate limit, serveur indisponible)."
+                self.tr(
+                    "Nombre de tentatives en cas d'erreur transitoire "
+                    "(rate limit, serveur indisponible)."
+                )
             )
             grid.addWidget(retries_sb, row_idx, 4)
 
@@ -138,6 +138,18 @@ class PhaseConfigsWidget(QGroupBox):
 
         outer.addLayout(grid)
         outer.addStretch(1)
+
+    def _phase_labels(self) -> dict[PhaseId, str]:
+        """Libellés traduits des phases LLM (avec numéro d'ordre)."""
+        return {
+            PhaseId.TERM_EXTRACTION: self.tr("1. Extraction des termes"),
+            PhaseId.GLOSSARY_RECONCILIATION: self.tr("2. Réconciliation glossaire"),
+            PhaseId.REFORMULATION: self.tr("3. Reformulation"),
+            PhaseId.STRUCTURATION: self.tr("4. Structuration"),
+            PhaseId.CONSOLIDATION: self.tr("5. Consolidation"),
+            PhaseId.TRANSLATION: self.tr("6. Traduction"),
+            PhaseId.COHERENCE: self.tr("7. Cohérence finale"),
+        }
 
     def get_phase_configs(self) -> dict[PhaseId, PhaseConfig]:
         """Retourne le mapping ``PhaseId → PhaseConfig`` des valeurs saisies.
@@ -178,7 +190,7 @@ class PhaseConfigsWidget(QGroupBox):
             if target_index >= 0:
                 effort_combo.setCurrentIndex(target_index)
             else:
-                # Repasser sur "(défaut serveur)"
+                # Repasser sur l'option par défaut « Automatique (serveur) ».
                 effort_combo.setCurrentIndex(0)
             temp_sb.setValue(cfg.temperature)
             retries_sb.setValue(cfg.max_retries)

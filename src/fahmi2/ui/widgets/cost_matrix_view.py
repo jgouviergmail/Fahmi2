@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 from fahmi2.domain.enums import PhaseStatus
+from fahmi2.ui.theme._tokens import TokenPalette, current_palette
 from fahmi2.ui.viewmodels.cost_matrix import CostMatrixCell, CostMatrixSnapshot
 
 _COST_DECIMALS = 4
@@ -49,17 +50,47 @@ _STATUS_SYMBOLS: dict[PhaseStatus, str] = {
     PhaseStatus.SKIPPED: "↷",
 }
 
-_STATUS_COLORS: dict[PhaseStatus, tuple[QColor, QColor]] = {
-    PhaseStatus.PENDING: (QColor("#f8fafc"), QColor("#8b95a1")),
-    PhaseStatus.RUNNING: (QColor("#e3f0fb"), QColor("#0a4f93")),
-    PhaseStatus.SUCCEEDED: (QColor("#e6f6ec"), QColor("#1a7f37")),
-    PhaseStatus.FAILED: (QColor("#fcebec"), QColor("#cf222e")),
-    PhaseStatus.SKIPPED: (QColor("#f1eefb"), QColor("#5b4cc7")),
-}
+def _status_colors(
+    status: PhaseStatus, palette: TokenPalette
+) -> tuple[QColor, QColor]:
+    """Retourne le couple ``(bg, fg)`` adapté au thème actif pour un statut.
 
-_COST_FG = QColor("#8b95a1")
-_LABEL_BG = QColor("#ffffff")
-_LABEL_FG = QColor("#1f2328")
+    Mappe chaque ``PhaseStatus`` aux tokens sémantiques de la palette plutôt
+    qu'à des couleurs fixes : la matrice s'éclaircit/s'assombrit correctement
+    avec le thème.
+
+    Args:
+        status: Statut de phase.
+        palette: Palette active (résultat de :func:`current_palette`).
+
+    Returns:
+        Tuple ``(background, foreground)`` en ``QColor``.
+    """
+    if status is PhaseStatus.RUNNING:
+        return QColor(palette.accent_soft), QColor(palette.accent_strong)
+    if status is PhaseStatus.SUCCEEDED:
+        return QColor(palette.success_bg), QColor(palette.success)
+    if status is PhaseStatus.FAILED:
+        return QColor(palette.danger_bg), QColor(palette.danger)
+    if status is PhaseStatus.SKIPPED:
+        return QColor(palette.info_bg), QColor(palette.info)
+    # PENDING (et tout statut inconnu) : neutre — fond surface, texte gris.
+    return QColor(palette.surface_soft), QColor(palette.text_3)
+
+
+def _label_background(palette: TokenPalette) -> QBrush:
+    """Fond des cellules de libellés / totaux (couleur surface du thème)."""
+    return QBrush(QColor(palette.surface))
+
+
+def _label_foreground(palette: TokenPalette) -> QBrush:
+    """Texte des cellules de libellés / totaux (couleur texte principal)."""
+    return QBrush(QColor(palette.text_1))
+
+
+def _cost_foreground(palette: TokenPalette) -> QColor:
+    """Couleur du coût secondaire dans une cellule de données (texte aide)."""
+    return QColor(palette.text_3)
 
 
 #: Snapshot vide réutilisable (initialisation / réinitialisation des dashboards).
@@ -201,9 +232,9 @@ class _CostMatrixModel(QAbstractTableModel):
                 return font
             return None
         if role == Qt.ItemDataRole.BackgroundRole:
-            return QBrush(_LABEL_BG)
+            return _label_background(current_palette())
         if role == Qt.ItemDataRole.ForegroundRole:
-            return QBrush(_LABEL_FG)
+            return _label_foreground(current_palette())
         return None
 
     def _summary_text(self, row: int, col: int, *, total_row: bool) -> str:
@@ -247,7 +278,8 @@ class _CostCellDelegate(QStyledItemDelegate):
         if not isinstance(cell, CostMatrixCell):
             super().paint(painter, option, index)
             return
-        bg, fg = _STATUS_COLORS.get(cell.status, (_LABEL_BG, _LABEL_FG))
+        palette = current_palette()
+        bg, fg = _status_colors(cell.status, palette)
         rect: QRect = option.rect
         painter.fillRect(rect, bg)
 
@@ -265,7 +297,7 @@ class _CostCellDelegate(QStyledItemDelegate):
         cost_font = QFont()
         cost_font.setPointSize(_COST_POINT_SIZE)
         painter.setFont(cost_font)
-        painter.setPen(_COST_FG)
+        painter.setPen(_cost_foreground(palette))
         bottom = QRect(
             rect.x(),
             rect.y() + rect.height() // 2,

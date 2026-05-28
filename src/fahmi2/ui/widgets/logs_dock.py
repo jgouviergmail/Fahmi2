@@ -61,7 +61,7 @@ class LogsDock(QDockWidget):
 
         header_row = QHBoxLayout()
         header_row.setSpacing(8)
-        header_row.addWidget(QLabel("Niveau minimum :", container))
+        header_row.addWidget(QLabel("Niveau minimum", container))
         self._level_combo = QComboBox(container)
         for sev in _SEVERITY_CHOICES:
             self._level_combo.addItem(_SEVERITY_STYLE[sev][1], sev)

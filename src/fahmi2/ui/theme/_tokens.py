@@ -84,6 +84,10 @@ class TokenPalette:
         warning_bg: Surface attention.
         danger: Statut erreur / destructif.
         danger_bg: Surface erreur.
+        info: Statut info / skipped / neutre (texte). Couleur distincte des
+            autres statuts pour ne pas signaler une attention. Utilisé par la
+            matrice de coût pour le statut ``SKIPPED``.
+        info_bg: Surface info / skipped (badge).
         shadow_card: Ombre des cartes.
     """
 
@@ -109,6 +113,8 @@ class TokenPalette:
     warning_bg: str
     danger: str
     danger_bg: str
+    info: str
+    info_bg: str
     shadow_card: ShadowSpec
 
 
@@ -136,6 +142,8 @@ LIGHT_TOKENS: Final[TokenPalette] = TokenPalette(
     warning_bg="#fef3c7",
     danger="#cf222e",
     danger_bg="#fcebec",
+    info="#5b4cc7",
+    info_bg="#f1eefb",
     shadow_card=ShadowSpec(
         blur_radius=22.0,
         x_offset=0.0,
@@ -170,6 +178,8 @@ DARK_TOKENS: Final[TokenPalette] = TokenPalette(
     warning_bg="#2c1f0f",
     danger="#f85149",
     danger_bg="#2c1419",
+    info="#b5a3e3",
+    info_bg="#241e3a",
     shadow_card=ShadowSpec(
         blur_radius=24.0,
         x_offset=0.0,

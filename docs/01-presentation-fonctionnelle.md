@@ -1,329 +1,341 @@
-# Fahmi2 — Présentation fonctionnelle
+# Fahmi2 — Functional overview
 
-## 1. Contexte et problème adressé
+## 1. Context and problem addressed
 
-Un enseignant en économie et finance produit un volume important de **vidéos
-MP4 de cours oraux** (en français ou en anglais). Ce savoir est de qualité
-mais reste **captif** du format vidéo : il n'est ni recherchable, ni
-réutilisable pour produire des supports écrits, ni formalisé.
+A lecturer in economics and finance produces a substantial body of **MP4
+video lectures** (in French or English). The knowledge is high-quality but
+remains **trapped** in the video format: it is neither searchable, nor
+reusable to produce written materials, nor formalised.
 
-Fahmi2 résout ce problème en transformant ces vidéos en **documents Markdown
-structurés** qui peuvent servir de référence écrite, de support distribuable,
-ou d'entrée pour d'autres outils de mise en forme (DOCX, PDF…).
+Fahmi2 solves this problem by turning these videos into **structured
+Markdown documents** that can serve as a written reference, a
+distributable handout, or input for other formatting tools (DOCX, PDF…).
 
-## 2. Vision produit
+## 2. Product vision
 
-Une **application desktop locale** qui :
+A **local desktop application** that:
 
-- prend en entrée un **dossier de sources hétérogènes** — **vidéos** (MP4,
-  MKV, MOV, WebM…), **fichiers audio** (WAV, MP3, M4A, FLAC…), **documents
-  texte** (PDF, Word, Markdown, txt) — et/ou des **liens YouTube** (vidéos
-  unitaires), avec **contrôle de l'ordre** de traitement et possibilité
-  d'**exclure** certaines sources ;
-- produit en sortie **un document consolidé** par langue de sortie demandée,
-  accompagné des **documents par source** et d'un **glossaire** ;
-- garantit la **fidélité au discours oral** (pas d'hallucination,
-  reformulation pure) tout en respectant **les règles de l'art de l'écrit**
-  dans la langue cible ;
-- s'installe **en un double-clic** et se pilote **entièrement via l'interface
-  graphique** (aucune édition de fichier requise).
+- accepts as input a **folder of heterogeneous sources** — **videos** (MP4,
+  MKV, MOV, WebM…), **audio files** (WAV, MP3, M4A, FLAC…), **text
+  documents** (PDF, Word, Markdown, txt) — and/or **YouTube links** (single
+  videos), with **control over the processing order** and the ability to
+  **exclude** specific sources;
+- produces as output **one consolidated document** per requested output
+  language, accompanied by **per-source documents** and a **glossary**;
+- guarantees **fidelity to the spoken content** (no hallucination, pure
+  rephrasing) while respecting the **written-language norms** of the target
+  language;
+- installs **with a double-click** and is driven **entirely through the
+  graphical interface** (no file editing required);
+- is **fully internationalised** (French / English UI) via the native Qt
+  translation stack — the language is chosen from **Edit → Global
+  settings → Language** and takes effect at the next launch.
 
-## 3. Profil de l'utilisateur cible
+## 3. Target user profile
 
-- **Enseignant** ou **formateur** d'un domaine où la précision terminologique
-  compte (économie, finance, sciences, ingénierie).
-- Pas d'expertise technique requise : connaissance basique de Windows,
-  capacité à saisir une clé API dans un formulaire.
-- Travaille sur son **poste personnel** (mono-utilisateur), avec ou sans GPU
-  NVIDIA.
+- **Lecturer** or **trainer** in a field where terminological precision
+  matters (economics, finance, science, engineering).
+- No technical expertise required: basic Windows knowledge, ability to
+  paste an API key into a form.
+- Works on their **personal machine** (single user), with or without an
+  NVIDIA GPU.
 
-## 4. Fonctions principales
+## 4. Main functions
 
-### 4.1 Gestion des projets
+### 4.1 Project management
 
-Un **Projet** dans Fahmi2 = une **identité minimale** (nom + emplacement) à
-laquelle s'attachent des réglages **par fonctionnalité** + un historique de runs.
-L'application est organisée en **onglets de fonctionnalité** : **Génération**
-(vidéos → documents), **Supports pédagogiques** (document consolidé + glossaire
-→ flashcards, QCM, fiches, examen blanc…) et **Dialogue** (chat conversationnel
-ancré sur le corpus : questions en langage naturel, réponses **citées** et
-diffusées **en streaming**, fidélité configurable strict/augmenté, retrieval
-lexical ou sémantique, conversations persistées). L'onglet Supports pédagogiques propose
-des **réglages** (⚙ : supports, difficulté, langues, modèle & coût), un bouton
-**Générer** et **Estimer le coût**, une **table de progression** (support × langue)
-et un **bandeau d'état** (« génération requise » / « prêt » / « à jour » /
-« périmé »). Les supports sont écrits sous `<emplacement>/pedagogy/`. Un bouton
-**Exporter** propose 5 formats : **Anki `.apkg`** (flashcards, textes à trous, QCM ;
-ré-import sans doublon), **Markdown**, **PDF**, **HTML** et **Word (`.docx`)** — ces
-quatre derniers produisant **un fichier par support et par corrigé**
-(`<support>.<langue>.<ext>` / `<support>.<langue>.corrige.<ext>`), chacun autonome.
+A **Project** in Fahmi2 = a **minimal identity** (name + location) with
+attached **per-feature settings** + a run history.
+The application is organised around **feature tabs**: **Generation** (videos
+→ documents), **Revision materials** (consolidated document + glossary
+→ flashcards, MCQs, summary sheets, mock exam…) and **Dialogue**
+(conversational chat anchored on the corpus: natural-language questions,
+**cited** answers **streamed** live, configurable strict/augmented
+fidelity, lexical or semantic retrieval, persisted conversations). The
+Revision materials tab exposes **settings** (⚙: materials, difficulty,
+languages, model & cost), a **Generate** button + **Estimate cost**, a
+**progress table** (material × language) and a **status banner** ("generation
+required" / "ready" / "up to date" / "stale"). Materials are written to
+`<location>/pedagogy/`. An **Export** button offers 5 formats: **Anki
+`.apkg`** (flashcards, cloze, MCQs; re-import without duplicates),
+**Markdown**, **PDF**, **HTML** and **Word (`.docx`)** — these last four
+produce **one file per material and per answer key**
+(`<material>.<lang>.<ext>` / `<material>.<lang>.corrige.<ext>`), each
+self-contained.
 
-- Création d'un projet via un **dialogue minimal** (nom + emplacement) ; les
-  réglages de génération se configurent ensuite depuis l'onglet **Génération →
-  ⚙ Réglages** ;
-- **Historique** complet des runs visibles dans la sidebar ;
-- Possibilité de **rouvrir** un projet ancien, voir son rapport, ou le
-  relancer.
+- Project creation through a **minimal dialog** (name + location); the
+  generation settings are then configured from the **Generation → ⚙
+  Settings** tab;
+- Full **history** of runs visible in the sidebar;
+- Ability to **reopen** an older project, see its report, or re-run it.
 
-### 4.2 Pipeline de traitement
+### 4.2 Processing pipeline
 
-Pour chaque projet, le **pipeline en 8 phases** transforme les sources en
-documents :
+For each project, the **8-phase pipeline** turns sources into documents:
 
 | Phase | Description |
 |-------|-------------|
-| 0. STT | Transcription audio → texte (Whisper local ou cloud ; les documents texte sont extraits sans STT) |
-| 1. Termes | Extraction des termes techniques candidats par source |
-| 2. Glossaire | Réconciliation cross-sources pour produire un glossaire master |
-| 3. Reformulation | Reformulation écrite fidèle, par source, en langue source |
-| 4. Structuration | Mise en forme Markdown avec titres, intro, conclusion, admonitions sémantiques (remarques, exemples, définitions, exercices) |
-| 5. Consolidation | Assemblage du document consolidé selon le **mode choisi** (cf. §4.3) : **ordonné** (1 source = 1 chapitre, contenu recopié) ou **refonte thématique** (le LLM agrège/restructure transversalement par thème) |
-| 6. Traduction | Production des artefacts dans toutes les langues de sortie demandées |
-| 7. Cohérence | Passe finale de relecture des méta-éléments |
+| 0. STT | Audio → text transcription (local or cloud Whisper; text documents are extracted without STT) |
+| 1. Terms | Per-source extraction of candidate technical terms |
+| 2. Glossary | Cross-source reconciliation producing a master glossary |
+| 3. Rephrasing | Faithful written rephrasing, per source, in the source language |
+| 4. Structuring | Markdown formatting with headings, intro, conclusion, semantic admonitions (notes, examples, definitions, exercises) |
+| 5. Consolidation | Assembly of the consolidated document according to the **chosen mode** (cf. §4.3): **ordered** (1 source = 1 chapter, content copied) or **thematic rewrite** (the LLM aggregates/restructures cross-cuttingly by theme) |
+| 6. Translation | Production of artefacts in every requested output language |
+| 7. Coherence | Final review pass on the meta elements |
 
-### 4.3 Paramétrage métier
+### 4.3 Configuration
 
-L'utilisateur configure **via l'interface** (et **uniquement** via l'interface) :
+The user configures **through the interface** (and **only** through the
+interface):
 
-- **Clés API** : OpenAI (pour Whisper cloud), DeepSeek (pour les phases LLM).
-- **Provider STT** : Whisper local (GPU NVIDIA requis) ou OpenAI cloud (gère les
-  longues vidéos via compression Opus + découpage automatiques, transparent).
-- **Modèle LLM** : DeepSeek v4 Flash ou Pro.
-- **Mode raisonnement** (`thinking` activé / désactivé), **niveau de
-  raisonnement** (`HIGH` / `MAX`) et **température**, configurables
-  **par phase LLM** indépendamment.
-- **Langues du document** (français, anglais, allemand, espagnol, italien,
-  chinois, arabe) : langues produites + **langue principale** (l'originale, rédigée
-  directement ; les autres en sont traduites).
-- **Style de rendu** : décontracté / standard / professionnel / académique.
-- **Mode de consolidation** : **ordonné** (1 source = 1 chapitre, contenu recopié
-  dans l'ordre choisi) ou **refonte thématique** (le LLM agrège et restructure
-  transversalement les contenus de toutes les sources par thème — synthèse
-  journalistique, rigueur sur le fond / souplesse sur la forme ; en ce mode,
-  l'ordre des sources est sans effet).
-- **Directives stylistiques libres** en texte.
-- **Plafond budget** optionnel avec arrêt automatique propre.
-- **Surcouche utilisateur des prompts** via éditeur intégré
-  (menu **Édition → Modifier les prompts…**) : tous les templates des 7
-  phases LLM (dont les **3 prompts du mode thématique**), des **8 supports
-  pédagogiques** et des **3 prompts du Dialogue** peuvent être personnalisés sans
-  toucher au code, avec validation Jinja2 et retour au défaut bundlé d'un clic.
+- **API keys**: OpenAI (for cloud Whisper), DeepSeek (for the LLM phases).
+- **STT provider**: local Whisper (NVIDIA GPU required) or OpenAI cloud
+  (handles long videos via automatic Opus compression + chunking,
+  transparent).
+- **LLM model**: DeepSeek v4 Flash or Pro.
+- **Reasoning mode** (`thinking` on / off), **reasoning effort**
+  (`HIGH` / `MAX`) and **temperature**, configurable
+  **per LLM phase** independently.
+- **Document languages** (French, English, German, Spanish, Italian,
+  Chinese, Arabic): produced languages + **primary language** (the original,
+  drafted directly; the others are translated from it).
+- **Rendering style**: casual / standard / professional / academic.
+- **Consolidation mode**: **ordered** (1 source = 1 chapter, content copied
+  in the chosen order) or **thematic rewrite** (the LLM aggregates and
+  restructures cross-cuttingly the contents of all sources by theme —
+  investigative-style synthesis, factual rigour / formal flexibility; in
+  this mode source order has no effect).
+- **Free-text style directives**.
+- **Optional budget cap** with clean automatic stop.
+- **User override of prompts** through the built-in editor
+  (menu **Edit → Edit prompts…**): every template of the 7 LLM phases
+  (including the **3 thematic-mode prompts**), the **8 revision materials**,
+  and the **3 Dialogue prompts** can be customised without touching the
+  code, with Jinja2 validation and one-click reset-to-default.
+- **Interface language**: French (source) or English, chosen under
+  **Edit → Global settings → Language** (applies at the next launch).
 
-### 4.4 Pilotage d'un run
+### 4.4 Driving a run
 
-- Lancement, **pause**, **reprise**, **annulation** d'un run via les boutons
-  de la barre d'en-tête.
-- **Reprise fine par phase** après pause, annulation ou crash : aucun
-  travail perdu, le pipeline reprend exactement où il s'était arrêté.
-- **Estimation de coût pré-run** : bouton **💵 Estimer le coût** dans
-  la barre d'en-tête. Le calcul intègre le modèle, le nombre de langues
-  cibles et le **surcoût empirique du mode thinking par phase** selon le
-  niveau de raisonnement choisi.
-- **Coût cumulé** et **durée live** affichés en temps réel pendant le
-  Run.
-- **Ouvrir le dossier de sortie** en un clic depuis la barre
-  d'en-tête à la fin du Run.
-- **Exporter** les livrables de la génération (document **consolidé** et
-  **glossaire**, un fichier par langue) en **Markdown**, **PDF**, **HTML** ou
-  **Word (`.docx`)** vers un dossier choisi. Les formats proposés se cochent dans
-  **⚙ Réglages → Export** (aucun par défaut — opt-in).
-- **Traitement parallèle** : les phases par source (transcription cloud,
-  extraction de termes, reformulation, structuration) traitent plusieurs sources
-  simultanément, et les phases finales parallélisent traduction et cohérence ;
-  le nombre d'appels concurrents est réglable. La transcription **locale** reste
-  séquentielle (un seul GPU).
+- Start, **pause**, **resume**, **cancel** a run via the header bar
+  buttons.
+- **Fine-grained per-phase resume** after pause, cancellation, or crash: no
+  work lost, the pipeline picks up exactly where it stopped.
+- **Pre-run cost estimate**: **💵 Estimate cost** button in the header
+  bar. The calculation accounts for the model, the number of target
+  languages, and the **empirical surcharge of thinking mode per phase**
+  according to the chosen reasoning level.
+- **Cumulative cost** and **live duration** displayed in real time during
+  the Run.
+- **Open output folder** in one click from the header bar at the end of
+  the Run.
+- **Export** generation deliverables (the **consolidated document** and
+  **glossary**, one file per language) to **Markdown**, **PDF**, **HTML**
+  or **Word (`.docx`)** to a chosen folder. The offered formats are ticked
+  under **⚙ Settings → Export** (none by default — opt-in).
+- **Parallel processing**: per-source phases (cloud transcription, term
+  extraction, rephrasing, structuring) process several sources in parallel,
+  and the final phases parallelise translation and coherence; the number of
+  concurrent calls is configurable. **Local** transcription stays sequential
+  (a single GPU).
 
-### 4.5 Visualisation de l'avancement
+### 4.5 Progress display
 
-L'interface principale (cockpit dense, thème **Clair Fluent**) affiche en
-temps réel :
+The main interface (dense cockpit, **Light Fluent** theme — with a
+mirror **Dark** mode) displays in real time:
 
-- **Une matrice 2D** : une ligne par source, une colonne par phase. Chaque
-  cellule affiche le statut (en attente, en cours, succès, échec, sauté)
-  avec un symbole **et une couleur** (vert succès, bleu en cours, gris
-  attente, rouge échec, indigo sauté). Au survol : détail (timestamps,
-  coût, retries, erreur éventuelle). En-têtes courts et lisibles (STT,
-  Termes, Glossaire, Reformul., Structur., Consolid., Traduction,
-  Cohérence).
-- **Six cartes d'indicateurs** : Statut, Sources, Phases, Langues, **Durée**,
-  Coût. Chaque carte = icône + titre + valeur en grand + sous-info. La
-  carte Durée est mise à jour chaque seconde tant que le Run tourne.
-- **Un panneau de logs** filtrable par sévérité, avec coloration
-  (INFO gris, WARN orange, ERREUR rouge, FATAL rouge gras), horodatage
-  compact `HH:MM:SS` et police monospace.
+- **A 2D matrix**: one row per source, one column per phase. Each cell
+  shows the status (pending, running, succeeded, failed, skipped) with a
+  symbol **and a colour** (green for success, blue for running, grey for
+  pending, red for failed, indigo for skipped). On hover: details
+  (timestamps, cost, retries, possible error). Short, readable headers
+  (STT, Terms, Glossary, Rephras., Structur., Consolid., Translation,
+  Coherence).
+- **Six indicator cards**: Status, Sources, Phases, Languages,
+  **Duration**, Cost. Each card = icon + title + large value + sub-info.
+  The Duration card is refreshed every second while the Run is running.
+- **A log panel** filterable by severity, with colouring (INFO grey, WARN
+  amber, ERROR red, FATAL bold red), compact `HH:MM:SS` timestamp and
+  monospace font.
 
-### 4.6 Livrables produits
+### 4.6 Deliverables produced
 
-À l'issue d'un run, le dossier `output/` contient pour chaque langue :
+After a run, the `output/` folder contains, for each language:
 
-- `consolidated.{lang}.md` — document consolidé navigable :
-  - Titre global, **résumé exécutif** (abstract synthétique), puis introduction générale.
-  - **Sommaire automatique** complet avec ancres GFM cliquables vers
-    chaque section.
-  - Chapitres et sections **numérotés hiérarchiquement** (1, 1.1, 1.1.1).
-  - Contenu des sources recopié tel quel (pas de réécriture par le LLM).
-  - **Admonitions élégantes** : 📝 Remarque, 💡 Exemple, 📖 Définition,
-    🎯 Exercice (blockquotes Markdown avec emoji, plus lisibles que les
-    GFM `[!NOTE]` bruts). Les emoji s'affichent en Markdown, HTML et Word ; ils
-    sont **omis à l'export PDF** (le moteur de rendu ne sait pas dessiner les
-    emoji couleur — le texte de l'admonition, lui, reste intact).
-  - Conclusion générale.
-- `glossary.{lang}.md` — glossaire en **tableau Markdown 4 colonnes**
-  trié alphabétiquement :
-  - **Terme** (forme longue), **Acronyme** (`PIB`, `ROI`, `IFRS`…),
-    **Signification** (expansion littérale de l'acronyme dans sa langue
-    d'origine — *Return On Investment* pour ROI, même dans un glossaire
-    FR), **Définition** (contextuelle).
-- `per-video/{lang}/<source_id>.md` — un document Markdown autonome par
-  source, avec son propre titre, intro, conclusion et admonitions
-  sémantiques.
+- `consolidated.{lang}.md` — navigable consolidated document:
+  - Global title, **executive summary** (synthetic abstract), then a
+    general introduction.
+  - Full **automatic table of contents** with clickable GFM anchors to
+    every section.
+  - Chapters and sections **hierarchically numbered** (1, 1.1, 1.1.1).
+  - Source contents copied as-is (no rewriting by the LLM).
+  - **Elegant admonitions**: 📝 Note, 💡 Example, 📖 Definition, 🎯
+    Exercise (Markdown blockquotes with an emoji, more readable than the
+    raw GFM `[!NOTE]` syntax). Emojis are displayed in Markdown, HTML, and
+    Word; they are **omitted on PDF export** (the rendering engine cannot
+    draw colour emojis — the admonition text remains intact).
+  - General conclusion.
+- `glossary.{lang}.md` — glossary as a **4-column Markdown table**
+  sorted alphabetically:
+  - **Term** (long form), **Acronym** (`PIB`, `ROI`, `IFRS`…),
+    **Meaning** (literal expansion of the acronym in its original
+    language — *Return On Investment* for ROI, even in a French
+    glossary), **Definition** (contextual).
+- `per-video/{lang}/<source_id>.md` — a self-contained Markdown document
+  per source, with its own title, intro, conclusion, and semantic
+  admonitions.
 
-Tous les fichiers sont en **Markdown UTF-8**, ouvrables dans n'importe quel
-éditeur, dans VS Code ou Obsidian. L'**export intégré** produit en plus, à la
-demande, des versions **PDF**, **HTML** et **Word (`.docx`)** (cf. § 4.4).
+All files are **UTF-8 Markdown**, openable in any editor, in VS Code or
+Obsidian. The **built-in export** additionally produces, on demand, **PDF**,
+**HTML**, and **Word (`.docx`)** versions (cf. § 4.4).
 
-### 4.7 Dialogue (chat ancré sur le corpus)
+### 4.7 Dialogue (chat anchored on the corpus)
 
-Un troisième onglet, **Dialogue**, permet d'**interroger le cours** en langage
-naturel une fois la génération produite. Les réponses sont **ancrées** sur le
-document consolidé et le glossaire, **citées** (chapitre › section, cliquables) et
-**diffusées en streaming**.
+A third tab, **Dialogue**, lets you **query the course** in natural
+language once the generation has been produced. Answers are **anchored** on
+the consolidated document and the glossary, **cited** (chapter › section,
+clickable) and **streamed** live.
 
-- **Fidélité configurable** : *strict* (réponse uniquement à partir du cours,
-  refus poli hors-corpus) ou *augmenté* (complément de connaissances générales
-  clairement balisé).
-- **Recherche de passages** : lexicale (hors-ligne) ou sémantique (embeddings
-  OpenAI, **modèle configurable**), avec un mode **automatique** et une
-  reformulation de requête à la demande.
-- **Langue au choix par conversation** : si la génération a produit plusieurs
-  langues, un sélecteur fixe la langue d'une nouvelle conversation — le Dialogue
-  **lit, cite et répond** dans cette langue, glossaire cité entièrement localisé
-  (terme + définition).
-- **Conversations** multiples persistées par projet, **supprimables** ; **coût**
-  par message et cumulé **exhaustif** (réponse + embeddings + reformulation).
-- Réglages (fidélité, retrieval, modèles LLM/embedding) et **prompts éditables**
-  comme le reste.
+- **Configurable fidelity**: *strict* (answer only from the course, polite
+  refusal off-corpus) or *augmented* (general-knowledge supplement,
+  clearly flagged).
+- **Passage search**: lexical (offline) or semantic (OpenAI embeddings,
+  **configurable model**), with an **automatic** mode and on-demand query
+  rephrasing.
+- **Language per conversation**: if the generation has produced several
+  languages, a selector fixes the language of a new conversation — the
+  Dialogue **reads, cites, and answers** in that language, with the cited
+  glossary fully localised (term + definition).
+- **Multiple conversations** persisted per project, **deletable**;
+  **per-message and cumulative cost** are **exhaustive** (answer +
+  embeddings + rephrasing).
+- Settings (fidelity, retrieval, LLM/embedding models) and **editable
+  prompts** like the rest.
 
-## 5. Promesses de qualité
+## 5. Quality promises
 
-### 5.1 Fidélité au discours
+### 5.1 Fidelity to the spoken content
 
-- En mode de consolidation **ordonné** (défaut), le pipeline **ne réécrit
-  jamais** le contenu détaillé : les chapitres sont les sorties structurées des
-  sources individuelles, recopiées telles quelles (1 source = 1 chapitre).
-- En mode **refonte thématique**, le LLM **réorganise et reformule** les contenus
-  par thème, mais sous une règle stricte de **rigueur sur le fond** : interdiction
-  d'inventer ou d'ajouter des faits, préservation des chiffres/données/raisonnements
-  (garantie par un relevé factuel tracé + un double contrôle de couverture), et
-  **conflits entre sources présentés** au lecteur sans arbitrage. La souplesse ne
-  porte que sur la **forme** (fusion, déduplication, transitions, structure).
-- Dans les deux modes, le LLM est explicitement instruit de **ne pas inventer**
-  de contenu absent des sources.
+- In the **ordered** consolidation mode (default), the pipeline **never
+  rewrites** the detailed content: chapters are the structured outputs of
+  individual sources, copied as-is (1 source = 1 chapter).
+- In **thematic rewrite** mode, the LLM **reorganises and rephrases** the
+  contents by theme, but under a strict **factual-rigour** rule: ban on
+  inventing or adding facts, preservation of figures/data/reasoning
+  (guaranteed by a traced factual ledger + double coverage check), and
+  **conflicts between sources surfaced** to the reader without arbitration.
+  The flexibility only touches the **form** (fusion, deduplication,
+  transitions, structure).
+- In both modes, the LLM is explicitly instructed **not to invent** content
+  absent from the sources.
 
-### 5.2 Cohérence terminologique
+### 5.2 Terminological consistency
 
-- Un **glossaire master** est construit en deux passes (extraction puis
-  réconciliation) à partir des termes extraits indépendamment de chaque
-  source.
-- Les termes pertinents sont ré-injectés en contexte LLM lors de la
-  reformulation, de la structuration et de la traduction pour garantir
-  l'orthographe et le sens cohérents à travers tout le batch.
-- **Localisation des termes par langue** : pour chaque langue produite, les termes
-  du glossaire sont traduits vers leur **équivalent métier consacré** (« Bilan » →
-  « Balance sheet », « Bilanz »…), **sauf** les termes internationaux, noms propres,
-  marques ou normes (IFRS, WACC, ROI, Big Four…) qui sont conservés tels quels — la
-  décision se prenant terme par terme. Le **même terme localisé** est utilisé dans le
-  glossaire, le document consolidé, les supports pédagogiques et le Dialogue.
-- L'**expansion d'acronyme** (champ `acronym_expansion`) est conservée
-  dans sa langue d'origine et n'est jamais traduite : un glossaire FR
-  expose `ROI = Return On Investment`, un glossaire EN expose
-  `PIB = Produit Intérieur Brut`. Le prompt de traduction est
-  explicitement instruit de préserver le contenu de la colonne
-  *Signification* / *Meaning* d'un tableau de glossaire.
+- A **master glossary** is built in two passes (extraction then
+  reconciliation) from terms extracted independently from each source.
+- The relevant terms are re-injected into the LLM context during
+  rephrasing, structuring, and translation to guarantee consistent
+  spelling and meaning across the whole batch.
+- **Per-language term localisation**: for each produced language, the
+  glossary terms are translated to their **established domain equivalent**
+  ("Bilan" → "Balance sheet", "Bilanz"…), **except** international terms,
+  proper nouns, brands, or standards (IFRS, WACC, ROI, Big Four…), which
+  are kept as-is — the decision is made term by term. The **same localised
+  term** is used in the glossary, the consolidated document, the revision
+  materials, and the Dialogue.
+- The **acronym expansion** (`acronym_expansion` field) is kept in its
+  original language and is never translated: a French glossary exposes
+  `ROI = Return On Investment`, an English glossary exposes
+  `PIB = Produit Intérieur Brut`. The translation prompt is explicitly
+  instructed to preserve the contents of the *Meaning* column of a glossary
+  table.
 
-### 5.3 Robustesse
+### 5.3 Robustness
 
-- **Checkpointing fin** : chaque phase produit un artefact persistant ; la
-  reprise après interruption est immédiate.
-- **Retry policy** avec backoff exponentiel sur les erreurs transitoires
-  (rate limit, server error, réseau).
-- **Logs structurés JSONL** : exploitables post-mortem en cas d'incident.
-- **Stockage chiffré** des clés API (Windows DPAPI).
+- **Fine-grained checkpointing**: each phase produces a persistent
+  artefact; resuming after interruption is instantaneous.
+- **Retry policy** with exponential backoff on transient errors (rate
+  limit, server error, network).
+- **Structured JSONL logs**: usable post-mortem in case of incident.
+- **Encrypted storage** of API keys (Windows DPAPI).
 
-### 5.4 Coût maîtrisé
+### 5.4 Controlled cost
 
-- **Estimation pré-run** accessible à tout moment depuis la barre
-  d'en-tête, qui intègre :
-  - Le modèle LLM (Flash vs Pro).
-  - Le provider STT (gratuit en local, ~0,006 $/min en cloud).
-  - La configuration **phase par phase** : mode thinking et niveau
-    de raisonnement, traduits en un multiplicateur empirique appliqué
-    aux tokens de sortie (le mode thinking génère typiquement 2 à 6×
-    plus de tokens de complétion).
-- **Plafond budget** configurable avec **arrêt propre** (jamais d'interruption
-  brutale au milieu d'un appel LLM en cours).
-- **Tarification DeepSeek transparente** (input cache hit / cache miss /
-  output) dans le code source, mise à jour facile.
+- **Pre-run estimate** accessible at any time from the header bar, which
+  accounts for:
+  - The LLM model (Flash vs Pro).
+  - The STT provider (free locally, ~0.006 $/min in the cloud).
+  - The **phase-by-phase** configuration: thinking mode and reasoning
+    level, translated into an empirical multiplier applied to output
+    tokens (thinking mode typically generates 2 to 6× more completion
+    tokens).
+- **Configurable budget cap** with **clean stop** (never a brutal
+  interruption in the middle of an in-flight LLM call).
+- **Transparent DeepSeek pricing** (input cache hit / cache miss /
+  output) in the source code, easy to update.
 
-## 6. Périmètre v1 — limites assumées
+## 6. v1 scope — assumed limits
 
-### Inclus
+### Included
 
-- 7 langues, dans les deux sens : **français, anglais, allemand, espagnol,
-  italien, chinois, arabe**.
-- 2 providers STT (FasterWhisper local + OpenAI cloud).
-- 1 fournisseur LLM (**DeepSeek v4**, deux modèles).
-- 4 styles de rendu.
-- Formats de sortie : génération et supports pédagogiques exportables en
-  **Markdown**, **PDF**, **HTML** et **Word (`.docx`)** ; les supports ajoutent
-  l'**Anki `.apkg`**. Le rendu PDF gère le **chinois** (police système Microsoft
-  YaHei, **retours à la ligne** automatiques) et l'**arabe** (droite-à-gauche +
-  liaison contextuelle) ; l'**arabe** est aussi rendu **droite-à-gauche en Word**
-  (bidi + inversion des colonnes du tableau). Le **glossaire** s'exporte en
-  **paysage** (PDF et Word).
-- **Dialogue** : chat ancré sur le corpus (citations + streaming), retrieval
-  lexical (hors-ligne) ou sémantique (embeddings OpenAI ; recommandé pour le
-  chinois).
-- Plateforme : **Windows 11** (10 minimum).
+- 7 languages, in both directions: **French, English, German, Spanish,
+  Italian, Chinese, Arabic**.
+- 2 STT providers (local FasterWhisper + OpenAI cloud).
+- 1 LLM provider (**DeepSeek v4**, two models).
+- 4 rendering styles.
+- Output formats: generation and revision materials exportable to
+  **Markdown**, **PDF**, **HTML**, and **Word (`.docx`)**; revision
+  materials add **Anki `.apkg`**. PDF rendering handles **Chinese**
+  (Microsoft YaHei system font, automatic **line breaks**) and **Arabic**
+  (right-to-left + contextual shaping); **Arabic** is also rendered
+  **right-to-left in Word** (bidi + table column inversion). The
+  **glossary** exports in **landscape** orientation (PDF and Word).
+- **Dialogue**: chat anchored on the corpus (citations + streaming),
+  lexical (offline) or semantic (OpenAI embeddings; recommended for
+  Chinese) retrieval.
+- **UI internationalisation**: native Qt stack (FR source + EN), language
+  selectable from Global settings, persisted in `ui_prefs.json`.
+- Platform: **Windows 11** (10 minimum).
 
-### Hors v1
+### Out of v1
 
-- Multi-utilisateur, collaboration, cloud sync.
-- Édition manuelle des transcriptions dans l'UI.
-- Autres LLM que DeepSeek (architecture prête mais non implémenté).
+- Multi-user, collaboration, cloud sync.
+- Manual editing of transcripts in the UI.
+- LLMs other than DeepSeek (architecture is ready but not implemented).
 - Auto-update.
-- Signature de code (l'EXE n'est pas signé en v1).
+- Code signing (the EXE is not signed in v1).
 
-## 7. Cas d'usage typiques
+## 7. Typical use cases
 
-### Cas A : prof de macroéconomie L3
+### Case A: 3rd-year macroeconomics lecturer
 
-- 30 vidéos de cours hebdomadaires de 25 min chacune (~12 h d'audio).
-- Souhaite produire un **support PDF complet** consolidé en français pour
-  ses étudiants, plus une version anglaise pour le programme international.
-- Configuration : STT cloud (~4 $), DeepSeek v4 flash, style académique,
-  sortie FR + EN.
-- Durée totale : ~3 h. Coût : ~10-15 $ tout compris.
+- 30 weekly lecture videos of 25 min each (~12 h of audio).
+- Wants to produce a **complete PDF handout** consolidated in French for
+  the students, plus an English version for the international programme.
+- Configuration: cloud STT (~$4), DeepSeek v4 Flash, academic style, FR +
+  EN output.
+- Total duration: ~3 h. Cost: ~$10–15 all-in.
 
-### Cas B : formateur en finance d'entreprise
+### Case B: corporate finance trainer
 
-- 15 vidéos de séminaire de 45 min chacune.
-- Souhaite uniquement la version FR, style professionnel, avec un glossaire
-  riche pour l'autoformation.
-- Configuration : STT local (GPU disponible, gratuit), DeepSeek v4 pro,
-  pas de plafond.
-- Durée : ~1,5 h. Coût : ~8-12 $ (LLM seul).
+- 15 seminar videos of 45 min each.
+- Wants only the FR version, professional style, with a rich glossary for
+  self-learning.
+- Configuration: local STT (GPU available, free), DeepSeek v4 Pro, no
+  cap.
+- Duration: ~1.5 h. Cost: ~$8–12 (LLM only).
 
-## 8. Bénéfices clés
+## 8. Key benefits
 
-1. **Gain de temps** : ce qui prendrait des dizaines d'heures à transcrire
-  et reformuler manuellement se fait en quelques heures, sans intervention.
-2. **Cohérence** : terminologie homogène sur 50 vidéos, ce qui est très
-  difficile à obtenir manuellement.
-3. **Réutilisabilité** : les sorties Markdown peuvent alimenter un site, un
-  LMS, une base de connaissances, des supports imprimés.
-4. **Maîtrise du coût** : estimation et plafond automatiques, pas de
-  surprise sur la facture.
-5. **Discrétion** : tout reste local, aucune télémétrie ; les clés API sont
-  chiffrées sur disque ; les contenus quittent le poste uniquement quand
-  l'utilisateur a choisi un provider cloud.
+1. **Time saved**: what would take tens of hours of manual transcription
+  and rephrasing is done in a few hours, without intervention.
+2. **Consistency**: homogeneous terminology across 50 videos, very hard to
+  achieve manually.
+3. **Reusability**: the Markdown outputs can feed a website, an LMS, a
+  knowledge base, printed materials.
+4. **Cost control**: automatic estimation and cap, no surprise on the
+  bill.
+5. **Discretion**: everything stays local, no telemetry; API keys are
+  encrypted on disk; content leaves the machine only when the user has
+  chosen a cloud provider.

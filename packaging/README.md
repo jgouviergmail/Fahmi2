@@ -1,256 +1,263 @@
-# Packaging Fahmi2 (Windows portable .zip)
+# Fahmi2 packaging (portable Windows `.zip`)
 
-> Build entièrement automatisé : ffmpeg est téléchargé et bundlé
-> automatiquement par les scripts. L'utilisateur final n'a aucune
-> dépendance externe à installer.
+> Fully automated build: ffmpeg is downloaded and bundled by the scripts.
+> The end user has no external dependency to install.
 
-## Pré-requis développeur
+## Developer prerequisites
 
-1. **Python 3.11 ou 3.12** installé (cf.
+1. **Python 3.11 or 3.12** installed (see
    [docs/03-installation.md](../docs/03-installation.md)).
-2. **Venv activé** avec les dépendances :
+2. **venv activated** with the dependencies:
    ```powershell
    python -m venv .venv
    .\.venv\Scripts\Activate.ps1
    pip install -e ".[dev]"
    pip install pyinstaller>=6.10
    ```
-3. **Accès internet** : le script de build télécharge ffmpeg portable s'il
-   n'est pas déjà présent dans `vendor/ffmpeg/bin/`.
+3. **Internet access**: the build script downloads portable ffmpeg unless it
+   is already present under `vendor/ffmpeg/bin/`.
 
-## Build en une commande
+## One-command build
 
 ```powershell
 .\packaging\build.ps1
 ```
 
-Le script orchestre automatiquement :
+The script orchestrates the following automatically:
 
-1. **fetch-ffmpeg.ps1** — téléchargement de `ffmpeg-release-essentials.zip`
-   depuis https://www.gyan.dev/ffmpeg/, vérification SHA256, **vérification de la
-   présence de l'encodeur `libopus`** (requis pour la préparation audio du STT
-   cloud — le build échoue sinon), extraction de `ffmpeg.exe` et `ffprobe.exe`
-   dans `vendor/ffmpeg/bin/`. Idempotent : skip si les binaires sont déjà présents.
-2. Nettoyage des anciens `build/` et `dist/`.
-3. Vérification de la présence de `pyinstaller`.
-4. **PyInstaller `--onedir`** : produit `dist/Fahmi2/` contenant
-   `Fahmi2.exe`, toutes les dépendances Python, ffmpeg + ffprobe bundlés,
-   les templates de prompts, le DDL SQLite, le fichier de messages
-   localisés FR.
+1. **fetch-ffmpeg.ps1** — downloads `ffmpeg-release-essentials.zip` from
+   <https://www.gyan.dev/ffmpeg/>, verifies the SHA-256, **verifies the
+   presence of the `libopus` encoder** (required for the cloud-STT audio
+   preparation — the build fails otherwise), extracts `ffmpeg.exe` and
+   `ffprobe.exe` to `vendor/ffmpeg/bin/`. Idempotent: skips if the binaries
+   are already present.
+2. Cleans the previous `build/` and `dist/`.
+3. Verifies `pyinstaller` is available.
+4. **PyInstaller `--onedir`**: produces `dist/Fahmi2/` containing
+   `Fahmi2.exe`, every Python dependency, bundled ffmpeg + ffprobe, the
+   prompt templates, the SQLite schema, and the localised message files.
 
-## Génération de l'archive de distribution
+## Distribution archive
 
 ```powershell
 .\packaging\make-portable-zip.ps1
 ```
 
-Produit `dist/Fahmi2-<version>-win64.zip` à partir de `dist/Fahmi2/`.
+Produces `dist/Fahmi2-<version>-win64.zip` from `dist/Fahmi2/`.
 
-## Tester l'EXE buildé
+## Testing the built EXE
 
 ```powershell
 .\dist\Fahmi2\Fahmi2.exe
 ```
 
-L'application doit se lancer en moins de 5 secondes et afficher la
-fenêtre principale.
+The application must start in under 5 seconds and display the main
+window.
 
-## Vérifier la taille
+## Checking the size
 
 ```powershell
 Get-ChildItem dist/Fahmi2 -Recurse | Measure-Object -Property Length -Sum |
     Select-Object @{n='SizeMB';e={[math]::Round($_.Sum / 1MB, 1)}}
 ```
 
-Ordre de grandeur (v1.0.0) : **≈ 670 Mo déployé** (`dist/Fahmi2/`), **≈ 270 Mo
-zippé** — Python embarqué + PySide6 + faster-whisper/CTranslate2 + ffmpeg (≈ 200 Mo)
-+ sklearn + reportlab/xhtml2pdf.
+Order of magnitude (v1.0.0): **≈ 670 MB deployed** (`dist/Fahmi2/`),
+**≈ 270 MB zipped** — embedded Python + PySide6 + faster-whisper/CTranslate2 +
+ffmpeg (≈ 200 MB) + sklearn + reportlab/xhtml2pdf.
 
 ## Distribution
 
-Distribuer le `.zip`. L'utilisateur final :
+Distribute the `.zip`. The end user:
 
-1. Télécharge `Fahmi2-<version>-win64.zip`.
-2. Décompresse dans un dossier de son choix (ex: `C:\Apps\Fahmi2\`).
-3. Double-clique sur `Fahmi2.exe`.
-4. Au 1er lancement, **SmartScreen** affichera un avertissement *« Éditeur
-   inconnu »* — cliquer *« Plus d'infos »* → *« Exécuter quand même »*
-   (une seule fois).
+1. Downloads `Fahmi2-<version>-win64.zip`.
+2. Unzips it to any folder (e.g. `C:\Apps\Fahmi2\`).
+3. Double-clicks `Fahmi2.exe`.
+4. On first launch, **SmartScreen** shows an *"Unknown publisher"*
+   warning — click *"More info"* → *"Run anyway"* (once).
 
-**Aucune autre action manuelle requise** : ffmpeg est bundlé, les données
-utilisateur (projets, clés API chiffrées, etc.) sont créées automatiquement
-dans `%APPDATA%\Fahmi2\` et `%LOCALAPPDATA%\Fahmi2\`.
+**No further manual action**: ffmpeg is bundled, user data (projects,
+encrypted API keys, etc.) is created automatically under `%APPDATA%\Fahmi2\`
+and `%LOCALAPPDATA%\Fahmi2\`.
 
-## Mise à jour côté utilisateur
+## User-side upgrade
 
-1. Télécharger la nouvelle version `.zip`.
-2. Fermer Fahmi2 si ouvert.
-3. Décompresser le nouveau `.zip` (peut écraser l'ancien dossier).
-4. Relancer `Fahmi2.exe`.
+1. Download the new `.zip` version.
+2. Close Fahmi2 if open.
+3. Unzip the new `.zip` (may overwrite the previous folder).
+4. Relaunch `Fahmi2.exe`.
 
-Les données utilisateur sont **automatiquement préservées** et migrées si
-nécessaire par le `MigrationRunner` interne.
+User data is **automatically preserved** and migrated where needed by the
+internal `MigrationRunner`.
 
-## Détails techniques
+## Technical details
 
-### Structure du dist/Fahmi2/
+### Layout of `dist/Fahmi2/`
 
 ```
 dist/Fahmi2/
-├── Fahmi2.exe                       ← Point d'entrée
-├── ffmpeg.exe                       ← Bundlé (depuis vendor/)
-├── ffprobe.exe                      ← Bundlé (depuis vendor/)
-├── *.dll, *.pyd                     ← Runtime Python + PySide6
+├── Fahmi2.exe                       ← Entry point
+├── ffmpeg.exe                       ← Bundled (from vendor/)
+├── ffprobe.exe                      ← Bundled (from vendor/)
+├── yt-dlp.exe                       ← Bundled (from vendor/)
+├── *.dll, *.pyd                     ← Python runtime + PySide6
 ├── _internal/
 │   ├── fahmi2/
 │   │   ├── core/errors/messages.fr.json
-│   │   ├── infra/prompts/defaults/*.j2   ← 8 phases + 3 phase_5_* thématiques + phase_6_glossary_localization + 8 pedagogy_* + 3 chat_*
-│   │   └── infra/storage/_schema.sql
-│   └── genanki/                          ← données collectées (apkg_schema.sql, apkg_col.anki2)
+│   │   ├── infra/prompts/defaults/*.j2   ← 8 phases + 3 phase_5_* thematic + phase_6_glossary_localization + 8 pedagogy_* + 3 chat_*
+│   │   ├── infra/storage/_schema.sql
+│   │   └── i18n/compiled/*.qm            ← UI translations (FR source + EN)
+│   └── genanki/                          ← collected data (apkg_schema.sql, apkg_col.anki2)
 └── …
 ```
 
-### Dépendances exports (genanki / markdown / xhtml2pdf / htmldocx)
+### Export dependencies (genanki / markdown / xhtml2pdf / htmldocx)
 
-Les exports (Anki / Markdown / PDF / HTML / Word) ajoutent des dépendances. Elles
-sont **déjà câblées** dans `packaging/fahmi2.spec` (gitignored ; build v1.0.0 validé) :
+Exports (Anki / Markdown / PDF / HTML / Word) bring in extra dependencies.
+They are **already wired up** in `packaging/fahmi2.spec` (gitignored;
+validated against the v1.0.0 build):
 
-- **`xhtml2pdf`** (export **PDF**, rendu du HTML) s'appuie sur **`reportlab`** et
-  tire `html5lib`, `pypdf`, `Pillow`, `svglib`, `arabic-reshaper`, `python-bidi`,
-  `pyHanko` — **tous Python pur** (aucun binaire natif), donc *bundleables* mais
-  ils **alourdissent** l'archive (≈ 270 Mo zippé, ≈ 670 Mo déployé). Le `.spec`
-  applique `collect_all('xhtml2pdf')` + `collect_all('reportlab')` (données et
-  **polices internes** de ReportLab) + `collect_all('arabic_reshaper')` (fichier de
-  config). L'export **HTML** n'ajoute rien (pur Python).
-- **`markdown`** (rendu Markdown→HTML, partagé HTML/PDF) charge ses extensions
-  (`tables`, `toc`…) **par nom** → `collect_submodules('markdown')` dans le `.spec`.
-- **`genanki` 0.13.1** (export `.apkg`) **inline le schéma en modules Python**
-  (`apkg_col.py` / `apkg_schema.py`) : **aucun fichier de données à collecter** —
-  ses modules sont bundlés par l'analyse d'imports. (`collect_data_files('genanki')`
-  renvoie `[]` ; conservé dans le `.spec` par sécurité si une version future
-  ré-externalise ces données.)
-- **`htmldocx`** (export **Word `.docx`**, rendu HTML→docx) s'appuie sur
-  **`beautifulsoup4`** (`bs4`) — tous deux **pur Python** ; `lxml` (natif) est
-  **déjà** tiré par `python-docx` (cf. ingestion). Imports paresseux dans
-  `markdown_docx` → `hiddenimports += ['htmldocx']` + `collect_submodules('bs4')`
-  dans le `.spec`.
-- **Polices PDF** : le rendu PDF s'appuie sur des **polices système Windows**,
-  enregistrées auprès de ReportLab — **aucune police à bundler**, mais l'EXE en
-  dépend à l'exécution (toujours présentes sur une cible Windows standard) :
-  **Arial** (`%SystemRoot%\Fonts\arial*.ttf`) pour le latin **et l'arabe** (glyphes
-  arabes + liaison contextuelle via `arabic-reshaper`/`python-bidi`) ; **Microsoft
-  YaHei** (`%SystemRoot%\Fonts\msyh.ttc`, TrueType Collection chargée via
-  `subfontIndex`) pour le **chinois**. Si YaHei est absente, l'export PDF chinois
-  lève `EXPORT.NO_CJK_FONT` (MD/HTML/Word restent disponibles). Quelques tirets
-  Unicode rares (U+2010/2011/2012/2015) non rendus par ReportLab+Arial sont
-  normalisés au rendu PDF (`markdown_pdf._normalize_for_pdf`). Deux autres
-  traitements **purement runtime** (rien à bundler) : les caractères **sans glyphe**
-  dans la police active (émojis décoratifs) sont **retirés** du PDF
-  (`_strip_unrenderable_for_pdf`), et la **prose chinoise est pré-coupée** par `<br/>`
-  (ReportLab ne coupe qu'aux espaces, absents en CJK ; `_prewrap_cjk_runs`).
+- **`xhtml2pdf`** (**PDF** export, HTML rendering) relies on **`reportlab`**
+  and pulls in `html5lib`, `pypdf`, `Pillow`, `svglib`, `arabic-reshaper`,
+  `python-bidi`, `pyHanko` — **all pure Python** (no native binary), so they
+  are *bundleable* but they **inflate** the archive (≈ 270 MB zipped,
+  ≈ 670 MB deployed). The `.spec` applies `collect_all('xhtml2pdf')` +
+  `collect_all('reportlab')` (data and ReportLab's **internal fonts**) +
+  `collect_all('arabic_reshaper')` (config file). The **HTML** export adds
+  nothing extra (pure Python).
+- **`markdown`** (Markdown→HTML rendering, shared by HTML/PDF) loads its
+  extensions (`tables`, `toc`…) **by name** → `collect_submodules('markdown')`
+  in the `.spec`.
+- **`genanki` 0.13.1** (`.apkg` export) **inlines the schema as Python
+  modules** (`apkg_col.py` / `apkg_schema.py`): **no data file to collect** —
+  its modules are bundled by import analysis. (`collect_data_files('genanki')`
+  returns `[]`; kept in the `.spec` as a safety net in case a future version
+  re-externalises that data.)
+- **`htmldocx`** (**Word `.docx`** export, HTML→docx rendering) relies on
+  **`beautifulsoup4`** (`bs4`) — both **pure Python**; `lxml` (native) is
+  **already** pulled in by `python-docx` (see ingestion). Lazy imports in
+  `markdown_docx` → `hiddenimports += ['htmldocx']` +
+  `collect_submodules('bs4')` in the `.spec`.
+- **PDF fonts**: PDF rendering uses **Windows system fonts**, registered with
+  ReportLab — **no font to bundle**, but the EXE depends on them at runtime
+  (always present on a standard Windows target): **Arial**
+  (`%SystemRoot%\Fonts\arial*.ttf`) for Latin **and Arabic** (Arabic glyphs +
+  contextual shaping via `arabic-reshaper`/`python-bidi`); **Microsoft YaHei**
+  (`%SystemRoot%\Fonts\msyh.ttc`, TrueType Collection loaded via
+  `subfontIndex`) for **Chinese**. If YaHei is missing, the Chinese PDF
+  export raises `EXPORT.NO_CJK_FONT` (MD/HTML/Word remain available). A few
+  rare Unicode dashes (U+2010/2011/2012/2015) not rendered by ReportLab+Arial
+  are normalised at PDF render time (`markdown_pdf._normalize_for_pdf`). Two
+  more **purely-runtime** treatments (nothing to bundle): characters
+  **without a glyph** in the active font (decorative emojis) are **stripped**
+  from the PDF (`_strip_unrenderable_for_pdf`), and **Chinese prose is
+  pre-broken** with `<br/>` (ReportLab only breaks on spaces, absent in CJK;
+  `_prewrap_cjk_runs`).
 
-### Traductions i18n (.qm)
+### i18n translations (`.qm`)
 
-L'UI est traduisible via la pile native Qt (`QTranslator` + `.ts` / `.qm` ;
-cf. `src/fahmi2/i18n/`). La langue source est le **français** — les chaînes
-en code sont en FR. Les autres langues sont chargées au démarrage depuis des
-fichiers `.qm` binaires (compilés depuis les `.ts` éditables) bundlés avec
-l'application.
+The UI is translatable through the native Qt stack (`QTranslator` + `.ts` /
+`.qm`; see `src/fahmi2/i18n/`). The source language is **French** — strings
+in code are in FR. Other languages are loaded at startup from binary `.qm`
+files (compiled from the editable `.ts` sources) bundled with the
+application.
 
-- **Au build** : régénérer les `.qm` (avant ou après `pyinstaller`) :
+- **At build time**: regenerate the `.qm` files (before or after
+  `pyinstaller`):
   ```powershell
   .\.venv\Scripts\python.exe scripts\i18n_compile.py
   ```
-  Le dossier `src/fahmi2/i18n/compiled/` est **`.gitignore`** (artefact
-  binaire dérivé) — il **doit** être recompilé à chaque build (le script
-  `build.ps1` peut être étendu pour le faire automatiquement).
-- **Dans `packaging/fahmi2.spec` (gitignored)** — ajouter dans `datas` :
+  The `src/fahmi2/i18n/compiled/` folder is **`.gitignore`** (a derived
+  binary artefact) — it **must** be recompiled at each build (the `build.ps1`
+  script can be extended to do it automatically).
+- **In `packaging/fahmi2.spec` (gitignored)** — add to `datas`:
   ```python
   ("src/fahmi2/i18n/compiled/*.qm", "fahmi2/i18n/compiled"),
   ```
-  Sans cette ligne, **l'app packagée n'embarquera pas les traductions** et
-  restera en français quelle que soit la préférence utilisateur (silencieux :
-  `install_translator` retombe sur la langue source si le `.qm` est absent).
-- **Au runtime** : `fahmi2.i18n.bundled_translations_dir()` détecte le mode
-  packagé (`sys.frozen` + `sys._MEIPASS`) et résout
-  `<bundle_root>/fahmi2/i18n/compiled/`. En dev, résolu via `__file__` à
-  côté du paquet.
+  Without this line, **the packaged app will not ship the translations** and
+  will stay in French regardless of the user preference (silent:
+  `install_translator` falls back to the source language when the `.qm` is
+  missing).
+- **At runtime**: `fahmi2.i18n.bundled_translations_dir()` detects packaged
+  mode (`sys.frozen` + `sys._MEIPASS`) and resolves
+  `<bundle_root>/fahmi2/i18n/compiled/`. In dev, it is resolved via
+  `__file__` next to the package.
 
-**Ajouter une langue** :
-1. Ajouter la valeur à `AppLanguage` (`src/fahmi2/i18n/languages.py`) + son
-   libellé natif dans `LANGUAGE_LABELS`.
-2. `.\.venv\Scripts\python.exe scripts\i18n_extract.py` — génère
-   `fahmi2_<code>.ts` (langue cible) ou complète l'existant.
-3. Traduire les `<translation type="unfinished"></translation>` dans le
-   `.ts` (éditeur de texte ou Qt Linguist).
-4. `.\.venv\Scripts\python.exe scripts\i18n_compile.py` — produit le `.qm`.
-5. Rebuild PyInstaller : le `.qm` est embarqué via `datas`.
+**Adding a language**:
+1. Add the value to `AppLanguage` (`src/fahmi2/i18n/languages.py`) plus its
+   native label in `LANGUAGE_LABELS`.
+2. `.\.venv\Scripts\python.exe scripts\i18n_extract.py` — generates
+   `fahmi2_<code>.ts` (target language) or completes the existing one.
+3. Translate the `<translation type="unfinished"></translation>` entries in
+   the `.ts` (any text editor or Qt Linguist).
+4. `.\.venv\Scripts\python.exe scripts\i18n_compile.py` — produces the `.qm`.
+5. Rebuild with PyInstaller: the `.qm` is bundled via `datas`.
 
-### Dépendances ingestion documents (pypdf / python-docx)
+### Document ingestion dependencies (pypdf / python-docx)
 
-L'ingestion des **documents texte** (`infra/ingestion/text_extractor.py`) ajoute :
+Text-document ingestion (`infra/ingestion/text_extractor.py`) adds:
 
-- **`pypdf`** (extraction du texte des **PDF**) est **déjà** tiré par `xhtml2pdf`
-  (cf. ci-dessus) → déjà bundlé, rien de plus à câbler.
-- **`python-docx`** (module `docx`, extraction des **.docx**) **embarque un
-  template** (`docx/templates/default.docx`) chargé à l'instanciation de
-  `Document()` → ajouter `collect_data_files('docx')` (ou `collect_all('docx')`)
-  dans le `.spec`, sinon l'extraction `.docx` échoue en mode packagé.
-- `pypdf` et `docx` sont importés **paresseusement** (dans les fonctions de
-  `DefaultTextExtractor`) : si l'analyse statique de PyInstaller les manque, les
-  ajouter en `hiddenimports`.
+- **`pypdf`** (PDF text extraction) is **already** pulled in by `xhtml2pdf`
+  (see above) → bundled already, nothing extra to wire.
+- **`python-docx`** (the `docx` module, `.docx` extraction) **bundles a
+  template** (`docx/templates/default.docx`) loaded at `Document()`
+  instantiation → add `collect_data_files('docx')` (or `collect_all('docx')`)
+  in the `.spec`, otherwise `.docx` extraction fails in packaged mode.
+- `pypdf` and `docx` are imported **lazily** (inside `DefaultTextExtractor`
+  functions): if PyInstaller's static analysis misses them, add them to
+  `hiddenimports`.
 
-### Binaire yt-dlp (ingestion YouTube)
+### yt-dlp binary (YouTube ingestion)
 
-L'ingestion des **liens YouTube** (`infra/ingestion/youtube_downloader.py`)
-appelle le **binaire** `yt-dlp` (pas une dépendance pip importée) :
+YouTube link ingestion (`infra/ingestion/youtube_downloader.py`) calls the
+`yt-dlp` **binary** (not an imported pip dependency):
 
-- **Au build** : télécharger `yt-dlp.exe` depuis la release GitHub officielle
-  (`yt-dlp/yt-dlp`) et le copier **à la racine du bundle** (même dossier que
-  `ffmpeg.exe`). Cf. `packaging/fetch-ytdlp.ps1` (script dédié).
-- **Au runtime** : `resolve_ytdlp_binary_or_none()` cherche, dans l'ordre, la
-  variable d'environnement **`FAHMI2_YTDLP`** (override), puis le binaire bundlé,
-  puis le binaire installé **à côté de l'interpréteur** (venv), sinon retombe sur
-  le `PATH`.
-- **En développement** : `pip install yt-dlp` (déjà dans les dépendances `dev`)
-  suffit — `yt-dlp.exe` atterrit dans `.venv/Scripts/` et est résolu
-  automatiquement, sans variable d'environnement.
-- **Fragilité (important)** : yt-dlp **casse régulièrement** quand YouTube change
-  ses protections. Le binaire est donc **remplaçable sans rebuild** (override
-  `FAHMI2_YTDLP` ou remplacement du `yt-dlp.exe` bundlé). Recommander un rebuild
-  régulier pour rafraîchir la version bundlée. En cas d'échec, le message
-  `INGESTION.YOUTUBE_DOWNLOAD_FAILED` invite à mettre à jour yt-dlp.
-- **Réseau requis** ; le téléchargement de contenu YouTube relève de la
-  **responsabilité de l'utilisateur** (ToS YouTube).
-- yt-dlp télécharge la **meilleure piste audio** (`-f bestaudio/best`,
-  `--no-playlist`) ; la conversion WAV est faite ensuite par le ffmpeg bundlé du
-  `MediaIngestor` (yt-dlp n'a donc pas besoin d'une `--ffmpeg-location` dédiée).
+- **At build time**: download `yt-dlp.exe` from the official GitHub release
+  (`yt-dlp/yt-dlp`) and copy it **to the bundle root** (same folder as
+  `ffmpeg.exe`). See `packaging/fetch-ytdlp.ps1` (dedicated script).
+- **At runtime**: `resolve_ytdlp_binary_or_none()` looks, in order, at the
+  environment variable **`FAHMI2_YTDLP`** (override), then the bundled
+  binary, then the binary installed **next to the Python interpreter**
+  (venv), then the system `PATH`.
+- **In development**: `pip install yt-dlp` (already in the `dev`
+  dependencies) is enough — `yt-dlp.exe` lands in `.venv/Scripts/` and is
+  resolved automatically, no env var required.
+- **Fragility (important)**: yt-dlp **breaks regularly** when YouTube changes
+  its protections. The binary is therefore **replaceable without a rebuild**
+  (`FAHMI2_YTDLP` override or replacement of the bundled `yt-dlp.exe`).
+  Recommend periodic rebuilds to refresh the bundled version. On failure,
+  the `INGESTION.YOUTUBE_DOWNLOAD_FAILED` message asks the user to update
+  yt-dlp.
+- **Network required**; downloading YouTube content is the **user's
+  responsibility** (YouTube ToS).
+- yt-dlp downloads the **best audio track** (`-f bestaudio/best`,
+  `--no-playlist`); WAV conversion is then performed by the bundled ffmpeg
+  via the `MediaIngestor` (yt-dlp therefore does not need a dedicated
+  `--ffmpeg-location`).
 
-### Résolution runtime du ffmpeg bundlé
+### Runtime resolution of the bundled ffmpeg
 
-Au démarrage de l'application, `core/config/paths.py` détecte
-`sys.frozen=True` + `sys._MEIPASS` (signatures PyInstaller) et résout les
-binaires bundlés via `resolve_ffmpeg_binary_or_none()` /
-`resolve_ffprobe_binary_or_none()`. En mode développement, ces fonctions
-retournent `None` et le PATH système est utilisé.
+At application startup, `core/config/paths.py` detects `sys.frozen=True` +
+`sys._MEIPASS` (PyInstaller signatures) and resolves the bundled binaries
+through `resolve_ffmpeg_binary_or_none()` /
+`resolve_ffprobe_binary_or_none()`. In development mode, these functions
+return `None` and the system PATH is used.
 
-### Mise à jour de ffmpeg
+### Pinning ffmpeg
 
-Pour figer une version de ffmpeg (au lieu de l'« essentials » courant) :
+To pin a specific ffmpeg release (instead of the current "essentials"):
 
-1. Modifier `$downloadUrl` dans `packaging/fetch-ffmpeg.ps1` pour pointer
-   sur la version désirée.
-2. Supprimer `vendor/ffmpeg/bin/` localement.
-3. Relancer `.\packaging\fetch-ffmpeg.ps1`.
-4. Commiter (ne pas commiter les binaires, déjà dans `.gitignore`).
+1. Change `$downloadUrl` in `packaging/fetch-ffmpeg.ps1` to point to the
+   desired version.
+2. Delete `vendor/ffmpeg/bin/` locally.
+3. Re-run `.\packaging\fetch-ffmpeg.ps1`.
+4. Commit (do not commit the binaries, already in `.gitignore`).
 
-### Pourquoi pas de signature de code en v1 ?
+### Why no code signing in v1?
 
-La signature requiert un certificat commercial (~200-500 €/an). Pour
-l'usage mono-utilisateur ciblé, le coût-bénéfice n'est pas pertinent en
-v1. SmartScreen affiche un avertissement au 1er lancement uniquement
-(clic *« Plus d'infos »* → *« Exécuter quand même »*).
+Code signing requires a commercial certificate (~€200–500/year). For the
+targeted single-user usage, the cost/benefit is not relevant in v1.
+SmartScreen displays a warning on the first launch only (click
+*"More info"* → *"Run anyway"*).
 
-Si la distribution s'étend à un public plus large, l'ajout d'une
-signature SignTool est trivial à intégrer (étape supplémentaire dans
-`build.ps1`).
+If distribution broadens to a wider audience, adding a SignTool signature is
+trivial to integrate (extra step in `build.ps1`).

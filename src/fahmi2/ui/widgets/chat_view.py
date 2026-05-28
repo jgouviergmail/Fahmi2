@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import html
 
-from PySide6.QtCore import QPoint, Qt, Signal
+from PySide6.QtCore import QCoreApplication, QPoint, Qt, Signal
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -37,22 +37,22 @@ from fahmi2.domain.chat import ChatMessage, Citation
 from fahmi2.domain.enums import ChatTabState
 from fahmi2.infra.export.markdown_pdf import render_markdown_fragment
 from fahmi2.ui._buttons import BUTTON_ROLE_PRIMARY, make_role_button
+from fahmi2.ui._components import localize_button_box
 from fahmi2.ui.widgets._chat_bubble import ChatThread
 
-_NEW_CONVERSATION_LABEL = "＋ Nouvelle conversation"
-_LANGUAGE_COMBO_TOOLTIP = (
-    "Langue du corpus pour une nouvelle conversation : lecture, citations et réponse."
-)
 #: Le sélecteur de langue n'a de sens qu'à partir de 2 langues produites (un choix).
 _MIN_LANGUAGES_FOR_SELECTOR = 2
-_DELETE_CONVERSATION_LABEL = "Supprimer la conversation"
-_SEND_LABEL = "Envoyer"
-_INPUT_PLACEHOLDER = "Pose une question sur le cours…"
-_NO_CORPUS_BANNER = "Lance d'abord une génération pour dialoguer avec ce cours."
-_COST_PREFIX = "Coût cumulé"
-_ROLE_LABEL = {"user": "Vous", "assistant": "Assistant"}
 _ROLE_USER = "user"
 _ROLE_ASSISTANT = "assistant"
+
+
+def _role_label(role: str) -> str:
+    """Libellé traduit d'un rôle de message (« Vous » / « Assistant »)."""
+    if role == _ROLE_USER:
+        return QCoreApplication.translate("ChatView", "Vous")
+    if role == _ROLE_ASSISTANT:
+        return QCoreApplication.translate("ChatView", "Assistant")
+    return role
 _CONVERSATION_ID_ROLE = int(Qt.ItemDataRole.UserRole)
 
 #: Largeur (%) des bulles utilisateur (alignées à droite).
@@ -116,9 +116,14 @@ class ChatView(QWidget):
             self._on_conversation_menu
         )
         self._language_combo = QComboBox(self)
-        self._language_combo.setToolTip(_LANGUAGE_COMBO_TOOLTIP)
+        self._language_combo.setToolTip(
+            self.tr(
+                "Langue du corpus pour une nouvelle conversation : "
+                "lecture, citations et réponse."
+            )
+        )
         self._language_combo.setVisible(False)  # masqué tant qu'il n'y a pas >1 langue
-        self._new_button = QPushButton(_NEW_CONVERSATION_LABEL, self)
+        self._new_button = QPushButton(self.tr("＋ Nouvelle conversation"), self)
         self._new_button.clicked.connect(self._on_new_conversation)
         left = QVBoxLayout()
         left.addWidget(self._language_combo)
@@ -126,19 +131,26 @@ class ChatView(QWidget):
         left.addWidget(self._conversations, stretch=1)
         root.addLayout(left)
 
-        self._banner = QLabel(_NO_CORPUS_BANNER, self)
+        self._banner = QLabel(
+            self.tr(
+                "Lance d'abord une génération pour dialoguer avec ce cours."
+            ),
+            self,
+        )
         self._banner.setWordWrap(True)
         self._banner.setVisible(False)
         # Fil de bulles arrondies (widgets natifs peints via QPainter, plus de
         # QTextBrowser : QTextDocument ne supporte pas border-radius).
         self._thread = ChatThread(self)
         self._thread.citation_clicked.connect(self.citation_clicked.emit)
-        self._cost_label = QLabel(f"{_COST_PREFIX} · $0.0000", self)
+        self._cost_label = QLabel(
+            self.tr("Coût cumulé · ${cost}").format(cost="0.0000"), self
+        )
         self._input = QLineEdit(self)
-        self._input.setPlaceholderText(_INPUT_PLACEHOLDER)
+        self._input.setPlaceholderText(self.tr("Pose une question sur le cours…"))
         self._input.returnPressed.connect(self._on_send)
         self._send_button = make_role_button(
-            self, _SEND_LABEL, role=BUTTON_ROLE_PRIMARY
+            self, self.tr("Envoyer"), role=BUTTON_ROLE_PRIMARY
         )
         self._send_button.clicked.connect(self._on_send)
         input_row = QHBoxLayout()
@@ -254,7 +266,9 @@ class ChatView(QWidget):
         Args:
             usd: Coût cumulé en USD.
         """
-        self._cost_label.setText(f"{_COST_PREFIX} · ${usd:.4f}")
+        self._cost_label.setText(
+            self.tr("Coût cumulé · ${cost}").format(cost=f"{usd:.4f}")
+        )
 
     # ------------------------------------------------------------- internes
     def _on_send(self) -> None:
@@ -278,7 +292,7 @@ class ChatView(QWidget):
         if not isinstance(conversation_id, str):
             return
         menu = QMenu(self._conversations)
-        delete_action = menu.addAction(_DELETE_CONVERSATION_LABEL)
+        delete_action = menu.addAction(self.tr("Supprimer la conversation"))
         chosen = menu.exec(self._conversations.mapToGlobal(pos))
         if chosen is delete_action:
             self.conversation_delete_requested.emit(conversation_id)
@@ -360,7 +374,7 @@ def _message_html(message: ChatMessage) -> str:
     Returns:
         Le fragment HTML du message (bulle + citations si assistant).
     """
-    role_label = _ROLE_LABEL.get(message.role, message.role)
+    role_label = _role_label(message.role)
     if message.role == _ROLE_ASSISTANT:
         body = render_markdown_fragment(message.content)
         citations = _citations_html(message.citations)
@@ -406,9 +420,10 @@ def _citations_html(citations: tuple[Citation, ...]) -> str:
         )
         for c in citations
     )
+    sources_label = QCoreApplication.translate("ChatView", "Sources")
     return (
         f'<div style="margin-top: 8px; color: {_SOURCES_LABEL_COLOR}; '
-        f'font-size: 11px;">Sources</div>'
+        f'font-size: 11px;">{sources_label}</div>'
         f'<div style="margin-top: 4px;">{chips}</div>'
     )
 
@@ -442,6 +457,7 @@ def show_passage_dialog(parent: QWidget, *, title: str, markdown_text: str) -> N
     browser.setHtml(render_markdown_fragment(markdown_text))
     layout.addWidget(browser)
     buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close, parent=dialog)
+    localize_button_box(buttons)
     buttons.rejected.connect(dialog.reject)
     layout.addWidget(buttons)
     dialog.exec()

@@ -24,7 +24,7 @@ from __future__ import annotations
 import html
 from typing import Final
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QCoreApplication, Qt, Signal
 from PySide6.QtGui import (
     QColor,
     QPainter,
@@ -50,10 +50,6 @@ from fahmi2.ui.theme._tokens import current_palette
 
 _ROLE_USER: Final[str] = "user"
 _ROLE_ASSISTANT: Final[str] = "assistant"
-_ROLE_DISPLAY_LABEL: Final[dict[str, str]] = {
-    _ROLE_USER: "Vous",
-    _ROLE_ASSISTANT: "Assistant",
-}
 
 #: Rayon des coins arrondis de la bulle (px).
 _BUBBLE_RADIUS: Final[int] = 14
@@ -85,15 +81,25 @@ _BUBBLE_OBJECT_NAME: Final[str] = "chatMessageBubble"
 
 
 def _role_display_label(role: str) -> str:
-    """Retourne le libellé FR pour le rôle ``role`` (``"Vous"`` / ``"Assistant"``).
+    """Retourne le libellé traduit pour le rôle ``role``.
 
     Args:
         role: Rôle brut (``"user"`` ou ``"assistant"``).
 
     Returns:
-        Le libellé d'affichage.
+        Le libellé d'affichage dans la langue active (``"Vous"`` /
+        ``"Assistant"`` en FR, ``"You"`` / ``"Assistant"`` en EN).
     """
-    return _ROLE_DISPLAY_LABEL.get(role, role)
+    if role == _ROLE_USER:
+        return QCoreApplication.translate("ChatBubble", "Vous")
+    if role == _ROLE_ASSISTANT:
+        return QCoreApplication.translate("ChatBubble", "Assistant")
+    return role
+
+
+def _sources_label() -> str:
+    """Libellé traduit pour l'en-tête de citations sous une bulle assistant."""
+    return QCoreApplication.translate("ChatBubble", "Sources")
 
 
 def _palette_colors(role: str) -> tuple[QColor, QColor, QColor, QColor]:
@@ -254,7 +260,7 @@ class MessageBubble(QFrame):
         if not citations:
             return
         palette = current_palette()
-        sources_label = QLabel("Sources", self)
+        sources_label = QLabel(_sources_label(), self)
         sources_pal = sources_label.palette()
         sources_pal.setColor(
             QPalette.ColorRole.WindowText, QColor(palette.text_3)
@@ -278,7 +284,7 @@ class MessageBubble(QFrame):
         body = _strip_html(self._content_html)
         parts = [role, body]
         if self._citations:
-            parts.append("Sources")
+            parts.append(_sources_label())
             for c in self._citations:
                 parts.append(
                     f"[{c.number}] {c.chapter_title} › {c.section_title}"

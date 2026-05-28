@@ -2,6 +2,64 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="en" sourcelanguage="fr">
 <context>
+    <name>ChatBubble</name>
+    <message>
+        <location filename="../../ui/widgets/_chat_bubble.py" line="94"/>
+        <source>Vous</source>
+        <extracomment>Rayon des coins arrondis de la bulle (px). Largeur maximale d&apos;une bulle en pourcentage de la largeur disponible. Marges internes de la bulle (px). Espacement vertical entre les enfants de la bulle. Marges autour de chaque bulle (dans le fil scrollable). Style commun (compact) du texte des liens dans une bulle. Style des chips de citation (pastilles cliquables sous une bulle assistant). ``objectName`` réservé aux bulles (utilisé pour cibler le QSS interne qui rend les ``QLabel`` enfants transparents).</extracomment>
+        <translation>You</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/_chat_bubble.py" line="96"/>
+        <source>Assistant</source>
+        <translation>Assistant</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/_chat_bubble.py" line="102"/>
+        <source>Sources</source>
+        <translation>Sources</translation>
+    </message>
+</context>
+<context>
+    <name>ChatController</name>
+    <message>
+        <location filename="../../ui/chat_controller.py" line="413"/>
+        <source>Clé DeepSeek manquante</source>
+        <extracomment>Séparateur du préfixe de langue dans la liste des conversations (ex. « EN · Titre »). Une conversation a une langue **fixe** (choisie à sa création) → on l&apos;affiche pour lever toute ambiguïté entre conversations de langues différentes. Empreinte de fraîcheur du corpus : (langue de contenu, mtime consolidé, mtime glossaire). Émis quand une réponse est finalisée (utile aux tests et à l&apos;UI).</extracomment>
+        <translation>DeepSeek key missing</translation>
+    </message>
+    <message>
+        <location filename="../../ui/chat_controller.py" line="414"/>
+        <source>Renseigne la clé DeepSeek dans « Édition → Paramètres globaux » pour dialoguer.</source>
+        <translation>Enter the DeepSeek key under “Edit → Global settings” to dialogue.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/chat_controller.py" line="522"/>
+        <source>Supprimer la conversation</source>
+        <translation>Delete conversation</translation>
+    </message>
+    <message>
+        <location filename="../../ui/chat_controller.py" line="523"/>
+        <source>Supprimer définitivement cette conversation ? Cette action est irréversible.</source>
+        <translation>Permanently delete this conversation? This action is irreversible.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/chat_controller.py" line="545"/>
+        <source>Aucun projet sélectionné</source>
+        <translation>No project selected</translation>
+    </message>
+    <message>
+        <location filename="../../ui/chat_controller.py" line="546"/>
+        <source>Sélectionne un projet dans la sidebar avant de configurer.</source>
+        <translation>Select a project in the sidebar before configuring.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/chat_controller.py" line="587"/>
+        <source>Le dialogue s&apos;est terminé sur une erreur</source>
+        <translation>The dialogue ended with an error</translation>
+    </message>
+</context>
+<context>
     <name>ChatSettingsView</name>
     <message>
         <location filename="../../ui/dialogs/chat_settings_view.py" line="79"/>
@@ -171,6 +229,62 @@
     </message>
 </context>
 <context>
+    <name>ChatView</name>
+    <message>
+        <location filename="../../ui/widgets/chat_view.py" line="52"/>
+        <source>Vous</source>
+        <extracomment>Le sélecteur de langue n&apos;a de sens qu&apos;à partir de 2 langues produites (un choix).</extracomment>
+        <translation>You</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/chat_view.py" line="54"/>
+        <source>Assistant</source>
+        <translation>Assistant</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/chat_view.py" line="121"/>
+        <source>Langue du corpus pour une nouvelle conversation : lecture, citations et réponse.</source>
+        <extracomment>Largeur (%) des bulles utilisateur (alignées à droite). Largeur (%) des bulles assistant (alignées à gauche). Fond et bordure des bulles (HTML inline ; QTextBrowser ne supporte pas ``border-radius`` — on se contente d&apos;un encadré coloré, plus un alignement gauche/droite par ``&lt;table align&gt;``). Couleurs alignées sur les tokens clairs (le thème sombre garde les mêmes contrastes : fond accent doux pour utilisateur, surface bordée pour assistant). Chips de source (pastilles inline cliquables sous une bulle assistant). Couleur de la ligne « Sources » (libellé discret au-dessus des chips). Style du fil : liens lisibles, code et tableaux discrets.</extracomment>
+        <translation>Corpus language for a new conversation: reading, citations, and answers.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/chat_view.py" line="126"/>
+        <source>＋ Nouvelle conversation</source>
+        <translation>＋ New conversation</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/chat_view.py" line="136"/>
+        <source>Lance d&apos;abord une génération pour dialoguer avec ce cours.</source>
+        <translation>Run a generation first to dialogue with this course.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/chat_view.py" line="147"/>
+        <location filename="../../ui/widgets/chat_view.py" line="270"/>
+        <source>Coût cumulé · ${cost}</source>
+        <translation>Cumulative cost · ${cost}</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/chat_view.py" line="150"/>
+        <source>Pose une question sur le cours…</source>
+        <translation>Ask a question about the course…</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/chat_view.py" line="153"/>
+        <source>Envoyer</source>
+        <translation>Send</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/chat_view.py" line="295"/>
+        <source>Supprimer la conversation</source>
+        <translation>Delete conversation</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/chat_view.py" line="423"/>
+        <source>Sources</source>
+        <translation>Sources</translation>
+    </message>
+</context>
+<context>
     <name>CostEstimateDialog</name>
     <message>
         <location filename="../../ui/cost_estimate_dialog.py" line="77"/>
@@ -221,6 +335,177 @@
         <location filename="../../ui/cost_estimate_dialog.py" line="190"/>
         <source>Compris</source>
         <translation>Got it</translation>
+    </message>
+</context>
+<context>
+    <name>CostMatrix</name>
+    <message>
+        <location filename="../../ui/widgets/cost_matrix_view.py" line="39"/>
+        <source>Total</source>
+        <translation>Total</translation>
+    </message>
+</context>
+<context>
+    <name>GenerationController</name>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="501"/>
+        <location filename="../../ui/generation_controller.py" line="680"/>
+        <location filename="../../ui/generation_controller.py" line="752"/>
+        <location filename="../../ui/generation_controller.py" line="830"/>
+        <location filename="../../ui/generation_controller.py" line="969"/>
+        <source>Aucun projet sélectionné</source>
+        <extracomment>Émis quand le statut du run change (démarrage / fin / échec / réinit.), pour rafraîchir les icônes de la sidebar.</extracomment>
+        <translation>No project selected</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="504"/>
+        <source>Sélectionne un projet dans la sidebar avant de lancer.</source>
+        <translation>Select a project in the sidebar before launching.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="513"/>
+        <source>Run déjà en cours</source>
+        <translation>Run already in progress</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="516"/>
+        <source>Un run est déjà en cours pour ce projet.</source>
+        <translation>A run is already in progress for this project.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="533"/>
+        <source>Création du run impossible</source>
+        <translation>Cannot create the run</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="542"/>
+        <source>Erreur inattendue</source>
+        <translation>Unexpected error</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="575"/>
+        <source>Configuration des providers invalide</source>
+        <translation>Invalid provider configuration</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="649"/>
+        <source>Annuler le run ?</source>
+        <translation>Cancel the run?</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="650"/>
+        <source>Annuler le run en cours ?
+
+Le pipeline s&apos;arrêtera à la prochaine frontière sûre. Le dossier de sortie sera ensuite **supprimé** (livrables Markdown générés jusqu&apos;ici) et le cockpit réinitialisé.
+
+Cette action ne supprime pas les fichiers source originaux ni les artefacts intermédiaires de « workspace ».</source>
+        <translation>Cancel the run in progress?
+
+The pipeline will stop at the next safe boundary. The output folder will then be **deleted** (Markdown deliverables produced so far) and the cockpit will be reset.
+
+This action does not delete the original source files or the intermediate “workspace” artefacts.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="683"/>
+        <source>Sélectionne un projet dans la sidebar avant d&apos;exporter.</source>
+        <translation>Select a project in the sidebar before exporting.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="692"/>
+        <location filename="../../ui/generation_controller.py" line="764"/>
+        <location filename="../../ui/generation_controller.py" line="1162"/>
+        <source>Génération non configurée</source>
+        <translation>Generation not configured</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="695"/>
+        <source>Configurez d&apos;abord la génération (⚙ Réglages).</source>
+        <translation>Configure the generation first (⚙ Settings).</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="729"/>
+        <source>Aucun dossier de sortie</source>
+        <translation>No output folder</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="732"/>
+        <source>Le dossier de sortie n&apos;existe pas encore. Lancez d&apos;abord un run pour ce projet.</source>
+        <translation>The output folder does not exist yet. Run a generation first for this project.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="755"/>
+        <source>Sélectionne un projet dans la sidebar avant d&apos;estimer.</source>
+        <translation>Select a project in the sidebar before estimating.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="767"/>
+        <location filename="../../ui/generation_controller.py" line="1165"/>
+        <source>Configurez d&apos;abord les réglages de génération de ce projet.</source>
+        <translation>Configure this project's generation settings first.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="779"/>
+        <source>Dossier d&apos;entrée invalide</source>
+        <translation>Invalid input folder</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="833"/>
+        <source>Sélectionne un projet dans la sidebar avant de configurer la génération.</source>
+        <translation>Select a project in the sidebar before configuring the generation.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="972"/>
+        <source>Sélectionne un projet dans la sidebar avant de réinitialiser.</source>
+        <translation>Select a project in the sidebar before resetting.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="981"/>
+        <source>Run en cours</source>
+        <translation>Run in progress</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="982"/>
+        <source>Impossible de réinitialiser pendant un run. Annule-le d&apos;abord.</source>
+        <translation>Cannot reset while a run is in progress. Cancel it first.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="990"/>
+        <source>Réinitialiser la génération ?</source>
+        <translation>Reset the generation?</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="993"/>
+        <source>Réinitialiser la génération de « {name} » ?
+
+Tous les livrables produits (transcriptions, glossaire, documents) et l&apos;historique des runs en base seront supprimés. Le dossier d&apos;entrée n&apos;est pas touché. Cette action est irréversible.</source>
+        <translation>Reset the generation for “{name}”?
+
+All produced deliverables (transcripts, glossary, documents) and the run history in the database will be deleted. The input folder is not touched. This action is irreversible.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="1047"/>
+        <source>Le run s&apos;est terminé sur une erreur inattendue</source>
+        <translation>The run ended with an unexpected error</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="1149"/>
+        <source>Clé DeepSeek manquante</source>
+        <translation>DeepSeek key missing</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="1152"/>
+        <source>Renseigne la clé DeepSeek dans « Édition → Paramètres globaux ».</source>
+        <translation>Enter the DeepSeek key under “Edit → Global settings”.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="1175"/>
+        <source>Clé OpenAI manquante</source>
+        <translation>OpenAI key missing</translation>
+    </message>
+    <message>
+        <location filename="../../ui/generation_controller.py" line="1178"/>
+        <source>Le provider STT cloud nécessite une clé OpenAI. Renseigne-la dans « Édition → Paramètres globaux ».</source>
+        <translation>The cloud STT provider requires an OpenAI key. Enter it under “Edit → Global settings”.</translation>
     </message>
 </context>
 <context>
@@ -1027,348 +1312,587 @@ Please use the OpenAI online mode.</translation>
     </message>
 </context>
 <context>
+    <name>PedagogyController</name>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="299"/>
+        <location filename="../../ui/pedagogy_controller.py" line="363"/>
+        <location filename="../../ui/pedagogy_controller.py" line="484"/>
+        <location filename="../../ui/pedagogy_controller.py" line="545"/>
+        <location filename="../../ui/pedagogy_controller.py" line="621"/>
+        <source>Aucun projet sélectionné</source>
+        <extracomment>Plafond de coût atteint : statut renvoyé par l&apos;orchestrateur. Émis quand le statut de la génération change (démarrage / fin / échec / réinitialisation), pour rafraîchir les icônes de la sidebar.</extracomment>
+        <translation>No project selected</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="302"/>
+        <source>Sélectionne un projet dans la sidebar avant de configurer.</source>
+        <translation>Select a project in the sidebar before configuring.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="330"/>
+        <location filename="../../ui/pedagogy_controller.py" line="633"/>
+        <source>Supports non configurés</source>
+        <translation>Materials not configured</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="333"/>
+        <location filename="../../ui/pedagogy_controller.py" line="636"/>
+        <source>Configurez d&apos;abord les supports pédagogiques (⚙ Réglages).</source>
+        <translation>Configure the revision materials first (⚙ Settings).</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="366"/>
+        <source>Sélectionne un projet dans la sidebar avant de générer.</source>
+        <translation>Select a project in the sidebar before generating.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="375"/>
+        <source>Génération déjà en cours</source>
+        <translation>Generation already in progress</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="378"/>
+        <source>Une génération de supports est déjà en cours.</source>
+        <translation>A materials generation is already in progress.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="462"/>
+        <source>Aucun dossier de supports</source>
+        <translation>No materials folder</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="465"/>
+        <source>Aucun support n&apos;a encore été généré pour ce projet.</source>
+        <translation>No material has been generated yet for this project.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="487"/>
+        <source>Sélectionne un projet dans la sidebar avant de réinitialiser.</source>
+        <translation>Select a project in the sidebar before resetting.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="496"/>
+        <source>Génération en cours</source>
+        <translation>Generation in progress</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="499"/>
+        <source>Impossible de réinitialiser pendant une génération. Annule-la d&apos;abord.</source>
+        <translation>Cannot reset while generation is in progress. Cancel it first.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="508"/>
+        <source>Réinitialiser les supports ?</source>
+        <translation>Reset the materials?</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="511"/>
+        <source>Réinitialiser les supports pédagogiques de « {name} » ?
+
+Tous les supports générés, leurs exports intermédiaires et l&apos;état d&apos;exécution seront supprimés. Cette action est irréversible.</source>
+        <translation>Reset the revision materials for “{name}”?
+
+All generated materials, their intermediate exports, and the execution state will be deleted. This action is irreversible.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="548"/>
+        <location filename="../../ui/pedagogy_controller.py" line="624"/>
+        <source>Sélectionne un projet dans la sidebar avant d&apos;exporter.</source>
+        <translation>Select a project in the sidebar before exporting.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="556"/>
+        <source>Exporter vers Anki</source>
+        <translation>Export to Anki</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="567"/>
+        <source>Export impossible</source>
+        <translation>Export failed</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="574"/>
+        <source>Erreur inattendue</source>
+        <translation>Unexpected error</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="581"/>
+        <source>Aucun support exportable</source>
+        <translation>No exportable material</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="584"/>
+        <source>Aucune carte Anki à exporter (flashcards, cloze ou QCM requis). Générez d&apos;abord des supports exportables.</source>
+        <translation>No Anki card to export (flashcards, cloze, or MCQs required). Generate exportable materials first.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="604"/>
+        <source>Export terminé</source>
+        <translation>Export finished</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="605"/>
+        <source>{count} carte(s) Anki exportée(s) vers :
+{path}</source>
+        <translation>{count} Anki card(s) exported to:
+{path}</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_controller.py" line="716"/>
+        <source>La génération s&apos;est terminée sur une erreur inattendue</source>
+        <translation>Generation ended with an unexpected error</translation>
+    </message>
+</context>
+<context>
     <name>PedagogyLabels</name>
     <message>
-        <location filename="../../ui/pedagogy_labels.py" line="22"/>
+        <location filename="../../ui/pedagogy_labels.py" line="29"/>
         <source>Flashcards — Concepts</source>
         <translation>Flashcards — Concepts</translation>
     </message>
     <message>
-        <location filename="../../ui/pedagogy_labels.py" line="24"/>
+        <location filename="../../ui/pedagogy_labels.py" line="31"/>
         <source>QCM</source>
         <translation>MCQ</translation>
     </message>
     <message>
-        <location filename="../../ui/pedagogy_labels.py" line="26"/>
+        <location filename="../../ui/pedagogy_labels.py" line="33"/>
         <source>Vrai / Faux</source>
         <translation>True / False</translation>
     </message>
     <message>
-        <location filename="../../ui/pedagogy_labels.py" line="29"/>
+        <location filename="../../ui/pedagogy_labels.py" line="36"/>
         <source>Textes à trous</source>
         <translation>Cloze</translation>
     </message>
     <message>
-        <location filename="../../ui/pedagogy_labels.py" line="32"/>
+        <location filename="../../ui/pedagogy_labels.py" line="39"/>
         <source>Questions ouvertes</source>
         <translation>Open questions</translation>
     </message>
     <message>
-        <location filename="../../ui/pedagogy_labels.py" line="35"/>
+        <location filename="../../ui/pedagogy_labels.py" line="42"/>
         <source>Fiche de révision</source>
         <translation>Revision sheet</translation>
     </message>
     <message>
-        <location filename="../../ui/pedagogy_labels.py" line="38"/>
+        <location filename="../../ui/pedagogy_labels.py" line="45"/>
         <source>Points clés</source>
         <translation>Key points</translation>
     </message>
     <message>
-        <location filename="../../ui/pedagogy_labels.py" line="41"/>
+        <location filename="../../ui/pedagogy_labels.py" line="48"/>
         <source>Examen blanc</source>
         <translation>Mock exam</translation>
     </message>
     <message>
-        <location filename="../../ui/pedagogy_labels.py" line="46"/>
+        <location filename="../../ui/pedagogy_labels.py" line="53"/>
         <source>Anki (.apkg)</source>
         <translation>Anki (.apkg)</translation>
     </message>
     <message>
-        <location filename="../../ui/pedagogy_labels.py" line="47"/>
+        <location filename="../../ui/pedagogy_labels.py" line="54"/>
         <source>Markdown</source>
         <translation>Markdown</translation>
     </message>
     <message>
-        <location filename="../../ui/pedagogy_labels.py" line="48"/>
+        <location filename="../../ui/pedagogy_labels.py" line="55"/>
         <source>PDF</source>
         <translation>PDF</translation>
     </message>
     <message>
-        <location filename="../../ui/pedagogy_labels.py" line="49"/>
+        <location filename="../../ui/pedagogy_labels.py" line="56"/>
         <source>HTML</source>
         <translation>HTML</translation>
     </message>
     <message>
-        <location filename="../../ui/pedagogy_labels.py" line="50"/>
+        <location filename="../../ui/pedagogy_labels.py" line="57"/>
         <source>Word (.docx)</source>
         <translation>Word (.docx)</translation>
     </message>
     <message>
-        <location filename="../../ui/pedagogy_labels.py" line="55"/>
+        <location filename="../../ui/pedagogy_labels.py" line="62"/>
+        <source>grand public (découverte)</source>
+        <translation>general audience (discovery)</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_labels.py" line="65"/>
+        <source>lycée</source>
+        <translation>high school</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_labels.py" line="69"/>
+        <source>licence (premier cycle universitaire)</source>
+        <translation>undergraduate (first cycle)</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_labels.py" line="74"/>
+        <source>master / expert</source>
+        <translation>master / expert</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_labels.py" line="81"/>
+        <source>automatique (adapté au public cible)</source>
+        <translation>automatic (adapted to target audience)</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_labels.py" line="85"/>
+        <source>restituer (mémorisation, définitions)</source>
+        <translation>recall (memorisation, definitions)</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_labels.py" line="88"/>
+        <source>comprendre et appliquer</source>
+        <translation>understand and apply</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_labels.py" line="92"/>
+        <source>analyser et au-delà (synthèse, évaluation)</source>
+        <translation>analyse and beyond (synthesis, evaluation)</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_labels.py" line="99"/>
+        <source>légère</source>
+        <translation>light</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_labels.py" line="101"/>
+        <source>standard</source>
+        <translation>standard</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_labels.py" line="103"/>
+        <source>dense</source>
+        <translation>dense</translation>
+    </message>
+    <message>
+        <location filename="../../ui/pedagogy_labels.py" line="108"/>
         <source>En attente</source>
         <translation>Pending</translation>
     </message>
     <message>
-        <location filename="../../ui/pedagogy_labels.py" line="58"/>
+        <location filename="../../ui/pedagogy_labels.py" line="111"/>
         <source>En cours</source>
         <translation>Running</translation>
     </message>
     <message>
-        <location filename="../../ui/pedagogy_labels.py" line="61"/>
+        <location filename="../../ui/pedagogy_labels.py" line="114"/>
         <source>Généré</source>
         <translation>Generated</translation>
     </message>
     <message>
-        <location filename="../../ui/pedagogy_labels.py" line="64"/>
+        <location filename="../../ui/pedagogy_labels.py" line="117"/>
         <source>À jour</source>
         <translation>Up to date</translation>
     </message>
     <message>
-        <location filename="../../ui/pedagogy_labels.py" line="66"/>
+        <location filename="../../ui/pedagogy_labels.py" line="119"/>
         <source>Échec</source>
         <translation>Failed</translation>
     </message>
 </context>
 <context>
-    <name>PedagogySettingsView</name>
+    <name>PedagogyProgress</name>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="90"/>
-        <source>Réglages des supports pédagogiques</source>
-        <translation>Revision materials settings</translation>
+        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="39"/>
+        <source>Support</source>
+        <extracomment>Snapshot vide. ``row_header`` est résolu à l&apos;usage par :func:`empty_matrix` ci-dessous pour suivre la langue active.</extracomment>
+        <translation>Material</translation>
+    </message>
+</context>
+<context>
+    <name>PedagogyProgressView</name>
+    <message>
+        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="88"/>
+        <source>Statut</source>
+        <translation>Status</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="91"/>
-        <source>Configurer les supports pédagogiques</source>
-        <translation>Configure revision materials</translation>
-    </message>
-    <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="100"/>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="293"/>
+        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="90"/>
         <source>Supports</source>
         <translation>Materials</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="101"/>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="329"/>
-        <source>Difficulté</source>
-        <translation>Difficulty</translation>
-    </message>
-    <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="102"/>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="380"/>
+        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="93"/>
         <source>Langues</source>
         <translation>Languages</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="103"/>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="400"/>
+        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="96"/>
+        <source>Durée</source>
+        <translation>Duration</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="98"/>
+        <source>Coût</source>
+        <translation>Cost</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="151"/>
+        <source>tâches</source>
+        <translation>tasks</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="158"/>
+        <source>plafond ${ceiling:.2f}</source>
+        <translation>cap ${ceiling:.2f}</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="162"/>
+        <source>sans plafond</source>
+        <translation>no cap</translation>
+    </message>
+</context>
+<context>
+    <name>PedagogySettingsView</name>
+    <message>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="95"/>
+        <source>Réglages des supports pédagogiques</source>
+        <translation>Revision materials settings</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="96"/>
+        <source>Configurer les supports pédagogiques</source>
+        <translation>Configure revision materials</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="105"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="298"/>
+        <source>Supports</source>
+        <translation>Materials</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="106"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="334"/>
+        <source>Difficulté</source>
+        <translation>Difficulty</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="107"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="385"/>
+        <source>Langues</source>
+        <translation>Languages</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="108"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="405"/>
         <source>Génération IA</source>
         <translation>AI generation</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="104"/>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="458"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="109"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="463"/>
         <source>Export</source>
         <translation>Export</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="201"/>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="307"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="206"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="312"/>
         <source>Si coché, le corrigé est généré dans un document distinct du sujet (utile pour les examens blancs).</source>
         <translation>If checked, the answer key is generated in a document separate from the questions (useful for mock exams).</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="214"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="219"/>
         <source>Niveau d&apos;études supposé du lecteur. Le ton et le vocabulaire s&apos;adaptent.</source>
         <translation>Assumed academic level of the reader. Tone and vocabulary adapt.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="222"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="227"/>
         <source>Niveau de la taxonomie de Bloom : comprendre, appliquer, analyser, etc.</source>
         <translation>Bloom’s taxonomy level: understand, apply, analyse, etc.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="229"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="234"/>
         <source>Volume final des supports (compact, équilibré, dense).</source>
         <translation>Final volume of the materials (compact, balanced, dense).</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="236"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="241"/>
         <source>Consignes libres pour l&apos;IA. Ex. : « privilégier des exemples concrets, éviter les pièges trop subtils, varier les formulations ».</source>
         <translation>Free guidance for the AI. Ex.: “prefer concrete examples, avoid overly subtle traps, vary the phrasings”.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="249"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="254"/>
         <source>Activer la réflexion approfondie</source>
         <translation>Enable deep reasoning</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="266"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="271"/>
         <source>Pas de plafond</source>
         <translation>No cap</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="269"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="274"/>
         <source>Coût maximal en USD. La génération s&apos;arrête si elle s&apos;en approche. Mettez 0 pour désactiver le plafond.</source>
         <translation>Maximum cost in USD. Generation stops as it approaches it. Set 0 to disable the cap.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="278"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="283"/>
         <source>Nombre de générations IA exécutées en parallèle. Augmenter accélère sans changer le coût (DeepSeek facture au token, pas au temps).</source>
         <translation>Number of AI generations run in parallel. Increasing speeds things up without changing the cost (DeepSeek bills per token, not time).</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="295"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="300"/>
         <source>Sélectionnez les supports de révision à générer. Pour les supports évaluatifs, cochez « Corrigé séparé » pour générer un sujet sans réponses et un corrigé dans un document distinct.</source>
         <translation>Select the revision materials to generate. For assessment-style materials, check “Separate answer key” to generate a question-only document plus a separate answer key.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="301"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="306"/>
         <source>Types de supports</source>
         <translation>Material types</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="303"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="308"/>
         <source>Type de support</source>
         <translation>Material type</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="304"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="309"/>
         <source>Corrigé séparé</source>
         <translation>Separate answer key</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="331"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="336"/>
         <source>Public visé, objectif pédagogique et quantité de contenu — orientent le ton, la difficulté et le volume.</source>
         <translation>Target audience, learning objective, and content amount — drive tone, difficulty, and volume.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="338"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="343"/>
         <source>Public et objectif</source>
         <translation>Audience and objective</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="340"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="345"/>
         <source>À qui les supports sont-ils destinés, et quel niveau d&apos;apprentissage visent-ils ?</source>
         <translation>Who the materials are intended for, and what learning level they target.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="344"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="349"/>
         <source>Public visé</source>
         <translation>Target audience</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="345"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="350"/>
         <source>Objectif pédagogique (Bloom)</source>
         <translation>Learning objective (Bloom)</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="351"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="356"/>
         <source>Densité</source>
         <translation>Density</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="353"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="358"/>
         <source>Volume des supports générés : compact pour réviser vite, dense pour creuser.</source>
         <translation>Volume of the generated materials: compact for quick revision, dense to dig deeper.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="357"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="362"/>
         <source>Quantité de contenu</source>
         <translation>Content amount</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="363"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="368"/>
         <source>Consignes pédagogiques</source>
         <translation>Teaching guidance</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="365"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="370"/>
         <source>Optionnel. Indiquez à l&apos;IA toute orientation spécifique.</source>
         <translation>Optional. Tell the AI any specific orientation.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="382"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="387"/>
         <source>Les supports sont rédigés dans les langues choisies, même si le document source est dans une autre langue.</source>
         <translation>The materials are written in the chosen languages, even if the source document is in another language.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="387"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="392"/>
         <source>Langues à produire</source>
         <translation>Languages to produce</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="402"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="407"/>
         <source>Modèle de génération, intensité de réflexion, budget et performance.</source>
         <translation>Generation model, reasoning intensity, budget, and performance.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="409"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="414"/>
         <source>Modèle de génération</source>
         <translation>Generation model</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="411"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="416"/>
         <source>Modèle DeepSeek utilisé pour rédiger les supports. « Pro » coûte plus mais donne des supports de meilleure qualité.</source>
         <translation>DeepSeek model used to draft the materials. “Pro” costs more but produces higher-quality materials.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="416"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="421"/>
         <source>Modèle</source>
         <translation>Model</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="417"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="422"/>
         <source>Température</source>
         <translation>Temperature</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="423"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="428"/>
         <source>Réflexion approfondie</source>
         <translation>Deep reasoning</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="425"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="430"/>
         <source>Active un raisonnement étendu avant la génération — meilleure qualité, coût plus élevé. Recommandé pour les examens blancs.</source>
         <translation>Triggers extended reasoning before generation — better quality, higher cost. Recommended for mock exams.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="431"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="436"/>
         <source>Intensité de réflexion</source>
         <translation>Reasoning intensity</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="437"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="442"/>
         <source>Budget et performance</source>
         <translation>Budget and performance</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="439"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="444"/>
         <source>Plafond de dépense (la génération s&apos;arrête si le coût l&apos;atteint) et nombre de tâches IA traitées en parallèle (plus rapide, n&apos;augmente pas le coût).</source>
         <translation>Spending cap (generation stops if the cost reaches it) and number of AI tasks processed in parallel (faster, does not raise the cost).</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="444"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="449"/>
         <source>Budget maximal</source>
         <translation>Maximum budget</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="445"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="450"/>
         <source>Traitements simultanés</source>
         <translation>Simultaneous jobs</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="460"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="465"/>
         <source>Formats proposés lors de l&apos;export depuis l&apos;onglet « Supports pédagogiques ».</source>
         <translation>Formats offered when exporting from the “Revision materials” tab.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="464"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="469"/>
         <source>Formats à exporter</source>
         <translation>Formats to export</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="472"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="477"/>
         <source>Sans sélection, l&apos;export laissera le choix au moment de l&apos;action.</source>
         <translation>Without a selection, the export will offer a choice at action time.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="510"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="515"/>
         <source>Réglages incomplets</source>
         <translation>Incomplete settings</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="511"/>
+        <location filename="../../ui/dialogs/pedagogy_settings_view.py" line="516"/>
         <source>Sélectionnez au moins un support et au moins une langue.</source>
         <translation>Select at least one material and at least one language.</translation>
     </message>

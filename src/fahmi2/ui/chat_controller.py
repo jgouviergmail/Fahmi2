@@ -14,7 +14,7 @@ from functools import partial
 from pathlib import Path
 from typing import cast
 
-from PySide6.QtCore import QObject, QThread, Signal
+from PySide6.QtCore import QCoreApplication, QObject, QThread, Signal
 from PySide6.QtWidgets import QDialog, QMessageBox, QWidget
 
 from fahmi2.app.chat_conversation_store import ChatConversationStore
@@ -64,16 +64,6 @@ _INDEX_FILENAME_TEMPLATE = "index.{language}.npz"
 #: Une conversation a une langue **fixe** (choisie à sa création) → on l'affiche pour
 #: lever toute ambiguïté entre conversations de langues différentes.
 _LANGUAGE_BADGE_SEPARATOR = " · "
-_NO_PROJECT_TITLE = "Aucun projet sélectionné"
-_NO_KEY_TITLE = "Clé DeepSeek manquante"
-_NO_KEY_MESSAGE = (
-    "Renseigne la clé DeepSeek dans « Édition → Paramètres globaux » pour dialoguer."
-)
-_FAILED_TITLE = "Le dialogue s'est terminé sur une erreur"
-_DELETE_CONFIRM_TITLE = "Supprimer la conversation"
-_DELETE_CONFIRM_MESSAGE = (
-    "Supprimer définitivement cette conversation ? Cette action est irréversible."
-)
 
 LlmProviderFactory = Callable[[str], LLMProvider]
 
@@ -418,7 +408,15 @@ class ChatController(QObject):
         ):
             return
         if not self._secrets_service.has_deepseek_key():
-            QMessageBox.critical(self._window, _NO_KEY_TITLE, _NO_KEY_MESSAGE)
+            QMessageBox.critical(
+                self._window,
+                QCoreApplication.translate("ChatController", "Clé DeepSeek manquante"),
+                QCoreApplication.translate(
+                    "ChatController",
+                    "Renseigne la clé DeepSeek dans « Édition → Paramètres globaux » "
+                    "pour dialoguer.",
+                ),
+            )
             return
         api_key = self._secrets_service.get_deepseek_api_key()
         assert api_key is not None  # garanti par has_deepseek_key
@@ -520,7 +518,13 @@ class ChatController(QObject):
         if self._store is None or self._thread is not None:
             return
         confirm = QMessageBox.question(
-            self._window, _DELETE_CONFIRM_TITLE, _DELETE_CONFIRM_MESSAGE
+            self._window,
+            QCoreApplication.translate("ChatController", "Supprimer la conversation"),
+            QCoreApplication.translate(
+                "ChatController",
+                "Supprimer définitivement cette conversation ? "
+                "Cette action est irréversible.",
+            ),
         )
         if confirm is not QMessageBox.StandardButton.Yes:
             return
@@ -538,8 +542,11 @@ class ChatController(QObject):
         if self._project is None:
             QMessageBox.warning(
                 self._window,
-                _NO_PROJECT_TITLE,
-                "Sélectionne un projet dans la sidebar avant de configurer.",
+                QCoreApplication.translate("ChatController", "Aucun projet sélectionné"),
+                QCoreApplication.translate(
+                    "ChatController",
+                    "Sélectionne un projet dans la sidebar avant de configurer.",
+                ),
             )
             return
         dialog = ChatSettingsView(parent=self._window, initial=self._project.chat)
@@ -575,7 +582,13 @@ class ChatController(QObject):
 
     def _on_failed(self, error_message: str) -> None:
         """Slot : streaming terminé sur exception."""
-        QMessageBox.critical(self._window, _FAILED_TITLE, error_message)
+        QMessageBox.critical(
+            self._window,
+            QCoreApplication.translate(
+                "ChatController", "Le dialogue s'est terminé sur une erreur"
+            ),
+            error_message,
+        )
         self._cleanup_thread()
         self._apply_state(error=True)
 

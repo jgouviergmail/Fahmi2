@@ -15,7 +15,14 @@ from typing import cast
 
 from PySide6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication
 
-from fahmi2.domain.enums import ExportFormat, PhaseStatus, SupportType
+from fahmi2.domain.enums import (
+    BloomObjective,
+    ExportFormat,
+    PhaseStatus,
+    SupportDensity,
+    SupportType,
+    TargetAudience,
+)
 
 _SUPPORT_SOURCES: dict[SupportType, str] = {
     SupportType.FLASHCARDS_CONCEPTS: cast(
@@ -48,6 +55,52 @@ _EXPORT_SOURCES: dict[ExportFormat, str] = {
     ExportFormat.PDF: cast(str, QT_TRANSLATE_NOOP("PedagogyLabels", "PDF")),
     ExportFormat.HTML: cast(str, QT_TRANSLATE_NOOP("PedagogyLabels", "HTML")),
     ExportFormat.DOCX: cast(str, QT_TRANSLATE_NOOP("PedagogyLabels", "Word (.docx)")),
+}
+
+_AUDIENCE_SOURCES: dict[TargetAudience, str] = {
+    TargetAudience.DISCOVERY: cast(
+        str, QT_TRANSLATE_NOOP("PedagogyLabels", "grand public (découverte)")
+    ),
+    TargetAudience.HIGH_SCHOOL: cast(
+        str, QT_TRANSLATE_NOOP("PedagogyLabels", "lycée")
+    ),
+    TargetAudience.LICENCE: cast(
+        str,
+        QT_TRANSLATE_NOOP(
+            "PedagogyLabels", "licence (premier cycle universitaire)"
+        ),
+    ),
+    TargetAudience.MASTER_EXPERT: cast(
+        str, QT_TRANSLATE_NOOP("PedagogyLabels", "master / expert")
+    ),
+}
+
+_BLOOM_SOURCES: dict[BloomObjective, str] = {
+    BloomObjective.AUTO: cast(
+        str,
+        QT_TRANSLATE_NOOP("PedagogyLabels", "automatique (adapté au public cible)"),
+    ),
+    BloomObjective.RESTITUTE: cast(
+        str,
+        QT_TRANSLATE_NOOP("PedagogyLabels", "restituer (mémorisation, définitions)"),
+    ),
+    BloomObjective.UNDERSTAND_APPLY: cast(
+        str, QT_TRANSLATE_NOOP("PedagogyLabels", "comprendre et appliquer")
+    ),
+    BloomObjective.ANALYZE_BEYOND: cast(
+        str,
+        QT_TRANSLATE_NOOP(
+            "PedagogyLabels", "analyser et au-delà (synthèse, évaluation)"
+        ),
+    ),
+}
+
+_DENSITY_SOURCES: dict[SupportDensity, str] = {
+    SupportDensity.LIGHT: cast(str, QT_TRANSLATE_NOOP("PedagogyLabels", "légère")),
+    SupportDensity.STANDARD: cast(
+        str, QT_TRANSLATE_NOOP("PedagogyLabels", "standard")
+    ),
+    SupportDensity.DENSE: cast(str, QT_TRANSLATE_NOOP("PedagogyLabels", "dense")),
 }
 
 _SUPPORT_STATUS_SOURCES: dict[PhaseStatus, str] = {
@@ -97,3 +150,18 @@ def status_label(status: PhaseStatus | None) -> str:
     if status is None:
         return _tr(_SUPPORT_STATUS_SOURCES[PhaseStatus.PENDING])
     return _tr(_SUPPORT_STATUS_SOURCES[status])
+
+
+def audience_display_label(audience: TargetAudience) -> str:
+    """Libellé UI traduit d'un public cible (≠ libellé prompt en FR figé)."""
+    return _tr(_AUDIENCE_SOURCES[audience])
+
+
+def bloom_display_label(bloom: BloomObjective) -> str:
+    """Libellé UI traduit d'un objectif Bloom (≠ libellé prompt en FR figé)."""
+    return _tr(_BLOOM_SOURCES[bloom])
+
+
+def density_display_label(density: SupportDensity) -> str:
+    """Libellé UI traduit d'une densité (≠ libellé prompt en FR figé)."""
+    return _tr(_DENSITY_SOURCES[density])

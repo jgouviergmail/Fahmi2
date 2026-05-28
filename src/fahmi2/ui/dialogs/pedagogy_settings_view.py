@@ -42,7 +42,6 @@ from fahmi2.domain.pedagogy import (
     PedagogySettings,
 )
 from fahmi2.domain.phase import PhaseConfig
-from fahmi2.pedagogy.labels import audience_label, bloom_label, density_label
 from fahmi2.ui._components import (
     card,
     dialog_footer,
@@ -59,7 +58,13 @@ from fahmi2.ui._model_labels import (
     no_reasoning_label,
     reasoning_effort_labels,
 )
-from fahmi2.ui.pedagogy_labels import export_labels, support_labels
+from fahmi2.ui.pedagogy_labels import (
+    audience_display_label,
+    bloom_display_label,
+    density_display_label,
+    export_labels,
+    support_labels,
+)
 from fahmi2.ui.widgets.settings_view import SettingsView
 
 _DIALOG_WIDTH: Final[int] = 880
@@ -215,7 +220,7 @@ class PedagogySettingsView(QDialog):
             )
         )
         for audience in TargetAudience:
-            self._audience_combo.addItem(audience_label(audience), audience)
+            self._audience_combo.addItem(audience_display_label(audience), audience)
         self._bloom_combo = QComboBox(self)
         self._bloom_combo.setToolTip(
             self.tr(
@@ -223,13 +228,13 @@ class PedagogySettingsView(QDialog):
             )
         )
         for bloom in BloomObjective:
-            self._bloom_combo.addItem(bloom_label(bloom), bloom)
+            self._bloom_combo.addItem(bloom_display_label(bloom), bloom)
         self._density_combo = QComboBox(self)
         self._density_combo.setToolTip(
             self.tr("Volume final des supports (compact, équilibré, dense).")
         )
         for density in SupportDensity:
-            self._density_combo.addItem(density_label(density), density)
+            self._density_combo.addItem(density_display_label(density), density)
         self._directives_input = QTextEdit(self)
         self._directives_input.setPlaceholderText(
             self.tr(

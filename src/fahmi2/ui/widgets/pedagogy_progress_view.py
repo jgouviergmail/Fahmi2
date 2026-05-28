@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QCoreApplication, QTimer
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from fahmi2.domain.enums import RunStatus
@@ -31,15 +31,19 @@ _BANNER_OBJECT_NAME = "pedagogyStateBanner"
 _COST_DECIMALS = 2
 _LIVE_REFRESH_INTERVAL_MS = 1000
 
-_EMPTY_MATRIX = CostMatrixSnapshot(
-    row_header="Support",
-    column_labels=(),
-    row_labels=(),
-    cells=(),
-    row_totals=(),
-    column_totals=(),
-    grand_total=0.0,
-)
+#: Snapshot vide. ``row_header`` est résolu à l'usage par
+#: :func:`empty_matrix` ci-dessous pour suivre la langue active.
+def empty_matrix() -> CostMatrixSnapshot:
+    """Retourne un ``CostMatrixSnapshot`` vide avec en-tête traduit."""
+    return CostMatrixSnapshot(
+        row_header=QCoreApplication.translate("PedagogyProgress", "Support"),
+        column_labels=(),
+        row_labels=(),
+        cells=(),
+        row_totals=(),
+        column_totals=(),
+        grand_total=0.0,
+    )
 
 
 def _elapsed_seconds(stats: PedagogyStatsSnapshot, now: datetime) -> float:
@@ -81,11 +85,17 @@ class PedagogyProgressView(QWidget):
         strip_layout = QHBoxLayout(strip)
         strip_layout.setContentsMargins(12, 8, 12, 8)
         strip_layout.setSpacing(10)
-        self._card_status = StatCard(icon="●", title="Statut", parent=strip)
-        self._card_supports = StatCard(icon="▤", title="Supports", parent=strip)
-        self._card_languages = StatCard(icon="🌐", title="Langues", parent=strip)
-        self._card_duration = StatCard(icon="⏱", title="Durée", parent=strip)
-        self._card_cost = StatCard(icon="$", title="Coût", parent=strip)
+        self._card_status = StatCard(icon="●", title=self.tr("Statut"), parent=strip)
+        self._card_supports = StatCard(
+            icon="▤", title=self.tr("Supports"), parent=strip
+        )
+        self._card_languages = StatCard(
+            icon="🌐", title=self.tr("Langues"), parent=strip
+        )
+        self._card_duration = StatCard(
+            icon="⏱", title=self.tr("Durée"), parent=strip
+        )
+        self._card_cost = StatCard(icon="$", title=self.tr("Coût"), parent=strip)
         for card in (
             self._card_status,
             self._card_supports,
@@ -138,16 +148,18 @@ class PedagogyProgressView(QWidget):
             self._card_status.set_value("—")
             self._card_status.set_accent(ACCENT_NEUTRAL)
         self._card_supports.set_value(
-            f"{stats.tasks_done} / {stats.tasks_total}", "tâches"
+            f"{stats.tasks_done} / {stats.tasks_total}", self.tr("tâches")
         )
         self._card_languages.set_value(format_languages(stats.languages))
         self._card_duration.set_value(
             format_duration(_elapsed_seconds(stats, datetime.now(tz=UTC)))
         )
         if stats.cost_ceiling_usd is not None:
-            cost_sub = f"plafond ${stats.cost_ceiling_usd:.{_COST_DECIMALS}f}"
+            cost_sub = self.tr("plafond ${ceiling:.2f}").format(
+                ceiling=stats.cost_ceiling_usd
+            )
         else:
-            cost_sub = "sans plafond"
+            cost_sub = self.tr("sans plafond")
         self._card_cost.set_value(
             f"${stats.total_cost_usd:.{_COST_DECIMALS}f}", cost_sub
         )
@@ -178,7 +190,7 @@ class PedagogyProgressView(QWidget):
         if self._timer.isActive():
             self._timer.stop()
         self._last_stats = None
-        self._matrix.apply_snapshot(_EMPTY_MATRIX)
+        self._matrix.apply_snapshot(empty_matrix())
         self._row_count = 0
         self._banner.setText("")
         self._banner.setVisible(False)

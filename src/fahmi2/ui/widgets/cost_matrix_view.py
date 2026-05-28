@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import (
     QAbstractTableModel,
+    QCoreApplication,
     QModelIndex,
     QPersistentModelIndex,
     QRect,
@@ -30,8 +31,12 @@ from fahmi2.ui.theme._tokens import TokenPalette, current_palette
 from fahmi2.ui.viewmodels.cost_matrix import CostMatrixCell, CostMatrixSnapshot
 
 _COST_DECIMALS = 4
-_TOTAL_HEADER = "Total"
 _CELL_ROLE = int(Qt.ItemDataRole.UserRole) + 1
+
+
+def _total_header() -> str:
+    """Libellé traduit de l'en-tête / ligne « Total » de la matrice."""
+    return QCoreApplication.translate("CostMatrix", "Total")
 
 #: Hauteur d'une ligne de la matrice (px) — accueille glyphe + coût sur 2 niveaux.
 _ROW_HEIGHT_PX = 40
@@ -163,7 +168,7 @@ class _CostMatrixModel(QAbstractTableModel):
         n_cols = len(self._s.column_labels)
         if 1 <= section <= n_cols:
             return self._s.column_labels[section - 1]
-        return _TOTAL_HEADER
+        return _total_header()
 
     def _is_total_row(self, row: int) -> bool:
         return row == len(self._s.row_labels)
@@ -249,7 +254,7 @@ class _CostMatrixModel(QAbstractTableModel):
             Le texte à afficher.
         """
         if col == 0:
-            return _TOTAL_HEADER if total_row else self._s.row_labels[row]
+            return _total_header() if total_row else self._s.row_labels[row]
         total_col = self._is_total_col(col)
         if total_row and total_col:
             return _fmt_cost(self._s.grand_total)

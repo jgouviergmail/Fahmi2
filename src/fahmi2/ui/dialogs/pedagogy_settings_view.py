@@ -67,7 +67,12 @@ from fahmi2.ui._components import (
     settings_form,
     settings_page,
 )
-from fahmi2.ui._model_labels import LLM_MODEL_LABELS, labeled_enum_combo
+from fahmi2.ui._model_labels import (
+    LLM_MODEL_LABELS,
+    NO_REASONING_LABEL,
+    REASONING_EFFORT_LABELS,
+    labeled_enum_combo,
+)
 from fahmi2.ui.pedagogy_labels import EXPORT_LABELS, SUPPORT_LABELS
 from fahmi2.ui.widgets.settings_view import SettingsView
 
@@ -105,7 +110,6 @@ _SEPARATE_CORRECTION_TOOLTIP: Final[str] = (
     "(utile pour les examens blancs)."
 )
 _SUPPORT_TYPE_COLUMN_HEADER: Final[str] = "Type de support"
-_REASONING_DEFAULT_LABEL: Final[str] = "Automatique (serveur)"
 _VALIDATION_TITLE: Final[str] = "Réglages incomplets"
 _VALIDATION_MESSAGE: Final[str] = (
     "Sélectionnez au moins un support et au moins une langue."
@@ -373,9 +377,11 @@ class PedagogySettingsView(QDialog):
         self._llm_combo = labeled_enum_combo(self, LLM_MODEL_LABELS)
         self._thinking_check = QCheckBox(_THINKING_LABEL, self)
         self._reasoning_combo = QComboBox(self)
-        self._reasoning_combo.addItem(_REASONING_DEFAULT_LABEL, None)
-        for effort in ReasoningEffort:
-            self._reasoning_combo.addItem(effort.value, effort)
+        # Libellés FR partagés avec ChatSettingsView et PhaseConfigsWidget pour
+        # garantir une terminologie homogène d'un onglet à l'autre.
+        self._reasoning_combo.addItem(NO_REASONING_LABEL, None)
+        for effort, label in REASONING_EFFORT_LABELS.items():
+            self._reasoning_combo.addItem(label, effort.value)
         # L'intensité de réflexion (``reasoning_effort``) n'a d'effet que si la
         # réflexion approfondie est activée : on grise le combo quand le
         # checkbox est décoché. La valeur reste mémorisée et restituée si
@@ -561,7 +567,13 @@ class PedagogySettingsView(QDialog):
             cb.setChecked(lang in pedagogy.languages)
         _select_combo(self._llm_combo, pedagogy.llm_model)
         self._thinking_check.setChecked(pedagogy.llm_config.thinking_enabled)
-        _select_combo(self._reasoning_combo, pedagogy.llm_config.reasoning_effort)
+        # Le combo stocke maintenant ``effort.value`` (str) plutôt que l'enum :
+        # on passe la valeur cohérente pour ``findData``.
+        effort = pedagogy.llm_config.reasoning_effort
+        _select_combo(
+            self._reasoning_combo,
+            effort.value if effort is not None else None,
+        )
         self._temperature_input.setValue(pedagogy.llm_config.temperature)
         self._cost_ceiling_input.setValue(pedagogy.cost_ceiling_usd or 0.0)
         self._workers_input.setValue(pedagogy.llm_workers)

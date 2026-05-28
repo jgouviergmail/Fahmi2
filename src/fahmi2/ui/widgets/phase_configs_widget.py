@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 
 from fahmi2.domain.enums import PhaseId, ReasoningEffort
 from fahmi2.domain.phase import PhaseConfig
+from fahmi2.ui._model_labels import NO_REASONING_LABEL, REASONING_EFFORT_LABELS
 
 _LLM_PHASES_ORDER: tuple[PhaseId, ...] = (
     PhaseId.TERM_EXTRACTION,
@@ -99,9 +100,11 @@ class PhaseConfigsWidget(QGroupBox):
             grid.addWidget(thinking_cb, row_idx, 1)
 
             effort_combo = QComboBox(self)
-            effort_combo.addItem("(défaut serveur)", None)
+            # Libellés FR partagés avec ChatSettingsView et PedagogySettingsView
+            # (source unique dans ``ui/_model_labels``).
+            effort_combo.addItem(NO_REASONING_LABEL, None)
             for level in _REASONING_EFFORT_LEVELS:
-                effort_combo.addItem(level.value, level)
+                effort_combo.addItem(REASONING_EFFORT_LABELS[level], level)
             effort_combo.setToolTip(
                 "Niveau d'effort de raisonnement (envoie "
                 '{"reasoning_effort": "<valeur>"}). Pris en compte '
@@ -178,7 +181,7 @@ class PhaseConfigsWidget(QGroupBox):
             if target_index >= 0:
                 effort_combo.setCurrentIndex(target_index)
             else:
-                # Repasser sur "(défaut serveur)"
+                # Repasser sur l'option par défaut « Automatique (serveur) ».
                 effort_combo.setCurrentIndex(0)
             temp_sb.setValue(cfg.temperature)
             retries_sb.setValue(cfg.max_retries)

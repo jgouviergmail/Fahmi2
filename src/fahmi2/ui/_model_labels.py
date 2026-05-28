@@ -1,15 +1,17 @@
-"""Libellés descriptifs des modèles (LLM, embeddings, STT) pour les combos UI.
+"""Libellés descriptifs des combos UI (modèles + paramètres d'enum partagés).
 
 Source **unique** partagée par les dialogues de réglages (Génération, Supports
 pédagogiques, Dialogue) : chaque modèle est présenté avec un suffixe explicitant
 son compromis (« économique », « capacité supérieure », …), pour un choix éclairé
-et cohérent d'un onglet à l'autre.
+et cohérent d'un onglet à l'autre. La même logique s'applique aux paramètres
+non-modèles (ex. ``ReasoningEffort``) pour garantir une terminologie homogène
+d'un écran à l'autre.
 """
 
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import TypeVar
+from typing import Final, TypeVar
 
 from PySide6.QtWidgets import QComboBox, QWidget
 
@@ -18,6 +20,7 @@ from fahmi2.domain.enums import (
     EmbeddingModel,
     LLMModel,
     LocalSttModel,
+    ReasoningEffort,
 )
 
 _EnumT = TypeVar("_EnumT", bound=StrEnum)
@@ -48,6 +51,20 @@ CLOUD_STT_MODEL_LABELS: dict[CloudSttModel, str] = {
     CloudSttModel.WHISPER_1: "whisper-1 (timestamps fins)",
     CloudSttModel.GPT_4O_TRANSCRIBE: "gpt-4o-transcribe (précision supérieure)",
     CloudSttModel.GPT_4O_MINI_TRANSCRIBE: "gpt-4o-mini-transcribe (2× moins cher)",
+}
+
+#: Libellé du choix par défaut du combo « Intensité de réflexion » (valeur ``None``).
+#: Représente l'absence d'effort explicite — le serveur choisit lui-même.
+NO_REASONING_LABEL: Final[str] = "Automatique (serveur)"
+
+#: Libellés FR des niveaux d'intensité de réflexion (``ReasoningEffort``).
+#: Source **unique** partagée par tous les écrans qui exposent ce réglage
+#: (ChatSettingsView, PedagogySettingsView, PhaseConfigsWidget) — garantit que
+#: l'utilisateur voit les mêmes mots d'un onglet à l'autre. Évite l'affichage
+#: brut « high » / « max » des valeurs d'enum.
+REASONING_EFFORT_LABELS: Final[dict[ReasoningEffort, str]] = {
+    ReasoningEffort.HIGH: "Élevée",
+    ReasoningEffort.MAX: "Maximale",
 }
 
 

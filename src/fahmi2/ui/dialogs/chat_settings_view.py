@@ -52,6 +52,8 @@ from fahmi2.ui._components import (
 from fahmi2.ui._model_labels import (
     EMBEDDING_MODEL_LABELS,
     LLM_MODEL_LABELS,
+    NO_REASONING_LABEL,
+    REASONING_EFFORT_LABELS,
     labeled_enum_combo,
 )
 from fahmi2.ui.widgets.settings_view import SettingsView
@@ -74,9 +76,6 @@ _TEMPERATURE_STEP: Final[float] = 0.1
 _TOP_K_MIN: Final[int] = 1
 _TOP_K_MAX: Final[int] = 20
 
-#: Libellé de l'option « aucun effort de raisonnement explicite ».
-_NO_REASONING_LABEL: Final[str] = "Automatique (serveur)"
-
 # ---------------------------------------------------------------- catégories
 
 _CAT_RESPONSE: Final[str] = "Mode de réponse"
@@ -94,10 +93,9 @@ _STRATEGY_LABELS: Final[dict[RetrievalStrategy, str]] = {
     RetrievalStrategy.LEXICAL: "Mots-clés (hors ligne, TF-IDF)",
     RetrievalStrategy.SEMANTIC: "Sens (en ligne, OpenAI)",
 }
-_REASONING_LABELS: Final[dict[ReasoningEffort, str]] = {
-    ReasoningEffort.HIGH: "Élevée",
-    ReasoningEffort.MAX: "Maximale",
-}
+# Les libellés de l'intensité de réflexion (``ReasoningEffort``) sont importés
+# depuis ``_model_labels`` — partagés avec ``PedagogySettingsView`` et
+# ``PhaseConfigsWidget`` pour garantir une terminologie identique partout.
 
 # ---------------------------------------------------------------- libellés UI
 
@@ -340,8 +338,8 @@ class ChatSettingsView(QDialog):
             Le ``QComboBox`` peuplé et positionné.
         """
         combo = QComboBox(self)
-        combo.addItem(_NO_REASONING_LABEL, None)
-        for effort, label in _REASONING_LABELS.items():
+        combo.addItem(NO_REASONING_LABEL, None)
+        for effort, label in REASONING_EFFORT_LABELS.items():
             combo.addItem(label, effort.value)
         if initial is not None:
             index = combo.findData(initial.value)

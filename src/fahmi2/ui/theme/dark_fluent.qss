@@ -657,6 +657,54 @@ QToolTip {
     border: none;
 }
 
+/* ===== Sidebar projets — rendu deux lignes (pastille + nom + sous-libellé) ===== */
+#projectsSidebar {
+    padding: 8px 6px;
+}
+#projectsSidebar::item {
+    padding: 0;
+    margin: 2px 4px;
+    border-radius: 8px;
+    background-color: transparent;
+}
+#projectsSidebar::item:hover {
+    background-color: #1f2a3a;
+}
+#projectsSidebar::item:selected {
+    background-color: #15314d;
+}
+#projectListDot {
+    font-size: 16px;
+    color: #3d434e;
+    background-color: transparent;
+}
+#projectListDot[accent="success"] {
+    color: #3fb950;
+}
+#projectListDot[accent="running"] {
+    color: #4aa3ee;
+}
+#projectListDot[accent="warning"] {
+    color: #d29922;
+}
+#projectListDot[accent="danger"] {
+    color: #f85149;
+}
+#projectListDot[accent="neutral"] {
+    color: #3d434e;
+}
+#projectListName {
+    font-size: 13px;
+    font-weight: 600;
+    color: #e6e9ef;
+    background-color: transparent;
+}
+#projectListSubtitle {
+    font-size: 11px;
+    color: #6e7787;
+    background-color: transparent;
+}
+
 /* ===== Éditeur de prompts ===== */
 #promptsEditorStatus {
     color: #9aa3b2;

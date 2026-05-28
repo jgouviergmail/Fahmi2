@@ -177,7 +177,7 @@ class MainWindow(QMainWindow):
         self._open_prompts_action = QAction("Modifier les prompts…", self)
         edit_menu.addAction(self._open_prompts_action)
 
-        help_menu = menubar.addMenu("?")
+        help_menu = menubar.addMenu("Aide")
         assert help_menu is not None
         about_action = QAction("À propos", self)
         about_action.triggered.connect(self._show_about)

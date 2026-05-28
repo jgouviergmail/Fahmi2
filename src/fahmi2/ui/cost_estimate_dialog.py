@@ -1,25 +1,56 @@
 """Dialogue d'estimation de coût partagé (génération + pédagogie).
 
 Rend une décomposition (par phase / par support) + un total à **fourchette**
-(±33 %, format ``≈ $X`` + sous-info) + une ligne de plafond (marge ou avertissement
-si le haut de fourchette dépasse le budget). Présentation unifiée des deux dialogues.
+(±33 %, format ``≈ $X`` + sous-info) + une ligne de plafond (marge ou
+avertissement si le haut de fourchette dépasse le budget).
+
+L'API publique reste :py:func:`show_cost_estimate` (modal dialog) ; le corps
+HTML est construit par :py:func:`build_estimate_body` (testable). Le dialogue
+utilise désormais une carte au look « système de design » pour rester cohérent
+avec le reste de l'application, plutôt qu'un ``QMessageBox`` brut.
 """
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QMessageBox, QWidget
+from typing import Final
 
-_BREAKDOWN_DECIMALS = 4
-_TOTAL_DECIMALS = 2
-_RANGE_PCT = 33
-_FOOTNOTE = (
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QDialog,
+    QDialogButtonBox,
+    QLabel,
+    QVBoxLayout,
+    QWidget,
+)
+
+from fahmi2.ui._components import card, frenchify_button_box
+
+# ---------------------------------------------------------------- constantes
+
+_BREAKDOWN_DECIMALS: Final[int] = 4
+_TOTAL_DECIMALS: Final[int] = 2
+_RANGE_PCT: Final[int] = 33
+_FOOTNOTE: Final[str] = (
     "<i>Estimation indicative basée sur des heuristiques DeepSeek (durées, "
     "tokens, multiplicateurs par phase et mode thinking). Fourchette ±33 %.</i>"
 )
-_GREEN = "#1a7f37"
-_RED = "#cf222e"
-_MUTED = "#57606a"
+_GREEN: Final[str] = "#1a7f37"
+_RED: Final[str] = "#cf222e"
+_MUTED: Final[str] = "#57606a"
+
+_DIALOG_MIN_WIDTH: Final[int] = 560
+_DIALOG_COLUMN_MAX_WIDTH: Final[int] = 540
+_DIALOG_MARGIN_HORIZONTAL: Final[int] = 22
+_DIALOG_MARGIN_TOP: Final[int] = 22
+_DIALOG_MARGIN_BOTTOM: Final[int] = 18
+_DIALOG_SPACING: Final[int] = 14
+
+_CARD_TITLE: Final[str] = "Estimation du coût"
+_CARD_DESC: Final[str] = (
+    "Décomposition par étape et total estimé. La fourchette ±33 % reflète "
+    "l'incertitude sur la longueur réelle des sorties IA."
+)
+_OK_BUTTON_TEXT: Final[str] = "Compris"
 
 
 def build_estimate_body(
@@ -104,7 +135,7 @@ def show_cost_estimate(
     high_usd: float,
     cost_ceiling_usd: float | None,
 ) -> None:
-    """Affiche le dialogue d'estimation (``QMessageBox`` RichText).
+    """Affiche le dialogue d'estimation (``QDialog`` modal avec carte).
 
     Args:
         parent: Fenêtre parente.
@@ -116,18 +147,53 @@ def show_cost_estimate(
         high_usd: Haut de fourchette.
         cost_ceiling_usd: Plafond éventuel.
     """
-    msg = QMessageBox(parent)
-    msg.setWindowTitle(title)
-    msg.setIcon(QMessageBox.Icon.Information)
-    msg.setTextFormat(Qt.TextFormat.RichText)
-    msg.setText(
-        build_estimate_body(
-            header_lines=header_lines,
-            breakdown=breakdown,
-            total_usd=total_usd,
-            low_usd=low_usd,
-            high_usd=high_usd,
-            cost_ceiling_usd=cost_ceiling_usd,
-        )
+    body_html = build_estimate_body(
+        header_lines=header_lines,
+        breakdown=breakdown,
+        total_usd=total_usd,
+        low_usd=low_usd,
+        high_usd=high_usd,
+        cost_ceiling_usd=cost_ceiling_usd,
     )
-    msg.exec()
+
+    dialog = QDialog(parent)
+    dialog.setWindowTitle(title)
+    dialog.setMinimumWidth(_DIALOG_MIN_WIDTH)
+
+    body_label = QLabel(body_html, dialog)
+    body_label.setTextFormat(Qt.TextFormat.RichText)
+    body_label.setWordWrap(True)
+    body_label.setTextInteractionFlags(
+        Qt.TextInteractionFlag.TextSelectableByMouse
+    )
+
+    card_frame, card_layout = card(dialog, title=_CARD_TITLE, description=_CARD_DESC)
+    card_layout.addWidget(body_label)
+
+    column = QWidget(dialog)
+    column.setMaximumWidth(_DIALOG_COLUMN_MAX_WIDTH)
+    column_layout = QVBoxLayout(column)
+    column_layout.setContentsMargins(0, 0, 0, 0)
+    column_layout.setSpacing(_DIALOG_SPACING)
+    column_layout.addWidget(card_frame)
+
+    buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok, parent=dialog)
+    frenchify_button_box(buttons)
+    ok_button = buttons.button(QDialogButtonBox.StandardButton.Ok)
+    if ok_button is not None:
+        ok_button.setText(_OK_BUTTON_TEXT)
+    buttons.accepted.connect(dialog.accept)
+
+    outer = QVBoxLayout(dialog)
+    outer.setContentsMargins(
+        _DIALOG_MARGIN_HORIZONTAL,
+        _DIALOG_MARGIN_TOP,
+        _DIALOG_MARGIN_HORIZONTAL,
+        _DIALOG_MARGIN_BOTTOM,
+    )
+    outer.setSpacing(_DIALOG_SPACING)
+    outer.addWidget(column, alignment=Qt.AlignmentFlag.AlignHCenter)
+    outer.addStretch(1)
+    outer.addWidget(buttons)
+
+    dialog.exec()

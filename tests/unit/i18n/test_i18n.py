@@ -29,7 +29,7 @@ _PILOT_SOURCE = "Fichier"
 _PILOT_TRANSLATED = "File"
 _MAIN_WINDOW_CONTEXT = "MainWindow"
 
-#: Chaînes critiques par contexte migré (filet anti-régression i18n-1).
+#: Chaînes critiques par contexte migré (filet anti-régression i18n).
 #:
 #: Couvre **au moins une chaîne par contexte** pour qu'un rename de libellé
 #: dans le code source sans re-extraction (``scripts/i18n_extract.py``) ou
@@ -38,13 +38,14 @@ _MAIN_WINDOW_CONTEXT = "MainWindow"
 #:
 #: Format : ``(context, source FR, traduction EN attendue)``.
 _TRANSLATION_SMOKE_TESTS: tuple[tuple[str, str, str], ...] = (
+    # Phase 0 + 1 — surface principale du cockpit.
     ("MainWindow", "Fichier", "File"),
     ("MainWindow", "À propos de Fahmi2", "About Fahmi2"),
-    ("GlobalSettingsDialog", "Redémarrage requis", "Restart required"),
     ("LogsDock", "Niveau minimum", "Minimum level"),
     ("LogsDock", "ERREUR", "ERROR"),
     ("ProjectsSidebar", "Modifier…", "Edit…"),
     ("ProjectHeaderBar", "🚀  Lancer", "🚀  Run"),
+    ("ProjectHeaderBar", "❌  Annuler", "❌  Cancel"),
     ("StatsStripWidget", "Statut", "Status"),
     ("StatsStripWidget", "sources terminées", "sources completed"),
     ("StatusLabels", "En cours", "Running"),
@@ -52,6 +53,65 @@ _TRANSLATION_SMOKE_TESTS: tuple[tuple[str, str, str], ...] = (
     ("ChatTab", "Dialogue", "Dialogue"),
     ("GenerationTab", "Génération", "Generation"),
     ("PedagogyTab", "Supports pédagogiques", "Revision materials"),
+    # Phase 2 — dialogues de configuration + widgets internes + labels.
+    ("GlobalSettingsDialog", "Redémarrage requis", "Restart required"),
+    ("GlobalSettingsDialog", "Clés API", "API keys"),
+    ("NewProjectDialog", "Nouveau projet", "New project"),
+    ("NewProjectDialog", "Créer le projet", "Create project"),
+    ("GenerationSettingsView", "Configurer la génération", "Configure generation"),
+    ("GenerationSettingsView", "Préréglage de style", "Style preset"),
+    (
+        "PedagogySettingsView",
+        "Configurer les supports pédagogiques",
+        "Configure revision materials",
+    ),
+    ("PedagogySettingsView", "Types de supports", "Material types"),
+    ("ChatSettingsView", "Réglages — Dialogue", "Settings — Dialogue"),
+    ("ChatSettingsView", "Méthode de recherche", "Search method"),
+    ("PromptsEditorDialog", "Modifier les prompts", "Edit prompts"),
+    ("CostEstimateDialog", "Estimation du coût", "Cost estimate"),
+    ("CostEstimateDialog", "Total estimé", "Estimated total"),
+    ("PhaseConfigsWidget", "Configuration des phases LLM", "LLM phase configuration"),
+    ("SourceOrderView", "Sources exclues", "Excluded sources"),
+    ("SourceOrderView", "▲ Monter", "▲ Move up"),
+    ("ModelLabels", "Élevée", "High"),
+    ("ModelLabels", "DeepSeek V4 Flash (économique)", "DeepSeek V4 Flash (economical)"),
+    ("PedagogyLabels", "QCM", "MCQ"),
+    ("PedagogyLabels", "Anki (.apkg)", "Anki (.apkg)"),
+    ("PedagogyLabels", "En attente", "Pending"),
+    ("StandardButtons", "Annuler", "Cancel"),
+    ("StandardButtons", "Enregistrer", "Save"),
+    # Phase 3 — vue Dialogue + matrice + progression + controllers.
+    ("ChatView", "Envoyer", "Send"),
+    ("ChatView", "＋ Nouvelle conversation", "＋ New conversation"),
+    ("ChatBubble", "Vous", "You"),
+    ("ChatBubble", "Sources", "Sources"),
+    ("CostMatrix", "Total", "Total"),
+    ("PedagogyProgressView", "tâches", "tasks"),
+    ("PedagogyProgressView", "sans plafond", "no cap"),
+    ("ChatController", "Clé DeepSeek manquante", "DeepSeek key missing"),
+    ("GenerationController", "Annuler le run ?", "Cancel the run?"),
+    ("GenerationController", "Réinitialiser la génération ?", "Reset the generation?"),
+    ("GenerationController", "Aucun projet sélectionné", "No project selected"),
+    ("PedagogyController", "Supports non configurés", "Materials not configured"),
+    ("PedagogyController", "Export terminé", "Export finished"),
+    ("PedagogyController", "Exporter vers Anki", "Export to Anki"),
+    ("PedagogyLabels", "lycée", "high school"),
+    ("PedagogyLabels", "comprendre et appliquer", "understand and apply"),
+    ("PedagogyLabels", "dense", "dense"),
+    # Phase 4 — passe finale.
+    ("ExportUI", "Aucun format d'export", "No export format"),
+    ("ExportUI", "Exporter", "Export"),
+    ("ExportUI", "Rien à exporter", "Nothing to export"),
+    ("RunMatrix", "Ingestion", "Ingestion"),
+    ("RunMatrix", "Cohérence", "Coherence"),
+    ("RunMatrix", "déjà fait", "already done"),
+    ("RunMatrix", "Source", "Source"),
+    ("PedagogyState", "⚙ À configurer", "⚙ To configure"),
+    ("PedagogyState", "✓ Supports à jour", "✓ Materials up to date"),
+    ("PedagogyState", "⟳ Supports à régénérer", "⟳ Materials to regenerate"),
+    ("FsHelpers", "Échec de la suppression du dossier {label} : {path} ({exc})",
+        "Failed to delete the {label} folder: {path} ({exc})"),
 )
 
 

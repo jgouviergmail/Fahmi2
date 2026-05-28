@@ -214,27 +214,41 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   mais s'applique **au prochain démarrage** : Qt ne propage pas
   `LanguageChange` aux chaînes déjà rendues via `tr()` au moment de la
   construction des widgets, et reconstruire l'arbre serait fragile.
-  **État de la migration** : pilote `MainWindow` (phase 0) + surface
-  principale du cockpit (sidebar, onglets, bandeau, stats, logs ; phase 1)
-  + **tous les dialogues de configuration** (GlobalSettings, NewProject,
-  GenerationSettings ~80 chaînes, PedagogySettings ~50, ChatSettings ~30,
-  PromptsEditor, CostEstimate) + widgets internes (PhaseConfigs,
-  SourceOrder, LanguageSelection) + helpers (`localize_button_box`
-  remplace `frenchify_button_box` — i18n-aware ; labels centralisés
-  `_model_labels` / `pedagogy_labels` exposés comme **fonctions**
-  retournant des dicts traduits à l'usage ; phase 2). **Reste à migrer** :
-  controllers (`generation_controller` / `pedagogy_controller` /
-  `chat_controller` — surtout des messages d'erreur/log dynamiques), vue
-  Dialogue (`chat_view` / `_chat_bubble`), `cost_matrix_view`,
-  `pedagogy_progress_view`, `pedagogy/labels` (audience/Bloom/densité).
+  **État de la migration : intégrale** (phases 0 à 4 livrées). **485
+  chaînes** traduites sur **≥ 28 contextes Linguist** couvrant : pilote
+  `MainWindow` (phase 0) ; surface du cockpit — sidebar, onglets, bandeau,
+  stats, logs (phase 1) ; tous les dialogues de configuration —
+  GlobalSettings, NewProject, GenerationSettings, PedagogySettings,
+  ChatSettings, PromptsEditor, CostEstimate — + widgets internes
+  (PhaseConfigs, SourceOrder, LanguageSelection) + helpers
+  (`localize_button_box` remplace `frenchify_button_box` ; labels
+  centralisés `_model_labels` / `pedagogy_labels` exposés comme
+  **fonctions** retournant des dicts traduits à l'usage) (phase 2) ; vue
+  Dialogue (`chat_view` / `_chat_bubble`), matrice de coût, vue
+  progression pédagogie + tous les QMessageBox des 3 controllers (phase 3) ;
+  helper d'export documentaire, viewmodels (run_matrix, pedagogy_state)
+  + helpers fs (phase 4). **Domaine FR figé** : `pedagogy/labels.py`
+  reste en français (utilisé dans les prompts LLM ; la qualité des supports
+  dépend de la stabilité linguistique des prompts) ; les variantes UI
+  traduites sont exposées via `ui/pedagogy_labels.audience_display_label`
+  / `bloom_display_label` / `density_display_label`.
+  **Tests garde-fou** : `tests/unit/i18n/test_i18n.py` paramètre une
+  ~60aine de chaînes critiques (≥ 1 par contexte migré) qui valident en
+  bout-en-bout que le `.qm` compilé contient bien la traduction attendue
+  — un rename source FR sans re-extraction/compilation fait échouer la
+  suite.
   **Pièges Qt** : `pyside6-lupdate` n'extrait pas les chaînes passées à un
   wrapper de fonction (``_tr(source)``) — toujours appeler directement
   ``QCoreApplication.translate("Context", "literal source")`` avec
-  contexte ET source littéraux. Le `QTranslator` précédemment installé
-  est cleanup via `setParent(None) + deleteLater()` à chaque
-  `install_translator` (sans cela, des QObject orphelins continuent de
-  recevoir des `LanguageChange` et peuvent corrompre la mémoire dans des
-  sessions de tests longues).
+  contexte ET source littéraux. Idem pour `self.tr()` : le contexte est
+  le **nom de la classe** où il est appelé (`PedagogyProgressView`, pas
+  `PedagogyProgress` même si on a un alias humain). Le `QTranslator`
+  précédemment installé est cleanup via `setParent(None) + deleteLater()`
+  à chaque `install_translator` (sans cela, des QObject orphelins
+  continuent de recevoir des `LanguageChange` et peuvent corrompre la
+  mémoire dans des sessions de tests longues). Les stubs PySide6 typent
+  `QT_TRANSLATE_NOOP` en `object` → `typing.cast(str, ...)` requis pour
+  mypy strict.
 
 ## Le pipeline en 8 phases
 

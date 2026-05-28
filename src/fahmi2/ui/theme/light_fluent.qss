@@ -455,41 +455,16 @@ QComboBox::drop-down {
     width: 22px;
 }
 
-/* QSpinBox / QDoubleSpinBox — hit-areas explicites pour up/down.
- *
- * Sans ces règles, Qt calcule des sous-rectangles dépendant du padding du
- * champ (cf. règle ``QSpinBox { padding: 7px 11px; }`` ci-dessus) : la zone
- * cliquable de la flèche du haut est alors mal centrée et n'occupe que
- * quelques pixels sur la droite (curseur en édition de texte ailleurs). On
- * définit explicitement la position, la largeur et la hauteur de chaque
- * sous-contrôle pour garantir un comportement identique haut/bas. */
-QSpinBox::up-button, QDoubleSpinBox::up-button {
-    subcontrol-origin: border;
-    subcontrol-position: top right;
-    width: 22px;
-    height: 16px;
-    border-left: 1px solid #d6dae0;
-    margin: 0;
-}
-QSpinBox::down-button, QDoubleSpinBox::down-button {
-    subcontrol-origin: border;
-    subcontrol-position: bottom right;
-    width: 22px;
-    height: 16px;
-    border-left: 1px solid #d6dae0;
-    margin: 0;
-}
-QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {
-    width: 8px;
-    height: 8px;
-}
-QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {
-    width: 8px;
-    height: 8px;
-}
-QSpinBox::up-button:hover, QSpinBox::down-button:hover,
-QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {
-    background-color: #eef4fb;
+/* QSpinBox / QDoubleSpinBox — padding-right étendu pour laisser place aux
+ * flèches natives de Qt. On ne style PAS les sous-contrôles ``::up-button``
+ * / ``::down-button`` / ``::up-arrow`` / ``::down-arrow`` afin que Qt
+ * continue de peindre ses triangles natifs (toute règle QSS sur ces
+ * sous-contrôles bascule Qt en mode QSS pur où l'image native disparaît,
+ * et l'``image:`` data URL n'est pas rendue de façon fiable). Le padding
+ * gauche reste à 11 px (cohérent avec QLineEdit), le padding droit passe
+ * à 28 px pour que les boutons natifs ne chevauchent jamais le texte. */
+QSpinBox, QDoubleSpinBox {
+    padding-right: 28px;
 }
 
 QCheckBox {

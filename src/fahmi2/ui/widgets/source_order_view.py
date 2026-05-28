@@ -1,17 +1,24 @@
 """Widget d'ordonnancement & exclusion des sources (double liste).
 
-« Sources à traiter » (ordonnée, glisser-déposer interne pour réordonner) /
-« Exclues » (non traitées). Boutons : ↑ / ↓ (réordonner), Exclure ▼ / Réinclure ▲
-(déplacer entre listes), ↻ Rafraîchir (émet ``refresh_requested``), Tout réinclure.
-Expose ``source_order()`` et ``excluded_sources()`` (clés stables) consommés par
-``GenerationSettingsView``. Composant de **présentation pur** : la réconciliation
-ordre/exclusion (fonction pure ``app.input_sources.reconcile_source_order``) est
-appliquée par l'appelant, qui transmet les listes déjà réconciliées à ``populate``.
+Présentation :
+
+- *Sources à traiter* (liste ordonnée, glisser-déposer interne pour réordonner)
+  avec une barre d'actions **sous** la liste (▲ monter, ▼ descendre, Exclure).
+- *Sources exclues* (non traitées) avec une barre d'actions **sous** la liste
+  (Réinclure).
+- En bas, deux boutons globaux : « ↻ Rafraîchir » et « Tout réinclure ».
+
+Expose ``source_order()`` et ``excluded_sources()`` (clés stables) consommés
+par ``GenerationSettingsView``. Composant de **présentation pur** : la
+réconciliation ordre/exclusion (fonction pure
+``app.input_sources.reconcile_source_order``) est appliquée par l'appelant,
+qui transmet les listes déjà réconciliées à ``populate``.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Final
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
@@ -29,30 +36,50 @@ from PySide6.QtWidgets import (
 from fahmi2.domain.enums import SourceKind
 from fahmi2.domain.source import InputSource
 
-_KEY_ROLE = Qt.ItemDataRole.UserRole
-_KIND_LABELS: dict[SourceKind, str] = {
+_KEY_ROLE: Final[int] = int(Qt.ItemDataRole.UserRole)
+_KIND_LABELS: Final[dict[SourceKind, str]] = {
     SourceKind.VIDEO: "VID",
     SourceKind.AUDIO: "AUD",
     SourceKind.DOCUMENT: "DOC",
     SourceKind.YOUTUBE: "YT",
 }
-_INCLUDED_TITLE = "Sources à traiter — ordre des chapitres"
-_EXCLUDED_TITLE = "Exclues — non traitées"
-_ORDER_IRRELEVANT_NOTE = (
+_INCLUDED_TITLE: Final[str] = "Sources à traiter — ordre des chapitres"
+_EXCLUDED_TITLE: Final[str] = "Sources exclues"
+_ORDER_IRRELEVANT_NOTE: Final[str] = (
     "ⓘ Mode refonte thématique : l'ordre des sources est sans effet "
     "(seule l'inclusion / exclusion compte)."
 )
-_NEW_BADGE = "  • nouveau"
-_UP_LABEL = "▲"
-_DOWN_LABEL = "▼"
-_EXCLUDE_LABEL = "Exclure ▼"
-_REINCLUDE_LABEL = "Réinclure ▲"
-_REFRESH_LABEL = "↻ Rafraîchir"
-_REINCLUDE_ALL_LABEL = "Tout réinclure"
-_LIST_MIN_HEIGHT_PX = 110
-#: Poids vertical : la liste « à traiter » grandit davantage que les « exclues ».
-_INCLUDED_STRETCH = 3
-_EXCLUDED_STRETCH = 1
+_NEW_BADGE: Final[str] = "  • nouveau"
+
+# Étiquettes des boutons d'action.
+_UP_LABEL: Final[str] = "▲ Monter"
+_DOWN_LABEL: Final[str] = "▼ Descendre"
+_EXCLUDE_LABEL: Final[str] = "Exclure"
+_REINCLUDE_LABEL: Final[str] = "Réinclure"
+_REFRESH_LABEL: Final[str] = "↻ Rafraîchir"
+_REINCLUDE_ALL_LABEL: Final[str] = "Tout réinclure"
+
+# Tooltips.
+_UP_TOOLTIP: Final[str] = "Monter la source sélectionnée d'une position"
+_DOWN_TOOLTIP: Final[str] = "Descendre la source sélectionnée d'une position"
+_EXCLUDE_TOOLTIP: Final[str] = "Exclure la source sélectionnée du traitement"
+_REINCLUDE_TOOLTIP: Final[str] = "Réintégrer la source sélectionnée"
+_REFRESH_TOOLTIP: Final[str] = (
+    "Re-scanner le dossier d'entrée pour détecter les nouvelles sources"
+)
+
+# Hauteurs des listes (px) — bornées pour éviter l'étirement infini dans une
+# carte qui aurait du ``stretch=1`` côté layout parent.
+_INCLUDED_LIST_MIN_HEIGHT: Final[int] = 160
+_INCLUDED_LIST_MAX_HEIGHT: Final[int] = 280
+_EXCLUDED_LIST_MIN_HEIGHT: Final[int] = 90
+_EXCLUDED_LIST_MAX_HEIGHT: Final[int] = 160
+
+# Espacements internes.
+_OUTER_SPACING: Final[int] = 10
+_LIST_TO_ACTIONS_SPACING: Final[int] = 6
+_ACTIONS_ROW_SPACING: Final[int] = 6
+_SECTION_TOP_SPACING: Final[int] = 8
 
 
 class SourceOrderView(QWidget):
@@ -67,18 +94,27 @@ class SourceOrderView(QWidget):
             parent: Parent Qt optionnel.
         """
         super().__init__(parent)
-        # Vertical extensible : suit la hauteur de la fenêtre (beaucoup de sources).
-        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        # Politique : grandir si besoin mais ne pas se réclamer plus de place
+        # que nécessaire (les listes ont leurs propres min/max).
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         self._known: set[str] = set()
         self._kinds: dict[str, SourceKind] = {}
+
         self._included = QListWidget(self)
+        self._included.setObjectName("sourceOrderList")
         self._included.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
-        self._included.setMinimumHeight(_LIST_MIN_HEIGHT_PX)
+        self._included.setMinimumHeight(_INCLUDED_LIST_MIN_HEIGHT)
+        self._included.setMaximumHeight(_INCLUDED_LIST_MAX_HEIGHT)
+
         self._excluded = QListWidget(self)
-        self._excluded.setMinimumHeight(_LIST_MIN_HEIGHT_PX)
+        self._excluded.setObjectName("sourceOrderList")
+        self._excluded.setMinimumHeight(_EXCLUDED_LIST_MIN_HEIGHT)
+        self._excluded.setMaximumHeight(_EXCLUDED_LIST_MAX_HEIGHT)
+
         self._order_note = QLabel(_ORDER_IRRELEVANT_NOTE, self)
         self._order_note.setWordWrap(True)
         self._order_note.setVisible(False)
+
         self._build_layout()
 
     # ------------------------------------------------------------------ API
@@ -132,7 +168,8 @@ class SourceOrderView(QWidget):
     def set_order_irrelevant(self, irrelevant: bool) -> None:
         """Affiche la note quand l'ordre des sources est ignoré (mode thématique).
 
-        L'inclusion / exclusion reste pertinente : seul l'**ordre** n'a pas d'effet.
+        L'inclusion / exclusion reste pertinente : seul l'**ordre** n'a pas
+        d'effet.
 
         Args:
             irrelevant: ``True`` pour signaler que l'ordre n'a pas d'effet.
@@ -165,8 +202,8 @@ class SourceOrderView(QWidget):
             key: Clé de la source (stockée dans le rôle ``_KEY_ROLE``).
 
         Returns:
-            L'item libellé ``[TYPE] clé`` avec un badge « nouveau » si la clé est
-            absente de l'ensemble ``_known``.
+            L'item libellé ``[TYPE] clé`` avec un badge « nouveau » si la clé
+            est absente de l'ensemble ``_known``.
         """
         kind = self._kinds.get(key, SourceKind.VIDEO)
         badge = "" if key in self._known else _NEW_BADGE
@@ -205,8 +242,8 @@ class SourceOrderView(QWidget):
         """Déplace la source incluse sélectionnée de ``delta`` positions.
 
         Args:
-            delta: Décalage (``-1`` = monter, ``+1`` = descendre) ; sans effet si
-                la cible sort des bornes de la liste.
+            delta: Décalage (``-1`` = monter, ``+1`` = descendre) ; sans effet
+                si la cible sort des bornes de la liste.
         """
         row = self._included.currentRow()
         target = row + delta
@@ -217,46 +254,103 @@ class SourceOrderView(QWidget):
         self._included.setCurrentRow(target)
 
     def _build_layout(self) -> None:
-        """Assemble les deux listes, les boutons de déplacement et la barre d'actions."""
+        """Assemble titres + listes + barres d'actions horizontales sous chaque liste."""
         outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(_OUTER_SPACING)
+
         outer.addWidget(self._order_note)
-        outer.addWidget(QLabel(_INCLUDED_TITLE, self))
+        outer.addWidget(self._make_section_title(_INCLUDED_TITLE))
+        outer.addWidget(self._included)
+        outer.addWidget(self._build_included_actions())
+        outer.addSpacing(_SECTION_TOP_SPACING)
+        outer.addWidget(self._make_section_title(_EXCLUDED_TITLE))
+        outer.addWidget(self._excluded)
+        outer.addWidget(self._build_excluded_actions())
+        outer.addSpacing(_SECTION_TOP_SPACING)
+        outer.addWidget(self._build_global_actions())
 
-        included_row = QHBoxLayout()
-        included_row.addWidget(self._included, stretch=1)
-        included_buttons = QVBoxLayout()
-        up_btn = QPushButton(_UP_LABEL, self)
-        up_btn.setToolTip("Monter d'une position")
+    def _make_section_title(self, text: str) -> QLabel:
+        """Construit un titre de section (libellé en gras au-dessus d'une liste).
+
+        Args:
+            text: Texte du titre.
+
+        Returns:
+            Le ``QLabel`` configuré.
+        """
+        label = QLabel(text, self)
+        label.setStyleSheet("font-weight: 600;")
+        return label
+
+    def _build_included_actions(self) -> QWidget:
+        """Barre d'actions sous la liste « Sources à traiter » (Monter/Descendre/Exclure).
+
+        Returns:
+            Le conteneur prêt à être ajouté au layout vertical externe.
+        """
+        wrap = QWidget(self)
+        # Les barres d'actions sont placées dans une carte blanche ; on évite
+        # que le wrapper hérite du fond gris global ``QWidget`` via le QSS.
+        wrap.setStyleSheet("background: transparent;")
+        row = QHBoxLayout(wrap)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(_ACTIONS_ROW_SPACING)
+        up_btn = QPushButton(_UP_LABEL, wrap)
+        up_btn.setToolTip(_UP_TOOLTIP)
         up_btn.clicked.connect(lambda: self._move_selected(-1))
-        down_btn = QPushButton(_DOWN_LABEL, self)
-        down_btn.setToolTip("Descendre d'une position")
+        down_btn = QPushButton(_DOWN_LABEL, wrap)
+        down_btn.setToolTip(_DOWN_TOOLTIP)
         down_btn.clicked.connect(lambda: self._move_selected(1))
-        exclude_btn = QPushButton(_EXCLUDE_LABEL, self)
-        exclude_btn.setToolTip("Exclure la source sélectionnée")
+        exclude_btn = QPushButton(_EXCLUDE_LABEL, wrap)
+        exclude_btn.setToolTip(_EXCLUDE_TOOLTIP)
         exclude_btn.clicked.connect(self._exclude_selected)
-        for btn in (up_btn, down_btn, exclude_btn):
-            included_buttons.addWidget(btn)
-        included_buttons.addStretch(1)
-        included_row.addLayout(included_buttons)
-        outer.addLayout(included_row, stretch=_INCLUDED_STRETCH)
+        row.addWidget(up_btn)
+        row.addWidget(down_btn)
+        row.addWidget(exclude_btn)
+        row.addStretch(1)
+        return wrap
 
-        outer.addWidget(QLabel(_EXCLUDED_TITLE, self))
-        excluded_row = QHBoxLayout()
-        excluded_row.addWidget(self._excluded, stretch=1)
-        reinclude_btn = QPushButton(_REINCLUDE_LABEL, self)
+    def _build_excluded_actions(self) -> QWidget:
+        """Barre d'actions sous la liste « Sources exclues » (Réinclure).
+
+        Returns:
+            Le conteneur prêt à être ajouté au layout vertical externe.
+        """
+        wrap = QWidget(self)
+        # Les barres d'actions sont placées dans une carte blanche ; on évite
+        # que le wrapper hérite du fond gris global ``QWidget`` via le QSS.
+        wrap.setStyleSheet("background: transparent;")
+        row = QHBoxLayout(wrap)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(_ACTIONS_ROW_SPACING)
+        reinclude_btn = QPushButton(_REINCLUDE_LABEL, wrap)
+        reinclude_btn.setToolTip(_REINCLUDE_TOOLTIP)
         reinclude_btn.clicked.connect(self._reinclude_selected)
-        excluded_buttons = QVBoxLayout()
-        excluded_buttons.addWidget(reinclude_btn)
-        excluded_buttons.addStretch(1)
-        excluded_row.addLayout(excluded_buttons)
-        outer.addLayout(excluded_row, stretch=_EXCLUDED_STRETCH)
+        row.addWidget(reinclude_btn)
+        row.addStretch(1)
+        return wrap
 
-        actions_row = QHBoxLayout()
-        refresh_btn = QPushButton(_REFRESH_LABEL, self)
+    def _build_global_actions(self) -> QWidget:
+        """Barre d'actions globales (Rafraîchir, Tout réinclure).
+
+        Returns:
+            Le conteneur prêt à être ajouté au layout vertical externe.
+        """
+        wrap = QWidget(self)
+        # Les barres d'actions sont placées dans une carte blanche ; on évite
+        # que le wrapper hérite du fond gris global ``QWidget`` via le QSS.
+        wrap.setStyleSheet("background: transparent;")
+        row = QHBoxLayout(wrap)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(_ACTIONS_ROW_SPACING)
+        refresh_btn = QPushButton(_REFRESH_LABEL, wrap)
+        refresh_btn.setToolTip(_REFRESH_TOOLTIP)
         refresh_btn.clicked.connect(self.refresh_requested.emit)
-        reinclude_all_btn = QPushButton(_REINCLUDE_ALL_LABEL, self)
+        reinclude_all_btn = QPushButton(_REINCLUDE_ALL_LABEL, wrap)
+        reinclude_all_btn.setToolTip("Réintégrer toutes les sources exclues")
         reinclude_all_btn.clicked.connect(self.reinclude_all)
-        actions_row.addWidget(refresh_btn)
-        actions_row.addWidget(reinclude_all_btn)
-        actions_row.addStretch(1)
-        outer.addLayout(actions_row)
+        row.addWidget(refresh_btn)
+        row.addWidget(reinclude_all_btn)
+        row.addStretch(1)
+        return wrap

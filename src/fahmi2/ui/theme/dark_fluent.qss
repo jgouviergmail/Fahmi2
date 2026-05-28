@@ -657,6 +657,35 @@ QToolTip {
     border: none;
 }
 
+/* ===== Footer de dialogue ===== */
+#dialogFooter {
+    background-color: #1a1f27;
+    border-top: 1px solid #232831;
+}
+#dialogFooter QPushButton {
+    min-width: 96px;
+}
+
+/* ===== Source order — liste compacte ===== */
+#sourceOrderList {
+    background-color: #1a1f27;
+    border: 1px solid #262b34;
+    border-radius: 8px;
+}
+#sourceOrderList::item {
+    padding: 6px 10px;
+    margin-bottom: 1px;
+    border-radius: 4px;
+    color: #e6e9ef;
+}
+#sourceOrderList::item:hover {
+    background-color: #232a35;
+}
+#sourceOrderList::item:selected {
+    background-color: #15314d;
+    color: #9cc8f4;
+}
+
 /* ===== Sidebar projets — rendu deux lignes (pastille + nom + sous-libellé) ===== */
 #projectsSidebar {
     padding: 8px 6px;

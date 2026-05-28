@@ -676,6 +676,35 @@ QToolTip {
     border: none;
 }
 
+/* ===== Footer de dialogue (barre de boutons en bas, avec séparateur) ===== */
+#dialogFooter {
+    background-color: #ffffff;
+    border-top: 1px solid #eef0f4;
+}
+#dialogFooter QPushButton {
+    min-width: 96px;
+}
+
+/* ===== Source order — liste compacte (items moins espacés) ===== */
+#sourceOrderList {
+    background-color: #ffffff;
+    border: 1px solid #e9ecf1;
+    border-radius: 8px;
+}
+#sourceOrderList::item {
+    padding: 6px 10px;
+    margin-bottom: 1px;
+    border-radius: 4px;
+    color: #1f2328;
+}
+#sourceOrderList::item:hover {
+    background-color: #f0f4f9;
+}
+#sourceOrderList::item:selected {
+    background-color: #e3f0fb;
+    color: #0a4f93;
+}
+
 /* ===== Sidebar projets — rendu deux lignes (pastille + nom + sous-libellé) ===== */
 #projectsSidebar {
     padding: 8px 6px;

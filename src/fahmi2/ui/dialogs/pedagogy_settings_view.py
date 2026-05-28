@@ -59,6 +59,7 @@ from fahmi2.domain.phase import PhaseConfig
 from fahmi2.pedagogy.labels import audience_label, bloom_label, density_label
 from fahmi2.ui._components import (
     card,
+    dialog_footer,
     field_hint,
     frenchify_button_box,
     page_header,
@@ -250,9 +251,11 @@ class PedagogySettingsView(QDialog):
         outer.setContentsMargins(
             _OUTER_MARGIN, _OUTER_MARGIN, _OUTER_MARGIN, _OUTER_MARGIN
         )
-        outer.setSpacing(_OUTER_SPACING)
+        outer.setSpacing(0)
         outer.addWidget(settings_view, stretch=1)
-        outer.addWidget(buttons)
+        outer.addWidget(dialog_footer(self, buttons))
+
+        self.setSizeGripEnabled(True)
 
         if initial is not None:
             self._populate(initial)

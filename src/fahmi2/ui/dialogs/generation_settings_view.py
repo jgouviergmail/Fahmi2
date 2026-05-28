@@ -69,6 +69,7 @@ from fahmi2.domain.generation import (
 from fahmi2.domain.source import InputSource
 from fahmi2.ui._components import (
     card,
+    dialog_footer,
     field_hint,
     frenchify_button_box,
     page_header,
@@ -343,9 +344,13 @@ class GenerationSettingsView(QDialog):
         outer.setContentsMargins(
             _OUTER_MARGIN, _OUTER_MARGIN, _OUTER_MARGIN, _OUTER_MARGIN
         )
-        outer.setSpacing(_OUTER_SPACING)
+        outer.setSpacing(0)
         outer.addWidget(settings_view, stretch=1)
-        outer.addWidget(buttons)
+        # Footer dédié (séparateur top + padding), pas de boutons collés au bord.
+        outer.addWidget(dialog_footer(self, buttons))
+
+        # Active la poignée de redimensionnement explicite (par sécurité).
+        self.setSizeGripEnabled(True)
 
         if initial is not None:
             self._populate(initial)

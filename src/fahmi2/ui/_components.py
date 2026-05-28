@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QFrame,
     QGraphicsDropShadowEffect,
+    QHBoxLayout,
     QLabel,
     QVBoxLayout,
     QWidget,
@@ -55,6 +56,8 @@ FIELD_HINT_OBJECT_NAME: Final[str] = "fieldHint"
 SECTION_LABEL_OBJECT_NAME: Final[str] = "sectionLabel"
 #: ``objectName`` réservé aux séparateurs horizontaux fins.
 HSEP_OBJECT_NAME: Final[str] = "hsep"
+#: ``objectName`` réservé au footer de dialogue (séparateur top + padding).
+DIALOG_FOOTER_OBJECT_NAME: Final[str] = "dialogFooter"
 
 # ----------------------------------------------------------- card geometry
 
@@ -80,6 +83,15 @@ SETTINGS_PAGE_SPACING: Final[int] = 16
 SETTINGS_FORM_HORIZONTAL_SPACING: Final[int] = 18
 #: Espacement vertical d'un formulaire (entre lignes).
 SETTINGS_FORM_VERTICAL_SPACING: Final[int] = 12
+
+# --------------------------------------------------- dialog footer geometry
+
+#: Padding horizontal du footer de dialogue (autour de la barre de boutons).
+_DIALOG_FOOTER_PADDING_HORIZONTAL: Final[int] = 20
+#: Padding vertical du footer de dialogue.
+_DIALOG_FOOTER_PADDING_VERTICAL: Final[int] = 12
+#: Espacement entre les boutons du footer.
+_DIALOG_FOOTER_BUTTON_SPACING: Final[int] = 8
 
 # ------------------------------------------------- French standard button labels
 
@@ -307,6 +319,37 @@ def reapply_card_shadows(app: QApplication) -> None:
             install_shadow(w)
 
 
+def dialog_footer(parent: QWidget | None, button_box: QDialogButtonBox) -> QWidget:
+    """Englobe une ``QDialogButtonBox`` dans un footer stylé (séparateur + padding).
+
+    Patron éprouvé pour les dialogues plein-largeur (master-detail) où la
+    barre de boutons doit visuellement se détacher du contenu : fond
+    surface, séparateur fin en haut, padding horizontal/vertical confortable
+    autour des boutons (les boutons ne sont jamais collés au bord du
+    dialogue).
+
+    Args:
+        parent: Parent Qt (typiquement le dialogue).
+        button_box: ``QDialogButtonBox`` à englober.
+
+    Returns:
+        Le widget conteneur prêt à être ajouté au layout externe du dialogue.
+    """
+    footer = QWidget(parent)
+    footer.setObjectName(DIALOG_FOOTER_OBJECT_NAME)
+    layout = QHBoxLayout(footer)
+    layout.setContentsMargins(
+        _DIALOG_FOOTER_PADDING_HORIZONTAL,
+        _DIALOG_FOOTER_PADDING_VERTICAL,
+        _DIALOG_FOOTER_PADDING_HORIZONTAL,
+        _DIALOG_FOOTER_PADDING_VERTICAL,
+    )
+    layout.setSpacing(_DIALOG_FOOTER_BUTTON_SPACING)
+    layout.addStretch(1)
+    layout.addWidget(button_box)
+    return footer
+
+
 def frenchify_button_box(box: QDialogButtonBox) -> None:
     """Remplace les libellés des boutons standard Qt par leur version française.
 
@@ -343,6 +386,7 @@ __all__ = [
     "CARD_DESC_OBJECT_NAME",
     "CARD_OBJECT_NAME",
     "CARD_TITLE_OBJECT_NAME",
+    "DIALOG_FOOTER_OBJECT_NAME",
     "FIELD_HINT_OBJECT_NAME",
     "HSEP_OBJECT_NAME",
     "PAGE_DESC_OBJECT_NAME",
@@ -354,6 +398,7 @@ __all__ = [
     "SETTINGS_PAGE_MARGIN_VERTICAL",
     "SETTINGS_PAGE_SPACING",
     "card",
+    "dialog_footer",
     "field_hint",
     "frenchify_button_box",
     "horizontal_separator",

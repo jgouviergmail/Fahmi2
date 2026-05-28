@@ -43,6 +43,7 @@ from fahmi2.domain.enums import (
 )
 from fahmi2.ui._components import (
     card,
+    dialog_footer,
     field_hint,
     frenchify_button_box,
     settings_form,
@@ -214,9 +215,10 @@ class ChatSettingsView(QDialog):
         outer.setContentsMargins(
             _OUTER_MARGIN, _OUTER_MARGIN, _OUTER_MARGIN, _OUTER_MARGIN
         )
-        outer.setSpacing(_OUTER_SPACING)
+        outer.setSpacing(0)
         outer.addWidget(settings_view, stretch=1)
-        outer.addWidget(buttons)
+        outer.addWidget(dialog_footer(self, buttons))
+        self.setSizeGripEnabled(True)
 
     # --------------------------------------------------------------- pages
 

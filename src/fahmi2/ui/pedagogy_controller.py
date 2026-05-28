@@ -69,7 +69,7 @@ from fahmi2.ui._export_ui import choose_export_format, run_document_export
 from fahmi2.ui._file_explorer import open_in_file_explorer
 from fahmi2.ui._fs import remove_feature_dir
 from fahmi2.ui.dialogs.pedagogy_settings_view import PedagogySettingsView
-from fahmi2.ui.pedagogy_labels import EXPORT_LABELS, support_label
+from fahmi2.ui.pedagogy_labels import export_labels, support_label
 from fahmi2.ui.qt_event_bus import PedagogyQtEventBus
 from fahmi2.ui.viewmodels.pedagogy_progress import PedagogyProgressViewModel
 from fahmi2.ui.viewmodels.pedagogy_state import PedagogyStateViewModel
@@ -574,10 +574,11 @@ class PedagogyController(QObject):
                 "Configurez d'abord les supports pédagogiques (⚙ Réglages).",
             )
             return
+        labels = export_labels()
         fmt = choose_export_format(
             window=self._window,
             configured_formats=project.pedagogy.export_formats,
-            label_by_format=EXPORT_LABELS,
+            label_by_format=labels,
         )
         if fmt is None:
             return
@@ -587,7 +588,7 @@ class PedagogyController(QObject):
         run_document_export(
             window=self._window,
             logs_dock=self._logs_dock,
-            label=EXPORT_LABELS[fmt],
+            label=labels[fmt],
             exporter=lambda d: export_pedagogy_documents(
                 project, output_dir=d, fmt=fmt
             ),

@@ -37,36 +37,14 @@ from fahmi2.domain.enums import SourceKind
 from fahmi2.domain.source import InputSource
 
 _KEY_ROLE: Final[int] = int(Qt.ItemDataRole.UserRole)
+#: Codes courts de type de source affichés en préfixe — universels (pas
+#: traduits ; restent stables d'une langue à l'autre).
 _KIND_LABELS: Final[dict[SourceKind, str]] = {
     SourceKind.VIDEO: "VID",
     SourceKind.AUDIO: "AUD",
     SourceKind.DOCUMENT: "DOC",
     SourceKind.YOUTUBE: "YT",
 }
-_INCLUDED_TITLE: Final[str] = "Sources à traiter — ordre des chapitres"
-_EXCLUDED_TITLE: Final[str] = "Sources exclues"
-_ORDER_IRRELEVANT_NOTE: Final[str] = (
-    "ⓘ Mode refonte thématique : l'ordre des sources est sans effet "
-    "(seule l'inclusion / exclusion compte)."
-)
-_NEW_BADGE: Final[str] = "  • nouveau"
-
-# Étiquettes des boutons d'action.
-_UP_LABEL: Final[str] = "▲ Monter"
-_DOWN_LABEL: Final[str] = "▼ Descendre"
-_EXCLUDE_LABEL: Final[str] = "Exclure"
-_REINCLUDE_LABEL: Final[str] = "Réinclure"
-_REFRESH_LABEL: Final[str] = "↻ Rafraîchir"
-_REINCLUDE_ALL_LABEL: Final[str] = "Tout réinclure"
-
-# Tooltips.
-_UP_TOOLTIP: Final[str] = "Monter la source sélectionnée d'une position"
-_DOWN_TOOLTIP: Final[str] = "Descendre la source sélectionnée d'une position"
-_EXCLUDE_TOOLTIP: Final[str] = "Exclure la source sélectionnée du traitement"
-_REINCLUDE_TOOLTIP: Final[str] = "Réintégrer la source sélectionnée"
-_REFRESH_TOOLTIP: Final[str] = (
-    "Re-scanner le dossier d'entrée pour détecter les nouvelles sources"
-)
 
 # Hauteurs des listes (px) — bornées pour éviter l'étirement infini dans une
 # carte qui aurait du ``stretch=1`` côté layout parent.
@@ -111,7 +89,13 @@ class SourceOrderView(QWidget):
         self._excluded.setMinimumHeight(_EXCLUDED_LIST_MIN_HEIGHT)
         self._excluded.setMaximumHeight(_EXCLUDED_LIST_MAX_HEIGHT)
 
-        self._order_note = QLabel(_ORDER_IRRELEVANT_NOTE, self)
+        self._order_note = QLabel(
+            self.tr(
+                "ⓘ Mode refonte thématique : l'ordre des sources est sans effet "
+                "(seule l'inclusion / exclusion compte)."
+            ),
+            self,
+        )
         self._order_note.setWordWrap(True)
         self._order_note.setVisible(False)
 
@@ -206,7 +190,7 @@ class SourceOrderView(QWidget):
             est absente de l'ensemble ``_known``.
         """
         kind = self._kinds.get(key, SourceKind.VIDEO)
-        badge = "" if key in self._known else _NEW_BADGE
+        badge = "" if key in self._known else self.tr("  • nouveau")
         item = QListWidgetItem(f"[{_KIND_LABELS[kind]}] {key}{badge}")
         item.setData(_KEY_ROLE, key)
         return item
@@ -260,11 +244,15 @@ class SourceOrderView(QWidget):
         outer.setSpacing(_OUTER_SPACING)
 
         outer.addWidget(self._order_note)
-        outer.addWidget(self._make_section_title(_INCLUDED_TITLE))
+        outer.addWidget(
+            self._make_section_title(
+                self.tr("Sources à traiter — ordre des chapitres")
+            )
+        )
         outer.addWidget(self._included)
         outer.addWidget(self._build_included_actions())
         outer.addSpacing(_SECTION_TOP_SPACING)
-        outer.addWidget(self._make_section_title(_EXCLUDED_TITLE))
+        outer.addWidget(self._make_section_title(self.tr("Sources exclues")))
         outer.addWidget(self._excluded)
         outer.addWidget(self._build_excluded_actions())
         outer.addSpacing(_SECTION_TOP_SPACING)
@@ -296,14 +284,16 @@ class SourceOrderView(QWidget):
         row = QHBoxLayout(wrap)
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(_ACTIONS_ROW_SPACING)
-        up_btn = QPushButton(_UP_LABEL, wrap)
-        up_btn.setToolTip(_UP_TOOLTIP)
+        up_btn = QPushButton(self.tr("▲ Monter"), wrap)
+        up_btn.setToolTip(self.tr("Monter la source sélectionnée d'une position"))
         up_btn.clicked.connect(lambda: self._move_selected(-1))
-        down_btn = QPushButton(_DOWN_LABEL, wrap)
-        down_btn.setToolTip(_DOWN_TOOLTIP)
+        down_btn = QPushButton(self.tr("▼ Descendre"), wrap)
+        down_btn.setToolTip(
+            self.tr("Descendre la source sélectionnée d'une position")
+        )
         down_btn.clicked.connect(lambda: self._move_selected(1))
-        exclude_btn = QPushButton(_EXCLUDE_LABEL, wrap)
-        exclude_btn.setToolTip(_EXCLUDE_TOOLTIP)
+        exclude_btn = QPushButton(self.tr("Exclure"), wrap)
+        exclude_btn.setToolTip(self.tr("Exclure la source sélectionnée du traitement"))
         exclude_btn.clicked.connect(self._exclude_selected)
         row.addWidget(up_btn)
         row.addWidget(down_btn)
@@ -324,8 +314,8 @@ class SourceOrderView(QWidget):
         row = QHBoxLayout(wrap)
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(_ACTIONS_ROW_SPACING)
-        reinclude_btn = QPushButton(_REINCLUDE_LABEL, wrap)
-        reinclude_btn.setToolTip(_REINCLUDE_TOOLTIP)
+        reinclude_btn = QPushButton(self.tr("Réinclure"), wrap)
+        reinclude_btn.setToolTip(self.tr("Réintégrer la source sélectionnée"))
         reinclude_btn.clicked.connect(self._reinclude_selected)
         row.addWidget(reinclude_btn)
         row.addStretch(1)
@@ -344,11 +334,15 @@ class SourceOrderView(QWidget):
         row = QHBoxLayout(wrap)
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(_ACTIONS_ROW_SPACING)
-        refresh_btn = QPushButton(_REFRESH_LABEL, wrap)
-        refresh_btn.setToolTip(_REFRESH_TOOLTIP)
+        refresh_btn = QPushButton(self.tr("↻ Rafraîchir"), wrap)
+        refresh_btn.setToolTip(
+            self.tr(
+                "Re-scanner le dossier d'entrée pour détecter les nouvelles sources"
+            )
+        )
         refresh_btn.clicked.connect(self.refresh_requested.emit)
-        reinclude_all_btn = QPushButton(_REINCLUDE_ALL_LABEL, wrap)
-        reinclude_all_btn.setToolTip("Réintégrer toutes les sources exclues")
+        reinclude_all_btn = QPushButton(self.tr("Tout réinclure"), wrap)
+        reinclude_all_btn.setToolTip(self.tr("Réintégrer toutes les sources exclues"))
         reinclude_all_btn.clicked.connect(self.reinclude_all)
         row.addWidget(refresh_btn)
         row.addWidget(reinclude_all_btn)

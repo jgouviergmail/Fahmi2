@@ -43,9 +43,7 @@ from fahmi2.ui._buttons import (
     BUTTON_ROLE_PRIMARY,
     make_role_button,
 )
-from fahmi2.ui._components import frenchify_button_box, page_header
-
-# ---------------------------------------------------------------- dimensions
+from fahmi2.ui._components import localize_button_box, page_header
 
 _DIALOG_INITIAL_WIDTH_PX: Final[int] = 1040
 _DIALOG_INITIAL_HEIGHT_PX: Final[int] = 720
@@ -59,39 +57,8 @@ _RIGHT_PANEL_SPACING: Final[int] = 12
 _ACTIONS_ROW_SPACING: Final[int] = 8
 _EDITOR_FONT_POINT_SIZE: Final[int] = 10
 
-# ---------------------------------------------------------------- libellés
-
-_DIALOG_TITLE: Final[str] = "Modifier les prompts"
-_PAGE_TITLE: Final[str] = "Éditeur de prompts"
-_PAGE_DESC: Final[str] = (
-    "Personnalisez les prompts Jinja2 utilisés par les phases IA. Vos overrides "
-    "sont stockés dans %APPDATA%/Fahmi2/prompts et chargés prioritairement au "
-    "prochain lancement."
-)
 _TEMPLATE_NAME_ROLE: Final[int] = int(Qt.ItemDataRole.UserRole)
 _OVERRIDE_MARKER: Final[str] = " *"
-
-_SAVE_LABEL: Final[str] = "💾  Enregistrer"
-_RESET_LABEL: Final[str] = "↩  Réinitialiser au défaut"
-
-_STATUS_OVERRIDE_ACTIVE: Final[str] = "✏️ <i>Override personnalisé actif</i>"
-_STATUS_DEFAULT: Final[str] = "📦 <i>Prompt par défaut (aucun override)</i>"
-
-_TEMPLATE_INVALID_TITLE: Final[str] = "Template invalide"
-_PROMPT_SAVED_TITLE: Final[str] = "Prompt enregistré"
-_PROMPT_SAVED_MESSAGE: Final[str] = "L'override est actif au prochain lancement de phase."
-_NO_OVERRIDE_TITLE: Final[str] = "Aucun override actif"
-_NO_OVERRIDE_MESSAGE: Final[str] = "Ce template n'a pas d'override personnalisé."
-_RESET_CONFIRM_TITLE: Final[str] = "Réinitialiser au défaut ?"
-_RESET_CONFIRM_MESSAGE: Final[str] = (
-    "Supprimer l'override personnalisé et restaurer le prompt par défaut bundlé "
-    "avec l'application ?"
-)
-_DISCARD_TITLE: Final[str] = "Abandonner les modifications ?"
-_DISCARD_MESSAGE: Final[str] = (
-    "Vous avez des modifications non enregistrées sur ce prompt. Les abandonner "
-    "pour changer de phase ?"
-)
 
 #: Police monospace utilisée par l'éditeur (cohérent avec ``#logsDockArea``).
 _EDITOR_FONT_FAMILY: Final[str] = "Consolas"
@@ -117,7 +84,7 @@ class PromptsEditorDialog(QDialog):
             parent: Parent Qt optionnel.
         """
         super().__init__(parent)
-        self.setWindowTitle(_DIALOG_TITLE)
+        self.setWindowTitle(self.tr("Modifier les prompts"))
         self.resize(_DIALOG_INITIAL_WIDTH_PX, _DIALOG_INITIAL_HEIGHT_PX)
         self._service = prompts_service
         self._current_name: str | None = None
@@ -134,7 +101,15 @@ class PromptsEditorDialog(QDialog):
         )
         outer.setSpacing(_OUTER_SPACING)
         outer.addWidget(
-            page_header(self, title=_PAGE_TITLE, description=_PAGE_DESC)
+            page_header(
+                self,
+                title=self.tr("Éditeur de prompts"),
+                description=self.tr(
+                    "Personnalisez les prompts Jinja2 utilisés par les phases IA. "
+                    "Vos overrides sont stockés dans %APPDATA%/Fahmi2/prompts "
+                    "et chargés prioritairement au prochain lancement."
+                ),
+            )
         )
 
         splitter = QSplitter(Qt.Orientation.Horizontal, self)
@@ -152,7 +127,7 @@ class PromptsEditorDialog(QDialog):
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Close, parent=self
         )
-        frenchify_button_box(buttons)
+        localize_button_box(buttons)
         buttons.rejected.connect(self.reject)
         outer.addWidget(buttons)
 
@@ -214,10 +189,12 @@ class PromptsEditorDialog(QDialog):
         actions_row = QHBoxLayout()
         actions_row.setSpacing(_ACTIONS_ROW_SPACING)
         self._save_button = make_role_button(
-            right_panel, _SAVE_LABEL, role=BUTTON_ROLE_PRIMARY
+            right_panel, self.tr("💾  Enregistrer"), role=BUTTON_ROLE_PRIMARY
         )
         self._reset_button = make_role_button(
-            right_panel, _RESET_LABEL, role=BUTTON_ROLE_DEFAULT
+            right_panel,
+            self.tr("↩  Réinitialiser au défaut"),
+            role=BUTTON_ROLE_DEFAULT,
         )
         self._save_button.clicked.connect(self._on_save)
         self._reset_button.clicked.connect(self._on_reset)
@@ -262,7 +239,7 @@ class PromptsEditorDialog(QDialog):
         except Fahmi2Error as exc:
             QMessageBox.critical(
                 self,
-                _TEMPLATE_INVALID_TITLE,
+                self.tr("Template invalide"),
                 f"{exc.code}\n\n{exc.user_message}",
             )
             return
@@ -270,7 +247,9 @@ class PromptsEditorDialog(QDialog):
         self._refresh_item_label(self._current_name)
         self._refresh_status_label()
         QMessageBox.information(
-            self, _PROMPT_SAVED_TITLE, _PROMPT_SAVED_MESSAGE
+            self,
+            self.tr("Prompt enregistré"),
+            self.tr("L'override est actif au prochain lancement de phase."),
         )
 
     def _on_reset(self) -> None:
@@ -279,13 +258,18 @@ class PromptsEditorDialog(QDialog):
             return
         if not self._service.has_override(self._current_name):
             QMessageBox.information(
-                self, _NO_OVERRIDE_TITLE, _NO_OVERRIDE_MESSAGE
+                self,
+                self.tr("Aucun override actif"),
+                self.tr("Ce template n'a pas d'override personnalisé."),
             )
             return
         reply = QMessageBox.question(
             self,
-            _RESET_CONFIRM_TITLE,
-            _RESET_CONFIRM_MESSAGE,
+            self.tr("Réinitialiser au défaut ?"),
+            self.tr(
+                "Supprimer l'override personnalisé et restaurer le prompt par "
+                "défaut bundlé avec l'application ?"
+            ),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -340,9 +324,13 @@ class PromptsEditorDialog(QDialog):
             self._status_label.setText("")
             return
         if self._service.has_override(self._current_name):
-            self._status_label.setText(_STATUS_OVERRIDE_ACTIVE)
+            self._status_label.setText(
+                self.tr("✏️ <i>Override personnalisé actif</i>")
+            )
         else:
-            self._status_label.setText(_STATUS_DEFAULT)
+            self._status_label.setText(
+                self.tr("📦 <i>Prompt par défaut (aucun override)</i>")
+            )
 
     def _has_unsaved_changes(self) -> bool:
         """Indique si l'éditeur diffère du source initialement chargé."""
@@ -356,8 +344,11 @@ class PromptsEditorDialog(QDialog):
         """
         reply = QMessageBox.question(
             self,
-            _DISCARD_TITLE,
-            _DISCARD_MESSAGE,
+            self.tr("Abandonner les modifications ?"),
+            self.tr(
+                "Vous avez des modifications non enregistrées sur ce prompt. "
+                "Les abandonner pour changer de phase ?"
+            ),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )

@@ -14,10 +14,8 @@ chacune assemblée à partir des briques partagées
 - *Phases IA* : réglages détaillés par phase LLM.
 - *Export* : formats à exporter.
 
-Produit un ``GenerationSettings`` (sans nom ni emplacement, qui relèvent du
-``Project``). L'API publique et l'ensemble des attributs privés référencés
-par les tests existants sont **strictement préservés** : seule la
-présentation change.
+i18n : tous les libellés passent par :py:meth:`QObject.tr` à l'usage dans
+``__init__`` et les méthodes ``_build_*``.
 """
 
 from __future__ import annotations
@@ -71,224 +69,29 @@ from fahmi2.ui._components import (
     card,
     dialog_footer,
     field_hint,
-    frenchify_button_box,
+    localize_button_box,
     page_header,
     settings_form,
     settings_page,
 )
 from fahmi2.ui._model_labels import (
-    CLOUD_STT_MODEL_LABELS,
-    LLM_MODEL_LABELS,
-    LOCAL_STT_MODEL_LABELS,
+    cloud_stt_model_labels,
     labeled_enum_combo,
+    llm_model_labels,
+    local_stt_model_labels,
 )
-from fahmi2.ui.pedagogy_labels import EXPORT_LABELS
+from fahmi2.ui.pedagogy_labels import export_labels
 from fahmi2.ui.widgets.language_selection_view import LanguageSelectionView
 from fahmi2.ui.widgets.phase_configs_widget import PhaseConfigsWidget
 from fahmi2.ui.widgets.settings_view import SettingsView
 from fahmi2.ui.widgets.source_order_view import SourceOrderView
-
-# ---------------------------------------------------------------- dimensions
 
 _DIALOG_WIDTH: Final[int] = 920
 _DIALOG_HEIGHT: Final[int] = 680
 _DIRECTIVES_HEIGHT_PX: Final[int] = 90
 _YOUTUBE_URLS_HEIGHT_PX: Final[int] = 80
 _OUTER_MARGIN: Final[int] = 0
-_OUTER_SPACING: Final[int] = 12
-
-# ---------------------------------------------------------------- bornes
 _COST_CEILING_MAX_USD: Final[float] = 10_000.0
-
-# ---------------------------------------------------------------- titres / catégories
-
-_TITLE_CREATE: Final[str] = "Configurer la génération"
-_TITLE_EDIT: Final[str] = "Réglages de la génération"
-
-_CAT_STYLE: Final[str] = "Style"
-_CAT_SOURCES: Final[str] = "Sources"
-_CAT_TRANSCRIPTION: Final[str] = "Transcription"
-_CAT_GENERATION: Final[str] = "Génération IA"
-_CAT_PHASES: Final[str] = "Phases IA"
-_CAT_EXPORT: Final[str] = "Export"
-
-# ---------------------------------------------------------------- mappings labels
-
-#: Libellés FR du préréglage de style (StylePreset valeurs brutes → français).
-_STYLE_PRESET_LABELS: Final[dict[StylePreset, str]] = {
-    StylePreset.DECONTRACTE: "Décontracté",
-    StylePreset.STANDARD: "Standard",
-    StylePreset.PROFESSIONNEL: "Professionnel",
-    StylePreset.ACADEMIQUE: "Académique",
-}
-#: Libellés FR du mode d'assemblage du document consolidé.
-_CONSOLIDATION_MODE_LABELS: Final[dict[ConsolidationMode, str]] = {
-    ConsolidationMode.ORDERED: "Conserver l'ordre — 1 source = 1 chapitre",
-    ConsolidationMode.THEMATIC: "Synthèse thématique — refonte transversale",
-}
-#: Libellés FR du moteur de transcription.
-_STT_PROVIDER_LABELS: Final[dict[SttProvider, str]] = {
-    SttProvider.FASTER_WHISPER_LOCAL: "Hors ligne (GPU local, gratuit)",
-    SttProvider.OPENAI_CLOUD: "En ligne (OpenAI, payant)",
-}
-
-# ---------------------------------------------------------------- libellés de page
-
-_STYLE_PAGE_DESC: Final[str] = (
-    "Ton, mise en forme et mode d'assemblage du document consolidé."
-)
-_SOURCES_PAGE_DESC: Final[str] = (
-    "Dossier des fichiers à traiter, vidéos YouTube, langues à produire et ordre "
-    "d'apparition des sources dans le document."
-)
-_TRANSCRIPTION_PAGE_DESC: Final[str] = (
-    "Moteur et modèle utilisés pour transcrire les vidéos et fichiers audio."
-)
-_GENERATION_PAGE_DESC: Final[str] = (
-    "Modèle de génération, plafond de budget et nombre de traitements en parallèle."
-)
-_PHASES_PAGE_DESC: Final[str] = (
-    "Réglages fins pour chacune des 7 phases IA du pipeline (thinking, intensité, "
-    "température, retries). Laissez les valeurs par défaut sauf cas particulier."
-)
-_EXPORT_PAGE_DESC: Final[str] = (
-    "Formats proposés lors de l'export du document consolidé et du glossaire."
-)
-
-# ---------------------------------------------------------------- libellés de carte
-
-_FORMAT_CARD_TITLE: Final[str] = "Mise en forme"
-_FORMAT_CARD_DESC: Final[str] = (
-    "Préréglage de style, mode d'assemblage des sources et consignes libres pour "
-    "orienter l'écriture."
-)
-_DOCUMENTS_CARD_TITLE: Final[str] = "Documents texte"
-_DOCUMENTS_CARD_DESC: Final[str] = (
-    "Comportement appliqué aux fichiers PDF, Word, Markdown et texte."
-)
-_FOLDER_CARD_TITLE: Final[str] = "Dossier des sources"
-_FOLDER_CARD_DESC: Final[str] = (
-    "Dossier scanné pour les vidéos, audios et documents à traiter."
-)
-_YOUTUBE_CARD_TITLE: Final[str] = "Vidéos YouTube"
-_YOUTUBE_CARD_DESC: Final[str] = (
-    "Liens YouTube unitaires (une URL par ligne). La vidéo est téléchargée puis "
-    "transcrite comme une vidéo locale."
-)
-_LANGUAGES_CARD_TITLE: Final[str] = "Langues du document"
-_LANGUAGES_CARD_DESC: Final[str] = (
-    "Langues à produire pour le document consolidé. La langue « principale » est "
-    "l'originale ; les autres en sont des traductions automatiques."
-)
-_ORDER_CARD_TITLE: Final[str] = "Ordre et exclusions"
-_ORDER_CARD_DESC: Final[str] = (
-    "Ordre d'apparition des sources dans le document, et exclusions éventuelles."
-)
-_ENGINE_CARD_TITLE: Final[str] = "Moteur de transcription"
-_ENGINE_CARD_DESC: Final[str] = (
-    "Mode hors ligne (GPU local, sans coût) ou en ligne (OpenAI, plus précis sur "
-    "les longues durées)."
-)
-_STT_MODEL_CARD_TITLE: Final[str] = "Modèle de transcription"
-_STT_MODEL_CARD_DESC: Final[str] = (
-    "Choix du modèle ; un seul est actif à la fois, selon le moteur choisi."
-)
-_STT_PERFORMANCE_CARD_TITLE: Final[str] = "Performance et conservation"
-_STT_PERFORMANCE_CARD_DESC: Final[str] = (
-    "Parallélisme des transcriptions en ligne et gestion des fichiers audio extraits."
-)
-_LLM_CARD_TITLE: Final[str] = "Modèle de génération"
-_LLM_CARD_DESC: Final[str] = (
-    "Modèle DeepSeek utilisé pour les phases de reformulation, structuration, "
-    "consolidation, traduction et cohérence."
-)
-_BUDGET_CARD_TITLE: Final[str] = "Budget"
-_BUDGET_CARD_DESC: Final[str] = (
-    "Plafond de dépense — la génération s'arrête si le coût l'atteint."
-)
-_PERFORMANCE_CARD_TITLE: Final[str] = "Performance"
-_PERFORMANCE_CARD_DESC: Final[str] = (
-    "Nombre d'appels IA simultanés. Plus rapide, n'augmente pas le coût."
-)
-_PHASES_CARD_TITLE: Final[str] = "Réglages par phase IA"
-_PHASES_CARD_DESC: Final[str] = (
-    "Pour chaque phase IA, mode raisonnement, intensité, température et tentatives."
-)
-_EXPORT_CARD_TITLE: Final[str] = "Formats à exporter"
-
-# ---------------------------------------------------------------- étiquettes de champ
-
-_STYLE_LABEL: Final[str] = "Préréglage de style"
-_CONSOLIDATION_LABEL: Final[str] = "Mode d'assemblage"
-_DIRECTIVES_LABEL: Final[str] = "Consignes de style"
-_FOLDER_LABEL: Final[str] = "Dossier"
-_BROWSE_LABEL: Final[str] = "Choisir…"
-_STT_PROVIDER_LABEL: Final[str] = "Moteur"
-_STT_LOCAL_LABEL: Final[str] = "Modèle hors ligne (GPU)"
-_STT_CLOUD_LABEL: Final[str] = "Modèle en ligne (OpenAI)"
-_STT_WORKERS_LABEL: Final[str] = "Transcriptions simultanées"
-_LLM_LABEL: Final[str] = "Modèle"
-_BUDGET_FIELD_LABEL: Final[str] = "Budget maximal"
-_LLM_WORKERS_LABEL: Final[str] = "Traitements IA simultanés"
-
-# ---------------------------------------------------------------- tooltips
-
-_FOLDER_TOOLTIP: Final[str] = (
-    "Dossier scanné en mode automatique : tous les fichiers vidéo, audio et "
-    "documents (PDF, Word, Markdown, texte) y sont ramassés."
-)
-_BROWSE_TOOLTIP: Final[str] = "Choisir le dossier contenant les sources à traiter."
-_DIRECTIVES_PLACEHOLDER: Final[str] = (
-    "Consignes libres pour orienter la reformulation. Ex. : « ton chaleureux mais "
-    "rigoureux, exemples concrets, éviter le jargon inutile »."
-)
-_YOUTUBE_URLS_PLACEHOLDER: Final[str] = (
-    "Une vidéo YouTube par ligne (liens unitaires).\nEx. : https://youtu.be/XXXXXXXXXXX"
-)
-_KEEP_AUDIO_LABEL: Final[str] = "Conserver les fichiers audio (réécoute / dépannage)"
-_KEEP_AUDIO_TOOLTIP: Final[str] = (
-    "Si coché, les fichiers .wav extraits des médias (vidéo/audio/YouTube) ne sont "
-    "pas supprimés après la transcription."
-)
-_REFORMULATE_DOCS_LABEL: Final[str] = "Reformuler les documents (PDF, Word, Markdown, texte)"
-_REFORMULATE_DOCS_TOOLTIP: Final[str] = (
-    "Si coché (défaut), les documents texte passent par la reformulation comme une "
-    "transcription orale. Décoché : le texte est inséré tel quel (cours déjà bien rédigé)."
-)
-_CONSOLIDATION_MODE_TOOLTIP: Final[str] = (
-    "Conserver l'ordre : assemble les sources dans l'ordre choisi (contenu recopié "
-    "tel quel). Synthèse thématique : l'IA refond tout par thème (l'ordre n'a "
-    "alors plus d'effet)."
-)
-_STYLE_TOOLTIP: Final[str] = (
-    "Détermine le ton et le registre du document final (décontracté, standard, "
-    "professionnel ou académique)."
-)
-_STT_PROVIDER_TOOLTIP: Final[str] = (
-    "Mode hors ligne : GPU NVIDIA requis, sans coût. Mode en ligne : OpenAI, "
-    "facturé à la minute, recommandé pour les longues durées."
-)
-_STT_WORKERS_TOOLTIP: Final[str] = (
-    "Transcriptions cloud simultanées (sans effet en STT local : 1 GPU)."
-)
-_LLM_WORKERS_TOOLTIP: Final[str] = (
-    "Appels IA simultanés (le compte concurrence DeepSeek est élevé)."
-)
-_BUDGET_TOOLTIP: Final[str] = (
-    "Coût maximal en USD. La génération s'arrête si elle s'en approche. Mettez 0 "
-    "pour désactiver le plafond."
-)
-_GPU_REQUIRED_TITLE: Final[str] = "GPU NVIDIA introuvable"
-_GPU_REQUIRED_MESSAGE: Final[str] = (
-    "Le mode de transcription locale nécessite un GPU NVIDIA compatible CUDA.\n\n"
-    "Veuillez utiliser le mode OpenAI en ligne."
-)
-_VALIDATION_TITLE: Final[str] = "Dossier des sources manquant"
-_VALIDATION_MESSAGE: Final[str] = (
-    "Veuillez sélectionner le dossier des sources (vidéos, audios, documents)."
-)
-_BUDGET_SUFFIX: Final[str] = " $"
-_BUDGET_SPECIAL_VALUE: Final[str] = "Pas de plafond"
 
 
 class GenerationSettingsView(QDialog):
@@ -311,19 +114,22 @@ class GenerationSettingsView(QDialog):
         super().__init__(parent)
         self._hardware = hardware
         self._is_edit_mode = initial is not None
-        self.setWindowTitle(_TITLE_EDIT if self._is_edit_mode else _TITLE_CREATE)
+        self.setWindowTitle(
+            self.tr("Réglages de la génération") if self._is_edit_mode
+            else self.tr("Configurer la génération")
+        )
         self.resize(_DIALOG_WIDTH, _DIALOG_HEIGHT)
         self._result: GenerationSettings | None = None
 
         self._build_fields()
         settings_view = SettingsView(
             [
-                (_CAT_STYLE, self._build_style_page()),
-                (_CAT_SOURCES, self._build_sources_page()),
-                (_CAT_TRANSCRIPTION, self._build_transcription_page()),
-                (_CAT_GENERATION, self._build_generation_page()),
-                (_CAT_PHASES, self._build_phases_page()),
-                (_CAT_EXPORT, self._build_export_page()),
+                (self.tr("Style"), self._build_style_page()),
+                (self.tr("Sources"), self._build_sources_page()),
+                (self.tr("Transcription"), self._build_transcription_page()),
+                (self.tr("Génération IA"), self._build_generation_page()),
+                (self.tr("Phases IA"), self._build_phases_page()),
+                (self.tr("Export"), self._build_export_page()),
             ],
             self,
         )
@@ -336,7 +142,7 @@ class GenerationSettingsView(QDialog):
         buttons = QDialogButtonBox(
             button_label | QDialogButtonBox.StandardButton.Cancel, parent=self
         )
-        frenchify_button_box(buttons)
+        localize_button_box(buttons)
         buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
 
@@ -346,10 +152,8 @@ class GenerationSettingsView(QDialog):
         )
         outer.setSpacing(0)
         outer.addWidget(settings_view, stretch=1)
-        # Footer dédié (séparateur top + padding), pas de boutons collés au bord.
         outer.addWidget(dialog_footer(self, buttons))
 
-        # Active la poignée de redimensionnement explicite (par sécurité).
         self.setSizeGripEnabled(True)
 
         if initial is not None:
@@ -358,20 +162,40 @@ class GenerationSettingsView(QDialog):
         self._sync_order_irrelevant()
 
     def get_generation_settings(self) -> GenerationSettings | None:
-        """Retourne les réglages construits, ou ``None`` si annulation/invalide.
-
-        Returns:
-            ``GenerationSettings`` ou ``None``.
-        """
+        """Retourne les réglages construits, ou ``None`` si annulation/invalide."""
         return self._result
 
-    # ------------------------------------------------------------------ champs
+    def _style_preset_labels(self) -> dict[StylePreset, str]:
+        """Libellés traduits des préréglages de style (utilisés dans la combo)."""
+        return {
+            StylePreset.DECONTRACTE: self.tr("Décontracté"),
+            StylePreset.STANDARD: self.tr("Standard"),
+            StylePreset.PROFESSIONNEL: self.tr("Professionnel"),
+            StylePreset.ACADEMIQUE: self.tr("Académique"),
+        }
+
+    def _consolidation_mode_labels(self) -> dict[ConsolidationMode, str]:
+        """Libellés traduits des modes d'assemblage."""
+        return {
+            ConsolidationMode.ORDERED: self.tr(
+                "Conserver l'ordre — 1 source = 1 chapitre"
+            ),
+            ConsolidationMode.THEMATIC: self.tr(
+                "Synthèse thématique — refonte transversale"
+            ),
+        }
+
+    def _stt_provider_labels(self) -> dict[SttProvider, str]:
+        """Libellés traduits des moteurs de transcription."""
+        return {
+            SttProvider.FASTER_WHISPER_LOCAL: self.tr(
+                "Hors ligne (GPU local, gratuit)"
+            ),
+            SttProvider.OPENAI_CLOUD: self.tr("En ligne (OpenAI, payant)"),
+        }
 
     def _build_fields(self) -> None:
-        """Instancie tous les widgets de champ (avant répartition en pages).
-
-        Décomposé en sous-méthodes par groupe sémantique pour rester lisible.
-        """
+        """Instancie tous les widgets de champ (avant répartition en pages)."""
         self._build_source_fields()
         self._build_style_fields()
         self._build_stt_fields()
@@ -382,13 +206,24 @@ class GenerationSettingsView(QDialog):
         """Instancie les widgets de saisie des sources (dossier + URLs + ordre)."""
         self._input_folder_input = QLineEdit(self)
         self._input_folder_input.setReadOnly(True)
-        self._input_folder_input.setToolTip(_FOLDER_TOOLTIP)
-        self._browse_btn = QPushButton(_BROWSE_LABEL, self)
-        self._browse_btn.setToolTip(_BROWSE_TOOLTIP)
+        self._input_folder_input.setToolTip(
+            self.tr(
+                "Dossier scanné en mode automatique : tous les fichiers vidéo, audio et "
+                "documents (PDF, Word, Markdown, texte) y sont ramassés."
+            )
+        )
+        self._browse_btn = QPushButton(self.tr("Choisir…"), self)
+        self._browse_btn.setToolTip(
+            self.tr("Choisir le dossier contenant les sources à traiter.")
+        )
         self._browse_btn.clicked.connect(self._browse_input_folder)
 
         self._youtube_urls_input = QTextEdit(self)
-        self._youtube_urls_input.setPlaceholderText(_YOUTUBE_URLS_PLACEHOLDER)
+        self._youtube_urls_input.setPlaceholderText(
+            self.tr(
+                "Une vidéo YouTube par ligne (liens unitaires).\nEx. : https://youtu.be/XXXXXXXXXXX"
+            )
+        )
         self._youtube_urls_input.setFixedHeight(_YOUTUBE_URLS_HEIGHT_PX)
         self._youtube_urls_input.setAcceptRichText(False)
 
@@ -398,60 +233,105 @@ class GenerationSettingsView(QDialog):
         self._languages_view = LanguageSelectionView(tuple(Language), self)
 
     def _build_style_fields(self) -> None:
-        """Instancie les widgets de la page « Style » (preset, mode, directives)."""
+        """Instancie les widgets de la page « Style »."""
         self._style_combo = QComboBox(self)
-        self._style_combo.setToolTip(_STYLE_TOOLTIP)
-        for style, label in _STYLE_PRESET_LABELS.items():
+        self._style_combo.setToolTip(
+            self.tr(
+                "Détermine le ton et le registre du document final (décontracté, standard, "
+                "professionnel ou académique)."
+            )
+        )
+        for style, label in self._style_preset_labels().items():
             self._style_combo.addItem(label, style)
 
         self._consolidation_mode_combo = labeled_enum_combo(
-            self, _CONSOLIDATION_MODE_LABELS
+            self, self._consolidation_mode_labels()
         )
-        self._consolidation_mode_combo.setToolTip(_CONSOLIDATION_MODE_TOOLTIP)
+        self._consolidation_mode_combo.setToolTip(
+            self.tr(
+                "Conserver l'ordre : assemble les sources dans l'ordre choisi (contenu recopié "
+                "tel quel). Synthèse thématique : l'IA refond tout par thème (l'ordre n'a "
+                "alors plus d'effet)."
+            )
+        )
         self._consolidation_mode_combo.currentIndexChanged.connect(
             self._sync_order_irrelevant
         )
 
         self._style_directives_input = QTextEdit(self)
-        self._style_directives_input.setPlaceholderText(_DIRECTIVES_PLACEHOLDER)
+        self._style_directives_input.setPlaceholderText(
+            self.tr(
+                "Consignes libres pour orienter la reformulation. Ex. : « ton chaleureux mais "
+                "rigoureux, exemples concrets, éviter le jargon inutile »."
+            )
+        )
         self._style_directives_input.setFixedHeight(_DIRECTIVES_HEIGHT_PX)
         self._style_directives_input.setAcceptRichText(False)
 
-        self._reformulate_documents_checkbox = QCheckBox(_REFORMULATE_DOCS_LABEL, self)
-        self._reformulate_documents_checkbox.setToolTip(_REFORMULATE_DOCS_TOOLTIP)
+        self._reformulate_documents_checkbox = QCheckBox(
+            self.tr("Reformuler les documents (PDF, Word, Markdown, texte)"), self
+        )
+        self._reformulate_documents_checkbox.setToolTip(
+            self.tr(
+                "Si coché (défaut), les documents texte passent par la reformulation comme "
+                "une transcription orale. Décoché : le texte est inséré tel quel "
+                "(cours déjà bien rédigé)."
+            )
+        )
         self._reformulate_documents_checkbox.setChecked(True)
 
     def _build_stt_fields(self) -> None:
         """Instancie les widgets de la page « Transcription »."""
         self._stt_combo = QComboBox(self)
-        self._stt_combo.setToolTip(_STT_PROVIDER_TOOLTIP)
-        for provider, label in _STT_PROVIDER_LABELS.items():
+        self._stt_combo.setToolTip(
+            self.tr(
+                "Mode hors ligne : GPU NVIDIA requis, sans coût. Mode en ligne : OpenAI, "
+                "facturé à la minute, recommandé pour les longues durées."
+            )
+        )
+        for provider, label in self._stt_provider_labels().items():
             self._stt_combo.addItem(label, provider)
         self._stt_combo.currentIndexChanged.connect(self._on_stt_changed)
 
-        self._stt_local_model_combo = labeled_enum_combo(self, LOCAL_STT_MODEL_LABELS)
-        self._stt_cloud_model_combo = labeled_enum_combo(self, CLOUD_STT_MODEL_LABELS)
+        self._stt_local_model_combo = labeled_enum_combo(self, local_stt_model_labels())
+        self._stt_cloud_model_combo = labeled_enum_combo(self, cloud_stt_model_labels())
 
-        self._keep_audio_checkbox = QCheckBox(_KEEP_AUDIO_LABEL, self)
-        self._keep_audio_checkbox.setToolTip(_KEEP_AUDIO_TOOLTIP)
+        self._keep_audio_checkbox = QCheckBox(
+            self.tr("Conserver les fichiers audio (réécoute / dépannage)"), self
+        )
+        self._keep_audio_checkbox.setToolTip(
+            self.tr(
+                "Si coché, les fichiers .wav extraits des médias (vidéo/audio/YouTube) ne sont "
+                "pas supprimés après la transcription."
+            )
+        )
 
         defaults = ParallelismConfig()
         self._stt_workers_input = QSpinBox(self)
         self._stt_workers_input.setRange(1, MAX_STT_CLOUD_WORKERS)
         self._stt_workers_input.setValue(defaults.stt_cloud_workers)
-        self._stt_workers_input.setToolTip(_STT_WORKERS_TOOLTIP)
+        self._stt_workers_input.setToolTip(
+            self.tr(
+                "Transcriptions cloud simultanées (sans effet en STT local : 1 GPU)."
+            )
+        )
 
     def _build_llm_fields(self) -> None:
         """Instancie les widgets de la page « Génération IA » + « Phases IA »."""
-        self._llm_combo = labeled_enum_combo(self, LLM_MODEL_LABELS)
+        self._llm_combo = labeled_enum_combo(self, llm_model_labels())
 
         self._cost_ceiling_input = QDoubleSpinBox(self)
         self._cost_ceiling_input.setRange(0.0, _COST_CEILING_MAX_USD)
         self._cost_ceiling_input.setDecimals(2)
         self._cost_ceiling_input.setValue(0.0)
-        self._cost_ceiling_input.setSuffix(_BUDGET_SUFFIX)
-        self._cost_ceiling_input.setSpecialValueText(_BUDGET_SPECIAL_VALUE)
-        self._cost_ceiling_input.setToolTip(_BUDGET_TOOLTIP)
+        self._cost_ceiling_input.setSuffix(" $")
+        self._cost_ceiling_input.setSpecialValueText(self.tr("Pas de plafond"))
+        self._cost_ceiling_input.setToolTip(
+            self.tr(
+                "Coût maximal en USD. La génération s'arrête si elle s'en approche. Mettez 0 "
+                "pour désactiver le plafond."
+            )
+        )
 
         self._phase_configs_widget = PhaseConfigsWidget(self)
 
@@ -459,49 +339,72 @@ class GenerationSettingsView(QDialog):
         self._llm_workers_input = QSpinBox(self)
         self._llm_workers_input.setRange(1, MAX_LLM_WORKERS)
         self._llm_workers_input.setValue(defaults.llm_workers)
-        self._llm_workers_input.setToolTip(_LLM_WORKERS_TOOLTIP)
+        self._llm_workers_input.setToolTip(
+            self.tr(
+                "Appels IA simultanés (le compte concurrence DeepSeek est élevé)."
+            )
+        )
 
     def _build_export_fields(self) -> None:
         """Instancie les cases à cocher de formats d'export."""
         self._export_checks: dict[ExportFormat, QCheckBox] = {}
+        labels = export_labels()
         for fmt in ExportFormat:
             if fmt in GENERATION_EXPORT_FORMATS:
-                self._export_checks[fmt] = QCheckBox(EXPORT_LABELS[fmt], self)
-
-    # ------------------------------------------------------------------- pages
+                self._export_checks[fmt] = QCheckBox(labels[fmt], self)
 
     def _build_style_page(self) -> QWidget:
         """Construit la page « Style »."""
         page, layout = settings_page(self)
-        layout.addWidget(page_header(page, title=_CAT_STYLE, description=_STYLE_PAGE_DESC))
+        layout.addWidget(
+            page_header(
+                page,
+                title=self.tr("Style"),
+                description=self.tr(
+                    "Ton, mise en forme et mode d'assemblage du document consolidé."
+                ),
+            )
+        )
 
         format_card, format_layout = card(
-            page, title=_FORMAT_CARD_TITLE, description=_FORMAT_CARD_DESC
+            page,
+            title=self.tr("Mise en forme"),
+            description=self.tr(
+                "Préréglage de style, mode d'assemblage des sources et consignes libres pour "
+                "orienter l'écriture."
+            ),
         )
         form = settings_form()
-        form.addRow(_STYLE_LABEL, self._style_combo)
-        form.addRow(_CONSOLIDATION_LABEL, self._consolidation_mode_combo)
+        form.addRow(self.tr("Préréglage de style"), self._style_combo)
+        form.addRow(self.tr("Mode d'assemblage"), self._consolidation_mode_combo)
         format_layout.addLayout(form)
-        # Étiquette du textarea (label normal, pas un hint visuel sous-cadré).
-        directives_label = QLabel(_DIRECTIVES_LABEL, format_card)
+        directives_label = QLabel(self.tr("Consignes de style"), format_card)
         format_layout.addWidget(directives_label)
         format_layout.addWidget(self._style_directives_input)
         format_layout.addWidget(
             field_hint(
                 format_card,
-                "Optionnel — laissez vide pour le comportement par défaut.",
+                self.tr(
+                    "Optionnel — laissez vide pour le comportement par défaut."
+                ),
             )
         )
         layout.addWidget(format_card)
 
         docs_card, docs_layout = card(
-            page, title=_DOCUMENTS_CARD_TITLE, description=_DOCUMENTS_CARD_DESC
+            page,
+            title=self.tr("Documents texte"),
+            description=self.tr(
+                "Comportement appliqué aux fichiers PDF, Word, Markdown et texte."
+            ),
         )
         docs_layout.addWidget(self._reformulate_documents_checkbox)
         docs_layout.addWidget(
             field_hint(
                 docs_card,
-                "Décochez pour les cours déjà rédigés (insertion telle quelle, coût nul).",
+                self.tr(
+                    "Décochez pour les cours déjà rédigés (insertion telle quelle, coût nul)."
+                ),
             )
         )
         layout.addWidget(docs_card)
@@ -510,14 +413,25 @@ class GenerationSettingsView(QDialog):
         return page
 
     def _build_sources_page(self) -> QWidget:
-        """Construit la page « Sources » (dossier, YouTube, langues, ordre)."""
+        """Construit la page « Sources »."""
         page, layout = settings_page(self)
         layout.addWidget(
-            page_header(page, title=_CAT_SOURCES, description=_SOURCES_PAGE_DESC)
+            page_header(
+                page,
+                title=self.tr("Sources"),
+                description=self.tr(
+                    "Dossier des fichiers à traiter, vidéos YouTube, langues à produire et ordre "
+                    "d'apparition des sources dans le document."
+                ),
+            )
         )
 
         folder_card, folder_layout = card(
-            page, title=_FOLDER_CARD_TITLE, description=_FOLDER_CARD_DESC
+            page,
+            title=self.tr("Dossier des sources"),
+            description=self.tr(
+                "Dossier scanné pour les vidéos, audios et documents à traiter."
+            ),
         )
         folder_row = QHBoxLayout()
         folder_row.addWidget(self._input_folder_input, stretch=1)
@@ -526,19 +440,33 @@ class GenerationSettingsView(QDialog):
         layout.addWidget(folder_card)
 
         youtube_card, youtube_layout = card(
-            page, title=_YOUTUBE_CARD_TITLE, description=_YOUTUBE_CARD_DESC
+            page,
+            title=self.tr("Vidéos YouTube"),
+            description=self.tr(
+                "Liens YouTube unitaires (une URL par ligne). La vidéo est téléchargée puis "
+                "transcrite comme une vidéo locale."
+            ),
         )
         youtube_layout.addWidget(self._youtube_urls_input)
         layout.addWidget(youtube_card)
 
         languages_card, languages_layout = card(
-            page, title=_LANGUAGES_CARD_TITLE, description=_LANGUAGES_CARD_DESC
+            page,
+            title=self.tr("Langues du document"),
+            description=self.tr(
+                "Langues à produire pour le document consolidé. La langue « principale » est "
+                "l'originale ; les autres en sont des traductions automatiques."
+            ),
         )
         languages_layout.addWidget(self._languages_view)
         layout.addWidget(languages_card)
 
         order_card, order_layout = card(
-            page, title=_ORDER_CARD_TITLE, description=_ORDER_CARD_DESC
+            page,
+            title=self.tr("Ordre et exclusions"),
+            description=self.tr(
+                "Ordre d'apparition des sources dans le document, et exclusions éventuelles."
+            ),
         )
         order_layout.addWidget(self._source_order_view)
         layout.addWidget(order_card, stretch=1)
@@ -549,34 +477,49 @@ class GenerationSettingsView(QDialog):
         page, layout = settings_page(self)
         layout.addWidget(
             page_header(
-                page, title=_CAT_TRANSCRIPTION, description=_TRANSCRIPTION_PAGE_DESC
+                page,
+                title=self.tr("Transcription"),
+                description=self.tr(
+                    "Moteur et modèle utilisés pour transcrire les vidéos et fichiers audio."
+                ),
             )
         )
 
         engine_card, engine_layout = card(
-            page, title=_ENGINE_CARD_TITLE, description=_ENGINE_CARD_DESC
+            page,
+            title=self.tr("Moteur de transcription"),
+            description=self.tr(
+                "Mode hors ligne (GPU local, sans coût) ou en ligne (OpenAI, plus précis sur "
+                "les longues durées)."
+            ),
         )
         engine_form = settings_form()
-        engine_form.addRow(_STT_PROVIDER_LABEL, self._stt_combo)
+        engine_form.addRow(self.tr("Moteur"), self._stt_combo)
         engine_layout.addLayout(engine_form)
         layout.addWidget(engine_card)
 
         model_card, model_layout = card(
-            page, title=_STT_MODEL_CARD_TITLE, description=_STT_MODEL_CARD_DESC
+            page,
+            title=self.tr("Modèle de transcription"),
+            description=self.tr(
+                "Choix du modèle ; un seul est actif à la fois, selon le moteur choisi."
+            ),
         )
         model_form = settings_form()
-        model_form.addRow(_STT_LOCAL_LABEL, self._stt_local_model_combo)
-        model_form.addRow(_STT_CLOUD_LABEL, self._stt_cloud_model_combo)
+        model_form.addRow(self.tr("Modèle hors ligne (GPU)"), self._stt_local_model_combo)
+        model_form.addRow(self.tr("Modèle en ligne (OpenAI)"), self._stt_cloud_model_combo)
         model_layout.addLayout(model_form)
         layout.addWidget(model_card)
 
         perf_card, perf_layout = card(
             page,
-            title=_STT_PERFORMANCE_CARD_TITLE,
-            description=_STT_PERFORMANCE_CARD_DESC,
+            title=self.tr("Performance et conservation"),
+            description=self.tr(
+                "Parallélisme des transcriptions en ligne et gestion des fichiers audio extraits."
+            ),
         )
         perf_form = settings_form()
-        perf_form.addRow(_STT_WORKERS_LABEL, self._stt_workers_input)
+        perf_form.addRow(self.tr("Transcriptions simultanées"), self._stt_workers_input)
         perf_layout.addLayout(perf_form)
         perf_layout.addWidget(self._keep_audio_checkbox)
         layout.addWidget(perf_card)
@@ -585,34 +528,51 @@ class GenerationSettingsView(QDialog):
         return page
 
     def _build_generation_page(self) -> QWidget:
-        """Construit la page « Génération IA » (modèle + budget + performance)."""
+        """Construit la page « Génération IA »."""
         page, layout = settings_page(self)
         layout.addWidget(
             page_header(
-                page, title=_CAT_GENERATION, description=_GENERATION_PAGE_DESC
+                page,
+                title=self.tr("Génération IA"),
+                description=self.tr(
+                    "Modèle de génération, plafond de budget et nombre de traitements en parallèle."
+                ),
             )
         )
         model_card, model_layout = card(
-            page, title=_LLM_CARD_TITLE, description=_LLM_CARD_DESC
+            page,
+            title=self.tr("Modèle de génération"),
+            description=self.tr(
+                "Modèle DeepSeek utilisé pour les phases de reformulation, structuration, "
+                "consolidation, traduction et cohérence."
+            ),
         )
         model_form = settings_form()
-        model_form.addRow(_LLM_LABEL, self._llm_combo)
+        model_form.addRow(self.tr("Modèle"), self._llm_combo)
         model_layout.addLayout(model_form)
         layout.addWidget(model_card)
 
         budget_card, budget_layout = card(
-            page, title=_BUDGET_CARD_TITLE, description=_BUDGET_CARD_DESC
+            page,
+            title=self.tr("Budget"),
+            description=self.tr(
+                "Plafond de dépense — la génération s'arrête si le coût l'atteint."
+            ),
         )
         budget_form = settings_form()
-        budget_form.addRow(_BUDGET_FIELD_LABEL, self._cost_ceiling_input)
+        budget_form.addRow(self.tr("Budget maximal"), self._cost_ceiling_input)
         budget_layout.addLayout(budget_form)
         layout.addWidget(budget_card)
 
         perf_card, perf_layout = card(
-            page, title=_PERFORMANCE_CARD_TITLE, description=_PERFORMANCE_CARD_DESC
+            page,
+            title=self.tr("Performance"),
+            description=self.tr(
+                "Nombre d'appels IA simultanés. Plus rapide, n'augmente pas le coût."
+            ),
         )
         perf_form = settings_form()
-        perf_form.addRow(_LLM_WORKERS_LABEL, self._llm_workers_input)
+        perf_form.addRow(self.tr("Traitements IA simultanés"), self._llm_workers_input)
         perf_layout.addLayout(perf_form)
         layout.addWidget(perf_card)
 
@@ -620,18 +580,18 @@ class GenerationSettingsView(QDialog):
         return page
 
     def _build_phases_page(self) -> QWidget:
-        """Construit la page « Phases IA » (page_header + widget directement).
-
-        ``PhaseConfigsWidget`` est déjà un ``QGroupBox`` stylé (encadré + titre
-        interne) ; on évite la double-tête en n'ajoutant pas de carte autour.
-        Le titre interne du QGroupBox est remplacé par une description
-        compacte sous le ``page_header``.
-        """
+        """Construit la page « Phases IA »."""
         page, layout = settings_page(self)
         layout.addWidget(
-            page_header(page, title=_CAT_PHASES, description=_PHASES_PAGE_DESC)
+            page_header(
+                page,
+                title=self.tr("Phases IA"),
+                description=self.tr(
+                    "Réglages fins pour chacune des 7 phases IA du pipeline (thinking, intensité, "
+                    "température, retries). Laissez les valeurs par défaut sauf cas particulier."
+                ),
+            )
         )
-        # On efface le titre interne du QGroupBox pour éviter la redondance.
         self._phase_configs_widget.setTitle("")
         layout.addWidget(self._phase_configs_widget, stretch=1)
         return page
@@ -640,37 +600,38 @@ class GenerationSettingsView(QDialog):
         """Construit la page « Export »."""
         page, layout = settings_page(self)
         layout.addWidget(
-            page_header(page, title=_CAT_EXPORT, description=_EXPORT_PAGE_DESC)
+            page_header(
+                page,
+                title=self.tr("Export"),
+                description=self.tr(
+                    "Formats proposés lors de l'export du document consolidé et du glossaire."
+                ),
+            )
         )
-        card_frame, card_layout = card(page, title=_EXPORT_CARD_TITLE)
+        card_frame, card_layout = card(page, title=self.tr("Formats à exporter"))
         for cb in self._export_checks.values():
             card_layout.addWidget(cb)
         layout.addWidget(card_frame)
         layout.addWidget(
             field_hint(
                 page,
-                "Sans sélection, l'export laissera le choix au moment de l'action.",
+                self.tr(
+                    "Sans sélection, l'export laissera le choix au moment de l'action."
+                ),
             )
         )
         layout.addStretch(1)
         return page
 
-    # ----------------------------------------------------------------- actions
-
     def _browse_input_folder(self) -> None:
         """Ouvre un sélecteur de dossier d'entrée et rafraîchit la liste."""
-        folder = QFileDialog.getExistingDirectory(self, _FOLDER_CARD_TITLE)
+        folder = QFileDialog.getExistingDirectory(self, self.tr("Dossier des sources"))
         if folder:
             self._input_folder_input.setText(folder)
             self._refresh_source_order()
 
     def _parse_youtube_urls(self) -> tuple[str, ...]:
-        """Extrait les liens YouTube saisis (une URL non vide par ligne, dédupliquée).
-
-        Returns:
-            Les URLs non vides, sans doublon, dans l'ordre de saisie
-            (``dict.fromkeys`` préserve l'ordre d'insertion).
-        """
+        """Extrait les liens YouTube saisis (une URL non vide par ligne, dédupliquée)."""
         lines = (
             line.strip()
             for line in self._youtube_urls_input.toPlainText().splitlines()
@@ -678,12 +639,7 @@ class GenerationSettingsView(QDialog):
         return tuple(dict.fromkeys(line for line in lines if line))
 
     def _scan_available(self) -> list[InputSource]:
-        """Liste les sources disponibles depuis les champs courants (best-effort).
-
-        Returns:
-            Les ``InputSource`` du dossier + URLs ; liste vide si le dossier est
-            inaccessible et qu'aucune URL n'est saisie.
-        """
+        """Liste les sources disponibles depuis les champs courants (best-effort)."""
         folder_text = self._input_folder_input.text().strip()
         folder = Path(folder_text) if folder_text else None
         try:
@@ -696,12 +652,7 @@ class GenerationSettingsView(QDialog):
         source_order: tuple[str, ...] | None = None,
         excluded: tuple[str, ...] | None = None,
     ) -> None:
-        """Re-scanne les sources, réconcilie l'ordre/exclusion et repeuple la liste.
-
-        Args:
-            source_order: État d'ordre à appliquer (``None`` = état courant).
-            excluded: État d'exclusion à appliquer (``None`` = état courant).
-        """
+        """Re-scanne les sources, réconcilie l'ordre/exclusion et repeuple la liste."""
         order = (
             source_order
             if source_order is not None
@@ -723,19 +674,20 @@ class GenerationSettingsView(QDialog):
         )
 
     def _on_stt_changed(self, index: int) -> None:
-        """Bloque ``faster_whisper_local`` sans GPU CUDA.
-
-        Args:
-            index: Index sélectionné dans le combo STT.
-        """
-        # ``itemData`` peut « dégrader » le StrEnum en str : on recoerce en enum
-        # pour que la comparaison d'identité (et l'avertissement GPU) fonctionne.
+        """Bloque ``faster_whisper_local`` sans GPU CUDA."""
         provider = SttProvider(self._stt_combo.itemData(index))
         if (
             provider is SttProvider.FASTER_WHISPER_LOCAL
             and not self._hardware.cuda_available
         ):
-            QMessageBox.warning(self, _GPU_REQUIRED_TITLE, _GPU_REQUIRED_MESSAGE)
+            QMessageBox.warning(
+                self,
+                self.tr("GPU NVIDIA introuvable"),
+                self.tr(
+                    "Le mode de transcription locale nécessite un GPU NVIDIA compatible CUDA.\n\n"
+                    "Veuillez utiliser le mode OpenAI en ligne."
+                ),
+            )
             cloud_index = self._stt_combo.findData(SttProvider.OPENAI_CLOUD)
             if cloud_index >= 0:
                 self._stt_combo.setCurrentIndex(cloud_index)
@@ -757,11 +709,7 @@ class GenerationSettingsView(QDialog):
         )
 
     def _populate(self, generation: GenerationSettings) -> None:
-        """Pré-remplit les champs depuis des réglages existants.
-
-        Args:
-            generation: Réglages à éditer.
-        """
+        """Pré-remplit les champs depuis des réglages existants."""
         self._input_folder_input.setText(str(generation.input_folder))
         self._youtube_urls_input.setPlainText("\n".join(generation.youtube_urls))
         self._languages_view.set_selection(
@@ -804,9 +752,14 @@ class GenerationSettingsView(QDialog):
         """Valide la saisie et construit le ``GenerationSettings``."""
         input_folder_text = self._input_folder_input.text().strip()
         if not input_folder_text:
-            QMessageBox.warning(self, _VALIDATION_TITLE, _VALIDATION_MESSAGE)
+            QMessageBox.warning(
+                self,
+                self.tr("Dossier des sources manquant"),
+                self.tr(
+                    "Veuillez sélectionner le dossier des sources (vidéos, audios, documents)."
+                ),
+            )
             return
-        # Le widget garantit l'invariant du domaine : la principale ∈ langues incluses.
         source_lang = self._languages_view.primary_language()
         output_langs = self._languages_view.output_languages()
         cost_ceiling = (

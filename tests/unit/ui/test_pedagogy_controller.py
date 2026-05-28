@@ -62,12 +62,15 @@ from fahmi2.ui.pedagogy_controller import (
     _pedagogy_event_to_log,
     _PedagogyWorker,
 )
-from fahmi2.ui.pedagogy_labels import EXPORT_LABELS
+from fahmi2.ui.pedagogy_labels import export_labels
 from fahmi2.ui.qt_event_bus import PedagogyQtEventBus
 from fahmi2.ui.viewmodels.pedagogy_state import PedagogyState
 from fahmi2.ui.widgets.logs_dock import LogsDock
 from fahmi2.ui.widgets.pedagogy_progress_view import PedagogyProgressView
 from fahmi2.ui.widgets.project_header_bar import ProjectHeaderBar
+
+# Snapshot des libellés au moment de l'import (langue active = source FR).
+EXPORT_LABELS = export_labels()
 
 
 def _app_paths(tmp_path: Path) -> AppPaths:

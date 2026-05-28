@@ -14,10 +14,14 @@ from fahmi2.core.errors.severity import Severity
 from fahmi2.core.logging.event import LogEvent
 from fahmi2.domain.enums import ExportFormat
 from fahmi2.ui._export_ui import choose_export_format, run_document_export
-from fahmi2.ui.pedagogy_labels import EXPORT_LABELS
+from fahmi2.ui.pedagogy_labels import export_labels
 from fahmi2.ui.widgets.logs_dock import LogsDock
 
 _MOD = "fahmi2.ui._export_ui"
+# Snapshot des libellés au moment de l'import (la traduction est résolue à
+# l'appel ; ici la langue active est la source FR — c'est ce qu'attendent
+# les assertions sur les libellés exacts).
+EXPORT_LABELS = export_labels()
 
 
 def test_choose_returns_none_when_no_format(

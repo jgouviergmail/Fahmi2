@@ -11,8 +11,8 @@ Présenté en trois cartes :
   qui persiste la préférence ; un message d'information indique qu'un
   redémarrage est nécessaire pour appliquer le changement à toute l'UI.
 
-Boutons standard Qt traduits en français via
-:func:`fahmi2.ui._components.frenchify_button_box`.
+i18n : tous les libellés passent par :py:meth:`QObject.tr` à l'usage dans
+les méthodes ``_build_*`` (rendu dans la langue active à la construction).
 """
 
 from __future__ import annotations
@@ -34,18 +34,9 @@ from fahmi2.app.language_controller import LanguageController
 from fahmi2.app.secrets_service import SecretsService
 from fahmi2.app.theme_controller import ThemeController
 from fahmi2.i18n import LANGUAGE_LABELS, AppLanguage
-from fahmi2.ui._components import card, field_hint, frenchify_button_box, settings_form
+from fahmi2.ui._components import card, field_hint, localize_button_box, settings_form
 from fahmi2.ui.theme import ThemeMode
 
-#: Libellés FR des modes d'apparence (affichés dans la combo « Thème »).
-_THEME_MODE_LABELS: Final[dict[ThemeMode, str]] = {
-    ThemeMode.SYSTEM: "Système",
-    ThemeMode.LIGHT: "Clair",
-    ThemeMode.DARK: "Sombre",
-}
-
-#: Titre de la fenêtre.
-_WINDOW_TITLE: Final[str] = "Paramètres globaux"
 #: Largeur minimale du dialogue (px).
 _DIALOG_MIN_WIDTH: Final[int] = 560
 #: Marges externes du dialogue.
@@ -53,63 +44,13 @@ _OUTER_MARGIN_HORIZONTAL: Final[int] = 28
 _OUTER_MARGIN_TOP: Final[int] = 24
 _OUTER_MARGIN_BOTTOM: Final[int] = 18
 _OUTER_SPACING: Final[int] = 16
-#: Largeur min/max de la colonne centrale (donne aux champs assez de place
-#: pour afficher une clé API complète tout en restant centré).
+#: Largeur min/max de la colonne centrale.
 _COLUMN_MIN_WIDTH: Final[int] = 460
 _COLUMN_MAX_WIDTH: Final[int] = 560
 
-# ---------------------------------------------------------------- libellés
-_KEYS_CARD_TITLE: Final[str] = "Clés API"
-_KEYS_CARD_DESC: Final[str] = (
-    "Les clés sont chiffrées localement (Windows DPAPI) et ne quittent jamais "
-    "votre ordinateur en clair."
-)
-_KEY_OPENAI_LABEL: Final[str] = "Clé API OpenAI"
-_KEY_DEEPSEEK_LABEL: Final[str] = "Clé API DeepSeek"
-_KEY_OPENAI_TOOLTIP: Final[str] = (
-    "Clé personnelle OpenAI utilisée pour la transcription en ligne et la "
-    "recherche sémantique du Dialogue."
-)
-_KEY_DEEPSEEK_TOOLTIP: Final[str] = (
-    "Clé personnelle DeepSeek utilisée pour la reformulation, les supports "
-    "pédagogiques et les réponses du Dialogue."
-)
-
-_APPEARANCE_CARD_TITLE: Final[str] = "Apparence"
-_APPEARANCE_CARD_DESC: Final[str] = (
-    "Choisissez un mode clair, sombre, ou laissez Fahmi2 suivre le thème "
-    "de votre système (Windows)."
-)
-_THEME_LABEL: Final[str] = "Thème de l'interface"
-_THEME_TOOLTIP: Final[str] = (
-    "« Système » suit automatiquement le thème de Windows. « Clair » ou "
-    "« Sombre » force l'apparence indépendamment du système."
-)
-
-_LANGUAGE_CARD_TITLE: Final[str] = "Langue"
-_LANGUAGE_CARD_DESC: Final[str] = (
-    "Choisissez la langue de l'interface. Le changement s'applique au "
-    "prochain démarrage de Fahmi2."
-)
-_LANGUAGE_LABEL: Final[str] = "Langue de l'interface"
-_LANGUAGE_TOOLTIP: Final[str] = (
-    "Sélectionne la langue d'affichage des menus, boutons et libellés. "
-    "N'affecte ni le contenu des projets, ni les langues de sortie du "
-    "pipeline (qui se règlent par projet)."
-)
-_LANGUAGE_HINT: Final[str] = (
-    "Le changement de langue s'applique au prochain démarrage de Fahmi2."
-)
-# Les libellés du QMessageBox de confirmation de redémarrage sont rendus
-# par ``self.tr(...)`` à l'usage dans :py:meth:`GlobalSettingsDialog._on_accept`
-# — ils doivent afficher la **nouvelle** langue sélectionnée (un utilisateur
-# qui passe à English doit voir « Restart required » et non « Redémarrage
-# requis »). Les définir comme constantes de module les figerait dans la
-# langue active au démarrage.
-
 
 class GlobalSettingsDialog(QDialog):
-    """Dialogue de configuration globale (clés API, apparence)."""
+    """Dialogue de configuration globale (clés API, apparence, langue)."""
 
     def __init__(
         self,
@@ -131,7 +72,7 @@ class GlobalSettingsDialog(QDialog):
             parent: Parent Qt optionnel.
         """
         super().__init__(parent)
-        self.setWindowTitle(_WINDOW_TITLE)
+        self.setWindowTitle(self.tr("Paramètres globaux"))
         self.setMinimumWidth(_DIALOG_MIN_WIDTH)
         self._secrets_service = secrets_service
         self._theme_controller = theme_controller
@@ -157,6 +98,18 @@ class GlobalSettingsDialog(QDialog):
         outer.addStretch(1)
         outer.addWidget(buttons)
 
+    def _theme_mode_labels(self) -> dict[ThemeMode, str]:
+        """Mapping ``ThemeMode`` → libellé traduit (utilisé dans la combo).
+
+        Construit à l'usage (et non comme constante de module) pour suivre
+        la langue active au moment où la combo est peuplée.
+        """
+        return {
+            ThemeMode.SYSTEM: self.tr("Système"),
+            ThemeMode.LIGHT: self.tr("Clair"),
+            ThemeMode.DARK: self.tr("Sombre"),
+        }
+
     def _build_keys_card(self) -> QWidget:
         """Construit la carte « Clés API » (OpenAI + DeepSeek, masquées).
 
@@ -164,24 +117,39 @@ class GlobalSettingsDialog(QDialog):
             Le widget de carte (avec ses deux champs prêts à être lus).
         """
         keys_card, keys_layout = card(
-            self, title=_KEYS_CARD_TITLE, description=_KEYS_CARD_DESC
+            self,
+            title=self.tr("Clés API"),
+            description=self.tr(
+                "Les clés sont chiffrées localement (Windows DPAPI) et ne quittent jamais "
+                "votre ordinateur en clair."
+            ),
         )
         keys_form = settings_form()
         self._openai_input = QLineEdit(keys_card)
         self._openai_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self._openai_input.setToolTip(_KEY_OPENAI_TOOLTIP)
+        self._openai_input.setToolTip(
+            self.tr(
+                "Clé personnelle OpenAI utilisée pour la transcription en ligne et la "
+                "recherche sémantique du Dialogue."
+            )
+        )
         existing_openai = self._secrets_service.get_openai_api_key()
         if existing_openai:
             self._openai_input.setText(existing_openai)
-        keys_form.addRow(_KEY_OPENAI_LABEL, self._openai_input)
+        keys_form.addRow(self.tr("Clé API OpenAI"), self._openai_input)
 
         self._deepseek_input = QLineEdit(keys_card)
         self._deepseek_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self._deepseek_input.setToolTip(_KEY_DEEPSEEK_TOOLTIP)
+        self._deepseek_input.setToolTip(
+            self.tr(
+                "Clé personnelle DeepSeek utilisée pour la reformulation, les supports "
+                "pédagogiques et les réponses du Dialogue."
+            )
+        )
         existing_deepseek = self._secrets_service.get_deepseek_api_key()
         if existing_deepseek:
             self._deepseek_input.setText(existing_deepseek)
-        keys_form.addRow(_KEY_DEEPSEEK_LABEL, self._deepseek_input)
+        keys_form.addRow(self.tr("Clé API DeepSeek"), self._deepseek_input)
         keys_layout.addLayout(keys_form)
         return keys_card
 
@@ -192,25 +160,36 @@ class GlobalSettingsDialog(QDialog):
             Le widget de carte (combo prêt à être lu à la validation).
         """
         appearance_card, appearance_layout = card(
-            self, title=_APPEARANCE_CARD_TITLE, description=_APPEARANCE_CARD_DESC
+            self,
+            title=self.tr("Apparence"),
+            description=self.tr(
+                "Choisissez un mode clair, sombre, ou laissez Fahmi2 suivre le thème "
+                "de votre système (Windows)."
+            ),
         )
         appearance_form = settings_form()
         self._theme_combo = QComboBox(appearance_card)
-        self._theme_combo.setToolTip(_THEME_TOOLTIP)
-        for mode, label in _THEME_MODE_LABELS.items():
+        self._theme_combo.setToolTip(
+            self.tr(
+                "« Système » suit automatiquement le thème de Windows. « Clair » ou "
+                "« Sombre » force l'apparence indépendamment du système."
+            )
+        )
+        for mode, label in self._theme_mode_labels().items():
             # ``QComboBox`` ne préserve pas le type ``StrEnum`` : on stocke
-            # ``mode.value`` et on reconverti à la lecture via ``ThemeMode(...)``
-            # — cohérent avec les autres combos d'enum de l'application.
+            # ``mode.value`` et on reconverti à la lecture via ``ThemeMode(...)``.
             self._theme_combo.addItem(label, mode.value)
         current_idx = self._theme_combo.findData(self._theme_controller.mode.value)
         if current_idx >= 0:
             self._theme_combo.setCurrentIndex(current_idx)
-        appearance_form.addRow(_THEME_LABEL, self._theme_combo)
+        appearance_form.addRow(self.tr("Thème de l'interface"), self._theme_combo)
         appearance_layout.addLayout(appearance_form)
         appearance_layout.addWidget(
             field_hint(
                 appearance_card,
-                "Le changement s'applique immédiatement à toute l'application.",
+                self.tr(
+                    "Le changement s'applique immédiatement à toute l'application."
+                ),
             )
         )
         return appearance_card
@@ -222,24 +201,42 @@ class GlobalSettingsDialog(QDialog):
             Le widget de carte (combo prêt à être lu à la validation).
         """
         language_card, language_layout = card(
-            self, title=_LANGUAGE_CARD_TITLE, description=_LANGUAGE_CARD_DESC
+            self,
+            title=self.tr("Langue"),
+            description=self.tr(
+                "Choisissez la langue de l'interface. Le changement s'applique au "
+                "prochain démarrage de Fahmi2."
+            ),
         )
         language_form = settings_form()
         self._language_combo = QComboBox(language_card)
-        self._language_combo.setToolTip(_LANGUAGE_TOOLTIP)
+        self._language_combo.setToolTip(
+            self.tr(
+                "Sélectionne la langue d'affichage des menus, boutons et libellés. "
+                "N'affecte ni le contenu des projets, ni les langues de sortie du "
+                "pipeline (qui se règlent par projet)."
+            )
+        )
         for lang, label in LANGUAGE_LABELS.items():
-            # Stocke la valeur ISO (``"fr"`` / ``"en"``) — ``QComboBox`` ne
-            # préserve pas le type ``StrEnum``. Reconverti à la lecture via
-            # ``AppLanguage(...)``, cohérent avec le combo de thème.
+            # Les libellés des langues sont **dans la langue elle-même** par
+            # convention universelle (« English », « Français »…) — pas
+            # traduits par ``self.tr``.
             self._language_combo.addItem(label, lang.value)
         current_idx = self._language_combo.findData(
             self._language_controller.language.value
         )
         if current_idx >= 0:
             self._language_combo.setCurrentIndex(current_idx)
-        language_form.addRow(_LANGUAGE_LABEL, self._language_combo)
+        language_form.addRow(self.tr("Langue de l'interface"), self._language_combo)
         language_layout.addLayout(language_form)
-        language_layout.addWidget(field_hint(language_card, _LANGUAGE_HINT))
+        language_layout.addWidget(
+            field_hint(
+                language_card,
+                self.tr(
+                    "Le changement de langue s'applique au prochain démarrage de Fahmi2."
+                ),
+            )
+        )
         return language_card
 
     def _build_centered_column(self, *cards: QWidget) -> QWidget:
@@ -249,8 +246,7 @@ class GlobalSettingsDialog(QDialog):
             *cards: Cartes à empiler verticalement.
 
         Returns:
-            Le widget colonne (à ajouter au layout externe avec alignement
-            ``AlignHCenter``).
+            Le widget colonne (à ajouter au layout externe).
         """
         column = QWidget(self)
         column.setMinimumWidth(_COLUMN_MIN_WIDTH)
@@ -263,17 +259,13 @@ class GlobalSettingsDialog(QDialog):
         return column
 
     def _build_button_box(self) -> QDialogButtonBox:
-        """Construit la barre de boutons « Enregistrer / Annuler » (FR).
-
-        Returns:
-            Le ``QDialogButtonBox`` câblé sur ``_on_accept`` / ``reject``.
-        """
+        """Construit la barre de boutons « Enregistrer / Annuler »."""
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save
             | QDialogButtonBox.StandardButton.Cancel,
             parent=self,
         )
-        frenchify_button_box(buttons)
+        localize_button_box(buttons)
         buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
         return buttons

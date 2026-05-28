@@ -89,7 +89,7 @@ from fahmi2.ui._export_ui import choose_export_format, run_document_export
 from fahmi2.ui._file_explorer import open_in_file_explorer
 from fahmi2.ui._fs import remove_feature_dir
 from fahmi2.ui.dialogs.generation_settings_view import GenerationSettingsView
-from fahmi2.ui.pedagogy_labels import EXPORT_LABELS
+from fahmi2.ui.pedagogy_labels import export_labels
 from fahmi2.ui.qt_event_bus import QtEventBus
 from fahmi2.ui.viewmodels.run_matrix import RunMatrixViewModel
 from fahmi2.ui.viewmodels.stats_strip import StatsStripViewModel
@@ -671,17 +671,18 @@ class GenerationController(QObject):
                 "Configurez d'abord la génération (⚙ Réglages).",
             )
             return
+        labels = export_labels()
         fmt = choose_export_format(
             window=self._window,
             configured_formats=project.generation.export_formats,
-            label_by_format=EXPORT_LABELS,
+            label_by_format=labels,
         )
         if fmt is None:
             return
         run_document_export(
             window=self._window,
             logs_dock=self._logs_dock,
-            label=EXPORT_LABELS[fmt],
+            label=labels[fmt],
             exporter=lambda d: export_generation_documents(
                 project, output_dir=d, fmt=fmt
             ),

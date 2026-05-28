@@ -21,9 +21,9 @@ dans les feuilles QSS ``light_fluent.qss`` / ``dark_fluent.qss``.
 
 from __future__ import annotations
 
-from typing import Final
+from typing import Final, cast
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, Qt
 from PySide6.QtWidgets import (
     QApplication,
     QDialogButtonBox,
@@ -95,20 +95,36 @@ _DIALOG_FOOTER_BUTTON_SPACING: Final[int] = 8
 
 # ------------------------------------------------- French standard button labels
 
-#: Libellés français des boutons standard Qt (Save/Cancel/Close…). Appliqués
-#: par :func:`frenchify_button_box`. Sources : conventions UX françaises +
-#: glossaire du spec (cf. § 6.3).
-_FRENCH_STANDARD_BUTTON_TEXTS: Final[dict[QDialogButtonBox.StandardButton, str]] = {
-    QDialogButtonBox.StandardButton.Ok: "OK",
-    QDialogButtonBox.StandardButton.Cancel: "Annuler",
-    QDialogButtonBox.StandardButton.Save: "Enregistrer",
-    QDialogButtonBox.StandardButton.Close: "Fermer",
-    QDialogButtonBox.StandardButton.Yes: "Oui",
-    QDialogButtonBox.StandardButton.No: "Non",
-    QDialogButtonBox.StandardButton.Apply: "Appliquer",
-    QDialogButtonBox.StandardButton.Discard: "Abandonner",
-    QDialogButtonBox.StandardButton.Reset: "Réinitialiser",
-    QDialogButtonBox.StandardButton.Help: "Aide",
+#: Libellés **sources FR** des boutons standard Qt (Save/Cancel/Close…)
+#: appliqués par :func:`localize_button_box`. Marqués par
+#: :func:`QT_TRANSLATE_NOOP` pour extraction ; la résolution effective passe
+#: par ``QCoreApplication.translate("StandardButtons", source)`` au moment
+#: où le bouton est rencontré, donc dans la langue active.
+_STANDARD_BUTTON_SOURCES: Final[dict[QDialogButtonBox.StandardButton, str]] = {
+    QDialogButtonBox.StandardButton.Ok: cast(str, QT_TRANSLATE_NOOP("StandardButtons", "OK")),
+    QDialogButtonBox.StandardButton.Cancel: cast(
+        str, QT_TRANSLATE_NOOP("StandardButtons", "Annuler")
+    ),
+    QDialogButtonBox.StandardButton.Save: cast(
+        str, QT_TRANSLATE_NOOP("StandardButtons", "Enregistrer")
+    ),
+    QDialogButtonBox.StandardButton.Close: cast(
+        str, QT_TRANSLATE_NOOP("StandardButtons", "Fermer")
+    ),
+    QDialogButtonBox.StandardButton.Yes: cast(str, QT_TRANSLATE_NOOP("StandardButtons", "Oui")),
+    QDialogButtonBox.StandardButton.No: cast(str, QT_TRANSLATE_NOOP("StandardButtons", "Non")),
+    QDialogButtonBox.StandardButton.Apply: cast(
+        str, QT_TRANSLATE_NOOP("StandardButtons", "Appliquer")
+    ),
+    QDialogButtonBox.StandardButton.Discard: cast(
+        str, QT_TRANSLATE_NOOP("StandardButtons", "Abandonner")
+    ),
+    QDialogButtonBox.StandardButton.Reset: cast(
+        str, QT_TRANSLATE_NOOP("StandardButtons", "Réinitialiser")
+    ),
+    QDialogButtonBox.StandardButton.Help: cast(
+        str, QT_TRANSLATE_NOOP("StandardButtons", "Aide")
+    ),
 }
 
 
@@ -364,14 +380,16 @@ def dialog_footer(parent: QWidget | None, button_box: QDialogButtonBox) -> QWidg
     return footer
 
 
-def frenchify_button_box(box: QDialogButtonBox) -> None:
-    """Remplace les libellés des boutons standard Qt par leur version française.
+def localize_button_box(box: QDialogButtonBox) -> None:
+    """Localise les libellés des boutons standard Qt dans la langue active.
 
-    Sur certains systèmes Qt n'utilise pas la locale française pour les boutons
-    standard (``Cancel`` apparaît tel quel) ; ce helper garantit un libellé
-    cohérent partout (« Annuler » au lieu de « Cancel », « Enregistrer » au
-    lieu de « Save », etc.). Les boutons custom (ajoutés explicitement avec
-    leur libellé) ne sont pas modifiés.
+    Qt n'utilise pas toujours la locale pour les boutons standard (``Cancel``
+    apparaît parfois tel quel) ; ce helper force le libellé via
+    ``QCoreApplication.translate("StandardButtons", source)`` — en FR il
+    retourne la chaîne source (« Annuler », « Enregistrer »…), en EN il
+    retourne la traduction du ``.qm`` bundlé (« Cancel », « Save »…). Les
+    boutons custom (ajoutés explicitement avec leur libellé) ne sont pas
+    modifiés.
 
     Le bouton « accept » (``Save`` / ``Ok`` — rôle ``AcceptRole``) reçoit
     également ``role="primary"`` pour être affiché en bleu primaire de manière
@@ -380,12 +398,14 @@ def frenchify_button_box(box: QDialogButtonBox) -> None:
     style neutre dans les captures ou certains contextes).
 
     Args:
-        box: ``QDialogButtonBox`` à franciser.
+        box: ``QDialogButtonBox`` à localiser.
     """
-    for std_button, french_text in _FRENCH_STANDARD_BUTTON_TEXTS.items():
+    for std_button, source in _STANDARD_BUTTON_SOURCES.items():
         translated = box.button(std_button)
         if translated is not None:
-            translated.setText(french_text)
+            translated.setText(
+                QCoreApplication.translate("StandardButtons", source)
+            )
     for accept_candidate in box.buttons():
         if box.buttonRole(accept_candidate) == QDialogButtonBox.ButtonRole.AcceptRole:
             accept_candidate.setProperty("role", "primary")
@@ -394,6 +414,11 @@ def frenchify_button_box(box: QDialogButtonBox) -> None:
                 style.unpolish(accept_candidate)
                 style.polish(accept_candidate)
             break
+
+
+# Alias rétro-compatible (sera retiré en i18n-3 après nettoyage des callers).
+#: Deprecated alias — préférer :func:`localize_button_box`.
+frenchify_button_box = localize_button_box
 
 
 __all__ = [
@@ -417,6 +442,7 @@ __all__ = [
     "frenchify_button_box",
     "horizontal_separator",
     "install_shadow",
+    "localize_button_box",
     "page_header",
     "reapply_card_shadows",
     "section_label",

@@ -1,21 +1,16 @@
 """Dialogue ``ChatSettingsView`` — réglages de l'onglet Dialogue (chat).
 
 Présenté en master-detail (composant :class:`~fahmi2.ui.widgets.settings_view.SettingsView`)
-à trois catégories pour rester cohérent avec les autres écrans de réglages
-de l'application :
+à trois catégories :
 
 - **Mode de réponse** : ``ChatGroundingMode`` (strict / étendu) + nombre de
   passages cités (``top_k``).
 - **Recherche de passages** : ``RetrievalStrategy`` (méthode de recherche) +
-  reformulation automatique de la question + ``EmbeddingModel`` (modèle de
-  vectorisation, désactivé en mode hors-ligne).
+  reformulation automatique de la question + ``EmbeddingModel``.
 - **Génération IA** : modèle LLM + réflexion approfondie + intensité de
   réflexion + température.
 
-L'API publique (``get_chat_settings``, paramètre ``initial``) et les attributs
-privés référencés par les tests existants (``_grounding`` / ``_strategy`` /
-``_embedding_model`` / etc.) sont **strictement préservés** : seule la
-présentation change.
+i18n : tous les libellés passent par :py:meth:`QObject.tr` à l'usage.
 """
 
 from __future__ import annotations
@@ -45,103 +40,27 @@ from fahmi2.ui._components import (
     card,
     dialog_footer,
     field_hint,
-    frenchify_button_box,
+    localize_button_box,
     settings_form,
     settings_page,
 )
 from fahmi2.ui._model_labels import (
-    EMBEDDING_MODEL_LABELS,
-    LLM_MODEL_LABELS,
-    NO_REASONING_LABEL,
-    REASONING_EFFORT_LABELS,
+    embedding_model_labels,
     labeled_enum_combo,
+    llm_model_labels,
+    no_reasoning_label,
+    reasoning_effort_labels,
 )
 from fahmi2.ui.widgets.settings_view import SettingsView
 
-# ---------------------------------------------------------------- constantes
-
-#: Titre du dialogue.
-_DIALOG_TITLE: Final[str] = "Réglages — Dialogue"
-#: Dimensions par défaut du dialogue (px).
 _DIALOG_WIDTH: Final[int] = 780
 _DIALOG_HEIGHT: Final[int] = 560
-#: Marges externes.
-_OUTER_MARGIN: Final[int] = 0  # SettingsView occupe toute la fenêtre
-_OUTER_SPACING: Final[int] = 12
-
-#: Bornes des champs numériques.
+_OUTER_MARGIN: Final[int] = 0
 _TEMPERATURE_MIN: Final[float] = 0.0
 _TEMPERATURE_MAX: Final[float] = 2.0
 _TEMPERATURE_STEP: Final[float] = 0.1
 _TOP_K_MIN: Final[int] = 1
 _TOP_K_MAX: Final[int] = 20
-
-# ---------------------------------------------------------------- catégories
-
-_CAT_RESPONSE: Final[str] = "Mode de réponse"
-_CAT_RETRIEVAL: Final[str] = "Recherche de passages"
-_CAT_GENERATION: Final[str] = "Génération IA"
-
-# ---------------------------------------------------------------- libellés
-
-_GROUNDING_LABELS: Final[dict[ChatGroundingMode, str]] = {
-    ChatGroundingMode.STRICT: "Strict — réponses tirées du cours uniquement",
-    ChatGroundingMode.AUGMENTED: "Étendu — complète au-delà du cours",
-}
-_STRATEGY_LABELS: Final[dict[RetrievalStrategy, str]] = {
-    RetrievalStrategy.AUTO: "Automatique (sens si clé OpenAI, mots-clés sinon)",
-    RetrievalStrategy.LEXICAL: "Mots-clés (hors ligne, TF-IDF)",
-    RetrievalStrategy.SEMANTIC: "Sens (en ligne, OpenAI)",
-}
-# Les libellés de l'intensité de réflexion (``ReasoningEffort``) sont importés
-# depuis ``_model_labels`` — partagés avec ``PedagogySettingsView`` et
-# ``PhaseConfigsWidget`` pour garantir une terminologie identique partout.
-
-# ---------------------------------------------------------------- libellés UI
-
-_RESPONSE_CARD_TITLE: Final[str] = "Comportement des réponses"
-_RESPONSE_CARD_DESC: Final[str] = (
-    "Définit jusqu'où l'assistant peut s'éloigner du cours dans ses réponses."
-)
-_RESPONSE_MODE_LABEL: Final[str] = "Mode de réponse"
-
-_CITATIONS_CARD_TITLE: Final[str] = "Passages cités"
-_CITATIONS_CARD_DESC: Final[str] = (
-    "Nombre de passages du cours utilisés pour étayer chaque réponse."
-)
-_TOP_K_LABEL: Final[str] = "Nombre de passages cités"
-
-_METHOD_CARD_TITLE: Final[str] = "Méthode de recherche"
-_METHOD_CARD_DESC: Final[str] = (
-    "Comment l'assistant retrouve les passages pertinents dans le cours."
-)
-_STRATEGY_LABEL: Final[str] = "Méthode"
-_QUERY_EXPANSION_LABEL: Final[str] = "Reformulation automatique des questions"
-_QUERY_EXPANSION_HINT: Final[str] = (
-    "L'assistant reformule la question pour améliorer la recherche. Recommandé."
-)
-
-_VECTORIZATION_CARD_TITLE: Final[str] = "Modèle de vectorisation"
-_VECTORIZATION_CARD_DESC: Final[str] = (
-    "Modèle OpenAI utilisé pour la recherche par sens. Sans effet en mode "
-    "« mots-clés » (entièrement hors ligne)."
-)
-_EMBEDDING_LABEL: Final[str] = "Modèle"
-
-_MODEL_CARD_TITLE: Final[str] = "Modèle de génération"
-_MODEL_CARD_DESC: Final[str] = (
-    "Modèle DeepSeek qui rédige les réponses à partir des passages cités."
-)
-_LLM_LABEL: Final[str] = "Modèle"
-_TEMPERATURE_LABEL: Final[str] = "Température"
-
-_THINKING_CARD_TITLE: Final[str] = "Réflexion approfondie"
-_THINKING_CARD_DESC: Final[str] = (
-    "Active un raisonnement étendu avant la réponse — meilleure qualité, "
-    "coût plus élevé."
-)
-_THINKING_LABEL: Final[str] = "Activer la réflexion approfondie"
-_REASONING_EFFORT_LABEL: Final[str] = "Intensité de réflexion"
 
 
 class ChatSettingsView(QDialog):
@@ -157,24 +76,25 @@ class ChatSettingsView(QDialog):
             initial: Réglages à pré-remplir (défaut ``ChatSettings()``).
         """
         super().__init__(parent)
-        self.setWindowTitle(_DIALOG_TITLE)
+        self.setWindowTitle(self.tr("Réglages — Dialogue"))
         self.resize(_DIALOG_WIDTH, _DIALOG_HEIGHT)
         settings = initial or ChatSettings()
 
-        # Construction des contrôles (ordre stable pour les tests / lecture).
         self._grounding = labeled_enum_combo(
-            self, _GROUNDING_LABELS, selected=settings.grounding_mode
+            self, self._grounding_labels(), selected=settings.grounding_mode
         )
         self._strategy = labeled_enum_combo(
-            self, _STRATEGY_LABELS, selected=settings.retrieval_strategy
+            self, self._strategy_labels(), selected=settings.retrieval_strategy
         )
-        self._query_expansion = QCheckBox(_QUERY_EXPANSION_LABEL, self)
+        self._query_expansion = QCheckBox(
+            self.tr("Reformulation automatique des questions"), self
+        )
         self._query_expansion.setChecked(settings.query_expansion_enabled)
         self._embedding_model = labeled_enum_combo(
-            self, EMBEDDING_MODEL_LABELS, selected=settings.embedding_model
+            self, embedding_model_labels(), selected=settings.embedding_model
         )
-        self._model = labeled_enum_combo(self, LLM_MODEL_LABELS, selected=settings.model)
-        self._thinking = QCheckBox(_THINKING_LABEL, self)
+        self._model = labeled_enum_combo(self, llm_model_labels(), selected=settings.model)
+        self._thinking = QCheckBox(self.tr("Activer la réflexion approfondie"), self)
         self._thinking.setChecked(settings.thinking_enabled)
         self._reasoning = self._build_reasoning_combo(settings.reasoning_effort)
         self._temperature = QDoubleSpinBox(self)
@@ -185,27 +105,18 @@ class ChatSettingsView(QDialog):
         self._top_k.setRange(_TOP_K_MIN, _TOP_K_MAX)
         self._top_k.setValue(settings.top_k)
 
-        # Pages master-detail.
         settings_view = SettingsView(
             [
-                (_CAT_RESPONSE, self._build_response_page()),
-                (_CAT_RETRIEVAL, self._build_retrieval_page()),
-                (_CAT_GENERATION, self._build_generation_page()),
+                (self.tr("Mode de réponse"), self._build_response_page()),
+                (self.tr("Recherche de passages"), self._build_retrieval_page()),
+                (self.tr("Génération IA"), self._build_generation_page()),
             ],
             self,
         )
 
-        # Le modèle de vectorisation n'a d'effet qu'en retrieval cloud (AUTO/SEMANTIC) :
-        # on désactive le combo en mode lexical pour une UX claire (le réglage est
-        # conservé et restitué — voir le test smoke dédié).
         self._strategy.currentIndexChanged.connect(self._sync_embedding_enabled)
         self._sync_embedding_enabled()
 
-        # L'intensité de réflexion (``reasoning_effort``) n'a d'effet que si la
-        # réflexion approfondie (``thinking``) est activée : on grise le combo
-        # quand le checkbox est décoché, pour signaler visuellement que le
-        # réglage est sans effet (la valeur reste mémorisée et restituée si
-        # l'utilisateur réactive la réflexion).
         self._thinking.toggled.connect(self._reasoning.setEnabled)
         self._reasoning.setEnabled(self._thinking.isChecked())
 
@@ -213,7 +124,7 @@ class ChatSettingsView(QDialog):
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
             parent=self,
         )
-        frenchify_button_box(buttons)
+        localize_button_box(buttons)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 
@@ -226,25 +137,52 @@ class ChatSettingsView(QDialog):
         outer.addWidget(dialog_footer(self, buttons))
         self.setSizeGripEnabled(True)
 
-    # --------------------------------------------------------------- pages
+    def _grounding_labels(self) -> dict[ChatGroundingMode, str]:
+        """Libellés traduits des modes d'ancrage du chat."""
+        return {
+            ChatGroundingMode.STRICT: self.tr(
+                "Strict — réponses tirées du cours uniquement"
+            ),
+            ChatGroundingMode.AUGMENTED: self.tr(
+                "Étendu — complète au-delà du cours"
+            ),
+        }
+
+    def _strategy_labels(self) -> dict[RetrievalStrategy, str]:
+        """Libellés traduits des stratégies de retrieval."""
+        return {
+            RetrievalStrategy.AUTO: self.tr(
+                "Automatique (sens si clé OpenAI, mots-clés sinon)"
+            ),
+            RetrievalStrategy.LEXICAL: self.tr("Mots-clés (hors ligne, TF-IDF)"),
+            RetrievalStrategy.SEMANTIC: self.tr("Sens (en ligne, OpenAI)"),
+        }
 
     def _build_response_page(self) -> QWidget:
-        """Construit la page « Mode de réponse » (comportement + citations)."""
+        """Construit la page « Mode de réponse »."""
         page, page_layout = settings_page(self)
 
         response_card, response_layout = card(
-            page, title=_RESPONSE_CARD_TITLE, description=_RESPONSE_CARD_DESC
+            page,
+            title=self.tr("Comportement des réponses"),
+            description=self.tr(
+                "Définit jusqu'où l'assistant peut s'éloigner du cours dans ses réponses."
+            ),
         )
         response_form = settings_form()
-        response_form.addRow(_RESPONSE_MODE_LABEL, self._grounding)
+        response_form.addRow(self.tr("Mode de réponse"), self._grounding)
         response_layout.addLayout(response_form)
         page_layout.addWidget(response_card)
 
         citations_card, citations_layout = card(
-            page, title=_CITATIONS_CARD_TITLE, description=_CITATIONS_CARD_DESC
+            page,
+            title=self.tr("Passages cités"),
+            description=self.tr(
+                "Nombre de passages du cours utilisés pour étayer chaque réponse."
+            ),
         )
         citations_form = settings_form()
-        citations_form.addRow(_TOP_K_LABEL, self._top_k)
+        citations_form.addRow(self.tr("Nombre de passages cités"), self._top_k)
         citations_layout.addLayout(citations_form)
         page_layout.addWidget(citations_card)
 
@@ -256,20 +194,36 @@ class ChatSettingsView(QDialog):
         page, page_layout = settings_page(self)
 
         method_card, method_layout = card(
-            page, title=_METHOD_CARD_TITLE, description=_METHOD_CARD_DESC
+            page,
+            title=self.tr("Méthode de recherche"),
+            description=self.tr(
+                "Comment l'assistant retrouve les passages pertinents dans le cours."
+            ),
         )
         method_form = settings_form()
-        method_form.addRow(_STRATEGY_LABEL, self._strategy)
+        method_form.addRow(self.tr("Méthode"), self._strategy)
         method_layout.addLayout(method_form)
         method_layout.addWidget(self._query_expansion)
-        method_layout.addWidget(field_hint(method_card, _QUERY_EXPANSION_HINT))
+        method_layout.addWidget(
+            field_hint(
+                method_card,
+                self.tr(
+                    "L'assistant reformule la question pour améliorer la recherche. Recommandé."
+                ),
+            )
+        )
         page_layout.addWidget(method_card)
 
         vector_card, vector_layout = card(
-            page, title=_VECTORIZATION_CARD_TITLE, description=_VECTORIZATION_CARD_DESC
+            page,
+            title=self.tr("Modèle de vectorisation"),
+            description=self.tr(
+                "Modèle OpenAI utilisé pour la recherche par sens. Sans effet en mode "
+                "« mots-clés » (entièrement hors ligne)."
+            ),
         )
         vector_form = settings_form()
-        vector_form.addRow(_EMBEDDING_LABEL, self._embedding_model)
+        vector_form.addRow(self.tr("Modèle"), self._embedding_model)
         vector_layout.addLayout(vector_form)
         page_layout.addWidget(vector_card)
 
@@ -277,38 +231,41 @@ class ChatSettingsView(QDialog):
         return page
 
     def _build_generation_page(self) -> QWidget:
-        """Construit la page « Génération IA » (modèle + réflexion)."""
+        """Construit la page « Génération IA »."""
         page, page_layout = settings_page(self)
 
         model_card, model_layout = card(
-            page, title=_MODEL_CARD_TITLE, description=_MODEL_CARD_DESC
+            page,
+            title=self.tr("Modèle de génération"),
+            description=self.tr(
+                "Modèle DeepSeek qui rédige les réponses à partir des passages cités."
+            ),
         )
         model_form = settings_form()
-        model_form.addRow(_LLM_LABEL, self._model)
-        model_form.addRow(_TEMPERATURE_LABEL, self._temperature)
+        model_form.addRow(self.tr("Modèle"), self._model)
+        model_form.addRow(self.tr("Température"), self._temperature)
         model_layout.addLayout(model_form)
         page_layout.addWidget(model_card)
 
         thinking_card, thinking_layout = card(
-            page, title=_THINKING_CARD_TITLE, description=_THINKING_CARD_DESC
+            page,
+            title=self.tr("Réflexion approfondie"),
+            description=self.tr(
+                "Active un raisonnement étendu avant la réponse — meilleure qualité, "
+                "coût plus élevé."
+            ),
         )
         thinking_layout.addWidget(self._thinking)
         thinking_form = settings_form()
-        thinking_form.addRow(_REASONING_EFFORT_LABEL, self._reasoning)
+        thinking_form.addRow(self.tr("Intensité de réflexion"), self._reasoning)
         thinking_layout.addLayout(thinking_form)
         page_layout.addWidget(thinking_card)
 
         page_layout.addStretch(1)
         return page
 
-    # ------------------------------------------------------------ API publique
-
     def get_chat_settings(self) -> ChatSettings:
-        """Reconstruit les réglages depuis les widgets.
-
-        Returns:
-            Le ``ChatSettings`` saisi.
-        """
+        """Reconstruit les réglages depuis les widgets."""
         return ChatSettings(
             grounding_mode=ChatGroundingMode(self._grounding.currentData()),
             retrieval_strategy=RetrievalStrategy(self._strategy.currentData()),
@@ -321,25 +278,16 @@ class ChatSettingsView(QDialog):
             top_k=self._top_k.value(),
         )
 
-    # ---------------------------------------------------------- private logic
-
     def _sync_embedding_enabled(self) -> None:
         """Active le combo de vectorisation hors mode lexical (cloud uniquement)."""
         is_cloud = self._strategy.currentData() != str(RetrievalStrategy.LEXICAL)
         self._embedding_model.setEnabled(is_cloud)
 
     def _build_reasoning_combo(self, initial: ReasoningEffort | None) -> QComboBox:
-        """Construit le combo d'intensité de réflexion (option « Automatique » en tête).
-
-        Args:
-            initial: Effort initial (``None`` = automatique).
-
-        Returns:
-            Le ``QComboBox`` peuplé et positionné.
-        """
+        """Construit le combo d'intensité de réflexion (option « Automatique » en tête)."""
         combo = QComboBox(self)
-        combo.addItem(NO_REASONING_LABEL, None)
-        for effort, label in REASONING_EFFORT_LABELS.items():
+        combo.addItem(no_reasoning_label(), None)
+        for effort, label in reasoning_effort_labels().items():
             combo.addItem(label, effort.value)
         if initial is not None:
             index = combo.findData(initial.value)

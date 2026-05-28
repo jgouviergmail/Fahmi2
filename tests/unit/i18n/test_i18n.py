@@ -10,8 +10,10 @@ Vérifie :
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 
+import pytest
 from PySide6.QtCore import QCoreApplication, QTranslator
 from PySide6.QtWidgets import QApplication
 
@@ -26,6 +28,56 @@ from fahmi2.i18n import (
 _PILOT_SOURCE = "Fichier"
 _PILOT_TRANSLATED = "File"
 _MAIN_WINDOW_CONTEXT = "MainWindow"
+
+#: Chaînes critiques par contexte migré (filet anti-régression i18n-1).
+#:
+#: Couvre **au moins une chaîne par contexte** pour qu'un rename de libellé
+#: dans le code source sans re-extraction (``scripts/i18n_extract.py``) ou
+#: re-compilation (``scripts/i18n_compile.py``) fasse échouer la suite ici
+#: plutôt que de laisser l'app EN silencieusement retomber sur la source FR.
+#:
+#: Format : ``(context, source FR, traduction EN attendue)``.
+_TRANSLATION_SMOKE_TESTS: tuple[tuple[str, str, str], ...] = (
+    ("MainWindow", "Fichier", "File"),
+    ("MainWindow", "À propos de Fahmi2", "About Fahmi2"),
+    ("GlobalSettingsDialog", "Redémarrage requis", "Restart required"),
+    ("LogsDock", "Niveau minimum", "Minimum level"),
+    ("LogsDock", "ERREUR", "ERROR"),
+    ("ProjectsSidebar", "Modifier…", "Edit…"),
+    ("ProjectHeaderBar", "🚀  Lancer", "🚀  Run"),
+    ("StatsStripWidget", "Statut", "Status"),
+    ("StatsStripWidget", "sources terminées", "sources completed"),
+    ("StatusLabels", "En cours", "Running"),
+    ("StatusLabels", "Terminé", "Completed"),
+    ("ChatTab", "Dialogue", "Dialogue"),
+    ("GenerationTab", "Génération", "Generation"),
+    ("PedagogyTab", "Supports pédagogiques", "Revision materials"),
+)
+
+
+@pytest.fixture
+def english_translator(qtbot: object) -> Iterator[None]:
+    """Installe le ``.qm`` EN bundlé pour la durée d'un test, puis restaure FR.
+
+    Skip silencieux si le ``.qm`` est absent (build propre, scripts non
+    exécutés) — le test n'a pas de sens sans artefact.
+    """
+    del qtbot
+    compiled_dir = bundled_translations_dir()
+    qm_path = compiled_dir / "fahmi2_en.qm"
+    if not qm_path.exists():
+        pytest.skip(
+            "Aucun fahmi2_en.qm bundlé — lance "
+            ".venv\\Scripts\\python.exe scripts\\i18n_compile.py."
+        )
+    app = QApplication.instance()
+    assert isinstance(app, QApplication)
+    translator = install_translator(app, AppLanguage.EN, compiled_dir)
+    assert isinstance(translator, QTranslator)
+    try:
+        yield
+    finally:
+        install_translator(app, AppLanguage.FR, compiled_dir)
 
 
 def test_default_language_is_french() -> None:
@@ -95,8 +147,6 @@ def test_install_translator_loads_pilot_qm(qtbot: object) -> None:
     compiled_dir = bundled_translations_dir()
     qm_path = compiled_dir / "fahmi2_en.qm"
     if not qm_path.exists():
-        import pytest  # noqa: PLC0415
-
         pytest.skip(
             "Aucun fahmi2_en.qm bundlé — lance "
             ".venv\\Scripts\\python.exe scripts\\i18n_compile.py."
@@ -113,3 +163,28 @@ def test_install_translator_loads_pilot_qm(qtbot: object) -> None:
         # Restauration : on remet la langue source pour ne pas polluer les
         # autres tests qui suivent.
         install_translator(app, AppLanguage.FR, compiled_dir)
+
+
+@pytest.mark.parametrize(("context", "source_fr", "expected_en"), _TRANSLATION_SMOKE_TESTS)
+def test_critical_strings_translate_to_english(
+    english_translator: None,  # noqa: ARG001
+    context: str,
+    source_fr: str,
+    expected_en: str,
+) -> None:
+    """Vérifie qu'une chaîne critique par contexte migré est bien traduite en EN.
+
+    Filet anti-régression : si un développeur renomme une chaîne dans le
+    code source sans relancer ``scripts/i18n_extract.py`` puis
+    ``scripts/i18n_compile.py``, ``QCoreApplication.translate`` retourne
+    silencieusement la nouvelle source FR (l'UI EN retombe en FR sans
+    erreur). Ce test détecte la divergence avant qu'un utilisateur EN ne la
+    rencontre.
+
+    Args:
+        english_translator: Fixture qui installe le ``.qm`` EN.
+        context: Contexte Linguist (nom de classe ou identifiant manuel).
+        source_fr: Chaîne FR du code source.
+        expected_en: Traduction EN attendue dans le ``.qm`` compilé.
+    """
+    assert QCoreApplication.translate(context, source_fr) == expected_en

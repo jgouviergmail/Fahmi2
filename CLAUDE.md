@@ -187,12 +187,36 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   exposent **exactement** le même ensemble de sélecteurs — garde-fou
   `tests/unit/ui/test_theme_sync.py`), `_components.py` (briques partagées :
   `card`, `page_header`, `field_hint`, `section_label`, `horizontal_separator`,
-  `install_shadow`, `frenchify_button_box` — boutons standard Qt en français),
+  `install_shadow`, `frenchify_button_box` — boutons standard Qt en français ;
+  `reapply_card_shadows` itère **les top-level widgets vivants** plutôt que
+  `QApplication.allWidgets()` qui inclurait des widgets zombies),
   `pedagogy_labels`, `main_window` (sidebar + `QTabWidget`),
   `generation_controller`, `pedagogy_controller`, `qt_event_bus`
   (`QtEventBus` + `PedagogyQtEventBus`), `app_main` (point d'entrée + DI complet
   — instancie `ThemeController` qui lit la préférence d'apparence dans
-  `%APPDATA%/Fahmi2/ui_prefs.json` et applique le thème).
+  `%APPDATA%/Fahmi2/ui_prefs.json` et applique le thème, et
+  `LanguageController` qui lit/persiste la langue d'interface dans le même
+  fichier et installe le `QTranslator` correspondant **avant** la construction
+  des widgets).
+- `i18n/` — internationalisation de l'UI (langue source = français) :
+  `languages.py` (enum `AppLanguage { FR, EN }` + `LANGUAGE_LABELS` natifs +
+  `DEFAULT_LANGUAGE` — module **pur Python sans dépendance Qt**, importable
+  par les services applicatifs sans tirer `QTranslator`), `__init__.py`
+  (fonctions Qt : `install_translator(app, lang, dir)` + `bundled_translations_dir()`),
+  `translations/fahmi2_<code>.ts` (sources éditables — versionnées),
+  `compiled/fahmi2_<code>.qm` (binaires — **gitignorés**, régénérés par
+  `scripts/i18n_compile.py`, bundlés au build via `packaging/fahmi2.spec`).
+  Les chaînes UI passent par `self.tr(...)` (méthodes d'instance) ou
+  `QCoreApplication.translate(<context>, ...)` (fonctions libres) ; extraction
+  via `scripts/i18n_extract.py` (wraps `pyside6-lupdate -extensions py`),
+  compilation via `scripts/i18n_compile.py` (wraps `pyside6-lrelease`). Le
+  changement de langue est persisté par `LanguageController.set_language(...)`
+  mais s'applique **au prochain démarrage** : Qt ne propage pas
+  `LanguageChange` aux chaînes déjà rendues via `tr()` au moment de la
+  construction des widgets, et reconstruire l'arbre serait fragile.
+  **Migration en cours** : `MainWindow` (menus, dialogue « À propos ») =
+  pilote ; le reste de l'UI sera migré écran par écran (cf. inventaire
+  `scripts/i18n_inventory.py`).
 
 ## Le pipeline en 8 phases
 

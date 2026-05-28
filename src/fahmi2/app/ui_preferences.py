@@ -1,4 +1,4 @@
-"""Service de persistance des préférences UI (apparence claire/sombre/système).
+"""Service de persistance des préférences UI (apparence + langue).
 
 Persistance d'une simple dataclass ``UiPreferences`` dans un fichier JSON
 (``%APPDATA%/Fahmi2/ui_prefs.json``). Lecture **lenient** : un fichier absent
@@ -19,10 +19,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
+from fahmi2.i18n.languages import DEFAULT_LANGUAGE, AppLanguage
 from fahmi2.ui.theme._tokens import ThemeMode
 
 #: Clé JSON du mode d'apparence dans ``ui_prefs.json``.
 _THEME_MODE_KEY: Final[str] = "theme_mode"
+#: Clé JSON de la langue d'interface dans ``ui_prefs.json``.
+_LANGUAGE_KEY: Final[str] = "language"
 #: Mode par défaut si le fichier est absent ou corrompu (lenient).
 _DEFAULT_THEME_MODE: Final[ThemeMode] = ThemeMode.SYSTEM
 #: Encodage du fichier JSON.
@@ -35,23 +38,25 @@ _TEMP_FILE_SUFFIX: Final[str] = ".tmp"
 
 @dataclass(frozen=True)
 class UiPreferences:
-    """Préférences UI persistées (apparence + éventuelles extensions futures).
+    """Préférences UI persistées (apparence + langue).
 
     Attributes:
         theme_mode: Mode d'apparence choisi par l'utilisateur. ``SYSTEM`` (défaut)
             suit le mode du système d'exploitation.
+        language: Langue de l'interface (``FR`` par défaut — langue source).
     """
 
     theme_mode: ThemeMode = _DEFAULT_THEME_MODE
+    language: AppLanguage = DEFAULT_LANGUAGE
 
 
 def read_ui_preferences(path: Path) -> UiPreferences:
     """Charge les préférences UI depuis ``path`` (parsing *lenient*).
 
     Fichier absent, corrompu (JSON invalide), ou contenant une valeur inconnue
-    pour ``theme_mode`` → retourne les défauts sans lever d'erreur. C'est un
-    choix délibéré : une préférence UI ne doit jamais empêcher l'application
-    de démarrer.
+    pour ``theme_mode`` / ``language`` → retourne les défauts sans lever
+    d'erreur. C'est un choix délibéré : une préférence UI ne doit jamais
+    empêcher l'application de démarrer.
 
     Args:
         path: Chemin du fichier ``ui_prefs.json``.
@@ -68,7 +73,10 @@ def read_ui_preferences(path: Path) -> UiPreferences:
         return UiPreferences()
     if not isinstance(data, dict):
         return UiPreferences()
-    return UiPreferences(theme_mode=_parse_theme_mode(data.get(_THEME_MODE_KEY)))
+    return UiPreferences(
+        theme_mode=_parse_theme_mode(data.get(_THEME_MODE_KEY)),
+        language=_parse_language(data.get(_LANGUAGE_KEY)),
+    )
 
 
 def write_ui_preferences(path: Path, prefs: UiPreferences) -> None:
@@ -88,7 +96,10 @@ def write_ui_preferences(path: Path, prefs: UiPreferences) -> None:
             d'ignorer cette erreur — la préférence UI n'est pas critique).
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {_THEME_MODE_KEY: prefs.theme_mode.value}
+    payload = {
+        _THEME_MODE_KEY: prefs.theme_mode.value,
+        _LANGUAGE_KEY: prefs.language.value,
+    }
     serialized = json.dumps(payload, ensure_ascii=False, indent=2)
     fd, tmp_path_str = tempfile.mkstemp(
         prefix=_TEMP_FILE_PREFIX, suffix=_TEMP_FILE_SUFFIX, dir=str(path.parent)
@@ -124,6 +135,24 @@ def _parse_theme_mode(value: object) -> ThemeMode:
         return ThemeMode(value)
     except ValueError:
         return _DEFAULT_THEME_MODE
+
+
+def _parse_language(value: object) -> AppLanguage:
+    """Convertit une valeur JSON arbitraire en ``AppLanguage`` (avec repli).
+
+    Args:
+        value: Valeur lue (typiquement une chaîne, mais peut être tout type).
+
+    Returns:
+        L'``AppLanguage`` correspondant, ou ``DEFAULT_LANGUAGE`` si la valeur
+        est absente / non reconnue.
+    """
+    if not isinstance(value, str):
+        return DEFAULT_LANGUAGE
+    try:
+        return AppLanguage(value)
+    except ValueError:
+        return DEFAULT_LANGUAGE
 
 
 __all__ = ["UiPreferences", "read_ui_preferences", "write_ui_preferences"]

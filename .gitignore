@@ -83,3 +83,8 @@ logs/
 
 # Captures de revue UI (générées par scripts/ui_captures.py, non versées)
 .ui-review/
+
+# i18n : les .qm compilés sont régénérés par scripts/i18n_compile.py et
+# bundlés au build (cf. packaging/fahmi2.spec). Seuls les .ts sont versionnés
+# (la source de traduction est éditable, le .qm est un artefact binaire).
+src/fahmi2/i18n/compiled/

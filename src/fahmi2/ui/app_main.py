@@ -13,6 +13,7 @@ import sys
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from fahmi2.app.hardware_probe import probe_hardware
+from fahmi2.app.language_controller import LanguageController
 from fahmi2.app.project_service import ProjectService
 from fahmi2.app.prompts_service import PromptsService
 from fahmi2.app.secrets_service import SecretsService
@@ -70,6 +71,11 @@ def main() -> int:  # noqa: PLR0915, C901
     hardware = probe_hardware()
 
     app = QApplication.instance() or QApplication(sys.argv)
+    # ``LanguageController`` doit s'installer **avant** la construction des
+    # widgets : ``self.tr()`` est résolu à l'appel, donc à la construction
+    # du widget. Installer le traducteur après crée des UIs hybrides
+    # (titre traduit, contenus déjà rendus en langue source).
+    language_controller = LanguageController(app, paths.ui_prefs_file)  # type: ignore[arg-type]
     # ``ThemeController`` lit la préférence d'apparence (système/clair/sombre),
     # applique le thème correspondant, et suit les changements de thème système
     # quand l'utilisateur est en mode ``SYSTEM``.
@@ -146,7 +152,10 @@ def main() -> int:  # noqa: PLR0915, C901
 
     def _open_settings() -> None:
         dialog = GlobalSettingsDialog(
-            secrets_service, theme_controller=theme_controller, parent=window
+            secrets_service,
+            theme_controller=theme_controller,
+            language_controller=language_controller,
+            parent=window,
         )
         dialog.exec()
 

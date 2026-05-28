@@ -6,10 +6,14 @@ Layout :
 - Centre : ``QTabWidget`` peuplé par un ``FeatureRegistry`` (Génération, Supports
   pédagogiques, …).
 - Dock bas : ``LogsDock`` partagé.
-- Menus : Fichier, Édition, Affichage, ?.
+- Menus : Fichier, Édition, Aide.
 
 La sélection d'un projet dans la sidebar est **dispatchée** à chaque onglet
 (``FeatureTab.on_project_selected``).
+
+**i18n** : tous les libellés (menus, actions, dialogue « À propos ») passent
+par :py:meth:`QObject.tr` pour être extraits par ``pyside6-lupdate`` puis
+traduits via les fichiers ``.ts``/``.qm`` de ``fahmi2.i18n``.
 """
 
 from __future__ import annotations
@@ -32,6 +36,7 @@ from fahmi2.ui.features.registry import FeatureRegistry
 from fahmi2.ui.widgets.logs_dock import LogsDock
 from fahmi2.ui.widgets.projects_sidebar import ProjectsSidebar
 
+#: Nom de produit (non traduit — marque).
 _WINDOW_TITLE = "Fahmi2"
 #: Largeur initiale de la sidebar projets (px). Suffisamment large pour
 #: accueillir des noms de projet de taille moyenne sans tronquer le
@@ -43,29 +48,6 @@ _SIDEBAR_MIN_WIDTH_PX = 220
 _CENTRAL_WIDTH_PX = 920
 _PACKAGE_NAME = "fahmi2"
 _VERSION_UNKNOWN = "dev"
-_ABOUT_TITLE = "À propos de Fahmi2"
-_ABOUT_TEXT = (
-    "<b>Fahmi2</b> — version {version}"
-    "<br><br>"
-    "Transformez vos entrants — vidéos, fichiers audio, liens YouTube ou "
-    "documents texte (PDF, Word, Markdown, txt) — en un document consolidé "
-    "et structuré (reformulé, chapitré, avec glossaire, multilingue : "
-    "français, anglais, allemand, espagnol, italien, chinois, arabe), assemblé "
-    "dans l'ordre des sources ou par refonte thématique transversale."
-    "<br><br>"
-    "Le consolidé et le glossaire s'exportent en Markdown / PDF / HTML / "
-    "Word (.docx) — le chinois et l'arabe (droite-à-gauche) y sont rendus "
-    "correctement."
-    "<br><br>"
-    "Puis exploitez ce corpus sans effort :"
-    "<ul>"
-    "<li>supports de révision (flashcards, QCM, fiches, examen blanc…, "
-    "exports Anki / Markdown / PDF / HTML / Word)</li>"
-    "<li>dialogue (chat ancré sur le cours, réponses citées et diffusées "
-    "en streaming).</li>"
-    "</ul>"
-    "Le tout en quelques minutes et sans intervention manuelle."
-)
 
 
 class MainWindow(QMainWindow):
@@ -183,29 +165,29 @@ class MainWindow(QMainWindow):
         self._new_project_action.triggered.connect(callback)
 
     def _build_menus(self) -> None:
-        """Construit les menus principaux."""
+        """Construit les menus principaux (libellés traduisibles via tr())."""
         menubar = self.menuBar()
         assert menubar is not None
 
-        file_menu = menubar.addMenu("Fichier")
+        file_menu = menubar.addMenu(self.tr("Fichier"))
         assert file_menu is not None
-        self._new_project_action = QAction("Nouveau projet…", self)
+        self._new_project_action = QAction(self.tr("Nouveau projet…"), self)
         file_menu.addAction(self._new_project_action)
         file_menu.addSeparator()
-        quit_action = QAction("Quitter", self)
+        quit_action = QAction(self.tr("Quitter"), self)
         quit_action.triggered.connect(self.close)
         file_menu.addAction(quit_action)
 
-        edit_menu = menubar.addMenu("Édition")
+        edit_menu = menubar.addMenu(self.tr("Édition"))
         assert edit_menu is not None
-        self._open_settings_action = QAction("Paramètres globaux…", self)
+        self._open_settings_action = QAction(self.tr("Paramètres globaux…"), self)
         edit_menu.addAction(self._open_settings_action)
-        self._open_prompts_action = QAction("Modifier les prompts…", self)
+        self._open_prompts_action = QAction(self.tr("Modifier les prompts…"), self)
         edit_menu.addAction(self._open_prompts_action)
 
-        help_menu = menubar.addMenu("Aide")
+        help_menu = menubar.addMenu(self.tr("Aide"))
         assert help_menu is not None
-        about_action = QAction("À propos", self)
+        about_action = QAction(self.tr("À propos"), self)
         about_action.triggered.connect(self._show_about)
         help_menu.addAction(about_action)
 
@@ -215,4 +197,31 @@ class MainWindow(QMainWindow):
             app_version = version(_PACKAGE_NAME)
         except PackageNotFoundError:
             app_version = _VERSION_UNKNOWN
-        QMessageBox.about(self, _ABOUT_TITLE, _ABOUT_TEXT.format(version=app_version))
+        title = self.tr("À propos de Fahmi2")
+        # Le texte HTML est composé via ``self.tr()`` au moment de l'affichage
+        # (et non comme constante de module) pour que la traduction active soit
+        # utilisée. ``{version}`` est substituée après traduction — les
+        # traducteurs doivent conserver le placeholder textuel.
+        body = self.tr(
+            "<b>Fahmi2</b> — version {version}"
+            "<br><br>"
+            "Transformez vos entrants — vidéos, fichiers audio, liens YouTube ou "
+            "documents texte (PDF, Word, Markdown, txt) — en un document consolidé "
+            "et structuré (reformulé, chapitré, avec glossaire, multilingue : "
+            "français, anglais, allemand, espagnol, italien, chinois, arabe), assemblé "
+            "dans l'ordre des sources ou par refonte thématique transversale."
+            "<br><br>"
+            "Le consolidé et le glossaire s'exportent en Markdown / PDF / HTML / "
+            "Word (.docx) — le chinois et l'arabe (droite-à-gauche) y sont rendus "
+            "correctement."
+            "<br><br>"
+            "Puis exploitez ce corpus sans effort :"
+            "<ul>"
+            "<li>supports de révision (flashcards, QCM, fiches, examen blanc…, "
+            "exports Anki / Markdown / PDF / HTML / Word)</li>"
+            "<li>dialogue (chat ancré sur le cours, réponses citées et diffusées "
+            "en streaming).</li>"
+            "</ul>"
+            "Le tout en quelques minutes et sans intervention manuelle."
+        ).format(version=app_version)
+        QMessageBox.about(self, title, body)

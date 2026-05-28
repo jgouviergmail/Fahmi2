@@ -307,16 +307,30 @@ def install_shadow(widget: QWidget, spec: ShadowSpec | None = None) -> None:
 def reapply_card_shadows(app: QApplication) -> None:
     """Ré-installe les ombres de toutes les cartes (changement de thème).
 
-    Itère ``QApplication.allWidgets()`` et, pour chaque widget portant
-    ``objectName=="card"``, re-applique :func:`install_shadow` avec la
-    palette active. Sans effet sur les widgets sans carte.
+    Itère uniquement les widgets accessibles depuis les fenêtres
+    top-level actuellement vivantes (via ``topLevelWidgets()`` +
+    ``findChildren(QWidget)``) et applique :func:`install_shadow` à ceux
+    portant ``objectName=="card"``.
+
+    Pourquoi pas ``QApplication.allWidgets()`` ? Cette API retourne **tous**
+    les widgets jamais créés et encore référencés (orphelins inclus). Sur des
+    sessions longues — tests, ou démon avec ouvertures successives de
+    dialogues — la liste peut contenir des widgets dont la destruction côté
+    C++ a commencé mais dont la référence Python persiste, et accéder à
+    ``.objectName()`` y déclenche des corruptions mémoire Windows
+    (0xc0000374). Restreindre aux top-level vivants évite ce problème et
+    reste sémantiquement équivalent en pratique (toute carte affichée vit
+    sous une fenêtre top-level).
 
     Args:
         app: ``QApplication`` actif.
     """
-    for w in app.allWidgets():
-        if w.objectName() == CARD_OBJECT_NAME:
-            install_shadow(w)
+    for top in app.topLevelWidgets():
+        if top.objectName() == CARD_OBJECT_NAME:
+            install_shadow(top)
+        for child in top.findChildren(QWidget):
+            if child.objectName() == CARD_OBJECT_NAME:
+                install_shadow(child)
 
 
 def dialog_footer(parent: QWidget | None, button_box: QDialogButtonBox) -> QWidget:

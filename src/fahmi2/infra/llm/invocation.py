@@ -110,11 +110,17 @@ def parse_llm_json(
         L'objet Python décodé.
 
     Raises:
-        LLMError: ``LLM.INVALID_JSON`` si le contenu n'est pas du JSON valide.
-            Les ``technical_details`` portent ``context_label``, ``raw_content``
-            (jusqu'à ``_RAW_CONTENT_MAX_CHARS``), ``content_length`` (taille
-            réelle émise), ``truncated_in_log`` (``True`` si le ``raw_content``
-            a été tronqué pour le log), et ``finish_reason`` quand fourni.
+        LLMError:
+            - ``LLM.EMPTY_CONTENT`` si la réponse est vide ou ne contient que
+              du whitespace. Documenté côté DeepSeek comme un comportement
+              intermittent du JSON mode strict (« the API may occasionally
+              return empty content ») — typé séparément pour être **retryable**
+              (cf. ``_RETRYABLE_LLM_CODES`` dans ``core/retry/classification``).
+            - ``LLM.INVALID_JSON`` si le contenu n'est pas du JSON valide.
+              Les ``technical_details`` portent ``context_label``, ``raw_content``
+              (jusqu'à ``_RAW_CONTENT_MAX_CHARS``), ``content_length`` (taille
+              réelle émise), ``truncated_in_log`` (``True`` si le ``raw_content``
+              a été tronqué pour le log), et ``finish_reason`` quand fourni.
     """
     cleaned = content.strip()
     if cleaned.startswith("```"):
@@ -122,6 +128,20 @@ def parse_llm_json(
         if cleaned.lower().startswith("json"):
             cleaned = cleaned[4:]
         cleaned = cleaned.strip()
+    if not cleaned:
+        raise LLMError(
+            code="LLM.EMPTY_CONTENT",
+            user_message=(
+                f"La réponse du LLM pour {context_label} est vide. "
+                "Le run réessaiera automatiquement."
+            ),
+            severity=Severity.WARNING,
+            technical_details={
+                "context_label": context_label,
+                "content_length": len(content),
+                "finish_reason": finish_reason,
+            },
+        )
     try:
         return json.loads(cleaned)
     except json.JSONDecodeError as exc:

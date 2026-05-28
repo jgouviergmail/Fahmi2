@@ -62,6 +62,29 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 - Regression test: 2 successive resumes of a failed run keep the
   per-source `SUCCEEDED` status **and** the recorded `cost_usd` intact.
 
+### Hardened — Two failure modes called out by DeepSeek's docs
+
+After the JSON mode strict fix landed, a doc-driven review surfaced two
+DeepSeek-documented behaviours that were not handled cleanly. Both are
+now typed errors with appropriate retry semantics, instead of falling
+through to the generic `LLM.INVALID_JSON` (which is non-retryable).
+
+- **`LLM.EMPTY_CONTENT`** (retryable). DeepSeek's JSON mode docs warn:
+  "the API may occasionally return empty content". `parse_llm_json` now
+  raises this typed error when the response is empty or whitespace-only
+  (including an empty fence ``` ```json``` ```), instead of letting
+  `json.loads("")` raise `LLM.INVALID_JSON` (which would kill the phase
+  on a behaviour the provider explicitly calls transient). Added to
+  `_RETRYABLE_LLM_CODES`.
+- **`LLM.UNEXPECTED_JSON_SHAPE`** (retryable). When the LLM returns a
+  syntactically-valid JSON whose shape doesn't match what the parser
+  expects (e.g. `_localize_glossary` receiving a dict without the
+  `"items"` key), we now raise this typed error instead of silently
+  falling back to `[]` (which would have produced a "localised"
+  glossary identical to the source language with no warning). Retried,
+  since LLMs are non-deterministic — a second attempt may produce the
+  expected shape.
+
 ### Added — Diagnostic enrichment on `LLM.INVALID_JSON` errors
 
 - The previous error reported a `raw_content` truncated at 500 chars

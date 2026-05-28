@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from fahmi2.core.concurrency import map_bounded
-from fahmi2.core.errors.exceptions import StorageError
+from fahmi2.core.errors.exceptions import LLMError, StorageError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import Language, PhaseId
 from fahmi2.domain.generation import consolidated_doc_filename, glossary_doc_filename
@@ -339,19 +339,42 @@ class Phase6TranslationHandler(PhaseHandler):
         # Le prompt impose un objet racine ``{"items": [...]}`` (contrainte du
         # JSON mode strict côté provider, qui exige une racine objet et garantit
         # en contrepartie un échappement des guillemets — cf.
-        # ``JSON_OBJECT_RESPONSE_FORMAT``). Repli défensif : si le LLM a quand
-        # même produit un array racine (override utilisateur du prompt, ou
-        # provider tiers sans cette contrainte), on l'accepte.
-        entries: Any = (
-            response_payload.get("items", [])
-            if isinstance(response_payload, dict)
-            else response_payload
-        )
-        dict_entries = (
-            [e for e in entries if isinstance(e, dict)]
-            if isinstance(entries, list)
-            else []
-        )
+        # ``JSON_OBJECT_RESPONSE_FORMAT``).
+        # - Cas nominal : dict avec clé "items" porteuse d'une liste.
+        # - Repli historique : array racine (override utilisateur du prompt,
+        #   pré-fix v1.5.0). Toléré pour compat ascendante.
+        # - Autre forme : on lève ``UNEXPECTED_JSON_SHAPE`` (retryable). Si on
+        #   retombait silencieusement sur ``[]``, tous les termes prenaient le
+        #   repli source et le glossaire localisé sortait identique à la source
+        #   sans alerte — perte de qualité invisible.
+        if isinstance(response_payload, dict) and isinstance(
+            response_payload.get("items"), list
+        ):
+            entries = response_payload["items"]
+        elif isinstance(response_payload, list):
+            entries = response_payload
+        else:
+            raise LLMError(
+                code="LLM.UNEXPECTED_JSON_SHAPE",
+                user_message=(
+                    "La réponse du LLM pour la localisation du glossaire n'a "
+                    "pas la structure attendue (objet racine avec clé « items » "
+                    "porteuse d'une liste, ou tableau racine)."
+                ),
+                severity=Severity.ERROR,
+                technical_details={
+                    "context_label": self.phase_id.value,
+                    "expected": '{"items": [...]} ou [...]',
+                    "received_type": type(response_payload).__name__,
+                    "received_keys": (
+                        list(response_payload.keys())
+                        if isinstance(response_payload, dict)
+                        else None
+                    ),
+                    "finish_reason": response.finish_reason,
+                },
+            )
+        dict_entries = [e for e in entries if isinstance(e, dict)]
         # Appariement **par terme source** d'abord (correct même si le LLM réordonne),
         # avec **repli par position** pour les termes non appariés — typiquement les
         # acronymes, dont le champ ``source`` était réémis pollué ⇒ leur définition

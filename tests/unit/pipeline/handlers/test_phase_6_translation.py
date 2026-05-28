@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from fahmi2.core.errors.exceptions import StorageError
+from fahmi2.core.errors.exceptions import LLMError, StorageError
 from fahmi2.domain.enums import Language, PhaseStatus, SourceKind
 from fahmi2.domain.ids import SourceId
 from fahmi2.domain.source import InputSource, SourceExecution
@@ -387,3 +387,59 @@ def test_localize_glossary_requests_json_object_response_format(
     assert isinstance(ctx.llm_provider, FakeLLMProvider)  # narrowing pour mypy strict
     last_call = ctx.llm_provider.calls[-1]
     assert last_call["response_format"] == JSON_OBJECT_RESPONSE_FORMAT
+
+
+def test_localize_glossary_raises_unexpected_shape_when_items_missing(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    """Si le LLM produit un JSON valide mais sans clé ``"items"`` (et pas un
+    array racine), on doit lever ``LLM.UNEXPECTED_JSON_SHAPE`` au lieu de
+    dégrader silencieusement en tombant sur ``[]`` (tous les termes seraient
+    alors en repli source — un glossaire localisé identique à la source,
+    sans aucune alerte).
+    """
+    payload = {
+        "terms": [
+            {"term": "Bilan", "definition": "doc comptable", "acronym": None},
+        ]
+    }
+    wrong_shape = LLMResponse(
+        content=json.dumps({"glossary": [{"source": "Bilan", "term": "BS"}]}),
+        thinking_content=None,
+        prompt_tokens=10,
+        completion_tokens=10,
+        cached_prompt_tokens=0,
+        cost_usd=0.0,
+    )
+    ctx, _run = build_phase_context(
+        tmp_path, make_generation_settings, llm_response=wrong_shape
+    )
+    with pytest.raises(LLMError) as exc_info:
+        Phase6TranslationHandler()._localize_glossary(
+            ctx, target=Language.EN, payload=payload
+        )
+    assert exc_info.value.code == "LLM.UNEXPECTED_JSON_SHAPE"
+    assert exc_info.value.technical_details["received_keys"] == ["glossary"]
+
+
+def test_localize_glossary_still_accepts_array_root_for_legacy_overrides(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    """Compat ascendante : un utilisateur ayant overridé le prompt
+    ``phase_6_glossary_localization`` avant le fix v1.5.x peut continuer
+    à recevoir un array racine. On l'accepte pour ne pas casser ses runs.
+    """
+    payload = {
+        "terms": [{"term": "Bilan", "definition": "doc", "acronym": None}]
+    }
+    ctx, _run = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        llm_response=_localization_response(
+            [{"source": "Bilan", "term": "Balance sheet", "definition": "x"}]
+        ),
+    )
+    localized, _ = Phase6TranslationHandler()._localize_glossary(
+        ctx, target=Language.EN, payload=payload
+    )
+    assert localized[0].term == "Balance sheet"

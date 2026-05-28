@@ -20,7 +20,22 @@ from fahmi2.core.errors.exceptions import (
 )
 from fahmi2.core.retry.policy import RetryDecision
 
-_RETRYABLE_LLM_CODES: frozenset[str] = frozenset({"LLM.RATE_LIMIT", "LLM.SERVER_ERROR"})
+#: Erreurs LLM transitoires : on retente.
+#: - ``EMPTY_CONTENT`` est documenté côté DeepSeek comme un comportement
+#:   intermittent du JSON mode strict (« the API may occasionally return empty
+#:   content ») — sans retry, la phase échouerait à la 1ère occurrence alors
+#:   que c'est explicitement transitoire.
+#: - ``UNEXPECTED_JSON_SHAPE`` : le LLM a produit un JSON valide mais hors
+#:   schéma (ex: oubli de la clé attendue). Non déterministe — un retry
+#:   identique peut récupérer le bon schéma à la prochaine tentative.
+_RETRYABLE_LLM_CODES: frozenset[str] = frozenset(
+    {
+        "LLM.RATE_LIMIT",
+        "LLM.SERVER_ERROR",
+        "LLM.EMPTY_CONTENT",
+        "LLM.UNEXPECTED_JSON_SHAPE",
+    }
+)
 _RETRYABLE_STT_CODES: frozenset[str] = frozenset({"STT.RATE_LIMIT", "STT.API_ERROR"})
 
 

@@ -67,6 +67,32 @@ def test_parse_llm_json_default_finish_reason_is_none() -> None:
     assert exc_info.value.technical_details["finish_reason"] is None
 
 
+def test_parse_llm_json_raises_empty_content_on_empty_string() -> None:
+    """DeepSeek documente que le JSON mode strict peut retourner du contenu vide
+    de manière intermittente. On lève une erreur typée distincte d'``INVALID_JSON``
+    pour la rendre **retryable** (cf. ``_RETRYABLE_LLM_CODES``).
+    """
+    with pytest.raises(LLMError) as exc_info:
+        parse_llm_json("", context_label="phase_6", finish_reason="stop")
+    assert exc_info.value.code == "LLM.EMPTY_CONTENT"
+    assert exc_info.value.technical_details["finish_reason"] == "stop"
+    assert exc_info.value.technical_details["content_length"] == 0
+
+
+def test_parse_llm_json_raises_empty_content_on_whitespace_only() -> None:
+    """Whitespace seul (`'   \\n  \\t'`) = vide après strip — même erreur typée."""
+    with pytest.raises(LLMError) as exc_info:
+        parse_llm_json("   \n  \t", context_label="phase_6")
+    assert exc_info.value.code == "LLM.EMPTY_CONTENT"
+
+
+def test_parse_llm_json_raises_empty_content_after_fence_strip() -> None:
+    """Une fence vide (``\\`\\`\\`json\\`\\`\\``) tombe aussi en EMPTY_CONTENT, pas INVALID."""
+    with pytest.raises(LLMError) as exc_info:
+        parse_llm_json("```json\n```", context_label="phase_6")
+    assert exc_info.value.code == "LLM.EMPTY_CONTENT"
+
+
 def test_invoke_llm_chat_builds_messages_and_calls_provider() -> None:
     provider = FakeLLMProvider()
     response = invoke_llm_chat(

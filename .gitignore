@@ -80,3 +80,6 @@ logs/
 *.msi
 *.spec
 !fahmi2-pyinstaller.spec
+
+# Captures de revue UI (générées par scripts/ui_captures.py, non versées)
+.ui-review/

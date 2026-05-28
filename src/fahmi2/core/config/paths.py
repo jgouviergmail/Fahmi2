@@ -28,6 +28,7 @@ _PROJECTS_DIRNAME = "projects"
 _PROMPTS_DIRNAME = "prompts"
 _MODELS_DIRNAME = "models"
 _BACKUPS_DIRNAME = "backups"
+_UI_PREFS_FILENAME = "ui_prefs.json"
 _YTDLP_OVERRIDE_ENV = "FAHMI2_YTDLP"
 _YTDLP_BINARY_NAME = "yt-dlp.exe"
 
@@ -103,6 +104,11 @@ class AppPaths:
     def backups_dir(self) -> Path:
         """Dossier des sauvegardes automatiques (pré-migration)."""
         return self.appdata / _BACKUPS_DIRNAME
+
+    @property
+    def ui_prefs_file(self) -> Path:
+        """Fichier JSON des préférences UI (apparence claire/sombre/système)."""
+        return self.appdata / _UI_PREFS_FILENAME
 
     def ensure_dirs(self) -> None:
         """Crée tous les répertoires standards s'ils n'existent pas (idempotent)."""

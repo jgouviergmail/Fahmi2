@@ -179,9 +179,20 @@ Dépendances dirigées vers le bas (UI → app → pipeline/infra → domain/cor
   testable **sans Qt**, dont `PedagogyProgressViewModel`/`PedagogyStateViewModel`),
   `widgets/` (dont `SettingsView` master-detail réutilisable, `PedagogyProgressView`),
   `dialogs/` (dont `GenerationSettingsView`, `PedagogySettingsView`),
-  `theme/` (QSS Clair Fluent), `pedagogy_labels`, `main_window` (sidebar +
-  `QTabWidget`), `generation_controller`, `pedagogy_controller`, `qt_event_bus`
-  (`QtEventBus` + `PedagogyQtEventBus`), `app_main` (point d'entrée + DI complet).
+  `theme/` (système de design Clair Fluent **+ mode sombre miroir**, tokens
+  centralisés dans `_tokens.py` — `ThemeMode { SYSTEM, LIGHT, DARK }`, palettes
+  `LIGHT_TOKENS`/`DARK_TOKENS`, ombres pour `QGraphicsDropShadowEffect` ;
+  `apply_theme(app, mode)` charge `light_fluent.qss` ou `dark_fluent.qss`, met à
+  jour la palette active et ré-installe les ombres des cartes ; les deux QSS
+  exposent **exactement** le même ensemble de sélecteurs — garde-fou
+  `tests/unit/ui/test_theme_sync.py`), `_components.py` (briques partagées :
+  `card`, `page_header`, `field_hint`, `section_label`, `horizontal_separator`,
+  `install_shadow`, `frenchify_button_box` — boutons standard Qt en français),
+  `pedagogy_labels`, `main_window` (sidebar + `QTabWidget`),
+  `generation_controller`, `pedagogy_controller`, `qt_event_bus`
+  (`QtEventBus` + `PedagogyQtEventBus`), `app_main` (point d'entrée + DI complet
+  — instancie `ThemeController` qui lit la préférence d'apparence dans
+  `%APPDATA%/Fahmi2/ui_prefs.json` et applique le thème).
 
 ## Le pipeline en 8 phases
 

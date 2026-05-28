@@ -250,12 +250,37 @@ Services applicatifs :
 
 Qt PySide6 :
 
-- `ui/theme/` — feuille de style globale **Clair Fluent**
-  (`light_fluent.qss`) chargée au démarrage via `apply_theme(app)`.
-  Palette accent `#0078d4`, surfaces blanches sur fond `#f5f7fb`,
-  `QCheckBox::indicator` stylisé (glyphe ✓ SVG inline en data URL).
-  Le QSS est bundlé via le `.spec` PyInstaller pour rester accessible
-  en mode packagé.
+- `ui/theme/` — système de design global avec **mode clair Clair Fluent**
+  (`light_fluent.qss`) **et mode sombre miroir** (`dark_fluent.qss`). Les
+  tokens (palettes + spec d'ombre + énumération
+  `ThemeMode { SYSTEM, LIGHT, DARK }`) sont centralisés dans
+  `theme/_tokens.py`. La sélection du thème passe par
+  `apply_theme(app, mode)` ; ``SYSTEM`` est résolu via
+  `QStyleHints.colorScheme()` (suivi du thème OS). Le clair garde l'accent
+  `#0078d4`, surfaces blanches sur fond `#f5f7fb` ; le sombre déplace
+  l'accent vers `#4aa3ee` (remontée de luminosité), surfaces `#1a1f27` sur
+  fond `#11151c`. Les deux feuilles exposent **exactement** le même
+  ensemble de sélecteurs (garde-fou
+  `tests/unit/ui/test_theme_sync.py`) pour qu'aucun widget ne se retrouve
+  non stylé après bascule. `QCheckBox::indicator` stylisé (glyphe ✓ SVG
+  inline en data URL). Les QSS sont bundlés via le `.spec` PyInstaller
+  pour rester accessibles en mode packagé.
+- `ui/_components.py` — briques d'assemblage partagées (`card`,
+  `page_header`, `field_hint`, `section_label`, `horizontal_separator`,
+  `install_shadow`, `reapply_card_shadows`, `frenchify_button_box`) :
+  cartes à ombre douce, en-têtes de page, textes d'aide, séparateurs,
+  traduction française des boutons standard Qt (`Cancel`→`Annuler`…).
+  L'ombre de carte est portée par un `QGraphicsDropShadowEffect` Python
+  (QSS ne supporte pas `box-shadow`) — ``reapply_card_shadows`` ré-installe
+  les ombres avec la couleur du thème actif après chaque bascule.
+- `app/theme_controller.py` — service applicatif qui lit la préférence
+  d'apparence (`UiPreferences` dans `%APPDATA%/Fahmi2/ui_prefs.json`),
+  applique le thème au démarrage, écoute les changements du thème système
+  (mode ``SYSTEM`` uniquement) et expose `set_mode` pour les écrans de
+  réglages (application immédiate + persistance best-effort).
+- `app/ui_preferences.py` — lecture/écriture *lenient* du fichier
+  `ui_prefs.json` (fichier absent / corrompu → défauts SYSTEM ; écriture
+  atomique via `tempfile` + `Path.replace`).
 - `ui/viewmodels/` — logique testable sans Qt :
   - `cost_matrix` — viewmodel **générique** présentationnel (`CostMatrixSnapshot` :
     cellules `statut + coût`, totaux ligne/colonne/général) partagé par les deux
@@ -316,9 +341,10 @@ Qt PySide6 :
   (cockpit pédagogique réel + `PedagogyController`).
 - `ui/qt_event_bus.py` — adapters EventBus → Signal Qt (`QtEventBus` génération,
   `PedagogyQtEventBus` pédagogie ; bridging worker → UI thread).
-- `ui/app_main.py` — point d'entrée + DI complet (apply_theme, onglets de
-  fonctionnalité via `FeatureRegistry`, PromptsService, registre des 8 générateurs
-  de supports).
+- `ui/app_main.py` — point d'entrée + DI complet (`ThemeController` qui
+  lit la préférence d'apparence puis applique le thème ; onglets de
+  fonctionnalité via `FeatureRegistry`, PromptsService, registre des
+  8 générateurs de supports).
 
 ### 2.8 Fonctionnalité Dialogue (chat ancré sur le corpus)
 

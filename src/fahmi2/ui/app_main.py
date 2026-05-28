@@ -16,6 +16,7 @@ from fahmi2.app.hardware_probe import probe_hardware
 from fahmi2.app.project_service import ProjectService
 from fahmi2.app.prompts_service import PromptsService
 from fahmi2.app.secrets_service import SecretsService
+from fahmi2.app.theme_controller import ThemeController
 from fahmi2.core.config.paths import AppPaths
 from fahmi2.domain.enums import RunStatus
 from fahmi2.domain.ids import ProjectId
@@ -33,7 +34,6 @@ from fahmi2.ui.features.generation_tab import GenerationTab
 from fahmi2.ui.features.pedagogy_tab import PedagogyTab
 from fahmi2.ui.features.registry import FeatureRegistry
 from fahmi2.ui.main_window import MainWindow
-from fahmi2.ui.theme import apply_theme
 from fahmi2.ui.widgets.projects_sidebar import ProjectListEntry
 
 _DB_FILENAME = "projects.db"
@@ -70,7 +70,10 @@ def main() -> int:  # noqa: PLR0915, C901
     hardware = probe_hardware()
 
     app = QApplication.instance() or QApplication(sys.argv)
-    apply_theme(app)  # type: ignore[arg-type]
+    # ``ThemeController`` lit la préférence d'apparence (système/clair/sombre),
+    # applique le thème correspondant, et suit les changements de thème système
+    # quand l'utilisateur est en mode ``SYSTEM``.
+    theme_controller = ThemeController(app, paths.ui_prefs_file)  # type: ignore[arg-type]
     window = MainWindow()
 
     generation_tab = GenerationTab(
@@ -142,7 +145,9 @@ def main() -> int:  # noqa: PLR0915, C901
     )
 
     def _open_settings() -> None:
-        dialog = GlobalSettingsDialog(secrets_service, parent=window)
+        dialog = GlobalSettingsDialog(
+            secrets_service, theme_controller=theme_controller, parent=window
+        )
         dialog.exec()
 
     def _open_prompts_editor() -> None:

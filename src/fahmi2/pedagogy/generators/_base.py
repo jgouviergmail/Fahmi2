@@ -26,7 +26,7 @@ from fahmi2.core.retry.runner import with_retry
 from fahmi2.domain.enums import Language, SupportType
 from fahmi2.domain.glossary import Term
 from fahmi2.domain.supports import SupportArtifact, SupportItem
-from fahmi2.infra.llm.interface import LLMResponse
+from fahmi2.infra.llm.interface import JSON_OBJECT_RESPONSE_FORMAT, LLMResponse
 from fahmi2.infra.llm.invocation import invoke_llm_chat, parse_llm_json
 from fahmi2.pedagogy.chapters import Chapter
 from fahmi2.pedagogy.events import SupportRetryAttempt
@@ -201,6 +201,7 @@ def invoke_support_llm(
     language: Language,
     system_prompt: str | None,
     user_prompt: str,
+    response_format: dict[str, str] | None = None,
 ) -> LLMResponse:
     """Appelle le LLM avec retry et émission de ``SupportRetryAttempt``.
 
@@ -210,6 +211,9 @@ def invoke_support_llm(
         language: Langue (pour les events).
         system_prompt: Prompt système optionnel.
         user_prompt: Prompt utilisateur.
+        response_format: Contrainte de format provider (cf. ``invoke_llm_chat``).
+            À passer ``JSON_OBJECT_RESPONSE_FORMAT`` pour tout support dont la
+            sortie est parsée en JSON par ``parse_llm_json``.
 
     Returns:
         La ``LLMResponse``.
@@ -228,6 +232,7 @@ def invoke_support_llm(
                 config=ctx.pedagogy.llm_config,
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
+                response_format=response_format,
             )
         except Fahmi2Error as exc:
             if default_classify(exc) is RetryDecision.RETRY:
@@ -309,6 +314,7 @@ class _PerChapterLlmGenerator(SupportGenerator, Generic[_ItemT]):
                 language=language,
                 system_prompt=None,
                 user_prompt=user_prompt,
+                response_format=JSON_OBJECT_RESPONSE_FORMAT,
             )
             total_cost += response.cost_usd
             payload = parse_llm_json(

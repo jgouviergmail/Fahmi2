@@ -87,6 +87,7 @@ class FakeLLMProvider:
         reasoning_effort: str | None = None,
         temperature: float,
         max_tokens: int | None = None,
+        response_format: dict[str, str] | None = None,
     ) -> LLMResponse:
         """Retourne la réponse scénarisée ou un défaut.
 
@@ -98,6 +99,9 @@ class FakeLLMProvider:
                 dans ``calls`` pour les assertions des tests).
             temperature: Température.
             max_tokens: Plafond de tokens de sortie (enregistré dans ``calls``).
+            response_format: Contrainte de format provider (enregistrée dans
+                ``calls`` pour permettre aux tests de vérifier la propagation
+                du JSON mode strict).
 
         Returns:
             ``LLMResponse``.
@@ -120,6 +124,7 @@ class FakeLLMProvider:
                 "reasoning_effort": reasoning_effort,
                 "temperature": temperature,
                 "max_tokens": max_tokens,
+                "response_format": response_format,
             }
         )
         if key in self._failures:
@@ -135,6 +140,7 @@ class FakeLLMProvider:
         reasoning_effort: str | None = None,
         temperature: float,
         max_tokens: int | None = None,
+        response_format: dict[str, str] | None = None,
     ) -> Iterator[LLMStreamChunk]:
         """Émet la réponse scénarisée en deltas (un par mot) + chunk final.
 
@@ -146,6 +152,8 @@ class FakeLLMProvider:
                 dans ``calls`` pour les assertions des tests).
             temperature: Température.
             max_tokens: Plafond de tokens de sortie (enregistré dans ``calls``).
+            response_format: Contrainte de format provider (enregistrée dans
+                ``calls``).
 
         Yields:
             ``LLMStreamChunk`` (deltas, puis un dernier ``is_final``).
@@ -168,6 +176,7 @@ class FakeLLMProvider:
                 "reasoning_effort": reasoning_effort,
                 "temperature": temperature,
                 "max_tokens": max_tokens,
+                "response_format": response_format,
             }
         )
         if key in self._failures:

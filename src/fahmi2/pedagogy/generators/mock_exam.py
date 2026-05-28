@@ -14,6 +14,7 @@ from fahmi2.domain.supports import (
     MockExamSection,
     SupportArtifact,
 )
+from fahmi2.infra.llm.interface import JSON_OBJECT_RESPONSE_FORMAT
 from fahmi2.infra.llm.invocation import parse_llm_json
 from fahmi2.pedagogy.chapters import Chapter
 from fahmi2.pedagogy.generators._base import (
@@ -170,6 +171,7 @@ class MockExamGenerator(SupportGenerator):
             language=language,
             system_prompt=None,
             user_prompt=prompt,
+            response_format=JSON_OBJECT_RESPONSE_FORMAT,
         )
         exam = _parse_exam(
             response.content,

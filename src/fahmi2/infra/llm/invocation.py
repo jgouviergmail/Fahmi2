@@ -42,6 +42,7 @@ def invoke_llm_chat(
     system_prompt: str | None,
     user_prompt: str,
     max_tokens: int | None = DEFAULT_MAX_OUTPUT_TOKENS,
+    response_format: dict[str, str] | None = None,
 ) -> LLMResponse:
     """Appelle ``llm_provider.chat`` avec une ``PhaseConfig``.
 
@@ -55,6 +56,13 @@ def invoke_llm_chat(
             ``DEFAULT_MAX_OUTPUT_TOKENS`` (plafond du modèle), pour éviter une
             troncature silencieuse au petit défaut du provider — vaut pour le
             pipeline **et** les supports pédagogiques (gros supports possibles).
+        response_format: Contrainte de format imposée au provider. À passer
+            quand la sortie est destinée à ``parse_llm_json`` :
+            ``JSON_OBJECT_RESPONSE_FORMAT`` force le provider à produire un
+            JSON syntaxiquement valide (échappement garanti côté serveur), ce
+            qui évite la classe de bugs où un LLM insère des guillemets droits
+            non échappés à l'intérieur d'une valeur string et casse le parsing
+            aval. ``None`` = sortie libre.
 
     Returns:
         La ``LLMResponse``.
@@ -73,6 +81,7 @@ def invoke_llm_chat(
         reasoning_effort=reasoning_effort_str,
         temperature=config.temperature,
         max_tokens=max_tokens,
+        response_format=response_format,
     )
 
 

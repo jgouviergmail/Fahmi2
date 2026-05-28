@@ -169,6 +169,7 @@ class _RotatingFakeLLM(FakeLLMProvider):
         reasoning_effort: str | None = None,
         temperature: float,
         max_tokens: int | None = None,
+        response_format: dict[str, str] | None = None,
     ) -> LLMResponse:
         user_content = " ".join(
             m.content for m in messages if m.role == "user"

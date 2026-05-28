@@ -21,6 +21,7 @@ from typing import Any
 
 from fahmi2.core.concurrency import map_bounded
 from fahmi2.domain.enums import PhaseId
+from fahmi2.infra.llm.interface import JSON_OBJECT_RESPONSE_FORMAT
 from fahmi2.pipeline.handlers._base import (
     invoke_llm,
     language_label,
@@ -114,7 +115,11 @@ class OrderedConsolidationStrategy(ConsolidationStrategy):
             structured_markdown=structured_md,
         )
         response = invoke_llm(
-            ctx, phase_id=PhaseId.CONSOLIDATION, system_prompt=None, user_prompt=prompt
+            ctx,
+            phase_id=PhaseId.CONSOLIDATION,
+            system_prompt=None,
+            user_prompt=prompt,
+            response_format=JSON_OBJECT_RESPONSE_FORMAT,
         )
         payload = parse_json_response(
             response.content,
@@ -143,7 +148,11 @@ class OrderedConsolidationStrategy(ConsolidationStrategy):
             summaries_json=json.dumps(summaries, ensure_ascii=False, indent=2),
         )
         response = invoke_llm(
-            ctx, phase_id=PhaseId.CONSOLIDATION, system_prompt=None, user_prompt=prompt
+            ctx,
+            phase_id=PhaseId.CONSOLIDATION,
+            system_prompt=None,
+            user_prompt=prompt,
+            response_format=JSON_OBJECT_RESPONSE_FORMAT,
         )
         payload = parse_json_response(
             response.content,

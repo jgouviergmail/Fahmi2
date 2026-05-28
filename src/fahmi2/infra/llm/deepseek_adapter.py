@@ -102,6 +102,7 @@ class DeepSeekAdapter:
         reasoning_effort: str | None = None,
         temperature: float,
         max_tokens: int | None = None,
+        response_format: dict[str, str] | None = None,
     ) -> LLMResponse:
         """Émet un appel chat et retourne la réponse parsée.
 
@@ -113,6 +114,10 @@ class DeepSeekAdapter:
                 ``{"reasoning_effort": <valeur>}``. Ignoré sinon.
             temperature: Température.
             max_tokens: Limite de tokens en sortie (None = défaut modèle).
+            response_format: Contrainte de format (ex:
+                ``JSON_OBJECT_RESPONSE_FORMAT``) — propagée telle quelle au
+                client OpenAI/DeepSeek qui s'engage alors à émettre un JSON
+                syntaxiquement valide (échappement des guillemets garanti).
 
         Returns:
             ``LLMResponse``.
@@ -127,6 +132,7 @@ class DeepSeekAdapter:
             reasoning_effort=reasoning_effort,
             temperature=temperature,
             max_tokens=max_tokens,
+            response_format=response_format,
         )
         try:
             response = self._client.chat.completions.create(**kwargs)
@@ -144,6 +150,7 @@ class DeepSeekAdapter:
         reasoning_effort: str | None,
         temperature: float,
         max_tokens: int | None,
+        response_format: dict[str, str] | None,
     ) -> dict[str, Any]:
         """Construit les kwargs communs d'appel (``chat`` et ``chat_stream``).
 
@@ -154,6 +161,7 @@ class DeepSeekAdapter:
             reasoning_effort: Niveau d'effort (si ``thinking``).
             temperature: Température.
             max_tokens: Limite de tokens en sortie (None = défaut modèle).
+            response_format: Contrainte de format (None = sortie libre).
 
         Returns:
             Le dict de kwargs (sans ``stream``).
@@ -165,6 +173,8 @@ class DeepSeekAdapter:
         }
         if max_tokens is not None:
             kwargs["max_tokens"] = max_tokens
+        if response_format is not None:
+            kwargs["response_format"] = response_format
         extra_body: dict[str, Any] = {
             "thinking": {"type": "enabled" if thinking else "disabled"}
         }
@@ -182,6 +192,7 @@ class DeepSeekAdapter:
         reasoning_effort: str | None = None,
         temperature: float,
         max_tokens: int | None = None,
+        response_format: dict[str, str] | None = None,
     ) -> Iterator[LLMStreamChunk]:
         """Émet un appel chat en streaming SSE (deltas + chunk final porteur du coût).
 
@@ -192,6 +203,7 @@ class DeepSeekAdapter:
             reasoning_effort: Niveau d'effort (si ``thinking``).
             temperature: Température.
             max_tokens: Limite de tokens en sortie.
+            response_format: Contrainte de format provider (idem ``chat``).
 
         Yields:
             ``LLMStreamChunk`` (deltas, puis un dernier ``is_final`` porteur du coût).
@@ -206,6 +218,7 @@ class DeepSeekAdapter:
             reasoning_effort=reasoning_effort,
             temperature=temperature,
             max_tokens=max_tokens,
+            response_format=response_format,
         )
         kwargs["stream"] = True
         kwargs["stream_options"] = {"include_usage": True}

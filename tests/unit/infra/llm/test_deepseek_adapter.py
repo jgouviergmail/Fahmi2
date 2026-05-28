@@ -311,6 +311,46 @@ def test_chat_passes_max_tokens_when_specified() -> None:
     assert mock_client.chat.completions.create.call_args.kwargs["max_tokens"] == 500
 
 
+def test_chat_passes_response_format_when_specified() -> None:
+    """Propagation du JSON mode strict (``response_format={"type": "json_object"}``)
+    au client OpenAI/DeepSeek. Garantit qu'aucune phase qui parse du JSON ne se
+    fasse passer en sortie libre par accident.
+    """
+    mock_client = MagicMock()
+    response_mock = MagicMock()
+    response_mock.model_dump.return_value = _chat_payload()
+    mock_client.chat.completions.create.return_value = response_mock
+
+    adapter = DeepSeekAdapter(api_key="dummy", client=mock_client)
+    adapter.chat(
+        messages=[Message(role="user", content="u")],
+        model="deepseek-v4-flash",
+        thinking=False,
+        temperature=0.3,
+        response_format={"type": "json_object"},
+    )
+    assert mock_client.chat.completions.create.call_args.kwargs["response_format"] == {
+        "type": "json_object"
+    }
+
+
+def test_chat_omits_response_format_when_none() -> None:
+    """Sans ``response_format``, la clé n'est pas envoyée au client (sortie libre)."""
+    mock_client = MagicMock()
+    response_mock = MagicMock()
+    response_mock.model_dump.return_value = _chat_payload()
+    mock_client.chat.completions.create.return_value = response_mock
+
+    adapter = DeepSeekAdapter(api_key="dummy", client=mock_client)
+    adapter.chat(
+        messages=[Message(role="user", content="u")],
+        model="deepseek-v4-flash",
+        thinking=False,
+        temperature=0.3,
+    )
+    assert "response_format" not in mock_client.chat.completions.create.call_args.kwargs
+
+
 def test_chat_maps_auth_error() -> None:
     mock_client = MagicMock()
     response_mock = MagicMock()

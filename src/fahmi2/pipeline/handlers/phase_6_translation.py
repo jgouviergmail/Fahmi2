@@ -34,6 +34,7 @@ from fahmi2.domain.enums import Language, PhaseId
 from fahmi2.domain.generation import consolidated_doc_filename, glossary_doc_filename
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.source import SourceExecution
+from fahmi2.infra.llm.interface import JSON_OBJECT_RESPONSE_FORMAT
 from fahmi2.pipeline.handlers._base import (
     build_succeeded_phase,
     invoke_llm,
@@ -324,12 +325,27 @@ class Phase6TranslationHandler(PhaseHandler):
             ],
         )
         response = invoke_llm(
-            ctx, phase_id=self.phase_id, system_prompt=None, user_prompt=prompt
+            ctx,
+            phase_id=self.phase_id,
+            system_prompt=None,
+            user_prompt=prompt,
+            response_format=JSON_OBJECT_RESPONSE_FORMAT,
         )
-        entries = parse_json_response(
+        response_payload: Any = parse_json_response(
             response.content,
             phase_id=self.phase_id,
             finish_reason=response.finish_reason,
+        )
+        # Le prompt impose un objet racine ``{"items": [...]}`` (contrainte du
+        # JSON mode strict côté provider, qui exige une racine objet et garantit
+        # en contrepartie un échappement des guillemets — cf.
+        # ``JSON_OBJECT_RESPONSE_FORMAT``). Repli défensif : si le LLM a quand
+        # même produit un array racine (override utilisateur du prompt, ou
+        # provider tiers sans cette contrainte), on l'accepte.
+        entries: Any = (
+            response_payload.get("items", [])
+            if isinstance(response_payload, dict)
+            else response_payload
         )
         dict_entries = (
             [e for e in entries if isinstance(e, dict)]

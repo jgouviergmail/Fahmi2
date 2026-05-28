@@ -127,14 +127,17 @@ class PipelineEngine:
         current_status = ctx.state.get_phase_status(
             ctx.run.id, handler.phase_id, source_id=source_id
         )
-        if current_status is PhaseStatus.SUCCEEDED:
-            skipped = PhaseExecution(
-                phase_id=handler.phase_id,
-                status=PhaseStatus.SKIPPED,
-                started_at=_now(),
-                finished_at=_now(),
-            )
-            ctx.state.upsert_phase_execution(ctx.run.id, skipped, source_id=source_id)
+        # Une phase déjà terminée (SUCCEEDED) ou skippée à une reprise précédente
+        # (SKIPPED) ne doit jamais être re-exécutée : on émet l'event ``SKIPPED``
+        # vers l'UI mais on **conserve l'état stocké tel quel**.
+        #
+        # Critique pour les reprises successives : auparavant l'engine écrasait
+        # le ``SUCCEEDED`` en ``SKIPPED`` (avec ``cost_usd=0``) à chaque reprise.
+        # À la 2ème reprise après échec, ``get_phase_status`` renvoyait alors
+        # ``SKIPPED`` (plus ``SUCCEEDED``), la condition de skip ne matchait plus,
+        # et tout le pipeline per-source repartait de zéro — perte des coûts
+        # cumulés et perte des artefacts intermédiaires.
+        if current_status in {PhaseStatus.SUCCEEDED, PhaseStatus.SKIPPED}:
             ctx.event_bus.publish(
                 PhaseFinished(
                     timestamp=_now(),

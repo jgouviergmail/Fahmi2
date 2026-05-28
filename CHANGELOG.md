@@ -5,6 +5,75 @@ All notable changes to the Fahmi2 project.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed — Phase 6 translation: `LLM.INVALID_JSON` from unescaped quotes in target-language definitions
+
+- DeepSeek can produce straight quotes `"..."` inside a string value (especially
+  when highlighting a term inside an Arabic / German definition like
+  `"الحب المالي" (Love money)`) **without escaping them**, which breaks the
+  JSON parser downstream and fails the entire phase 6 with
+  `LLM.INVALID_JSON` even though `finish_reason="stop"`. Observed in
+  production on the term "Triple F" (1 occurrence over 114 glossary terms
+  on a real accounting course → triggered systematically when running the
+  glossary localisation in Arabic).
+- Fix: **JSON mode strict** on the provider side
+  (`response_format={"type": "json_object"}`, supported by DeepSeek through
+  the OpenAI-compatible API). The server now guarantees a syntactically
+  valid JSON output — it escapes its own quotes inside string values.
+- Implementation: new constant `JSON_OBJECT_RESPONSE_FORMAT` in
+  `infra/llm/interface.py` (single source of truth). `LLMProvider.chat` +
+  `chat_stream` extended with a `response_format: dict | None = None`
+  additive kwarg (defaults to `None` → unchanged behaviour, retro-compat
+  with existing scenarios and tests). Propagated through
+  `invoke_llm_chat`, `invoke_llm` (pipeline), and `invoke_support_llm`
+  (pedagogy). Wired in every call site that parses JSON downstream:
+  pipeline phases 1, 2, 5 (ordered + thematic ×4) and 6, and all 9
+  pedagogy generators (concept flashcards, MCQ, true/false, cloze, open
+  questions, sheet, key points, mock exam).
+- Prompt restructuring: `phase_6_glossary_localization.j2` now requests
+  a root **object** `{"items": [...]}` instead of a root array `[...]`
+  (the OpenAI/DeepSeek JSON mode requires an object root). All other JSON
+  prompts (pipeline + pedagogy) already returned object roots — no other
+  prompt touched. `_localize_glossary` reads `payload["items"]` with a
+  defensive fallback on array-root payloads (handles legacy user
+  overrides of the prompt).
+- **User-facing notice**: if you have overridden
+  `phase_6_glossary_localization.j2` in `%APPDATA%/Fahmi2/prompts/`,
+  click **Edit → Edit prompts → ↩ Reset to default** on this template
+  to pick up the new `{"items": [...]}` skeleton (the fallback parser
+  accepts your previous array-root version too, but you lose the
+  provider-side escaping guarantee).
+
+### Fixed — Engine: resumed runs lose `SUCCEEDED` state (and cumulative cost) after the first resume
+
+- Each resume of a failed run overwrote the persisted `SUCCEEDED` state
+  of every per-source phase with `SKIPPED` (`cost_usd=0`), via an extra
+  `upsert_phase_execution` in the engine's skip path. After **one**
+  successful resume the database held `SKIPPED` instead of `SUCCEEDED`;
+  the **next** resume could no longer recognise the phase as already
+  done and re-ran the whole per-source pipeline from scratch — losing
+  cumulative cost AND artefacts.
+- Fix: `pipeline/engine.py` no longer rewrites the state on skip. The
+  `PhaseFinished(SKIPPED)` event is still emitted to the UI for
+  consistency, but the persisted status stays `SUCCEEDED`. The skip
+  condition also accepts `SKIPPED` legacy entries (defensive against
+  pre-fix databases).
+- Regression test: 2 successive resumes of a failed run keep the
+  per-source `SUCCEEDED` status **and** the recorded `cost_usd` intact.
+
+### Added — Diagnostic enrichment on `LLM.INVALID_JSON` errors
+
+- The previous error reported a `raw_content` truncated at 500 chars
+  with no `finish_reason` and no real length, making it impossible to
+  tell a silently-truncated provider output from a fully-emitted but
+  malformed JSON (see the Triple F case above). `parse_llm_json` now
+  reports `raw_content` up to **50 000 chars**, plus `content_length`
+  (real LLM output size), `truncated_in_log` (bool), and
+  `finish_reason` propagated from the provider through
+  `LLMResponse.finish_reason`. Already in place since commit `01f8b41`
+  but re-stated here for completeness.
+
 ## [1.5.0] — 2026-05-28
 
 ### Added — UI/UX redesign (cards + dark mode + plain-language labels + chat bubbles)

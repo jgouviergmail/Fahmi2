@@ -10,7 +10,8 @@ from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.domain.enums import Language, PhaseStatus, SourceKind
 from fahmi2.domain.ids import SourceId
 from fahmi2.domain.source import InputSource, SourceExecution
-from fahmi2.infra.llm.interface import LLMResponse
+from fahmi2.infra.llm._fakes import FakeLLMProvider
+from fahmi2.infra.llm.interface import JSON_OBJECT_RESPONSE_FORMAT, LLMResponse
 from fahmi2.pipeline.handlers.phase_6_translation import Phase6TranslationHandler
 from tests.unit.pipeline.handlers._helpers import build_phase_context
 
@@ -315,3 +316,74 @@ def test_execute_accumulates_per_video_translation_cost(
     # FR = source -> copies gratuites. EN -> 3 appels LLM (0.01 chacun) : localisation
     # du glossaire + traduction per-source + traduction consolidé = 0.03.
     assert result.cost_usd == pytest.approx(0.03)
+
+
+def test_localize_glossary_accepts_items_wrapper_from_json_mode(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    """Le prompt restructuré pour le JSON mode strict (response_format=json_object)
+    impose un objet racine ``{"items": [...]}`` (le mode JSON OpenAI/DeepSeek
+    n'accepte pas d'array racine). Le parser de ``_localize_glossary`` doit
+    déballer ``payload["items"]``.
+    """
+    payload = {
+        "terms": [
+            {"term": "Bilan", "definition": "doc comptable", "acronym": None},
+        ]
+    }
+    wrapped = LLMResponse(
+        content=json.dumps(
+            {
+                "items": [
+                    {
+                        "source": "Bilan",
+                        "term": "Balance sheet",
+                        "definition": "accounting doc",
+                    }
+                ]
+            },
+            ensure_ascii=False,
+        ),
+        thinking_content=None,
+        prompt_tokens=10,
+        completion_tokens=20,
+        cached_prompt_tokens=0,
+        cost_usd=0.0,
+    )
+    ctx, _run = build_phase_context(
+        tmp_path, make_generation_settings, llm_response=wrapped
+    )
+    localized, _ = Phase6TranslationHandler()._localize_glossary(
+        ctx, target=Language.EN, payload=payload
+    )
+    assert localized[0].term == "Balance sheet"
+    assert localized[0].definition == "accounting doc"
+
+
+def test_localize_glossary_requests_json_object_response_format(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    """L'appel LLM de localisation du glossaire doit demander le ``response_format``
+    JSON mode strict (sinon le provider peut produire des guillemets non échappés
+    dans une définition arabe/allemande qui cassent ``json.loads`` — cas observé
+    en prod sur le terme « Triple F »).
+    """
+    payload = {
+        "terms": [
+            {"term": "Bilan", "definition": "doc comptable", "acronym": None},
+        ]
+    }
+    ctx, _run = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        llm_response=_localization_response(
+            [{"source": "Bilan", "term": "Balance sheet", "definition": "x"}]
+        ),
+    )
+    Phase6TranslationHandler()._localize_glossary(
+        ctx, target=Language.EN, payload=payload
+    )
+    # Le ``FakeLLMProvider`` enregistre tous les kwargs reçus dans ``.calls``.
+    assert isinstance(ctx.llm_provider, FakeLLMProvider)  # narrowing pour mypy strict
+    last_call = ctx.llm_provider.calls[-1]
+    assert last_call["response_format"] == JSON_OBJECT_RESPONSE_FORMAT

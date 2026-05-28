@@ -63,6 +63,7 @@ def invoke_llm(
     phase_id: PhaseId,
     system_prompt: str | None,
     user_prompt: str,
+    response_format: dict[str, str] | None = None,
 ) -> LLMResponse:
     """Appelle le ``LLMProvider`` avec la ``PhaseConfig`` propre à ``phase_id``.
 
@@ -74,6 +75,10 @@ def invoke_llm(
         phase_id: Phase courante (sert à lire ``phases_config[phase_id]``).
         system_prompt: Prompt système optionnel.
         user_prompt: Prompt utilisateur (corps de la requête).
+        response_format: Contrainte de format provider (cf.
+            ``invoke_llm_chat``). À passer
+            ``JSON_OBJECT_RESPONSE_FORMAT`` pour toute phase dont la sortie est
+            destinée à ``parse_json_response``.
 
     Returns:
         ``LLMResponse``.
@@ -84,6 +89,7 @@ def invoke_llm(
         config=ctx.settings.phases_config[phase_id],
         system_prompt=system_prompt,
         user_prompt=user_prompt,
+        response_format=response_format,
     )
 
 

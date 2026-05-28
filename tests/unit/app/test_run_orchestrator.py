@@ -319,16 +319,102 @@ def test_execute_can_resume_failed_run_skipping_succeeded_phases(
     assert is_resumed is True
     final = orchestrator.execute(run=resumed_run, ctx=_build_ctx(tmp_path, resumed_run))
     assert final is RunStatus.COMPLETED
-    # La phase video[0] doit etre passee a SKIPPED (deja SUCCEEDED) ; la
-    # phase video[1] doit etre repassee a SUCCEEDED apres reexecution.
+    # La phase video[0] doit **rester SUCCEEDED** en base (l'event UI
+    # ``PhaseFinished(SKIPPED)`` est émis sans modifier le statut stocké) ;
+    # la phase video[1] doit être repassée à SUCCEEDED après réexécution.
+    # Critique pour les reprises successives : si l'engine écrasait
+    # SUCCEEDED en SKIPPED, la 2ème reprise après un nouvel échec retrouverait
+    # SKIPPED, ne matcherait plus la condition de skip, et re-exécuterait tout
+    # le pipeline per-source — perte des coûts cumulés et des artefacts.
     s0 = state.get_phase_status(
         resumed_run.id, PhaseId.STT, source_id=run.sources[0].source_id
     )
     s1 = state.get_phase_status(
         resumed_run.id, PhaseId.STT, source_id=run.sources[1].source_id
     )
-    assert s0 is PhaseStatus.SKIPPED
+    assert s0 is PhaseStatus.SUCCEEDED
     assert s1 is PhaseStatus.SUCCEEDED
+
+
+def test_execute_resume_idempotent_across_multiple_failures(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    """Reg : 2 reprises successives d'un Run FAILED doivent garder l'état
+    SUCCEEDED des phases déjà terminées, **avec leur ``cost_usd`` conservé**.
+
+    Symptôme historique : à la 1ère reprise l'engine écrasait SUCCEEDED en
+    SKIPPED (avec ``cost_usd=0``). À la 2ème reprise, le statut lu en base
+    était SKIPPED (plus SUCCEEDED), la condition de skip ne matchait plus, et
+    l'engine relançait toutes les phases per-source depuis zéro — perte du
+    coût cumulé et perte des artefacts disque déjà produits.
+    """
+    orchestrator, state, project_service = _build_orchestrator(tmp_path)
+    input_folder = _seed_input_folder(tmp_path)
+    project = project_service.create_project(
+        name="Test",
+        workspace_folder=tmp_path / "ws",
+        generation=make_generation_settings(input_folder=input_folder),
+    )
+
+    run = orchestrator.create_run(project)
+    # Phase STT de la 1ère source persistée comme SUCCEEDED avec un coût ;
+    # phase STT de la 2ème comme FAILED.
+    state.upsert_phase_execution(
+        run.id,
+        PhaseExecution(
+            phase_id=PhaseId.STT, status=PhaseStatus.SUCCEEDED, cost_usd=0.42
+        ),
+        source_id=run.sources[0].source_id,
+    )
+    state.upsert_phase_execution(
+        run.id,
+        PhaseExecution(phase_id=PhaseId.STT, status=PhaseStatus.FAILED),
+        source_id=run.sources[1].source_id,
+    )
+    state.upsert_run(run.with_status(RunStatus.FAILED))
+
+    # 1ère reprise : exécutée jusqu'au bout (handler _NoOp réussit).
+    first_resumed, _ = orchestrator.resume_or_create_run(project)
+    orchestrator.execute(run=first_resumed, ctx=_build_ctx(tmp_path, first_resumed))
+
+    # Le statut **et le coût** de la source 0 doivent être préservés.
+    first_cells = state.list_phase_cells(first_resumed.id)
+    s0_after_first = next(
+        c
+        for c in first_cells
+        if c.phase_id is PhaseId.STT and c.source_id == run.sources[0].source_id
+    )
+    assert s0_after_first.status is PhaseStatus.SUCCEEDED
+    assert s0_after_first.cost_usd == pytest.approx(0.42)
+
+    # Simulons un 2ème échec : on rebascule la 2ème source en FAILED et le Run.
+    state.upsert_phase_execution(
+        first_resumed.id,
+        PhaseExecution(phase_id=PhaseId.STT, status=PhaseStatus.FAILED),
+        source_id=run.sources[1].source_id,
+    )
+    state.upsert_run(first_resumed.with_status(RunStatus.FAILED))
+
+    # 2ème reprise : la phase de la source 0 doit **toujours** être considérée
+    # comme déjà terminée. Si le bug était présent, l'engine relancerait STT
+    # pour la source 0 (parce que SKIPPED a été écrasé).
+    second_resumed, is_resumed = orchestrator.resume_or_create_run(project)
+    assert is_resumed is True
+    assert second_resumed.id == run.id  # même Run préservé
+    orchestrator.execute(run=second_resumed, ctx=_build_ctx(tmp_path, second_resumed))
+
+    final_status = state.get_phase_status(
+        second_resumed.id, PhaseId.STT, source_id=run.sources[0].source_id
+    )
+    assert final_status is PhaseStatus.SUCCEEDED
+    # Coût conservé à travers les 2 reprises.
+    final_cells = state.list_phase_cells(second_resumed.id)
+    s0_final = next(
+        c
+        for c in final_cells
+        if c.phase_id is PhaseId.STT and c.source_id == run.sources[0].source_id
+    )
+    assert s0_final.cost_usd == pytest.approx(0.42)
 
 
 def test_execute_preserves_pedagogy_settings(

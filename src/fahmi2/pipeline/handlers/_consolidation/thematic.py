@@ -34,6 +34,7 @@ from typing import Any
 
 from fahmi2.core.concurrency import map_bounded
 from fahmi2.domain.enums import PhaseId
+from fahmi2.infra.llm.interface import JSON_OBJECT_RESPONSE_FORMAT
 from fahmi2.pipeline.handlers._base import (
     invoke_llm,
     language_label,
@@ -153,7 +154,11 @@ def _extract_ledger_one(
         structured_markdown=structured_md,
     )
     response = invoke_llm(
-        ctx, phase_id=PhaseId.CONSOLIDATION, system_prompt=None, user_prompt=prompt
+        ctx,
+        phase_id=PhaseId.CONSOLIDATION,
+        system_prompt=None,
+        user_prompt=prompt,
+        response_format=JSON_OBJECT_RESPONSE_FORMAT,
     )
     payload = parse_json_response(
         response.content,
@@ -245,7 +250,11 @@ def _plan_thematic(
         elements_listing=_build_elements_listing(elements),
     )
     response = invoke_llm(
-        ctx, phase_id=PhaseId.CONSOLIDATION, system_prompt=None, user_prompt=prompt
+        ctx,
+        phase_id=PhaseId.CONSOLIDATION,
+        system_prompt=None,
+        user_prompt=prompt,
+        response_format=JSON_OBJECT_RESPONSE_FORMAT,
     )
     payload = dict(
         parse_json_response(
@@ -393,7 +402,11 @@ def _write_chapter_body(
         elements_json=json.dumps(elements_payload, ensure_ascii=False, indent=2),
     )
     response = invoke_llm(
-        ctx, phase_id=PhaseId.CONSOLIDATION, system_prompt=None, user_prompt=prompt
+        ctx,
+        phase_id=PhaseId.CONSOLIDATION,
+        system_prompt=None,
+        user_prompt=prompt,
+        response_format=JSON_OBJECT_RESPONSE_FORMAT,
     )
     payload = dict(
         parse_json_response(
@@ -514,7 +527,11 @@ def _produce_meta(
         summaries_json=json.dumps(summaries, ensure_ascii=False, indent=2),
     )
     response = invoke_llm(
-        ctx, phase_id=PhaseId.CONSOLIDATION, system_prompt=None, user_prompt=prompt
+        ctx,
+        phase_id=PhaseId.CONSOLIDATION,
+        system_prompt=None,
+        user_prompt=prompt,
+        response_format=JSON_OBJECT_RESPONSE_FORMAT,
     )
     payload = dict(
         parse_json_response(

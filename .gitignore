@@ -88,3 +88,7 @@ logs/
 # bundlés au build (cf. packaging/fahmi2.spec). Seuls les .ts sont versionnés
 # (la source de traduction est éditable, le .qm est un artefact binaire).
 src/fahmi2/i18n/compiled/
+
+# Scripts de diagnostic ad hoc (extractions SQLite, repro de bugs, dumps).
+.scratch_*.py
+.raw_*.txt

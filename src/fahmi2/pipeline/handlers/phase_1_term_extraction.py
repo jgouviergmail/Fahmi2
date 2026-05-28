@@ -15,6 +15,7 @@ from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import PhaseId
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.source import SourceExecution
+from fahmi2.infra.llm.interface import JSON_OBJECT_RESPONSE_FORMAT
 from fahmi2.pipeline.handlers._base import (
     build_succeeded_phase,
     invoke_llm,
@@ -85,6 +86,7 @@ class Phase1TermExtractionHandler(PhaseHandler):
             phase_id=self.phase_id,
             system_prompt=None,
             user_prompt=prompt,
+            response_format=JSON_OBJECT_RESPONSE_FORMAT,
         )
         payload = parse_json_response(
             response.content,

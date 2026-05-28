@@ -81,6 +81,14 @@ class LLMStreamChunk:
     response: LLMResponse | None = None
 
 
+#: ``response_format`` à passer pour forcer le provider à émettre un JSON
+#: syntaxiquement valide (échappement garanti côté serveur). Utilisé par toutes
+#: les invocations dont la sortie est parsée par ``parse_llm_json``.
+#: Source unique pour éviter qu'un appelant n'oublie la clé ``"type"`` ou ne
+#: dérive vers une variante non supportée par DeepSeek/OpenAI.
+JSON_OBJECT_RESPONSE_FORMAT: dict[str, str] = {"type": "json_object"}
+
+
 class LLMProvider(Protocol):
     """Contrat commun aux adapters LLM (DeepSeek, mais ouvert à d'autres)."""
 
@@ -93,6 +101,7 @@ class LLMProvider(Protocol):
         reasoning_effort: str | None = None,
         temperature: float,
         max_tokens: int | None = None,
+        response_format: dict[str, str] | None = None,
     ) -> LLMResponse:
         """Émet un appel chat et retourne la réponse.
 
@@ -106,6 +115,10 @@ class LLMProvider(Protocol):
                 uniquement si ``thinking`` est ``True``. ``None`` = défaut serveur.
             temperature: Température LLM.
             max_tokens: Borne supérieure de tokens en sortie (None = défaut modèle).
+            response_format: Contrainte de format imposée au provider
+                (ex: ``JSON_OBJECT_RESPONSE_FORMAT = {"type": "json_object"}``
+                pour forcer une sortie JSON valide avec échappement garanti côté
+                serveur). ``None`` = sortie libre (texte ou Markdown).
 
         Returns:
             ``LLMResponse``.
@@ -123,6 +136,7 @@ class LLMProvider(Protocol):
         reasoning_effort: str | None = None,
         temperature: float,
         max_tokens: int | None = None,
+        response_format: dict[str, str] | None = None,
     ) -> Iterator[LLMStreamChunk]:
         """Émet un appel chat en streaming (deltas + chunk final porteur du coût).
 
@@ -133,6 +147,8 @@ class LLMProvider(Protocol):
             reasoning_effort: Niveau d'effort de raisonnement (si ``thinking``).
             temperature: Température LLM.
             max_tokens: Borne supérieure de tokens en sortie (None = défaut modèle).
+            response_format: Idem ``chat`` : contrainte de format provider
+                (ex: ``JSON_OBJECT_RESPONSE_FORMAT``).
 
         Returns:
             Itérateur de ``LLMStreamChunk`` ; le dernier a ``is_final=True`` et

@@ -33,8 +33,14 @@ from fahmi2.ui.widgets.logs_dock import LogsDock
 from fahmi2.ui.widgets.projects_sidebar import ProjectsSidebar
 
 _WINDOW_TITLE = "Fahmi2"
-_SIDEBAR_WIDTH_PX = 220
-_CENTRAL_WIDTH_PX = 980
+#: Largeur initiale de la sidebar projets (px). Suffisamment large pour
+#: accueillir des noms de projet de taille moyenne sans tronquer le
+#: sous-libellé « Génération ... · Supports ... ». Reste redimensionnable
+#: via le QSplitter (l'utilisateur peut élargir ou réduire à sa convenance).
+_SIDEBAR_WIDTH_PX = 280
+#: Largeur minimale absolue de la sidebar (empêche de la réduire à rien).
+_SIDEBAR_MIN_WIDTH_PX = 220
+_CENTRAL_WIDTH_PX = 920
 _PACKAGE_NAME = "fahmi2"
 _VERSION_UNKNOWN = "dev"
 _ABOUT_TITLE = "À propos de Fahmi2"
@@ -62,6 +68,9 @@ class MainWindow(QMainWindow):
 
         self._projects_sidebar = ProjectsSidebar(self)
         self._projects_sidebar.set_on_project_selected(self._dispatch_project_selected)
+        # Empêche la sidebar de devenir trop étroite (les noms de projets
+        # seraient tronqués). Reste élargissable au-delà via le splitter.
+        self._projects_sidebar.setMinimumWidth(_SIDEBAR_MIN_WIDTH_PX)
 
         self._tabs = QTabWidget(self)
 

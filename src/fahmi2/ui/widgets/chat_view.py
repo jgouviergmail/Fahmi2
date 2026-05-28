@@ -399,17 +399,29 @@ def _citations_html(citations: tuple[Citation, ...]) -> str:
     """
     if not citations:
         return ""
+    # ``QTextDocument`` n'applique pas ``background-color`` / ``border`` aux
+    # ``<a>`` ; on enveloppe le texte dans un ``<span>`` qui, lui, prend bien
+    # les propriétés inline. Chaque source est placée sur sa propre ligne
+    # (``<div>`` par citation) pour faciliter la lecture quand il y en a
+    # plusieurs.
+    line_template = (
+        '<div style="margin: 2px 0;">'
+        '<a href="{href}" title="{tip}" style="text-decoration: none;">'
+        '<span style="background-color: {bg}; color: {color}; '
+        'padding: 2px 8px;">[{num}] {chapter} › {section}</span>'
+        "</a>"
+        "</div>"
+    )
     chips = "".join(
-        f'<a href="{html.escape(c.anchor)}" '
-        f'title="{_tooltip(c.snippet)}" '
-        f'style="background-color: {_CHIP_BG}; '
-        f"color: {_CHIP_TEXT}; "
-        f"text-decoration: none; "
-        f"padding: 2px 8px; "
-        f"margin-right: 4px; "
-        f'border: 1px solid {_CHIP_BORDER};">'
-        f"[{c.number}] {html.escape(c.chapter_title)} › "
-        f"{html.escape(c.section_title)}</a>"
+        line_template.format(
+            href=html.escape(c.anchor),
+            tip=_tooltip(c.snippet),
+            bg=_CHIP_BG,
+            color=_CHIP_TEXT,
+            num=c.number,
+            chapter=html.escape(c.chapter_title),
+            section=html.escape(c.section_title),
+        )
         for c in citations
     )
     return (

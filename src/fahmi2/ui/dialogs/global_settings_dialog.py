@@ -46,8 +46,10 @@ _OUTER_MARGIN_HORIZONTAL: Final[int] = 28
 _OUTER_MARGIN_TOP: Final[int] = 24
 _OUTER_MARGIN_BOTTOM: Final[int] = 18
 _OUTER_SPACING: Final[int] = 16
-#: Largeur maximale de la colonne centrale.
-_COLUMN_MAX_WIDTH: Final[int] = 540
+#: Largeur min/max de la colonne centrale (donne aux champs assez de place
+#: pour afficher une clé API complète tout en restant centré).
+_COLUMN_MIN_WIDTH: Final[int] = 460
+_COLUMN_MAX_WIDTH: Final[int] = 560
 
 # ---------------------------------------------------------------- libellés
 _KEYS_CARD_TITLE: Final[str] = "Clés API"
@@ -188,6 +190,7 @@ class GlobalSettingsDialog(QDialog):
             ``AlignHCenter``).
         """
         column = QWidget(self)
+        column.setMinimumWidth(_COLUMN_MIN_WIDTH)
         column.setMaximumWidth(_COLUMN_MAX_WIDTH)
         column_layout = QVBoxLayout(column)
         column_layout.setContentsMargins(0, 0, 0, 0)

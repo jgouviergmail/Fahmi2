@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QFileDialog,
     QHBoxLayout,
+    QLabel,
     QLineEdit,
     QMessageBox,
     QPushButton,
@@ -476,8 +477,16 @@ class GenerationSettingsView(QDialog):
         form.addRow(_STYLE_LABEL, self._style_combo)
         form.addRow(_CONSOLIDATION_LABEL, self._consolidation_mode_combo)
         format_layout.addLayout(form)
-        format_layout.addWidget(field_hint(format_card, "Consignes de style (optionnel)"))
+        # Étiquette du textarea (label normal, pas un hint visuel sous-cadré).
+        directives_label = QLabel(_DIRECTIVES_LABEL, format_card)
+        format_layout.addWidget(directives_label)
         format_layout.addWidget(self._style_directives_input)
+        format_layout.addWidget(
+            field_hint(
+                format_card,
+                "Optionnel — laissez vide pour le comportement par défaut.",
+            )
+        )
         layout.addWidget(format_card)
 
         docs_card, docs_layout = card(
@@ -606,16 +615,20 @@ class GenerationSettingsView(QDialog):
         return page
 
     def _build_phases_page(self) -> QWidget:
-        """Construit la page « Phases IA » (carte unique avec PhaseConfigsWidget)."""
+        """Construit la page « Phases IA » (page_header + widget directement).
+
+        ``PhaseConfigsWidget`` est déjà un ``QGroupBox`` stylé (encadré + titre
+        interne) ; on évite la double-tête en n'ajoutant pas de carte autour.
+        Le titre interne du QGroupBox est remplacé par une description
+        compacte sous le ``page_header``.
+        """
         page, layout = settings_page(self)
         layout.addWidget(
             page_header(page, title=_CAT_PHASES, description=_PHASES_PAGE_DESC)
         )
-        phases_card, phases_layout = card(
-            page, title=_PHASES_CARD_TITLE, description=_PHASES_CARD_DESC
-        )
-        phases_layout.addWidget(self._phase_configs_widget)
-        layout.addWidget(phases_card, stretch=1)
+        # On efface le titre interne du QGroupBox pour éviter la redondance.
+        self._phase_configs_widget.setTitle("")
+        layout.addWidget(self._phase_configs_widget, stretch=1)
         return page
 
     def _build_export_page(self) -> QWidget:

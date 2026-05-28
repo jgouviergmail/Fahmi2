@@ -43,8 +43,8 @@ _ORDER_IRRELEVANT_NOTE = (
     "(seule l'inclusion / exclusion compte)."
 )
 _NEW_BADGE = "  • nouveau"
-_UP_LABEL = "↑"
-_DOWN_LABEL = "↓"
+_UP_LABEL = "▲"
+_DOWN_LABEL = "▼"
 _EXCLUDE_LABEL = "Exclure ▼"
 _REINCLUDE_LABEL = "Réinclure ▲"
 _REFRESH_LABEL = "↻ Rafraîchir"
@@ -226,10 +226,13 @@ class SourceOrderView(QWidget):
         included_row.addWidget(self._included, stretch=1)
         included_buttons = QVBoxLayout()
         up_btn = QPushButton(_UP_LABEL, self)
+        up_btn.setToolTip("Monter d'une position")
         up_btn.clicked.connect(lambda: self._move_selected(-1))
         down_btn = QPushButton(_DOWN_LABEL, self)
+        down_btn.setToolTip("Descendre d'une position")
         down_btn.clicked.connect(lambda: self._move_selected(1))
         exclude_btn = QPushButton(_EXCLUDE_LABEL, self)
+        exclude_btn.setToolTip("Exclure la source sélectionnée")
         exclude_btn.clicked.connect(self._exclude_selected)
         for btn in (up_btn, down_btn, exclude_btn):
             included_buttons.addWidget(btn)

@@ -42,8 +42,9 @@ _OUTER_MARGIN_HORIZONTAL: Final[int] = 28
 _OUTER_MARGIN_TOP: Final[int] = 24
 _OUTER_MARGIN_BOTTOM: Final[int] = 18
 _OUTER_SPACING: Final[int] = 14
-#: Largeur maximale de la colonne contenant la carte (centrée dans le dialogue).
-_COLUMN_MAX_WIDTH: Final[int] = 520
+#: Largeur min/max de la colonne contenant la carte (centrée).
+_COLUMN_MIN_WIDTH: Final[int] = 460
+_COLUMN_MAX_WIDTH: Final[int] = 560
 
 _TITLE_CREATE: Final[str] = "Nouveau projet"
 _TITLE_EDIT: Final[str] = "Renommer le projet"
@@ -169,6 +170,7 @@ class NewProjectDialog(QDialog):
             ``AlignHCenter``).
         """
         column = QWidget(self)
+        column.setMinimumWidth(_COLUMN_MIN_WIDTH)
         column.setMaximumWidth(_COLUMN_MAX_WIDTH)
         column_layout = QVBoxLayout(column)
         column_layout.setContentsMargins(0, 0, 0, 0)

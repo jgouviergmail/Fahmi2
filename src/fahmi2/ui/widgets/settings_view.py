@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QListWidget,
@@ -16,7 +17,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-_CATEGORY_LIST_WIDTH_PX = 180
+_CATEGORY_LIST_WIDTH_PX = 200
 
 
 class SettingsView(QWidget):
@@ -40,6 +41,11 @@ class SettingsView(QWidget):
         self._list = QListWidget(self)
         self._list.setObjectName("settingsCategoryList")
         self._list.setFixedWidth(_CATEGORY_LIST_WIDTH_PX)
+        # Pas de scroll horizontal sur une nav verticale étroite (évite le
+        # tracé d'un scrollbar inutile en bas du panneau).
+        self._list.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
         self._stack = QStackedWidget(self)
 
         for label, page in categories:

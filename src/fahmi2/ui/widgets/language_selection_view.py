@@ -32,8 +32,8 @@ from PySide6.QtWidgets import (
 from fahmi2.domain.enums import Language
 from fahmi2.domain.languages import language_display_label
 
-_PRODUCED_LABEL = "Produites :"
-_PRIMARY_LABEL = "Principale (originale) :"
+_PRODUCED_LABEL = "Produites"
+_PRIMARY_LABEL = "Principale (originale)"
 
 
 class LanguageSelectionView(QWidget):

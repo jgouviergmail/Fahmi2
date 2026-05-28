@@ -316,13 +316,27 @@ def frenchify_button_box(box: QDialogButtonBox) -> None:
     lieu de « Save », etc.). Les boutons custom (ajoutés explicitement avec
     leur libellé) ne sont pas modifiés.
 
+    Le bouton « accept » (``Save`` / ``Ok`` — rôle ``AcceptRole``) reçoit
+    également ``role="primary"`` pour être affiché en bleu primaire de manière
+    explicite (la propriété ``:default`` de Qt n'est pas toujours initialisée
+    quand le dialogue n'est pas montré, ce qui peut laisser le bouton en
+    style neutre dans les captures ou certains contextes).
+
     Args:
         box: ``QDialogButtonBox`` à franciser.
     """
     for std_button, french_text in _FRENCH_STANDARD_BUTTON_TEXTS.items():
-        button = box.button(std_button)
-        if button is not None:
-            button.setText(french_text)
+        translated = box.button(std_button)
+        if translated is not None:
+            translated.setText(french_text)
+    for accept_candidate in box.buttons():
+        if box.buttonRole(accept_candidate) == QDialogButtonBox.ButtonRole.AcceptRole:
+            accept_candidate.setProperty("role", "primary")
+            style = accept_candidate.style()
+            if style is not None:
+                style.unpolish(accept_candidate)
+                style.polish(accept_candidate)
+            break
 
 
 __all__ = [

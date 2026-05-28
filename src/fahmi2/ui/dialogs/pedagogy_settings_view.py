@@ -62,6 +62,7 @@ from fahmi2.ui._components import (
     field_hint,
     frenchify_button_box,
     page_header,
+    section_label,
     settings_form,
     settings_page,
 )
@@ -97,7 +98,12 @@ _CAT_EXPORT: Final[str] = "Export"
 
 # ---------------------------------------------------------------- libellés
 
-_SEPARATE_CORRECTION_LABEL: Final[str] = "Corrigé dans un document séparé"
+_SEPARATE_CORRECTION_COLUMN_HEADER: Final[str] = "Corrigé séparé"
+_SEPARATE_CORRECTION_TOOLTIP: Final[str] = (
+    "Si coché, le corrigé est généré dans un document distinct du sujet "
+    "(utile pour les examens blancs)."
+)
+_SUPPORT_TYPE_COLUMN_HEADER: Final[str] = "Type de support"
 _REASONING_DEFAULT_LABEL: Final[str] = "Automatique (serveur)"
 _VALIDATION_TITLE: Final[str] = "Réglages incomplets"
 _VALIDATION_MESSAGE: Final[str] = (
@@ -111,8 +117,8 @@ _DIRECTIVES_PLACEHOLDER: Final[str] = (
 # Pages — descriptions affichées sous le titre.
 _SUPPORTS_PAGE_DESC: Final[str] = (
     "Sélectionnez les supports de révision à générer. Pour les supports évaluatifs, "
-    "cochez « Corrigé dans un document séparé » pour générer un sujet sans réponses "
-    "et un corrigé à part."
+    "cochez « Corrigé séparé » pour générer un sujet sans réponses et un corrigé "
+    "dans un document distinct."
 )
 _DIFFICULTY_PAGE_DESC: Final[str] = (
     "Public visé, objectif pédagogique et quantité de contenu — orientent le ton, "
@@ -135,7 +141,7 @@ _AUDIENCE_CARD_TITLE: Final[str] = "Public et objectif"
 _AUDIENCE_CARD_DESC: Final[str] = (
     "À qui les supports sont-ils destinés, et quel niveau d'apprentissage visent-ils ?"
 )
-_DENSITY_CARD_TITLE: Final[str] = "Quantité de contenu"
+_DENSITY_CARD_TITLE: Final[str] = "Densité"
 _DENSITY_CARD_DESC: Final[str] = (
     "Volume des supports générés : compact pour réviser vite, dense pour creuser."
 )
@@ -332,8 +338,12 @@ class PedagogySettingsView(QDialog):
         for support in SupportType:
             self._support_checks[support] = QCheckBox(SUPPORT_LABELS[support], self)
             if support in EVALUATIVE_SUPPORTS:
-                self._separate_checks[support] = QCheckBox(
-                    _SEPARATE_CORRECTION_LABEL, self
+                # Case sans libellé répété : la colonne porte un en-tête unique
+                # « Corrigé séparé » (voir ``_build_supports_page``), avec un
+                # tooltip explicite pour chaque case.
+                self._separate_checks[support] = QCheckBox("", self)
+                self._separate_checks[support].setToolTip(
+                    _SEPARATE_CORRECTION_TOOLTIP
                 )
 
         self._audience_combo = QComboBox(self)
@@ -385,7 +395,13 @@ class PedagogySettingsView(QDialog):
     # --------------------------------------------------------------- pages
 
     def _build_supports_page(self) -> QWidget:
-        """Construit la page « Supports » (grille des types + corrigés séparés)."""
+        """Construit la page « Supports » (grille des types + corrigés séparés).
+
+        La grille a deux colonnes : « Type de support » et « Corrigé séparé »
+        (la 2ᵉ colonne ne contient des cases qu'en face des supports évaluatifs).
+        Les cases de la 2ᵉ colonne portent un libellé vide ; le sens est porté
+        par l'en-tête de colonne unique + un tooltip sur chaque case.
+        """
         page, layout = settings_page(self)
         layout.addWidget(
             page_header(
@@ -394,7 +410,14 @@ class PedagogySettingsView(QDialog):
         )
         card_frame, card_layout = card(page, title=_SUPPORTS_CARD_TITLE)
         grid = QGridLayout()
-        for row, support in enumerate(SupportType):
+        # Ligne 0 : en-têtes de colonne (micro-labels en majuscules, gris).
+        type_header = section_label(card_frame, _SUPPORT_TYPE_COLUMN_HEADER)
+        separate_header = section_label(card_frame, _SEPARATE_CORRECTION_COLUMN_HEADER)
+        separate_header.setToolTip(_SEPARATE_CORRECTION_TOOLTIP)
+        grid.addWidget(type_header, 0, 0)
+        grid.addWidget(separate_header, 0, 1)
+        # Lignes suivantes : un support par ligne.
+        for row, support in enumerate(SupportType, start=1):
             grid.addWidget(self._support_checks[support], row, 0)
             if support in self._separate_checks:
                 grid.addWidget(self._separate_checks[support], row, 1)

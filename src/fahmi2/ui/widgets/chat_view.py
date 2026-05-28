@@ -1,10 +1,15 @@
 """Widget conversationnel de l'onglet Dialogue.
 
-Fil de messages (``QTextBrowser`` HTML), zone de saisie, liste latérale des
+Fil de messages (bulles arrondies, widgets natifs — cf.
+:mod:`fahmi2.ui.widgets._chat_bubble`), zone de saisie, liste latérale des
 conversations et libellé de coût cumulé. Le rendu du message assistant est
 incrémental (deltas du streaming) puis finalisé avec ses citations cliquables.
 Le widget est passif : il **émet** des signaux et **expose** des méthodes pilotées
 par le ``ChatController`` (toute la logique d'état vit dans le ViewModel/contrôleur).
+
+Les helpers :func:`_message_html` et :func:`_citations_html` restent fournis
+pour les tests historiques (rendu HTML des messages), mais le fil utilise
+désormais les bulles QPainter.
 """
 
 from __future__ import annotations
@@ -12,7 +17,6 @@ from __future__ import annotations
 import html
 
 from PySide6.QtCore import QPoint, Qt, Signal
-from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -33,6 +37,7 @@ from fahmi2.domain.chat import ChatMessage, Citation
 from fahmi2.domain.enums import ChatTabState
 from fahmi2.infra.export.markdown_pdf import render_markdown_fragment
 from fahmi2.ui._buttons import BUTTON_ROLE_PRIMARY, make_role_button
+from fahmi2.ui.widgets._chat_bubble import ChatThread
 
 _NEW_CONVERSATION_LABEL = "＋ Nouvelle conversation"
 _LANGUAGE_COMBO_TOOLTIP = (
@@ -98,8 +103,6 @@ class ChatView(QWidget):
             parent: Parent Qt optionnel.
         """
         super().__init__(parent)
-        self._finalized_html: list[str] = []
-        self._pending_html: str | None = None
 
         root = QHBoxLayout(self)
 
@@ -126,12 +129,10 @@ class ChatView(QWidget):
         self._banner = QLabel(_NO_CORPUS_BANNER, self)
         self._banner.setWordWrap(True)
         self._banner.setVisible(False)
-        self._thread = QTextBrowser(self)
-        self._thread.setOpenLinks(False)
-        self._thread.anchorClicked.connect(
-            lambda url: self.citation_clicked.emit(url.toString())
-        )
-        self._thread.document().setDefaultStyleSheet(_THREAD_STYLESHEET)
+        # Fil de bulles arrondies (widgets natifs peints via QPainter, plus de
+        # QTextBrowser : QTextDocument ne supporte pas border-radius).
+        self._thread = ChatThread(self)
+        self._thread.citation_clicked.connect(self.citation_clicked.emit)
         self._cost_label = QLabel(f"{_COST_PREFIX} · $0.0000", self)
         self._input = QLineEdit(self)
         self._input.setPlaceholderText(_INPUT_PLACEHOLDER)
@@ -198,9 +199,7 @@ class ChatView(QWidget):
         Args:
             messages: Messages à afficher.
         """
-        self._finalized_html = [_message_html(m) for m in messages]
-        self._pending_html = None
-        self._render()
+        self._thread.show_conversation(messages)
 
     def add_user_message(self, text: str) -> None:
         """Ajoute une bulle utilisateur.
@@ -208,15 +207,11 @@ class ChatView(QWidget):
         Args:
             text: Texte de la question.
         """
-        self._finalized_html.append(
-            _message_html(ChatMessage(role="user", content=text))
-        )
-        self._render()
+        self._thread.add_user_message(text)
 
     def start_assistant_bubble(self) -> None:
         """Initialise une bulle assistant vide (début du streaming)."""
-        self._pending_html = ""
-        self._render()
+        self._thread.start_assistant_bubble()
 
     def append_delta(self, text: str) -> None:
         """Ajoute un fragment de réponse à la bulle assistant en cours.
@@ -224,8 +219,7 @@ class ChatView(QWidget):
         Args:
             text: Incrément de texte.
         """
-        self._pending_html = (self._pending_html or "") + html.escape(text)
-        self._render()
+        self._thread.append_delta(text)
 
     def finalize_message(self, message: ChatMessage) -> None:
         """Remplace la bulle en cours par le message finalisé (citations + sources).
@@ -233,9 +227,7 @@ class ChatView(QWidget):
         Args:
             message: Message assistant complet.
         """
-        self._pending_html = None
-        self._finalized_html.append(_message_html(message))
-        self._render()
+        self._thread.finalize_message(message)
 
     def set_state(self, state: ChatTabState) -> None:
         """Active/désactive la saisie et le bandeau selon l'état.
@@ -290,16 +282,6 @@ class ChatView(QWidget):
         chosen = menu.exec(self._conversations.mapToGlobal(pos))
         if chosen is delete_action:
             self.conversation_delete_requested.emit(conversation_id)
-
-    def _render(self) -> None:
-        blocks = list(self._finalized_html)
-        if self._pending_html is not None:
-            blocks.append(
-                _bubble_html(_ROLE_LABEL["assistant"], self._pending_html or "…")
-            )
-        self._thread.setHtml("".join(blocks))
-        self._thread.moveCursor(QTextCursor.MoveOperation.End)
-
 
 def _bubble_html(role_label: str, body_html: str) -> str:
     """Rend une bulle de chat assistant (alignée à gauche, encadrée discrète).

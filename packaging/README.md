@@ -149,6 +149,43 @@ sont **déjà câblées** dans `packaging/fahmi2.spec` (gitignored ; build v1.0.
   (`_strip_unrenderable_for_pdf`), et la **prose chinoise est pré-coupée** par `<br/>`
   (ReportLab ne coupe qu'aux espaces, absents en CJK ; `_prewrap_cjk_runs`).
 
+### Traductions i18n (.qm)
+
+L'UI est traduisible via la pile native Qt (`QTranslator` + `.ts` / `.qm` ;
+cf. `src/fahmi2/i18n/`). La langue source est le **français** — les chaînes
+en code sont en FR. Les autres langues sont chargées au démarrage depuis des
+fichiers `.qm` binaires (compilés depuis les `.ts` éditables) bundlés avec
+l'application.
+
+- **Au build** : régénérer les `.qm` (avant ou après `pyinstaller`) :
+  ```powershell
+  .\.venv\Scripts\python.exe scripts\i18n_compile.py
+  ```
+  Le dossier `src/fahmi2/i18n/compiled/` est **`.gitignore`** (artefact
+  binaire dérivé) — il **doit** être recompilé à chaque build (le script
+  `build.ps1` peut être étendu pour le faire automatiquement).
+- **Dans `packaging/fahmi2.spec` (gitignored)** — ajouter dans `datas` :
+  ```python
+  ("src/fahmi2/i18n/compiled/*.qm", "fahmi2/i18n/compiled"),
+  ```
+  Sans cette ligne, **l'app packagée n'embarquera pas les traductions** et
+  restera en français quelle que soit la préférence utilisateur (silencieux :
+  `install_translator` retombe sur la langue source si le `.qm` est absent).
+- **Au runtime** : `fahmi2.i18n.bundled_translations_dir()` détecte le mode
+  packagé (`sys.frozen` + `sys._MEIPASS`) et résout
+  `<bundle_root>/fahmi2/i18n/compiled/`. En dev, résolu via `__file__` à
+  côté du paquet.
+
+**Ajouter une langue** :
+1. Ajouter la valeur à `AppLanguage` (`src/fahmi2/i18n/languages.py`) + son
+   libellé natif dans `LANGUAGE_LABELS`.
+2. `.\.venv\Scripts\python.exe scripts\i18n_extract.py` — génère
+   `fahmi2_<code>.ts` (langue cible) ou complète l'existant.
+3. Traduire les `<translation type="unfinished"></translation>` dans le
+   `.ts` (éditeur de texte ou Qt Linguist).
+4. `.\.venv\Scripts\python.exe scripts\i18n_compile.py` — produit le `.qm`.
+5. Rebuild PyInstaller : le `.qm` est embarqué via `datas`.
+
 ### Dépendances ingestion documents (pypdf / python-docx)
 
 L'ingestion des **documents texte** (`infra/ingestion/text_extractor.py`) ajoute :

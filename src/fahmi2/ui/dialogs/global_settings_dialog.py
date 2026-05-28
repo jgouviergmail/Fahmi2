@@ -100,11 +100,12 @@ _LANGUAGE_TOOLTIP: Final[str] = (
 _LANGUAGE_HINT: Final[str] = (
     "Le changement de langue s'applique au prochain démarrage de Fahmi2."
 )
-_LANGUAGE_RESTART_TITLE: Final[str] = "Redémarrage requis"
-_LANGUAGE_RESTART_MESSAGE: Final[str] = (
-    "La langue de l'interface a été enregistrée. "
-    "Elle sera appliquée au prochain démarrage de Fahmi2."
-)
+# Les libellés du QMessageBox de confirmation de redémarrage sont rendus
+# par ``self.tr(...)`` à l'usage dans :py:meth:`GlobalSettingsDialog._on_accept`
+# — ils doivent afficher la **nouvelle** langue sélectionnée (un utilisateur
+# qui passe à English doit voir « Restart required » et non « Redémarrage
+# requis »). Les définir comme constantes de module les figerait dans la
+# langue active au démarrage.
 
 
 class GlobalSettingsDialog(QDialog):
@@ -300,9 +301,15 @@ class GlobalSettingsDialog(QDialog):
             except ValueError:
                 language = self._language_controller.language
             if self._language_controller.set_language(language):
+                # ``self.tr()`` rend le message dans la langue **actuellement
+                # active** (avant redémarrage) — l'utilisateur comprend la
+                # confirmation, et lit la nouvelle langue après relance.
                 QMessageBox.information(
                     self,
-                    _LANGUAGE_RESTART_TITLE,
-                    _LANGUAGE_RESTART_MESSAGE,
+                    self.tr("Redémarrage requis"),
+                    self.tr(
+                        "La langue de l'interface a été enregistrée. "
+                        "Elle sera appliquée au prochain démarrage de Fahmi2."
+                    ),
                 )
         self.accept()

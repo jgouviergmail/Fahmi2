@@ -2,10 +2,24 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="en" sourcelanguage="fr">
 <context>
+    <name>GlobalSettingsDialog</name>
+    <message>
+        <location filename="../../ui/dialogs/global_settings_dialog.py" line="309"/>
+        <source>Redémarrage requis</source>
+        <translation>Restart required</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/global_settings_dialog.py" line="311"/>
+        <source>La langue de l&apos;interface a été enregistrée. Elle sera appliquée au prochain démarrage de Fahmi2.</source>
+        <translation>The interface language has been saved. It will take effect the next time Fahmi2 starts.</translation>
+    </message>
+</context>
+<context>
     <name>MainWindow</name>
     <message>
         <location filename="../../ui/main_window.py" line="172"/>
         <source>Fichier</source>
+        <extracomment>Nom de produit (non traduit — marque). Largeur initiale de la sidebar projets (px). Suffisamment large pour accueillir des noms de projet de taille moyenne sans tronquer le sous-libellé « Génération ... · Supports ... ». Reste redimensionnable via le QSplitter (l&apos;utilisateur peut élargir ou réduire à sa convenance). Largeur minimale absolue de la sidebar (empêche de la réduire à rien).</extracomment>
         <translation>File</translation>
     </message>
     <message>

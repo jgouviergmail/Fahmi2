@@ -8,14 +8,16 @@
 > and the glossary **export** to **Markdown / PDF / HTML / Word (`.docx`)** —
 > **Chinese** and **Arabic** (right-to-left) render correctly. Then make use of
 > this corpus effortlessly: **revision aids** (flashcards, MCQs, summary sheets,
-> mock exam…, **Anki / Markdown / PDF / HTML / Word** exports) and **Dialogue**
-> (chat anchored on the course, **cited** answers **streamed** live). All in **a
-> few minutes** with **no manual intervention**.
+> mock exam…, **Anki / Markdown / PDF / HTML / Word** exports), **Dialogue**
+> (chat anchored on the course, **cited** answers **streamed** live), and
+> **Visualizations** (two self-contained interactive HTML pages — an interactive
+> **knowledge map** and a **generated-diagram gallery**). All in **a few
+> minutes** with **no manual intervention**.
 
 Windows desktop application, single-user, **double-click install** (no system
 dependency to install — **ffmpeg and yt-dlp are bundled**). The interface is
 organised around **feature tabs** — **Generation** · **Revision materials** ·
-**Dialogue**. Generation relies on an 8-phase pipeline (polymorphic ingestion —
+**Dialogue** · **Visualizations**. Generation relies on an 8-phase pipeline (polymorphic ingestion —
 Whisper transcription or text extraction — followed by 7 DeepSeek v4 LLM
 phases), fully configurable from the graphical interface.
 
@@ -63,6 +65,17 @@ and takes effect at the next launch.
   in that language, with the cited glossary fully localised. Multiple
   conversations **persisted and deletable**; **exhaustive cumulative cost**
   (answer + embeddings + rephrasing).
+- **Visualizations (standalone interactive HTML)**: two **fully self-contained**
+  pages produced from a generated course — an interactive **knowledge map**
+  (a typed graph of concepts, glossary terms, ideas and examples with their
+  relations; reorganises from **network to tree on click**, with embedded
+  source excerpts) and a **gallery of generated diagrams** (flowcharts,
+  timelines, comparisons, hierarchies, cycles, decision trees). Rendered with
+  **vendored Cytoscape.js** inlined offline — **no CDN, works without a network
+  connection**. Produced for each generated **Latin-script** language
+  (French, English, German, Spanish, Italian); Chinese and Arabic are not
+  supported for this feature. Density slider, selectable diagram types, and a
+  **pre-run cost estimate** + budget cap.
 - 4 rendering styles: casual / standard / professional / academic + free
   directives.
 - **Navigable consolidated document**: hierarchically numbered headings (1,

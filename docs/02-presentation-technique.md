@@ -486,6 +486,52 @@ Configurable **fidelity** (`chat_strict`/`chat_augmented` prompts);
 **lexical** (offline) or **semantic** (OpenAI embeddings) retrieval,
 `AUTO` strategy.
 
+### 2.10 Visualizations feature (standalone interactive HTML)
+
+Cross-cutting (engine `visuals/` + HTML renderers + UI): a 4th tab
+(`FeatureId.VISUALS`) that turns a generated course into two fully
+self-contained interactive HTML pages. **GraphRAG-lite**, modelled after the
+Pedagogy feature (lightweight orchestrator, no `PipelineEngine`).
+
+- `core/corpus/structure.py` — **shared** consolidated-structure parser
+  (`parse_chapters` / `parse_sections`); `parse_sections` exposes a
+  **language-invariant** `section_path` from the numeric heading prefix
+  (reused by Pedagogy, Dialogue and Visualizations).
+- `visuals/` (engine) — `sources.py` (consolidated doc → per-section
+  `TextUnit`, fragmented past `MAX_UNIT_CHARS`; `available_visuals_languages`
+  restricts to **Latin** `VISUALS_LANGUAGES`), `_constants.py` (all magic
+  numbers: gleaning rounds, per-density node/diagram caps, entity-merge cosine
+  threshold, Louvain seed, excerpt length), `_excerpts.py` (`SectionIndex` for
+  embedded source excerpts), `extractors/` (`graph_extractor` [glossary
+  backbone + LLM semantic layer + **gleaning**], `entity_resolver` [embedding
+  cosine merge + glossary spine + **AUTO** label-normalisation fallback],
+  `community_reporter`, `idea_chains` [map-reduce over reports],
+  `diagram_author` [typed diagrams], `label_translator`), `community.py`
+  (`detect_communities`: networkx Louvain with fixed seed → deterministic),
+  `events.py`, `manifest.py` (per-language freshness).
+- `infra/export/` — `knowledge_map_html.py` / `diagram_board_html.py`
+  (deterministic typed-JSON → self-contained HTML); `_visuals_assets.py` reads
+  and **inlines** the vendored **Cytoscape.js** core + extensions from
+  `_assets/visuals/` (**no CDN**); `_assets/visuals/*` (vendored MIT libs +
+  CSS + JS + HTML templates). `storage/feature_run_state.py` — shared
+  `run_state.json` model (pedagogy + visuals).
+- `app/` — `VisualsOrchestrator` (extract structure **once** in a structure
+  language → per-Latin-language localise + render, freshness manifest +
+  `run_state`, best-effort cost cap, per-language `map_bounded`),
+  `VisualsCostEstimator` (pre-run estimate, reuses `_cost_common`).
+- `ui/` — `VisualsTab`, `VisualsController` (`QThread` worker +
+  `VisualsQtEventBus`), `VisualsSettingsView` (deliverables / content / AI
+  generation), `VisualsProgressView` (status grid + tiles),
+  `VisualsProgressViewModel` / `VisualsStateViewModel` (Qt-free),
+  `visuals_labels.py`. The sidebar gains a **third** status (Visualizations).
+- Prompts: 5 `visuals_*` templates (graph extraction, community report,
+  idea-chains, diagram authoring, label translation) editable from the
+  PromptsEditor.
+
+**Multilingual = structure extracted once + labels localised** (Latin-script
+languages only: fr/en/de/es/it; Chinese & Arabic deliberately excluded).
+**Zero rendering DSL** (no Mermaid): the LLM emits typed JSON only.
+
 ## 3. Main Run flow
 
 ```
@@ -604,6 +650,13 @@ loss):
     ├── {support}.json                ← Structured artefact (typed items)
     ├── {support}.md                  ← Markdown rendering (question)
     └── {support}.corrige.md          ← Separate answer key (evaluative, if requested)
+
+<location>/visuals/                    ← Visualizations
+├── manifest.json                     ← Per-language freshness (settings hash + structure/glossary/content mtime)
+├── run_state.json                    ← Last execution status + cost (shared feature_run_state)
+└── output/
+    ├── knowledge_map.{lang}.html      ← Standalone interactive knowledge map (Latin langs only)
+    └── diagrams.{lang}.html           ← Standalone generated-diagram gallery
 ```
 
 > Revision materials are produced by `SupportsOrchestrator`

@@ -213,6 +213,31 @@ clickable) and **streamed** live.
 - Settings (fidelity, retrieval, LLM/embedding models) and **editable
   prompts** like the rest.
 
+### 4.8 Visualizations (standalone interactive HTML)
+
+A fourth tab, **Visualizations**, turns a generated course into two
+**fully self-contained** interactive HTML pages (no internet connection, no
+external dependency — everything is inlined). Like the Revision materials,
+it is **on-demand** and configurable.
+
+- **Knowledge map**: an interactive graph of the course's **concepts**,
+  **glossary terms**, **ideas** and **examples**, with their **typed
+  relations** (leads to, prerequisite, illustrates, contrasts with, part of,
+  related). The graph reorganises from a **network** view to a **tree** when
+  you click a node (and back), groups nodes into **themes**, and shows, for
+  each node, its definition and an **excerpt of the source** it comes from.
+- **Diagram gallery**: **generated** diagrams (not AI images) — flowcharts,
+  timelines, comparisons, hierarchies, cycles, decision trees — chosen by the
+  AI to fit each part of the course.
+- **Latin-script languages only**: a page is produced for each generated
+  language among **French, English, German, Spanish, Italian**. Chinese and
+  Arabic are **not** supported for this feature (to keep the interactive
+  rendering uncompromised).
+- **Settings**: which deliverables to produce, content **density**, allowed
+  **diagram types**, model / reasoning, **budget cap** and parallelism.
+  A **pre-run cost estimate** is available, and the **prompts are editable**
+  like the rest.
+
 ## 5. Quality promises
 
 ### 5.1 Fidelity to the spoken content
@@ -294,6 +319,9 @@ clickable) and **streamed** live.
 - **Dialogue**: chat anchored on the corpus (citations + streaming),
   lexical (offline) or semantic (OpenAI embeddings; recommended for
   Chinese) retrieval.
+- **Visualizations**: two standalone interactive HTML pages (knowledge map +
+  generated-diagram gallery), **Latin-script languages only**
+  (fr/en/de/es/it).
 - **UI internationalisation**: native Qt stack (FR source + EN), language
   selectable from Global settings, persisted in `ui_prefs.json`.
 - Platform: **Windows 11** (10 minimum).

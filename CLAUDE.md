@@ -16,9 +16,12 @@ English, German, Spanish, Italian, Chinese, Arabic (`Language`, 7 values).
 The app is organised in **feature tabs** (Generation; Revision materials —
 8 types of revision materials with Anki/Markdown/PDF/HTML/DOCX exports;
 **Dialogue** — chat anchored on the corpus, cited answers + streaming,
-lexical/semantic retrieval): a `Project` only carries its name + location,
-the business settings living per feature (`GenerationSettings`,
-`PedagogySettings`, `ChatSettings`).
+lexical/semantic retrieval; **Visualizations** — two fully self-contained
+interactive HTML deliverables, a knowledge map [typed concept/term/idea/example
+graph] and a generated-diagram gallery, **Latin-script languages only**
+fr/en/de/es/it): a `Project` only carries its name + location, the business
+settings living per feature (`GenerationSettings`, `PedagogySettings`,
+`ChatSettings`, `VisualsSettings`).
 
 **Interface language**: French (source) or English. Picked from **Edit →
 Global settings → Language**, persisted in `ui_prefs.json`; effective at
@@ -180,6 +183,26 @@ Dependencies flow downwards (UI → app → pipeline/infra → domain/core).
   words) → prefer the **semantic** mode for Chinese (the `AUTO` default
   routes there as soon as an OpenAI key is present). Arabic (words
   separated by spaces) is not affected.
+- `visuals/` — **Visualizations** engine (GraphRAG-lite, modelled after
+  `pedagogy/` — lightweight orchestrator, no SQLite/STT): `sources`
+  (`load_text_units`: consolidated doc → per-section `TextUnit` via
+  `core/corpus.parse_sections`, fragmented past `MAX_UNIT_CHARS`;
+  `available_visuals_languages` restricts to **Latin** `VISUALS_LANGUAGES`;
+  `structure_language` / `outputs_present`), `_constants` (all magic numbers:
+  gleaning rounds, per-density node/diagram caps, entity-merge cosine
+  threshold, Louvain seed…), `_excerpts` (`SectionIndex` for embedded source
+  excerpts), `extractors/` (`graph_extractor` [glossary backbone + LLM
+  semantic layer + **gleaning** recall pass], `entity_resolver` [embedding
+  cosine merge + glossary spine + **AUTO** label-normalisation fallback when
+  no OpenAI key], `community_reporter`, `idea_chains` [map-reduce over
+  community reports], `diagram_author` [typed diagram payloads], `label_translator`
+  [localise graph/board labels — structure extracted **once**, labels
+  translated per language]), `community` (`detect_communities`: networkx
+  Louvain with fixed seed → deterministic; `assemble_graph`), `events`,
+  `manifest` (per-language freshness: settings hash + structure/glossary/content
+  mtimes). The **structure is extracted once** in a structure language, then
+  each Latin language is a label-translation + render pass. **Zero rendering
+  DSL** (no Mermaid): the LLM emits typed JSON only.
 - `infra/` — adapters (ports/adapters): `stt/` (FasterWhisper local +
   OpenAI cloud + fakes; **per-provider configurable model**
   `LocalSttModel`/`CloudSttModel` + `_pricing` USD/min; cloud `gpt-4o-*`
@@ -199,15 +222,22 @@ Dependencies flow downwards (UI → app → pipeline/infra → domain/core).
   yt-dlp binary) → delegates to `MediaIngestor`]),
   `anki/genanki_exporter` (`.apkg`), `export/markdown_pdf` (Markdown +
   HTML + PDF) + `export/markdown_docx` (DOCX via htmldocx, reuses
-  `render_markdown_body`), `storage/sqlite_state` (WAL) + `fs_artifacts`
-  (atomic writes), `secrets/` (Windows DPAPI), `prompts/loader` +
+  `render_markdown_body`), `export/knowledge_map_html` + `export/diagram_board_html`
+  (**Visualizations** renderers: deterministic typed-JSON → self-contained HTML;
+  `_visuals_assets` reads + inlines the vendored Cytoscape libs from
+  `_assets/visuals/`, **no CDN**), `storage/sqlite_state` (WAL) + `fs_artifacts`
+  (atomic writes) + `feature_run_state` (shared pedagogy/visuals `run_state.json`),
+  `secrets/` (Windows DPAPI), `prompts/loader` +
   `defaults/*.j2` (8 phases + 3 thematic `phase_5_*` + 8 `pedagogy_*` +
-  3 `chat_*`).
+  3 `chat_*` + 5 `visuals_*`).
 - `app/` — use-cases: `ProjectService` (+ `get_last_completed_run`;
   deleting a project also wipes its **workspace folder** on disk,
   best-effort, leaving the input folder and the global database alone),
-  `RunOrchestrator`, `SupportsOrchestrator`, `CostEstimator`,
-  `PedagogyCostEstimator`, `pedagogy_export` (Anki/MD/PDF/HTML/DOCX) +
+  `RunOrchestrator`, `SupportsOrchestrator`, `VisualsOrchestrator` (Visualizations:
+  extract structure once → per-Latin-language localise + render, freshness
+  manifest + `run_state`, best-effort cost cap, per-language parallelism),
+  `CostEstimator`, `PedagogyCostEstimator`, `VisualsCostEstimator`,
+  `pedagogy_export` (Anki/MD/PDF/HTML/DOCX) +
   `generation_export` (consolidated + glossary MD/PDF/HTML/DOCX) on the
   shared `document_export` core, `_cost_common`, `PromptsService`,
   `SecretsService`, `input_sources` (`build_input_sources`: video+audio
@@ -218,11 +248,14 @@ Dependencies flow downwards (UI → app → pipeline/infra → domain/core).
   from disk — `glossary_master.json` — like the pipeline; parsing/rendering
   in `domain/glossary`, no dedicated service.)
 - `ui/` — PySide6: `features/` (tab abstraction: `FeatureId`, `FeatureTab`,
-  `FeatureRegistry`, `GenerationTab`, real `PedagogyTab`), `viewmodels/`
-  (logic testable **without Qt**, including `PedagogyProgressViewModel` /
-  `PedagogyStateViewModel`), `widgets/` (including reusable master-detail
-  `SettingsView`, `PedagogyProgressView`), `dialogs/` (including
-  `GenerationSettingsView`, `PedagogySettingsView`), `theme/` (Light
+  `FeatureRegistry`, `GenerationTab`, real `PedagogyTab`, `VisualsTab`),
+  `viewmodels/` (logic testable **without Qt**, including
+  `PedagogyProgressViewModel` / `PedagogyStateViewModel` /
+  `VisualsProgressViewModel` / `VisualsStateViewModel`), `widgets/` (including
+  reusable master-detail `SettingsView`, `PedagogyProgressView`,
+  `VisualsProgressView`), `dialogs/` (including
+  `GenerationSettingsView`, `PedagogySettingsView`, `VisualsSettingsView`),
+  `theme/` (Light
   Fluent design system **+ mirrored dark mode**, tokens centralised in
   `_tokens.py` — `ThemeMode { SYSTEM, LIGHT, DARK }`, palettes
   `LIGHT_TOKENS`/`DARK_TOKENS`, shadows for `QGraphicsDropShadowEffect`;
@@ -236,9 +269,11 @@ Dependencies flow downwards (UI → app → pipeline/infra → domain/core).
   "StandardButtons", ...)`; `reapply_card_shadows` iterates over **live
   top-level widgets** rather than `QApplication.allWidgets()` which would
   include zombie widgets), `pedagogy_labels` (UI-translated variants of
-  the FR-frozen `pedagogy/labels`), `main_window` (sidebar +
-  `QTabWidget`), `generation_controller`, `pedagogy_controller`,
-  `qt_event_bus` (`QtEventBus` + `PedagogyQtEventBus`), `app_main` (entry
+  the FR-frozen `pedagogy/labels`), `visuals_labels` (deliverables / diagram
+  types / statuses), `main_window` (sidebar + `QTabWidget`),
+  `generation_controller`, `pedagogy_controller`, `visuals_controller`
+  (QThread worker + `VisualsQtEventBus` bridge), `qt_event_bus`
+  (`QtEventBus` + `PedagogyQtEventBus` + `VisualsQtEventBus`), `app_main` (entry
   point + full DI — instantiates `ThemeController` which reads the
   appearance preference in `%APPDATA%/Fahmi2/ui_prefs.json` and applies
   the theme, and `LanguageController` which reads/persists the interface
@@ -567,6 +602,40 @@ The barriers remain the batch phases 2 and 5 (the engine stays
   CSS value from it; font sizes and `@page` margin **centralised**
   (single source for the CSS template ↔ CJK pre-formatting width
   computation). **All system Windows fonts — nothing to bundle.**
+- **Visualizations (standalone HTML deliverables)**: an **on-demand feature**
+  (Pedagogy model) producing two **fully self-contained** interactive HTML
+  pages per Latin language — a **knowledge map** (typed graph of
+  concept/glossary-term/idea/example nodes with typed relations) and a
+  **generated-diagram gallery** (flowchart/timeline/comparison/hierarchy/
+  cycle/decision-tree). **GraphRAG-lite pipeline** (`visuals/`): deterministic
+  skeleton (glossary as backbone) + LLM semantic layer + **gleaning** recall
+  pass; **entity resolution** via embedding cosine merge (OpenAI) with a
+  glossary spine and an **AUTO label-normalisation fallback** when no OpenAI
+  key; **networkx Louvain** community detection (**fixed seed** →
+  deterministic) feeding dual-use community reports; **idea-chains** as a
+  map-reduce over those reports. **Multilingual = structure extracted once +
+  labels localised**: the graph/board is built in a single *structure
+  language*, then each Latin language is a `label_translator` pass + a render
+  — far cheaper than re-extracting per language. **Latin-script only**
+  (`VISUALS_LANGUAGES` = fr/en/de/es/it): Chinese & Arabic are **deliberately
+  excluded** (no down-levelling the interactive rendering for RTL/CJK
+  constraints). **Zero rendering DSL** (no Mermaid): the LLM emits **typed
+  JSON**; `infra/export/knowledge_map_html` / `diagram_board_html` render it
+  deterministically to HTML, **inlining** the vendored **Cytoscape.js** core +
+  extensions (`fcose` network ↔ `dagre` tree on click, `expand-collapse`,
+  `concentric` cycle) from `infra/export/_assets/visuals/` — **no CDN, no
+  network at view time**. **Embedded source excerpts** (`_excerpts.SectionIndex`,
+  bounded by `EXCERPT_MAX_CHARS`) make each page self-explanatory. Inputs read
+  **from disk** like Pedagogy (consolidated doc parsed by
+  `core/corpus.parse_sections` into language-invariant `section_path`; glossary
+  pre-localised). **Freshness**: `visuals/manifest.json` (per-language settings
+  hash + structure/glossary/content mtimes) → coarse resume of an interrupted
+  set, full regenerate of a complete one; `visuals/run_state.json` (shared
+  `feature_run_state`) drives the sidebar pastille + tab banner. **Cost cap**
+  best-effort (`VisualsCostEstimator` for the pre-run estimate). All magic
+  numbers (gleaning rounds, per-density node/diagram caps, cosine threshold,
+  Louvain seed, excerpt length) centralised in `visuals/_constants.py`. Spec:
+  `docs/superpowers/specs/2026-05-29-visualisations-html-autonomes-design.md`.
 - **Errors → UI**: an exception raised by a handler **must** be a
   `Fahmi2Error` (code + user_message + technical_details). The engine
   converts it to an `ErrorInfo`, propagates it in `PhaseFinished.error`,

@@ -5,6 +5,48 @@ All notable changes to the Fahmi2 project.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added — Visualizations: two standalone interactive HTML deliverables
+
+- New **Visualizations** feature tab (on-demand, Pedagogy model): produces two
+  **fully self-contained** HTML pages per Latin-script language — an interactive
+  **knowledge map** (typed graph of concept / glossary-term / idea / example
+  nodes with typed relations; reorganises from **network to tree on click**,
+  with embedded source excerpts) and a **gallery of generated diagrams**
+  (flowchart, timeline, comparison, hierarchy, cycle, decision tree).
+- **GraphRAG-lite pipeline** (`visuals/`): deterministic glossary backbone + LLM
+  semantic layer + **gleaning** recall pass; **entity resolution** via OpenAI
+  embedding cosine merge with a glossary spine and an **AUTO label-normalisation
+  fallback** when no OpenAI key; **networkx Louvain** community detection with a
+  **fixed seed** (deterministic); **idea-chains** via map-reduce over community
+  reports.
+- **Multilingual by design**: the structure (graph + diagrams) is extracted
+  **once** in a structure language, then **labels are translated** per language
+  — far cheaper than re-extracting. **Latin-script languages only**
+  (fr/en/de/es/it); Chinese and Arabic are **deliberately excluded** (no
+  down-levelling of the interactive rendering for RTL/CJK).
+- **Zero rendering DSL** (no Mermaid): the LLM emits **typed JSON**; deterministic
+  Python → HTML renderers (`infra/export/knowledge_map_html` /
+  `diagram_board_html`) **inline the vendored Cytoscape.js** core + extensions
+  (`fcose` / `dagre` / `expand-collapse`) from `infra/export/_assets/visuals/` —
+  **no CDN, no network at view time**.
+- **Lightweight orchestrator** (`app/visuals_orchestrator`, no `PipelineEngine`):
+  per-language parallelism (`map_bounded`), freshness `manifest.json`
+  (settings hash + structure/glossary/content mtimes → coarse resume),
+  `run_state.json` (shared `feature_run_state`), best-effort cost cap +
+  `VisualsCostEstimator` pre-run estimate.
+- **UI**: `VisualsTab` + `VisualsController` (QThread worker + `VisualsQtEventBus`),
+  `VisualsSettingsView` (deliverables / content / AI generation),
+  `VisualsProgressView` (status grid + tiles), state/progress viewmodels
+  (testable without Qt). Sidebar gains a **third status** (Visualizations) in
+  the aggregated pastille + subtitle + tooltip. 5 `visuals_*` prompts editable
+  from the PromptsEditor.
+- **i18n**: 96 new strings translated to English (`.ts`/`.qm`), guard tests
+  extended (≥ 1 string per new context).
+- **Packaging**: `.spec` bundles the vendored `_assets/visuals/*` and
+  `collect_submodules('networkx')`.
+
 ## [1.5.2] — 2026-05-29
 
 ### Fixed — Critical: `Project.chat` was reset on every Run

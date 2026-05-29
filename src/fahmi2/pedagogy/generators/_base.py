@@ -24,15 +24,11 @@ from typing import Any, Generic, TypeVar
 
 from fahmi2.core.corpus import Chapter
 from fahmi2.core.errors.error_info import ErrorInfo
-from fahmi2.core.errors.exceptions import Fahmi2Error
-from fahmi2.core.retry.classification import default_classify
-from fahmi2.core.retry.policy import RetryDecision
-from fahmi2.core.retry.runner import with_retry
 from fahmi2.domain.enums import Language, SupportType
 from fahmi2.domain.glossary import Term
 from fahmi2.domain.supports import SupportArtifact, SupportItem
 from fahmi2.infra.llm.interface import JSON_OBJECT_RESPONSE_FORMAT, LLMResponse
-from fahmi2.infra.llm.invocation import invoke_llm_chat, parse_llm_json
+from fahmi2.infra.llm.invocation import invoke_llm_chat_with_retry, parse_llm_json
 
 # Helpers de parsing JSON typé — source unique dans ``infra/llm/json_schema`` ;
 # **ré-exportés** ici (cf. ``__all__``) pour les générateurs concrets.
@@ -106,36 +102,29 @@ def invoke_support_llm(
     Raises:
         Fahmi2Error: La dernière erreur si toutes les tentatives échouent.
     """
-    attempts = {"n": 0}
 
-    def _once() -> LLMResponse:
-        attempts["n"] += 1
-        try:
-            return invoke_llm_chat(
-                ctx.llm_provider,
-                model=str(ctx.pedagogy.llm_model),
-                config=ctx.pedagogy.llm_config,
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                response_format=response_format,
+    def _on_retry(attempt: int, delay_seconds: float, error: ErrorInfo) -> None:
+        ctx.event_bus.publish(
+            SupportRetryAttempt(
+                timestamp=_now(),
+                support_type=support_type,
+                language=language,
+                attempt=attempt,
+                delay_seconds=delay_seconds,
+                error=error,
             )
-        except Fahmi2Error as exc:
-            if default_classify(exc) is RetryDecision.RETRY:
-                ctx.event_bus.publish(
-                    SupportRetryAttempt(
-                        timestamp=_now(),
-                        support_type=support_type,
-                        language=language,
-                        attempt=attempts["n"],
-                        delay_seconds=ctx.retry_policy.compute_delay(
-                            attempt=attempts["n"]
-                        ),
-                        error=ErrorInfo.from_exception(exc),
-                    )
-                )
-            raise
+        )
 
-    return with_retry(_once, policy=ctx.retry_policy, classify=default_classify)
+    return invoke_llm_chat_with_retry(
+        ctx.llm_provider,
+        model=str(ctx.pedagogy.llm_model),
+        config=ctx.pedagogy.llm_config,
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        retry_policy=ctx.retry_policy,
+        on_retry=_on_retry,
+        response_format=response_format,
+    )
 
 
 class _PerChapterLlmGenerator(SupportGenerator, Generic[_ItemT]):

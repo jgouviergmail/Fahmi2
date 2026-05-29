@@ -13,14 +13,11 @@ from datetime import UTC, datetime
 
 from fahmi2.core.concurrency.pause_token import PauseToken
 from fahmi2.core.errors.error_info import ErrorInfo
-from fahmi2.core.errors.exceptions import Fahmi2Error
-from fahmi2.core.retry.classification import default_classify
-from fahmi2.core.retry.policy import RetryDecision, RetryPolicy
-from fahmi2.core.retry.runner import with_retry
+from fahmi2.core.retry.policy import RetryPolicy
 from fahmi2.domain.enums import Language
 from fahmi2.domain.visuals import VisualsSettings
 from fahmi2.infra.llm.interface import LLMProvider, LLMResponse
-from fahmi2.infra.llm.invocation import invoke_llm_chat
+from fahmi2.infra.llm.invocation import invoke_llm_chat_with_retry
 from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.pipeline.event_bus import EventBus
 from fahmi2.visuals.events import VisualsEvent, VisualsRetryAttempt
@@ -82,33 +79,26 @@ def invoke_visuals_llm(
     Raises:
         Fahmi2Error: La dernière erreur si toutes les tentatives échouent.
     """
-    attempts = {"n": 0}
 
-    def _once() -> LLMResponse:
-        attempts["n"] += 1
-        try:
-            return invoke_llm_chat(
-                ctx.llm_provider,
-                model=str(ctx.settings.llm_model),
-                config=ctx.settings.llm_config,
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                response_format=response_format,
+    def _on_retry(attempt: int, delay_seconds: float, error: ErrorInfo) -> None:
+        ctx.event_bus.publish(
+            VisualsRetryAttempt(
+                timestamp=_now(),
+                stage=stage,
+                language=language,
+                attempt=attempt,
+                delay_seconds=delay_seconds,
+                error=error,
             )
-        except Fahmi2Error as exc:
-            if default_classify(exc) is RetryDecision.RETRY:
-                ctx.event_bus.publish(
-                    VisualsRetryAttempt(
-                        timestamp=_now(),
-                        stage=stage,
-                        language=language,
-                        attempt=attempts["n"],
-                        delay_seconds=ctx.retry_policy.compute_delay(
-                            attempt=attempts["n"]
-                        ),
-                        error=ErrorInfo.from_exception(exc),
-                    )
-                )
-            raise
+        )
 
-    return with_retry(_once, policy=ctx.retry_policy, classify=default_classify)
+    return invoke_llm_chat_with_retry(
+        ctx.llm_provider,
+        model=str(ctx.settings.llm_model),
+        config=ctx.settings.llm_config,
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        retry_policy=ctx.retry_policy,
+        on_retry=_on_retry,
+        response_format=response_format,
+    )

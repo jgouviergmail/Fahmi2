@@ -224,3 +224,34 @@ class ChatTabState(StrEnum):
     READY = "ready"
     ANSWERING = "answering"
     ERROR = "error"
+
+
+class NodeType(StrEnum):
+    """Type d'un nœud de la carte de connaissances (Visualisations)."""
+
+    CONCEPT = "concept"
+    GLOSSARY_TERM = "glossary_term"
+    EXAMPLE = "example"
+    IDEA = "idea"
+
+
+class EdgeType(StrEnum):
+    """Type d'une relation (enchaînement) entre nœuds de la carte de connaissances."""
+
+    LEADS_TO = "leads_to"
+    PREREQUISITE = "prerequisite"
+    ILLUSTRATES = "illustrates"
+    CONTRASTS_WITH = "contrasts_with"
+    PART_OF = "part_of"
+    RELATED = "related"
+
+
+class DiagramType(StrEnum):
+    """Type de diagramme généré dans la galerie de schémas (Visualisations)."""
+
+    FLOWCHART = "flowchart"
+    TIMELINE = "timeline"
+    COMPARISON = "comparison"
+    HIERARCHY = "hierarchy"
+    CYCLE = "cycle"
+    DECISION_TREE = "decision_tree"

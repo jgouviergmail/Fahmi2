@@ -149,7 +149,11 @@ def test_bouton_agrandir_et_overlay_plein_ecran() -> None:
     assert 'title="Agrandir"' in html
     assert 'id="lightbox"' in html and 'id="lightbox-body"' in html
     assert 'id="lightbox-close"' in html and 'title="Fermer"' in html
-    assert re.search(r"@@[A-Z_]+@@", html) is None  # token @@CLOSE@@ bien substitué
+    # Bouton « réinitialiser la disposition » (déplacement manuel des nœuds).
+    assert 'id="lightbox-reset"' in html and 'title="Réinitialiser la disposition"' in html
+    # Overlay sémantiquement une modale (accessibilité).
+    assert 'role="dialog"' in html and 'aria-modal="true"' in html
+    assert re.search(r"@@[A-Z_]+@@", html) is None  # tokens @@CLOSE@@/@@RESET@@ substitués
 
 
 @pytest.mark.parametrize(

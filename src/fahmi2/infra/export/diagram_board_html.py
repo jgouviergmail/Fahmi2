@@ -67,6 +67,7 @@ class _BoardStrings:
         excerpt_label: Libellé du dépliant d'extrait source.
         expand_label: Infobulle du bouton « agrandir » (plein écran).
         close_label: Infobulle/texte du bouton de fermeture du plein écran.
+        reset_label: Infobulle du bouton « réinitialiser la disposition » (plein écran).
     """
 
     header: str
@@ -78,6 +79,7 @@ class _BoardStrings:
     excerpt_label: str
     expand_label: str
     close_label: str
+    reset_label: str
 
 
 _STRINGS: dict[Language, _BoardStrings] = {
@@ -90,6 +92,7 @@ _STRINGS: dict[Language, _BoardStrings] = {
         count_template="{n} schémas", empty="Aucun schéma pour ce filtre.",
         excerpt_label="Extrait source",
         expand_label="Agrandir", close_label="Fermer",
+        reset_label="Réinitialiser la disposition",
     ),
     Language.EN: _BoardStrings(
         header="Diagrams & schematics", crumb_prefix="Visualizations",
@@ -100,6 +103,7 @@ _STRINGS: dict[Language, _BoardStrings] = {
         count_template="{n} diagrams", empty="No diagram for this filter.",
         excerpt_label="Source excerpt",
         expand_label="Enlarge", close_label="Close",
+        reset_label="Reset layout",
     ),
     Language.DE: _BoardStrings(
         header="Schaubilder & Diagramme", crumb_prefix="Visualisierungen",
@@ -110,6 +114,7 @@ _STRINGS: dict[Language, _BoardStrings] = {
         count_template="{n} Diagramme", empty="Kein Diagramm für diesen Filter.",
         excerpt_label="Quellenauszug",
         expand_label="Vergrößern", close_label="Schließen",
+        reset_label="Anordnung zurücksetzen",
     ),
     Language.ES: _BoardStrings(
         header="Esquemas y diagramas", crumb_prefix="Visualizaciones",
@@ -120,6 +125,7 @@ _STRINGS: dict[Language, _BoardStrings] = {
         count_template="{n} esquemas", empty="Ningún esquema para este filtro.",
         excerpt_label="Extracto de origen",
         expand_label="Ampliar", close_label="Cerrar",
+        reset_label="Restablecer disposición",
     ),
     Language.IT: _BoardStrings(
         header="Schemi e diagrammi", crumb_prefix="Visualizzazioni",
@@ -130,6 +136,7 @@ _STRINGS: dict[Language, _BoardStrings] = {
         count_template="{n} schemi", empty="Nessuno schema per questo filtro.",
         excerpt_label="Estratto della fonte",
         expand_label="Ingrandisci", close_label="Chiudi",
+        reset_label="Reimposta disposizione",
     ),
 }
 
@@ -298,6 +305,7 @@ def render_diagram_board_html(board: DiagramBoard) -> str:
         "@@COUNT@@": strings.count_template.format(n=len(board.diagrams)),
         "@@EMPTY@@": strings.empty,
         "@@CLOSE@@": escape(strings.close_label, quote=True),
+        "@@RESET@@": escape(strings.reset_label, quote=True),
         "@@APP_CSS@@": f"{read_visuals_asset(_TOKENS_CSS)}\n{read_visuals_asset(_CSS)}",
         "@@APP_JS@@": read_visuals_asset(_JS),
         "@@VENDORED@@": vendored_scripts_html(_BOARD_SCRIPTS),

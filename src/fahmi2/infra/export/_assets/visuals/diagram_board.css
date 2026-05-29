@@ -71,11 +71,13 @@ body {
   border-bottom: 1px solid var(--border-card); background: var(--surface);
 }
 .lightbox-title { flex: 1; margin: 0; font-size: 16px; font-weight: 650; color: var(--t1); }
-.lightbox-close {
+.lightbox-reset, .lightbox-close {
   flex: none; width: 36px; height: 36px; display: grid; place-items: center;
   background: var(--surface-soft); border: 1px solid var(--border-card);
   border-radius: 9px; color: var(--t2); font-size: 17px; cursor: pointer;
 }
+.lightbox-reset[hidden] { display: none; }
+.lightbox-reset:hover { color: var(--accent-strong); border-color: var(--accent); }
 .lightbox-close:hover { color: var(--danger, #cf222e); border-color: var(--danger, #cf222e); }
 .lightbox-body {
   flex: 1; position: relative; overflow: auto; background:

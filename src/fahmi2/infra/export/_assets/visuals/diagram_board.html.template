@@ -20,6 +20,7 @@
 <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-labelledby="lightbox-title" hidden>
   <div class="lightbox-head">
     <h3 class="lightbox-title" id="lightbox-title"></h3>
+    <button class="lightbox-reset" id="lightbox-reset" type="button" title="@@RESET@@" aria-label="@@RESET@@" hidden>↺</button>
     <button class="lightbox-close" id="lightbox-close" type="button" title="@@CLOSE@@" aria-label="@@CLOSE@@">✕</button>
   </div>
   <div class="lightbox-body" id="lightbox-body"></div>

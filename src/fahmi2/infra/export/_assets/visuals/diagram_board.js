@@ -34,7 +34,12 @@
         padding: 11, "text-margin-y": 0
       } },
       { selector: 'node[role = "decision"]', style: {
-        shape: "diamond", "background-color": cssVar("--example"), width: 60, height: 60
+        // Losange **auto-dimensionné** au libellé (au lieu d'un 60×60 fixe qui
+        // tronquait les questions longues). Padding généreux : le bloc de texte
+        // centré tient dans la zone inscrite du losange ; max-width réduit pour un
+        // bloc plus carré (mieux adapté à la forme).
+        shape: "diamond", "background-color": cssVar("--example"),
+        width: "label", height: "label", padding: 30, "text-max-width": 96
       } },
       { selector: 'node[role = "terminal"]', style: {
         shape: "round-rectangle", "background-color": cssVar("--term")
@@ -42,9 +47,12 @@
       { selector: "edge", style: {
         width: 1.8, "line-color": cssVar("--edge"), "target-arrow-color": cssVar("--edge"),
         "target-arrow-shape": "triangle", "curve-style": "bezier", label: "data(label)",
-        "font-size": 10.5, color: cssVar("--t2"), "text-rotation": "autorotate",
-        "text-background-color": cssVar("--surface"), "text-background-opacity": 0.9,
-        "text-background-padding": 2
+        // Libellés d'arêtes **horizontaux** (pas d'autorotate, illisible sur les
+        // liens verticaux) + retour à la ligne (pas de troncature), sur fond opaque.
+        "font-size": 10.5, color: cssVar("--t2"),
+        "text-wrap": "wrap", "text-max-width": 120,
+        "text-background-color": cssVar("--surface"), "text-background-opacity": 0.92,
+        "text-background-padding": 3, "text-background-shape": "round-rectangle"
       } }
     ];
   }
@@ -75,9 +83,11 @@
     return cytoscape({
       container: container, elements: buildElements(spec), style: diagramStyles(),
       layout: layoutFor(spec),
-      // Zoom (molette) + déplacement (glisser) activés.
+      // Zoom (molette), déplacement de la vue (glisser le fond) ET déplacement des
+      // **nœuds** (``autoungrabify: false``) : l'utilisateur peut réagencer un
+      // diagramme que l'auto-layout n'a pas parfaitement disposé.
       userZoomingEnabled: true, userPanningEnabled: true,
-      autoungrabify: true, boxSelectionEnabled: false,
+      autoungrabify: false, boxSelectionEnabled: false,
       minZoom: ZOOM_BOUND_MIN, maxZoom: ZOOM_BOUND_MAX
     });
   }
@@ -125,17 +135,29 @@
   var lightboxBody = document.getElementById("lightbox-body");
   var lightboxTitle = document.getElementById("lightbox-title");
   var lightboxClose = document.getElementById("lightbox-close");
+  var lightboxReset = document.getElementById("lightbox-reset");
   var lastTrigger = null;  // bouton .expand ayant ouvert l'overlay (focus restitué à la fermeture)
+  var lightboxSpec = null;  // spec du graphe ouvert (pour réinitialiser la disposition)
 
   function closeLightbox() {
     if (lightboxCy) { lightboxCy.destroy(); lightboxCy = null; }
+    lightboxSpec = null;
     lightboxBody.innerHTML = "";
+    lightboxReset.setAttribute("hidden", "");
     lightbox.setAttribute("hidden", "");
     if (lastTrigger) { lastTrigger.focus(); lastTrigger = null; }  // retour du focus
   }
 
+  function relayoutLightbox() {
+    if (lightboxCy && lightboxSpec) {
+      lightboxCy.layout(layoutFor(lightboxSpec)).run();
+      lightboxCy.fit(undefined, 48);
+    }
+  }
+
   function openLightbox(card, trigger) {
     if (lightboxCy) { lightboxCy.destroy(); lightboxCy = null; }  // ré-ouverture : pas de fuite
+    lightboxSpec = null;
     lastTrigger = trigger || null;
     var h3 = card.querySelector("h3");
     lightboxTitle.textContent = h3 ? h3.textContent : "";
@@ -143,15 +165,18 @@
     lightbox.removeAttribute("hidden");  // visible AVANT init (Cytoscape mesure la taille)
     var graph = card.querySelector(".cy-diagram[data-graph]");
     if (graph) {
+      lightboxSpec = JSON.parse(graph.getAttribute("data-graph"));
       var full = document.createElement("div");
       full.className = "cy-full";
       lightboxBody.appendChild(full);
-      lightboxCy = makeCy(full, JSON.parse(graph.getAttribute("data-graph")));
+      lightboxCy = makeCy(full, lightboxSpec);
       lightboxCy.resize();
       lightboxCy.fit(undefined, 48);
+      lightboxReset.removeAttribute("hidden");  // « réinitialiser la disposition » (graphes)
     } else {
       var linear = card.querySelector(".timeline, .cmp");
       if (linear) { lightboxBody.appendChild(linear.cloneNode(true)); }
+      lightboxReset.setAttribute("hidden", "");  // sans objet pour les diagrammes linéaires
     }
     lightboxClose.focus();  // focus dans la modale (accessibilité clavier)
   }
@@ -163,12 +188,20 @@
     });
   });
   lightboxClose.addEventListener("click", closeLightbox);
+  lightboxReset.addEventListener("click", relayoutLightbox);
   document.addEventListener("keydown", function (e) {
     if (lightbox.hasAttribute("hidden")) { return; }
-    if (e.key === "Escape") { closeLightbox(); }
-    // Piège de focus : le seul contrôle de la modale est le bouton de fermeture ;
-    // on garde donc le focus dessus (Tab/Shift+Tab ne sortent pas de l'overlay).
-    else if (e.key === "Tab") { e.preventDefault(); lightboxClose.focus(); }
+    if (e.key === "Escape") { closeLightbox(); return; }
+    if (e.key !== "Tab") { return; }
+    // Piège de focus : Tab/Shift+Tab cyclent entre les contrôles de la modale
+    // (réinitialiser si visible, puis fermer) sans en sortir.
+    e.preventDefault();
+    var controls = [];
+    if (!lightboxReset.hasAttribute("hidden")) { controls.push(lightboxReset); }
+    controls.push(lightboxClose);
+    var index = controls.indexOf(document.activeElement);
+    var next = (index + (e.shiftKey ? -1 : 1) + controls.length) % controls.length;
+    controls[next].focus();
   });
 
   // ---- Thème ----
@@ -180,5 +213,8 @@
   });
 
   window.__boardReady = true;  // sentinelle de vérification (Playwright)
-  window.__board = { init: initDiagram, instances: instances, open: openLightbox, close: closeLightbox };
+  window.__board = {
+    init: initDiagram, instances: instances,
+    open: openLightbox, close: closeLightbox, reset: relayoutLightbox
+  };
 })();

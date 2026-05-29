@@ -83,6 +83,21 @@ def test_structure_finished_marks_structure_succeeded() -> None:
     assert matrix.cells[1][_COL_STRUCTURE].status is PhaseStatus.SUCCEEDED
 
 
+def test_structure_running_reconciled_to_failed_on_failure() -> None:
+    vm = _vm()
+    vm.apply_event(VisualsStructureStarted(timestamp=_ts()))
+    # Échec pendant l'extraction de structure : pas de VisualsStructureFinished.
+    vm.apply_event(
+        VisualsGenerationFinished(
+            timestamp=_ts(), status=RunStatus.FAILED, total_cost_usd=0.1
+        )
+    )
+    matrix = vm.cost_matrix_snapshot()
+    # Les cellules Structure ne restent pas « en cours » : figées en échec.
+    assert matrix.cells[0][_COL_STRUCTURE].status is PhaseStatus.FAILED
+    assert matrix.cells[1][_COL_STRUCTURE].status is PhaseStatus.FAILED
+
+
 def test_language_lifecycle_updates_status_and_cost() -> None:
     vm = _vm()
     vm.apply_event(VisualsGenerationStarted(timestamp=_ts()))

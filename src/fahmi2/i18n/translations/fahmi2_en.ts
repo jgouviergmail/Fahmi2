@@ -2862,14 +2862,16 @@ All produced pages and the execution state will be deleted. This action is irrev
 <context>
     <name>VisualsProgress</name>
     <message>
+        <location filename="../../ui/viewmodels/visuals_progress.py" line="52"/>
         <location filename="../../ui/widgets/visuals_progress_view.py" line="39"/>
         <source>Livrable</source>
+        <extracomment>Statuts considérés comme « langue terminée » pour le compteur de tuiles.</extracomment>
         <translation>Deliverable</translation>
     </message>
     <message>
-        <location filename="../../ui/viewmodels/visuals_progress.py" line="64"/>
+        <location filename="../../ui/viewmodels/visuals_progress.py" line="65"/>
         <source>Structure</source>
-        <extracomment>Statuts considérés comme « langue terminée » pour le compteur de tuiles. En-tête de la colonne des libellés de lignes (livrables) de la matrice. Étape de structure → livrable dont elle alimente la colonne « Structure ».</extracomment>
+        <extracomment>Étape de structure → livrable dont elle alimente la colonne « Structure ».</extracomment>
         <translation>Structure</translation>
     </message>
 </context>

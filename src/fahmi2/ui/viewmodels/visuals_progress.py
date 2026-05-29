@@ -47,8 +47,9 @@ from fahmi2.visuals.events import (
 #: Statuts considérés comme « langue terminée » pour le compteur de tuiles.
 _DONE_STATUSES = frozenset({PhaseStatus.SUCCEEDED, PhaseStatus.SKIPPED})
 
-#: En-tête de la colonne des libellés de lignes (livrables) de la matrice.
-_ROW_HEADER = "Livrable"
+def _row_header_label() -> str:
+    """En-tête traduit de la colonne des libellés de lignes (livrables)."""
+    return QCoreApplication.translate("VisualsProgress", "Livrable")
 
 #: Étape de structure → livrable dont elle alimente la colonne « Structure ».
 _STEP_TO_DELIVERABLE: dict[VisualsStructureStep, VisualsDeliverable] = {
@@ -206,6 +207,27 @@ class VisualsProgressViewModel:
             self._overall_status = event.status
             self._finished_at = event.timestamp
             self._total_cost_usd = event.total_cost_usd
+            self._reconcile_structure(event.status)
+
+    def _reconcile_structure(self, status: RunStatus) -> None:
+        """Clôt les cellules « Structure » restées en cours en fin d'exécution.
+
+        Si la génération se termine alors qu'une cellule de structure est encore
+        ``RUNNING`` (échec / annulation pendant l'extraction de structure, qui n'émet
+        pas de ``VisualsStructureFinished``), on la fige sur un statut terminal
+        cohérent — ``SUCCEEDED`` si le run est ``COMPLETED``, ``FAILED`` sinon.
+
+        Args:
+            status: Statut final de l'exécution.
+        """
+        terminal = (
+            PhaseStatus.SUCCEEDED
+            if status is RunStatus.COMPLETED
+            else PhaseStatus.FAILED
+        )
+        for deliverable, current in self._structure_status.items():
+            if current is PhaseStatus.RUNNING:
+                self._structure_status[deliverable] = terminal
 
     def _apply_structure_event(
         self,
@@ -259,7 +281,7 @@ class VisualsProgressViewModel:
             for deliverable in self._deliverables
         )
         return build_cost_matrix(
-            row_header=_ROW_HEADER, column_labels=column_labels, rows=rows
+            row_header=_row_header_label(), column_labels=column_labels, rows=rows
         )
 
     def _structure_cell(self, deliverable: VisualsDeliverable) -> CostMatrixCell:

@@ -97,14 +97,16 @@ def map_units_with_progress(
     def _tracked(item: _T) -> _R:
         nonlocal done
         result = worker(item)
+        # Publication sous verrou : garantit un compteur **monotone** côté UI (sinon
+        # deux threads pourraient publier 6 puis 5). Le verrou est relâché juste après
+        # le post du signal Qt (file d'attente, non bloquant) — contention négligeable.
         with lock:
             done += 1
-            completed = done
-        ctx.event_bus.publish(
-            VisualsStructureProgress(
-                timestamp=_now(), step=step, completed=completed, total=total
+            ctx.event_bus.publish(
+                VisualsStructureProgress(
+                    timestamp=_now(), step=step, completed=done, total=total
+                )
             )
-        )
         return result
 
     return map_bounded(

@@ -236,7 +236,11 @@ def _diagrams_for_unit(
         Les ``Diagram`` valides (au plus ``max_diagrams``).
     """
     diagrams: list[Diagram] = []
+    # Inclut ``part`` : deux fragments d'une même section (section_path identique,
+    # part 1, 2…) ne doivent pas produire des ``diagram_id`` en collision.
     section_key = "-".join(str(part) for part in unit.section_path)
+    if unit.part > 0:
+        section_key = f"{section_key}-p{unit.part}"
     for index, raw in enumerate(item_list):
         if len(diagrams) >= max_diagrams:
             break

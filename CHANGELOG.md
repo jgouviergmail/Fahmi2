@@ -5,7 +5,7 @@ All notable changes to the Fahmi2 project.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.6.0] — 2026-05-30
 
 ### Added — Visualizations: two standalone interactive HTML deliverables
 
@@ -77,6 +77,23 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   (zoom/pan) — a dense 17+-node hierarchy stays fully legible. Linear diagrams are
   cloned into the overlay (scrollable). No card size can show an arbitrarily complex
   graph legibly, so the fullscreen view is the durable answer.
+
+### Notes
+
+- **1219 → 1362 tests** (Visualizations engine, renderers, orchestrator, UI
+  viewmodels, i18n guards). `pytest` green ×3 runs, `ruff check .` and
+  `mypy --strict src tests` clean (464 files).
+- **End-of-branch exhaustive review** (10 clusters × 9 directives, adversarial
+  per-finding verification): 0 critical / 0 high; 31 confirmed quality findings
+  all fixed — notably two shared modules extracted to remove duplication
+  (`pipeline/generation_outputs.py` shared by Pedagogy/Visualizations source
+  loaders; `ui/widgets/_progress_view.py` shared by the three progress views),
+  knowledge-map accessibility (`aria-label` / `aria-pressed` / labelled search),
+  named zoom-bound constants, and `--danger` design token.
+- **Two deliberate divergences from the spec** (documented in the design doc):
+  entity-description canonicalisation is **deterministic** (no extra LLM step);
+  community detection uses a **flat Louvain partition** (the `level` / `parent_id`
+  fields are kept for a future multi-level dendrogram).
 
 ## [1.5.2] — 2026-05-29
 

@@ -204,10 +204,9 @@ the full breakdown.
 
 ## Status
 
-**[Unreleased]** — **Visualizations** feature (on branch
-`feat/visualisations-html-autonomes`, not yet merged): two **fully
-self-contained** interactive HTML deliverables per Latin-script language — an
-interactive **knowledge map** (typed concept/term/idea/example graph, network↔tree,
+**v1.6.0** — **Visualizations** feature: two **fully self-contained**
+interactive HTML deliverables per Latin-script language — an interactive
+**knowledge map** (typed concept/term/idea/example graph, network↔tree,
 fullscreen, draggable nodes) and a **generated-diagram gallery** (flowcharts,
 timelines, comparisons, hierarchies, cycles, decision trees; per-card fullscreen).
 GraphRAG-lite pipeline (glossary backbone + LLM layer + gleaning, embedding entity
@@ -215,6 +214,14 @@ resolution, networkx Louvain), structure extracted once then labels translated p
 language, **zero CDN / zero rendering DSL** (vendored Cytoscape.js inlined). New
 **Visualizations** tab + parallelised structure extraction with a live progress
 column. **1362 passing tests**, ruff + mypy `--strict` clean.
+
+**v1.5.2** — Critical fix: `Project.chat` (Dialogue settings) was silently
+reset to `None` on every generation Run (`RunOrchestrator` rebuilt the
+project field-by-field) — now preserved via `dataclasses.replace`. Plus a
+post-review architecture cleanup: `PauseToken` moved to `core/concurrency/`
+(restoring the documented dependency flow), new
+`pipeline/workspace_layout.py` as the single source of artifact paths, and
+several DRY consolidations.
 
 **v1.5.1** — **Quality round on cost tracking and reliability**:
 phase 6 translation hardened against unescaped quotes from DeepSeek

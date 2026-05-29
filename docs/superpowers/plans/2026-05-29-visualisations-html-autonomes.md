@@ -1011,6 +1011,16 @@ spec §4→§15. Points de vigilance déjà identifiés à reporter dans le dét
 - **Phase 1** : sélection des unités de texte (sous-section feuille avec corps substantiel,
   fallback chapitre) ; squelette `GLOSSARY_TERM` sans LLM ; gleaning **1 passe** ;
   constantes dans `visuals/_constants.py` (plafonds par `density`, taille d'unité).
+  **Décision DRY (constatée à la revue Phase 0)** : les helpers de parsing JSON typé
+  génériques (`schema_error`, `require_mapping`/`require_list`/`require_str`/`require_int`/
+  `require_bool`/`require_str_list`) sont actuellement dans `pedagogy/generators/_base.py`
+  mais ne sont **pas** spécifiques à la Pédagogie → les **relocaliser** dans un module
+  neutre `infra/llm/json_schema.py` (réutilisé par Pédagogie ET Visualisations, zéro
+  duplication, pas de couplage inter-features). `invoke_support_llm` reste pédagogique
+  (events `SupportRetryAttempt`) ; l'équivalent Visualisations vivra dans
+  `visuals/extractors/_base.py` et réutilisera `invoke_llm_chat`/`parse_llm_json`/
+  `with_retry`/`default_classify` directement. Tâche 1 de la Phase 1 = cette relocalisation
+  (refactor à comportement constant, suite verte).
 - **Phase 2** : `networkx.louvain_partitions` avec **seed constant** ; fallback AUTO sans
   embeddings ; fusion des descriptions ; reports = unités de raisonnement des idea-chains.
 - **Phase 4** : extraits résolus par `section_path` (jamais par ancre traduite).

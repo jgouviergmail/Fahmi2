@@ -9,12 +9,6 @@ from __future__ import annotations
 
 from fahmi2.domain.enums import SupportDensity
 
-#: Sous-dossier du workspace dédié aux artefacts de la fonctionnalité Visualisations.
-VISUALS_WORKSPACE_SUBDIR = "visuals"
-
-#: Sous-dossier des livrables HTML finaux (sous le dossier de la fonctionnalité).
-VISUALS_OUTPUT_SUBDIR = "output"
-
 #: Nombre de passes de *gleaning* (rappel d'extraction) après l'extraction initiale
 #: d'une unité de texte. 1 = un seul re-prompt « as-tu manqué des entités ? ».
 GLEANING_ROUNDS = 1

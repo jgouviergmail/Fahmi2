@@ -29,8 +29,38 @@ GRAPH_DIAGRAM_TYPES: frozenset[DiagramType] = frozenset(
     }
 )
 
+#: Sous-dossier du workspace dédié aux artefacts de la fonctionnalité Visualisations.
+VISUALS_WORKSPACE_SUBDIR = "visuals"
+
+#: Sous-dossier des livrables HTML finaux (sous le dossier de la fonctionnalité).
+VISUALS_OUTPUT_SUBDIR = "output"
+
 #: Nombre de workers LLM par défaut (aligné sur la Pédagogie).
 _DEFAULT_VISUALS_LLM_WORKERS = 16
+
+
+def knowledge_map_filename(language: Language) -> str:
+    """Nom de fichier de la carte de connaissances pour une langue.
+
+    Args:
+        language: Langue cible.
+
+    Returns:
+        Le nom de fichier (ex. ``"knowledge_map.fr.html"``).
+    """
+    return f"knowledge_map.{language}.html"
+
+
+def diagrams_filename(language: Language) -> str:
+    """Nom de fichier de la galerie de schémas pour une langue.
+
+    Args:
+        language: Langue cible.
+
+    Returns:
+        Le nom de fichier (ex. ``"diagrams.fr.html"``).
+    """
+    return f"diagrams.{language}.html"
 
 
 @dataclass(frozen=True)

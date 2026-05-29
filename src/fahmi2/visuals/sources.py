@@ -18,7 +18,12 @@ from fahmi2.core.corpus import parse_sections
 from fahmi2.domain.enums import Language
 from fahmi2.domain.generation import consolidated_doc_filename
 from fahmi2.domain.glossary import Term, parse_glossary_master_terms
-from fahmi2.domain.visuals import VISUALS_LANGUAGES
+from fahmi2.domain.visuals import (
+    VISUALS_LANGUAGES,
+    VisualsSettings,
+    diagrams_filename,
+    knowledge_map_filename,
+)
 from fahmi2.pipeline.workspace_layout import glossary_master_path
 from fahmi2.visuals._constants import MAX_UNIT_CHARS, MIN_UNIT_BODY_CHARS
 
@@ -123,6 +128,49 @@ def load_text_units(
                 )
             )
     return tuple(units)
+
+
+def outputs_present(
+    visuals_output_dir: Path, language: Language, settings: VisualsSettings
+) -> bool:
+    """Indique si les livrables HTML attendus (selon les réglages) existent.
+
+    Args:
+        visuals_output_dir: Dossier ``<emplacement>/visuals/output``.
+        language: Langue.
+        settings: Réglages (quels livrables sont attendus).
+
+    Returns:
+        ``True`` si chaque livrable activé est présent sur disque.
+    """
+    if settings.produce_knowledge_map and not (
+        visuals_output_dir / knowledge_map_filename(language)
+    ).exists():
+        return False
+    return not (
+        settings.produce_diagrams
+        and not (visuals_output_dir / diagrams_filename(language)).exists()
+    )
+
+
+def structure_language(
+    source_language: Language | None, available: list[Language]
+) -> Language | None:
+    """Choisit la langue d'extraction de la structure.
+
+    Préfère la langue source de la génération si elle est disponible, sinon la
+    première langue latine disponible (ou ``None`` si aucune).
+
+    Args:
+        source_language: Langue source de la génération (``None`` si inconnue).
+        available: Langues latines disponibles (ordonnées).
+
+    Returns:
+        La langue de structure, ou ``None`` si ``available`` est vide.
+    """
+    if source_language is not None and source_language in available:
+        return source_language
+    return available[0] if available else None
 
 
 def source_mtime_ns(generation_output_dir: Path, language: Language) -> int | None:

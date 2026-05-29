@@ -74,7 +74,9 @@ from fahmi2.visuals.sources import (
     glossary_master_mtime_ns,
     load_glossary_master_terms,
     load_text_units,
+    outputs_present,
     source_mtime_ns,
+    structure_language,
 )
 
 #: Statuts antérieurs considérés comme « reprise utile » (rebase du coût cumulé).
@@ -339,10 +341,7 @@ class VisualsOrchestrator:
     def _structure_language(
         self, project: Project, languages: list[Language]
     ) -> Language:
-        """Choisit la langue d'extraction de la structure.
-
-        Préfère la langue source de la génération si elle est disponible ; sinon la
-        première langue latine produite.
+        """Choisit la langue d'extraction de la structure (``languages`` non vide).
 
         Args:
             project: Projet.
@@ -351,11 +350,14 @@ class VisualsOrchestrator:
         Returns:
             La langue de structure.
         """
-        if project.generation is not None:
-            source = project.generation.source_language
-            if source in languages:
-                return source
-        return languages[0]
+        source = (
+            project.generation.source_language
+            if project.generation is not None
+            else None
+        )
+        chosen = structure_language(source, languages)
+        assert chosen is not None  # garanti : ``languages`` non vide  # noqa: S101
+        return chosen
 
     def _build_structure(
         self,
@@ -536,14 +538,7 @@ class VisualsOrchestrator:
         Returns:
             ``True`` si chaque livrable activé est présent sur disque.
         """
-        if settings.produce_knowledge_map and not (
-            out_dir / knowledge_map_filename(language)
-        ).exists():
-            return False
-        return not (
-            settings.produce_diagrams
-            and not (out_dir / diagrams_filename(language)).exists()
-        )
+        return outputs_present(out_dir, language, settings)
 
     def _is_complete(
         self,

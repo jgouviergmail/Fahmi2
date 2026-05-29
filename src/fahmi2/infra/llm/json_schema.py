@@ -134,6 +134,22 @@ def require_bool(mapping: dict[str, Any], key: str, *, context_label: str) -> bo
     return value
 
 
+def optional_str(mapping: dict[str, Any], key: str) -> str | None:
+    """Lit une chaîne **facultative** à ``key`` (vide/absent/non-str → ``None``).
+
+    Args:
+        mapping: Objet JSON.
+        key: Clé éventuelle.
+
+    Returns:
+        La chaîne nettoyée si présente et non vide, sinon ``None``.
+    """
+    value = mapping.get(key)
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
 def require_str_list(
     mapping: dict[str, Any], key: str, *, context_label: str
 ) -> tuple[str, ...]:

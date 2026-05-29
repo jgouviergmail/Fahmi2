@@ -19,14 +19,15 @@ from __future__ import annotations
 
 import math
 from collections import Counter
-from dataclasses import dataclass, replace
+from dataclasses import replace
 
 from fahmi2.core.slugify import slugify_anchor
 from fahmi2.domain.enums import NodeType
 from fahmi2.domain.glossary import Term
 from fahmi2.domain.visuals import GraphEdge, GraphNode, SourceExcerpt
 from fahmi2.infra.embeddings.interface import EmbeddingProvider
-from fahmi2.visuals._constants import ENTITY_MERGE_COSINE_THRESHOLD, EXCERPT_MAX_CHARS
+from fahmi2.visuals._constants import ENTITY_MERGE_COSINE_THRESHOLD
+from fahmi2.visuals._excerpts import SectionIndex, build_section_index
 from fahmi2.visuals.extractors.graph_extractor import (
     GraphExtraction,
     RawEntity,
@@ -36,82 +37,6 @@ from fahmi2.visuals.extractors.graph_extractor import (
 from fahmi2.visuals.sources import TextUnit
 
 _Path = tuple[int, ...]
-
-
-def _truncate_excerpt(text: str) -> str:
-    """Tronque proprement un extrait à ``EXCERPT_MAX_CHARS`` (frontière de mot).
-
-    Args:
-        text: Texte source.
-
-    Returns:
-        Le texte nettoyé, suffixé d'une ellipse s'il a été tronqué.
-    """
-    cleaned = " ".join(text.split())
-    if len(cleaned) <= EXCERPT_MAX_CHARS:
-        return cleaned
-    cut = cleaned[:EXCERPT_MAX_CHARS].rsplit(" ", 1)[0].rstrip()
-    return f"{cut}…"
-
-
-@dataclass(frozen=True)
-class _SectionIndex:
-    """Index des sections (par chemin structurel) pour bâtir les extraits source."""
-
-    text_by: dict[_Path, str]
-    title_by: dict[_Path, str]
-    anchor_by: dict[_Path, str]
-
-    def excerpt(self, path: _Path) -> SourceExcerpt | None:
-        """Construit l'extrait source d'une section, ou ``None`` si inconnue.
-
-        Args:
-            path: Chemin structurel de la section.
-
-        Returns:
-            Le ``SourceExcerpt`` (texte tronqué) ou ``None``.
-        """
-        if path not in self.text_by:
-            return None
-        return SourceExcerpt(
-            text=self.text_by[path],
-            section_path=path,
-            chapter_title=self.title_by[path],
-            anchor=self.anchor_by[path],
-        )
-
-    def anchor(self, path: _Path) -> str | None:
-        """Ancre de la section, ou ``None`` si inconnue.
-
-        Args:
-            path: Chemin structurel.
-
-        Returns:
-            L'ancre GFM ou ``None``.
-        """
-        return self.anchor_by.get(path)
-
-
-def _build_section_index(units: tuple[TextUnit, ...]) -> _SectionIndex:
-    """Indexe les unités par chemin de section (texte concaténé + titre + ancre).
-
-    Args:
-        units: Unités de texte du document consolidé (langue source).
-
-    Returns:
-        L'``_SectionIndex`` correspondant.
-    """
-    text_parts: dict[_Path, list[str]] = {}
-    title_by: dict[_Path, str] = {}
-    anchor_by: dict[_Path, str] = {}
-    for unit in units:
-        text_parts.setdefault(unit.section_path, []).append(unit.text)
-        title_by.setdefault(unit.section_path, unit.title)
-        anchor_by.setdefault(unit.section_path, unit.anchor)
-    text_by = {
-        path: _truncate_excerpt(" ".join(parts)) for path, parts in text_parts.items()
-    }
-    return _SectionIndex(text_by=text_by, title_by=title_by, anchor_by=anchor_by)
 
 
 def _glossary_slug_index(glossary: tuple[Term, ...]) -> dict[str, str]:
@@ -225,7 +150,7 @@ def _ordered_unique_paths(members: list[RawEntity]) -> list[_Path]:
     return paths
 
 
-def _canonical_node(members: list[RawEntity], index: _SectionIndex) -> GraphNode:
+def _canonical_node(members: list[RawEntity], index: SectionIndex) -> GraphNode:
     """Construit le nœud canonique d'un groupe d'entités libres.
 
     Le libellé canonique est le plus fréquent (départage : plus court, puis
@@ -291,7 +216,7 @@ def _attach_glossary_matches(
     raw_entities: tuple[RawEntity, ...],
     *,
     glossary_index: dict[str, str],
-    index: _SectionIndex,
+    index: SectionIndex,
     nodes_by_id: dict[str, GraphNode],
 ) -> list[RawEntity]:
     """Rattache aux nœuds de glossaire les entités qui en sont (par libellé/alias).
@@ -336,7 +261,7 @@ def _add_free_clusters(
     free: list[RawEntity],
     *,
     embedding_provider: EmbeddingProvider | None,
-    index: _SectionIndex,
+    index: SectionIndex,
     nodes_by_id: dict[str, GraphNode],
     slug_to_id: dict[str, str],
 ) -> None:
@@ -416,7 +341,7 @@ def resolve_graph(
         ``(nœuds, arêtes)`` : nœuds uniques par id (glossaire enrichi d'extraits +
         nœuds sémantiques canoniques), arêtes id→id dédoublonnées, sans boucle.
     """
-    index = _build_section_index(units)
+    index = build_section_index(units)
     glossary_index = _glossary_slug_index(glossary)
     nodes_by_id: dict[str, GraphNode] = {
         node.id: node for node in extraction.glossary_nodes

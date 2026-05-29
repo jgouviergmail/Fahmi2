@@ -6,6 +6,7 @@ import pytest
 
 from fahmi2.core.errors.exceptions import LLMError
 from fahmi2.infra.llm.json_schema import (
+    optional_str,
     require_bool,
     require_int,
     require_list,
@@ -62,3 +63,10 @@ def test_require_str_list_ecarte_vides_et_rejette_vide() -> None:
     )
     with pytest.raises(LLMError):
         require_str_list({"a": ["", "  "]}, "a", context_label=_CTX)
+
+
+def test_optional_str() -> None:
+    assert optional_str({"a": " x "}, "a") == "x"
+    assert optional_str({"a": "  "}, "a") is None
+    assert optional_str({}, "a") is None
+    assert optional_str({"a": 3}, "a") is None

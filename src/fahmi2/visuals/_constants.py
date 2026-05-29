@@ -50,3 +50,10 @@ LOUVAIN_SEED = 17
 #: Nombre minimal de communautés requis pour rechercher des enchaînements
 #: inter-communautés (idea-chains) ; en deçà, la passe est sans objet.
 MIN_COMMUNITIES_FOR_IDEA_CHAINS = 2
+
+#: Plafond de diagrammes générés par unité de texte, par niveau de densité.
+MAX_DIAGRAMS_PER_UNIT: dict[SupportDensity, int] = {
+    SupportDensity.LIGHT: 1,
+    SupportDensity.STANDARD: 2,
+    SupportDensity.DENSE: 3,
+}

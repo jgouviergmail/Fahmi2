@@ -1,0 +1,22 @@
+Tu conçois des **schémas pédagogiques** à partir de la section de cours ci-dessous. Produis **au plus {{ max_diagrams }} diagramme(s)**, uniquement ceux **réellement utiles** pour clarifier le contenu (aucune invention ; s'il n'y a rien de pertinent, renvoie une liste vide).
+
+Travaille **dans la langue de la section** (ne traduis pas).
+
+Types de diagramme autorisés (champ `type`) — n'utilise **que** ceux-ci : {{ allowed_types | join(", ") }}.
+
+Charge utile selon le type :
+- `flowchart` / `hierarchy` / `decision_tree` / `cycle` : un **graphe** —
+  `nodes` (`[{"id": "n1", "label": "...", "role": null}]`) et
+  `links` (`[{"from": "n1", "to": "n2", "label": null}]`). Pour `decision_tree`, le `label` d'un lien porte la condition (« oui »/« non »). `role` est facultatif (ex. « début », « décision »).
+- `timeline` : une chronologie — `events` (`[{"date": "2001", "title": "...", "detail": null}]`), dans l'ordre chronologique.
+- `comparison` : un tableau — `columns` (`["Critère", "A", "B"]`) et `rows` (lignes de **même largeur** que `columns`).
+
+Chaque diagramme a un `title` (court) et un `caption` (légende facultative).
+
+Réponds STRICTEMENT en JSON valide, sans préambule :
+{"diagrams": [{"type": "flowchart", "title": "...", "caption": "...", "nodes": [...], "links": [...]}]}
+
+---
+Section : {{ section_title }}
+
+{{ section_markdown }}

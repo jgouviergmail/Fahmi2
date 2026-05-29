@@ -92,9 +92,16 @@ def test_per_video_cost_in_cell_and_row_total(
     assert snap.row_totals[0] == 0.05  # somme des phases par-vidéo de la vidéo 0
 
 
-def test_batch_phase_cost_in_column_total_not_in_cell(
+def test_batch_phase_cost_visible_on_first_row_only(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:
+    """Le coût d'une phase batch est rendu visible sur la **1ʳᵉ cellule**
+    de sa colonne (sinon l'utilisateur ne voit qu'un tiret dans toute la
+    colonne et conclut à un coût manquant). Les autres cellules de la
+    même colonne restent à ``None`` pour éviter qu'un lecteur ne calcule
+    « coût × N lignes » par erreur — le total de colonne reste la
+    valeur batch unique, autorité.
+    """
     state, run, registry = _setup(tmp_path, make_generation_settings)
     state.upsert_phase_execution(
         run.id,
@@ -107,12 +114,35 @@ def test_batch_phase_cost_in_column_total_not_in_cell(
     )
     vm = RunMatrixViewModel(state=state, registry=registry)
     snap = vm.cost_matrix_snapshot(run)
-    # colonne 2 = Glossaire (batch) : statut visible, coût cellule None,
-    # total colonne = coût run.
+    # colonne 2 = Glossaire (batch).
+    # 1ʳᵉ ligne : statut + coût visible.
     assert snap.cells[0][2].status is PhaseStatus.SUCCEEDED
-    assert snap.cells[0][2].cost_usd is None
+    assert snap.cells[0][2].cost_usd == 0.20
+    # Ligne suivante : statut conservé, coût `None` pour éviter la
+    # confusion d'addition mentale verticale.
+    assert snap.cells[1][2].status is PhaseStatus.SUCCEEDED
+    assert snap.cells[1][2].cost_usd is None
+    # Total colonne = coût batch unique (pas une somme).
     assert snap.column_totals[2] == 0.20
-    assert snap.grand_total == 0.20  # batch compté une seule fois
+    # Grand total : batch compté une seule fois, jamais N×.
+    assert snap.grand_total == 0.20
+    # Row totals des 2 lignes : aucune ne doit inclure le coût batch.
+    assert snap.row_totals[0] == 0.0
+    assert snap.row_totals[1] == 0.0
+
+
+def test_pending_batch_phase_shows_no_cost_anywhere(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    """Une phase batch non encore exécutée (pas de ``PhaseExecution`` en
+    base) reste ``—`` partout, y compris sur la 1ʳᵉ ligne."""
+    state, run, registry = _setup(tmp_path, make_generation_settings)
+    # Aucun upsert pour la phase batch glossaire.
+    vm = RunMatrixViewModel(state=state, registry=registry)
+    snap = vm.cost_matrix_snapshot(run)
+    assert snap.cells[0][2].status is PhaseStatus.PENDING
+    assert snap.cells[0][2].cost_usd is None
+    assert snap.column_totals[2] == 0.0
 
 
 def test_preview_all_pending(tmp_path: Path, make_generation_settings: Any) -> None:

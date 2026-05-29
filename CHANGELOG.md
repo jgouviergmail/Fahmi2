@@ -45,6 +45,25 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   accepts your previous array-root version too, but you lose the
   provider-side escaping guarantee).
 
+### Fixed — Generation matrix: batch phase cost no longer hidden behind a tooltip
+
+- Batch phases (Glossary, Consolidation, Translation, Coherence) have a
+  single cost shared across all sources (persisted with
+  `source_id=NULL`). The cost was visible **only** in the column total
+  at the bottom, while each per-source cell of the column showed `—`.
+  Users naturally read that as "the per-cell cost is missing", even
+  though a tooltip was explaining "(coût au niveau du run)" on hover.
+- Fix: in `RunMatrixViewModel`, the batch cost is now rendered on the
+  **first row** of its column. Other rows of the same column stay `—`
+  to prevent a mental "cost × N rows" miscount. The column total
+  remains the single authoritative figure, and the grand total is
+  unchanged (batch counted once, never multiplied).
+- Why not show per-source costs for phases 5/6 (which DO have internal
+  per-source operations — fact ledger per source, translation per
+  (source × language))? That would require persisting per-source costs
+  for those phases, refactoring the `phase_executions` rows and the
+  engine's bookkeeping. Deferred — let me know if you want it.
+
 ### Fixed — Pedagogy: cumulative cost reset to zero on every resume
 
 - Symmetric to the engine fix below, but tracked through a different

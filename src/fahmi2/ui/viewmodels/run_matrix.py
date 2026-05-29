@@ -98,11 +98,21 @@ class RunMatrixViewModel:
         phases: tuple[tuple[PhaseId, bool], ...],
         cells_by_key: dict[tuple[PhaseId, SourceId | None], PhaseCell],
     ) -> CostMatrixSnapshot:
-        """Assemble le snapshot (cellules + totaux, gestion batch)."""
+        """Assemble le snapshot (cellules + totaux, gestion batch).
+
+        Phases per-source : chaque cellule porte son coût propre.
+
+        Phases batch : un unique coût existe en base (``source_id=NULL``)
+        partagé par toutes les sources. Pour le rendre visible sans risque
+        d'addition mentale erronée (12 lignes × coût ≠ total réel), on
+        l'affiche **uniquement sur la cellule de la 1ʳᵉ ligne** ; les autres
+        restent à ``None`` (rendues ``—``). Le total de colonne reste la
+        valeur batch unique, qui sert d'autorité.
+        """
         column_labels = tuple(_phase_short_label(p) for p, _ in phases)
         grid: list[tuple[CostMatrixCell, ...]] = []
         row_totals: list[float] = []
-        for source in sources:
+        for index, source in enumerate(sources):
             row: list[CostMatrixCell] = []
             row_total = 0.0
             for phase_id, per_source in phases:
@@ -113,8 +123,12 @@ class RunMatrixViewModel:
                 if per_source:
                     row_total += cost
                     cell_cost = cost if pc is not None else None
+                elif index == 0 and pc is not None:
+                    # Coût batch visible sur la 1ʳᵉ ligne uniquement
+                    # (cf. docstring de la méthode).
+                    cell_cost = cost
                 else:
-                    cell_cost = None  # batch : coût au niveau du run (cf. total)
+                    cell_cost = None
                 row.append(
                     CostMatrixCell(
                         status=status,

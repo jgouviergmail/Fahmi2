@@ -1968,27 +1968,27 @@ All generated materials, their intermediate exports, and the execution state wil
 <context>
     <name>PedagogyState</name>
     <message>
-        <location filename="../../ui/viewmodels/pedagogy_state.py" line="60"/>
+        <location filename="../../ui/viewmodels/pedagogy_state.py" line="61"/>
         <source>⚙ À configurer</source>
         <translation>⚙ To configure</translation>
     </message>
     <message>
-        <location filename="../../ui/viewmodels/pedagogy_state.py" line="62"/>
+        <location filename="../../ui/viewmodels/pedagogy_state.py" line="63"/>
         <source>⚠ Génération requise</source>
         <translation>⚠ Generation required</translation>
     </message>
     <message>
-        <location filename="../../ui/viewmodels/pedagogy_state.py" line="64"/>
+        <location filename="../../ui/viewmodels/pedagogy_state.py" line="65"/>
         <source>● Prêt à générer</source>
         <translation>● Ready to generate</translation>
     </message>
     <message>
-        <location filename="../../ui/viewmodels/pedagogy_state.py" line="66"/>
+        <location filename="../../ui/viewmodels/pedagogy_state.py" line="67"/>
         <source>✓ Supports à jour</source>
         <translation>✓ Materials up to date</translation>
     </message>
     <message>
-        <location filename="../../ui/viewmodels/pedagogy_state.py" line="67"/>
+        <location filename="../../ui/viewmodels/pedagogy_state.py" line="68"/>
         <source>⟳ Supports à régénérer</source>
         <translation>⟳ Materials to regenerate</translation>
     </message>
@@ -2181,25 +2181,27 @@ All generated materials, their intermediate exports, and the execution state wil
 <context>
     <name>ProjectsSidebar</name>
     <message>
-        <location filename="../../ui/widgets/projects_sidebar.py" line="128"/>
-        <source>Génération {gen} · Supports {ped}</source>
+        <location filename="../../ui/widgets/projects_sidebar.py" line="134"/>
+        <source>Génération {gen} · Supports {ped} · Visuels {vis}</source>
         <extracomment>Rôle Qt portant la valeur de ``ProjectId`` dans chaque ``QListWidgetItem``. Glyphe Unicode utilisé comme pastille de statut (cercle plein). Hauteur fixe (px) d&apos;une ligne — assez d&apos;air pour nom + sous-libellé. Marges et espacements internes de la ligne. ``objectName`` de la pastille (stylé via QSS avec la même mécanique ``accent=&quot;success&quot;/&quot;running&quot;/...`` que les valeurs des tuiles de stats). ``objectName`` du nom du projet (titre bold). ``objectName`` du sous-libellé (statuts en clair, gris). Priorité des accents pour la pastille agrégée. Le plus haut « gagne » : si au moins une fonctionnalité est en cours / en pause / en erreur, la pastille reflète cet état plutôt qu&apos;un statut neutre/succès.</extracomment>
-        <translation>Generation {gen} · Materials {ped}</translation>
+        <translation>Generation {gen} · Materials {ped} · Visuals {vis}</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/projects_sidebar.py" line="142"/>
+        <location filename="../../ui/widgets/projects_sidebar.py" line="150"/>
         <source>Génération : {gen}
-Supports : {ped}</source>
+Supports : {ped}
+Visuels : {vis}</source>
         <translation>Generation: {gen}
-Materials: {ped}</translation>
+Materials: {ped}
+Visuals: {vis}</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/projects_sidebar.py" line="324"/>
+        <location filename="../../ui/widgets/projects_sidebar.py" line="333"/>
         <source>Modifier…</source>
         <translation>Edit…</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/projects_sidebar.py" line="325"/>
+        <location filename="../../ui/widgets/projects_sidebar.py" line="334"/>
         <source>Supprimer…</source>
         <translation>Delete…</translation>
     </message>
@@ -2351,22 +2353,22 @@ Materials: {ped}</translation>
         <translation>failed</translation>
     </message>
     <message>
-        <location filename="../../ui/viewmodels/run_matrix.py" line="56"/>
+        <location filename="../../ui/viewmodels/run_matrix.py" line="59"/>
         <source>déjà fait</source>
         <translation>already done</translation>
     </message>
     <message>
-        <location filename="../../ui/viewmodels/run_matrix.py" line="143"/>
+        <location filename="../../ui/viewmodels/run_matrix.py" line="178"/>
         <source>Source</source>
         <translation>Source</translation>
     </message>
     <message>
-        <location filename="../../ui/viewmodels/run_matrix.py" line="159"/>
+        <location filename="../../ui/viewmodels/run_matrix.py" line="194"/>
         <source> (coût au niveau du run)</source>
         <translation> (run-level cost)</translation>
     </message>
     <message>
-        <location filename="../../ui/viewmodels/run_matrix.py" line="163"/>
+        <location filename="../../ui/viewmodels/run_matrix.py" line="198"/>
         <source>coût</source>
         <translation>cost</translation>
     </message>
@@ -2604,6 +2606,508 @@ Materials: {ped}</translation>
         <location filename="../../ui/status_labels.py" line="38"/>
         <source>Annulé</source>
         <translation>Cancelled</translation>
+    </message>
+</context>
+<context>
+    <name>VisualsController</name>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="325"/>
+        <source>Sélectionne un projet dans la sidebar avant de configurer.</source>
+        <extracomment>Plafond de coût atteint : note ajoutée au log de fin (statut ``PAUSED``). Émis quand le statut de la génération change (démarrage / fin / échec / réinitialisation), pour rafraîchir les icônes de la sidebar.</extracomment>
+        <translation>Select a project in the sidebar before configuring.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="349"/>
+        <location filename="../../ui/visuals_controller.py" line="686"/>
+        <source>Visualisations non configurées</source>
+        <translation>Visualizations not configured</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="352"/>
+        <location filename="../../ui/visuals_controller.py" line="689"/>
+        <source>Configurez d&apos;abord les visualisations (⚙ Réglages).</source>
+        <translation>Configure the visualizations first (⚙ Settings).</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="393"/>
+        <source>Sélectionne un projet dans la sidebar avant de générer.</source>
+        <translation>Select a project in the sidebar before generating.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="402"/>
+        <source>Génération déjà en cours</source>
+        <translation>Generation already in progress</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="405"/>
+        <source>Une génération de visualisations est déjà en cours.</source>
+        <translation>A visualization generation is already in progress.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="503"/>
+        <source>Aucun dossier de visualisations</source>
+        <translation>No visualizations folder</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="506"/>
+        <source>Aucune visualisation n&apos;a encore été produite pour ce projet.</source>
+        <translation>No visualization has been produced for this project yet.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="524"/>
+        <source>Sélectionne un projet dans la sidebar avant de réinitialiser.</source>
+        <translation>Select a project in the sidebar before resetting.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="533"/>
+        <source>Génération en cours</source>
+        <translation>Generation in progress</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="534"/>
+        <source>Impossible de réinitialiser pendant une génération. Annule-la d&apos;abord.</source>
+        <translation>Cannot reset while generation is in progress. Cancel it first.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="543"/>
+        <source>Réinitialiser les visualisations ?</source>
+        <translation>Reset the visualizations?</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="546"/>
+        <source>Réinitialiser les visualisations de « {name} » ?
+
+Toutes les pages produites et l&apos;état d&apos;exécution seront supprimés. Cette action est irréversible.</source>
+        <translation>Reset the visualizations for “{name}”?
+
+All produced pages and the execution state will be deleted. This action is irreversible.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="628"/>
+        <source>La génération s&apos;est terminée sur une erreur inattendue</source>
+        <translation>Generation ended with an unexpected error</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="656"/>
+        <source>Aucun projet sélectionné</source>
+        <translation>No project selected</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="674"/>
+        <source>Clé DeepSeek manquante</source>
+        <translation>DeepSeek key missing</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="677"/>
+        <source>Renseigne la clé DeepSeek dans « Édition → Paramètres globaux ».</source>
+        <translation>Enter the DeepSeek key under “Edit → Global settings”.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="699"/>
+        <source>Génération impossible</source>
+        <translation>Generation not possible</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="852"/>
+        <source>&lt;b&gt;Projet :&lt;/b&gt; {name}</source>
+        <translation>&lt;b&gt;Project:&lt;/b&gt; {name}</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="855"/>
+        <source>&lt;b&gt;Langue de structure :&lt;/b&gt; {lang}</source>
+        <translation>&lt;b&gt;Structure language:&lt;/b&gt; {lang}</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="858"/>
+        <source>&lt;b&gt;Langues latines :&lt;/b&gt; {count}</source>
+        <translation>&lt;b&gt;Latin languages:&lt;/b&gt; {count}</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="861"/>
+        <source>&lt;b&gt;Unités de texte :&lt;/b&gt; {count}</source>
+        <translation>&lt;b&gt;Text units:&lt;/b&gt; {count}</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="867"/>
+        <source>Carte des connaissances</source>
+        <translation>Knowledge map</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="871"/>
+        <source>Diagrammes</source>
+        <translation>Diagrams</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="875"/>
+        <source>Traduction des libellés</source>
+        <translation>Label translation</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_controller.py" line="884"/>
+        <source>Estimation du coût des visualisations</source>
+        <translation>Visualizations cost estimate</translation>
+    </message>
+</context>
+<context>
+    <name>VisualsLabels</name>
+    <message>
+        <location filename="../../ui/visuals_labels.py" line="34"/>
+        <source>Carte des connaissances</source>
+        <translation>Knowledge map</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_labels.py" line="37"/>
+        <source>Diagrammes</source>
+        <translation>Diagrams</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_labels.py" line="43"/>
+        <source>Organigramme</source>
+        <translation>Flowchart</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_labels.py" line="46"/>
+        <source>Chronologie</source>
+        <translation>Timeline</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_labels.py" line="49"/>
+        <source>Comparaison</source>
+        <translation>Comparison</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_labels.py" line="52"/>
+        <source>Hiérarchie</source>
+        <translation>Hierarchy</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_labels.py" line="54"/>
+        <source>Cycle</source>
+        <translation>Cycle</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_labels.py" line="56"/>
+        <source>Arbre de décision</source>
+        <translation>Decision tree</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_labels.py" line="62"/>
+        <source>En attente</source>
+        <translation>Pending</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_labels.py" line="64"/>
+        <source>En cours</source>
+        <translation>Running</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_labels.py" line="65"/>
+        <source>Généré</source>
+        <translation>Generated</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_labels.py" line="66"/>
+        <source>À jour</source>
+        <translation>Up to date</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_labels.py" line="67"/>
+        <source>Échec</source>
+        <translation>Failed</translation>
+    </message>
+</context>
+<context>
+    <name>VisualsProgress</name>
+    <message>
+        <location filename="../../ui/widgets/visuals_progress_view.py" line="39"/>
+        <source>Livrable</source>
+        <translation>Deliverable</translation>
+    </message>
+</context>
+<context>
+    <name>VisualsProgressView</name>
+    <message>
+        <location filename="../../ui/widgets/visuals_progress_view.py" line="88"/>
+        <source>Statut</source>
+        <translation>Status</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/visuals_progress_view.py" line="90"/>
+        <source>Avancement</source>
+        <translation>Progress</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/visuals_progress_view.py" line="93"/>
+        <source>Langues</source>
+        <translation>Languages</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/visuals_progress_view.py" line="96"/>
+        <source>Durée</source>
+        <translation>Duration</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/visuals_progress_view.py" line="98"/>
+        <source>Coût</source>
+        <translation>Cost</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/visuals_progress_view.py" line="151"/>
+        <source>langues</source>
+        <translation>languages</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/visuals_progress_view.py" line="158"/>
+        <source>plafond ${ceiling:.2f}</source>
+        <translation>cap ${ceiling:.2f}</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/visuals_progress_view.py" line="162"/>
+        <source>sans plafond</source>
+        <translation>no cap</translation>
+    </message>
+</context>
+<context>
+    <name>VisualsSettingsView</name>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="86"/>
+        <source>Réglages des visualisations</source>
+        <translation>Visualization settings</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="87"/>
+        <source>Configurer les visualisations</source>
+        <translation>Configure visualizations</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="95"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="265"/>
+        <source>Livrables</source>
+        <translation>Deliverables</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="96"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="295"/>
+        <source>Contenu</source>
+        <translation>Content</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="97"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="334"/>
+        <source>Génération IA</source>
+        <translation>AI generation</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="177"/>
+        <source>Carte des connaissances (graphe interactif)</source>
+        <translation>Knowledge map (interactive graph)</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="182"/>
+        <source>Page HTML autonome présentant un graphe interactif des concepts, termes du glossaire, idées et exemples, avec leurs relations.</source>
+        <translation>Standalone HTML page showing an interactive graph of concepts, glossary terms, ideas and examples, with their relationships.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="187"/>
+        <source>Diagrammes (galerie de schémas)</source>
+        <translation>Diagrams (diagram gallery)</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="192"/>
+        <source>Page HTML autonome présentant des organigrammes, chronologies, comparaisons, hiérarchies, cycles et arbres de décision générés.</source>
+        <translation>Standalone HTML page showing generated flowcharts, timelines, comparisons, hierarchies, cycles and decision trees.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="200"/>
+        <source>Volume des nœuds et diagrammes générés par section (compact, équilibré, dense).</source>
+        <translation>Volume of nodes and diagrams generated per section (compact, balanced, dense).</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="216"/>
+        <source>Activer la réflexion approfondie</source>
+        <translation>Enable deep reasoning</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="233"/>
+        <source>Pas de plafond</source>
+        <translation>No cap</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="236"/>
+        <source>Coût maximal en USD. La génération s&apos;arrête si elle s&apos;en approche. Mettez 0 pour désactiver le plafond.</source>
+        <translation>Maximum cost in USD. Generation stops as it approaches it. Set 0 to disable the cap.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="245"/>
+        <source>Nombre de langues traitées en parallèle. Augmenter accélère sans changer le coût (DeepSeek facture au token, pas au temps).</source>
+        <translation>Number of languages processed in parallel. Increasing it speeds things up without changing the cost (DeepSeek bills per token, not per time).</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="267"/>
+        <source>Choisissez les pages HTML autonomes à produire. Chaque page est complète et hors-ligne (aucune dépendance externe).</source>
+        <translation>Choose the standalone HTML pages to produce. Each page is complete and offline (no external dependency).</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="272"/>
+        <source>Pages à produire</source>
+        <translation>Pages to produce</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="280"/>
+        <source>Les visualisations sont produites pour chaque langue latine générée (français, anglais, allemand, espagnol, italien). Le chinois et l&apos;arabe ne sont pas pris en charge.</source>
+        <translation>Visualizations are produced for each generated Latin-script language (French, English, German, Spanish, Italian). Chinese and Arabic are not supported.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="297"/>
+        <source>Densité du contenu extrait et types de diagrammes autorisés.</source>
+        <translation>Density of the extracted content and allowed diagram types.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="303"/>
+        <source>Densité</source>
+        <translation>Density</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="305"/>
+        <source>Volume des nœuds et diagrammes : compact pour l&apos;essentiel, dense pour creuser.</source>
+        <translation>Volume of nodes and diagrams: compact for the essentials, dense to dig deeper.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="310"/>
+        <source>Quantité de contenu</source>
+        <translation>Content amount</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="316"/>
+        <source>Types de diagrammes</source>
+        <translation>Diagram types</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="318"/>
+        <source>Types autorisés dans la galerie. L&apos;IA choisit le type adapté à chaque contenu parmi ceux cochés.</source>
+        <translation>Types allowed in the gallery. The AI picks the type suited to each content among those checked.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="336"/>
+        <source>Modèle de génération, intensité de réflexion, budget et performance.</source>
+        <translation>Generation model, reasoning intensity, budget, and performance.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="342"/>
+        <source>Modèle de génération</source>
+        <translation>Generation model</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="344"/>
+        <source>Modèle DeepSeek utilisé pour extraire la structure et traduire les libellés.</source>
+        <translation>DeepSeek model used to extract the structure and translate the labels.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="349"/>
+        <source>Modèle</source>
+        <translation>Model</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="350"/>
+        <source>Température</source>
+        <translation>Temperature</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="356"/>
+        <source>Réflexion approfondie</source>
+        <translation>Deep reasoning</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="358"/>
+        <source>Active un raisonnement étendu avant l&apos;extraction — meilleure qualité, coût plus élevé.</source>
+        <translation>Enables extended reasoning before extraction — better quality, higher cost.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="364"/>
+        <source>Intensité de réflexion</source>
+        <translation>Reasoning intensity</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="370"/>
+        <source>Budget et performance</source>
+        <translation>Budget and performance</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="372"/>
+        <source>Plafond de dépense (la génération s&apos;arrête si le coût l&apos;atteint) et nombre de langues traitées en parallèle (plus rapide, n&apos;augmente pas le coût).</source>
+        <translation>Spending cap (generation stops if the cost reaches it) and number of languages processed in parallel (faster, does not increase the cost).</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="378"/>
+        <source>Budget maximal</source>
+        <translation>Maximum budget</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="379"/>
+        <source>Traitements simultanés</source>
+        <translation>Simultaneous jobs</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="413"/>
+        <source>Réglages incomplets</source>
+        <translation>Incomplete settings</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="415"/>
+        <source>Sélectionnez au moins un livrable. Si les diagrammes sont activés, cochez au moins un type de diagramme.</source>
+        <translation>Select at least one deliverable. If diagrams are enabled, check at least one diagram type.</translation>
+    </message>
+</context>
+<context>
+    <name>VisualsState</name>
+    <message>
+        <location filename="../../ui/viewmodels/visuals_state.py" line="73"/>
+        <source>⚙ À configurer</source>
+        <translation>⚙ To configure</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/visuals_state.py" line="75"/>
+        <source>⚠ Génération requise</source>
+        <translation>⚠ Generation required</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/visuals_state.py" line="77"/>
+        <source>● Prêt à générer</source>
+        <translation>● Ready to generate</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/visuals_state.py" line="79"/>
+        <source>✓ Visualisations à jour</source>
+        <translation>✓ Visualizations up to date</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/visuals_state.py" line="80"/>
+        <source>⟳ Visualisations à régénérer</source>
+        <translation>⟳ Visualizations to regenerate</translation>
+    </message>
+</context>
+<context>
+    <name>VisualsTab</name>
+    <message>
+        <location filename="../../ui/features/visuals_tab.py" line="28"/>
+        <source>Visualisations</source>
+        <extracomment>Stubs PySide6 : ``QT_TRANSLATE_NOOP`` est typé ``object`` ; on caste car la fonction renvoie son argument textuel tel quel.</extracomment>
+        <translation>Visualizations</translation>
+    </message>
+    <message>
+        <location filename="../../ui/features/visuals_tab.py" line="31"/>
+        <source>Configurer les visualisations (livrables, densité, types de diagrammes, modèle &amp; coût).</source>
+        <translation>Configure the visualizations (deliverables, density, diagram types, model &amp; cost).</translation>
+    </message>
+    <message>
+        <location filename="../../ui/features/visuals_tab.py" line="39"/>
+        <source>Estime le coût LLM de production des visualisations (extraction de la structure + traduction des libellés par langue).</source>
+        <translation>Estimate the LLM cost of producing the visualizations (structure extraction + per-language label translation).</translation>
+    </message>
+    <message>
+        <location filename="../../ui/features/visuals_tab.py" line="47"/>
+        <source>Ouvre le dossier « visuals » contenant les pages HTML autonomes produites (carte des connaissances et diagrammes, par langue).</source>
+        <translation>Open the “visuals” folder containing the produced standalone HTML pages (knowledge map and diagrams, per language).</translation>
     </message>
 </context>
 </TS>

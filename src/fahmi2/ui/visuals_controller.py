@@ -862,7 +862,7 @@ def _show_visuals_cost_dialog(
             "VisualsController", "<b>Unités de texte :</b> {count}"
         ).format(count=estimation.units_total),
     ]
-    breakdown = [
+    all_lines = [
         (
             QCoreApplication.translate("VisualsController", "Carte des connaissances"),
             estimation.knowledge_map_usd,
@@ -878,6 +878,7 @@ def _show_visuals_cost_dialog(
             estimation.translation_usd,
         ),
     ]
+    breakdown = [(label, cost) for label, cost in all_lines if cost > 0.0]
     show_cost_estimate(
         parent,
         title=QCoreApplication.translate(

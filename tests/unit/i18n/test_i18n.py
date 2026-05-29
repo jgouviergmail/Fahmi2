@@ -112,6 +112,23 @@ _TRANSLATION_SMOKE_TESTS: tuple[tuple[str, str, str], ...] = (
     ("PedagogyState", "⟳ Supports à régénérer", "⟳ Materials to regenerate"),
     ("FsHelpers", "Échec de la suppression du dossier {label} : {path} ({exc})",
         "Failed to delete the {label} folder: {path} ({exc})"),
+    # Phase 8 — fonctionnalité Visualisations (≥ 1 chaîne par nouveau contexte).
+    ("VisualsTab", "Visualisations", "Visualizations"),
+    ("VisualsState", "✓ Visualisations à jour", "✓ Visualizations up to date"),
+    ("VisualsState", "● Prêt à générer", "● Ready to generate"),
+    ("VisualsLabels", "Organigramme", "Flowchart"),
+    ("VisualsLabels", "Arbre de décision", "Decision tree"),
+    ("VisualsProgress", "Livrable", "Deliverable"),
+    ("VisualsProgressView", "Avancement", "Progress"),
+    ("VisualsController", "Carte des connaissances", "Knowledge map"),
+    ("VisualsController", "Traduction des libellés", "Label translation"),
+    ("VisualsSettingsView", "Configurer les visualisations", "Configure visualizations"),
+    ("VisualsSettingsView", "Pages à produire", "Pages to produce"),
+    (
+        "ProjectsSidebar",
+        "Génération {gen} · Supports {ped} · Visuels {vis}",
+        "Generation {gen} · Materials {ped} · Visuals {vis}",
+    ),
 )
 
 

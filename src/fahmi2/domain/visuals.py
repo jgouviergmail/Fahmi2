@@ -43,7 +43,10 @@ VISUALS_WORKSPACE_SUBDIR = "visuals"
 VISUALS_OUTPUT_SUBDIR = "output"
 
 #: Nombre de workers LLM par défaut (aligné sur la Pédagogie).
-_DEFAULT_VISUALS_LLM_WORKERS = 16
+DEFAULT_VISUALS_LLM_WORKERS = 16
+
+#: Borne supérieure du nombre de workers LLM concurrents (alignée sur la Pédagogie).
+MAX_VISUALS_LLM_WORKERS = 64
 
 
 def knowledge_map_filename(language: Language) -> str:
@@ -334,7 +337,7 @@ class VisualsSettings:
     diagram_types: frozenset[DiagramType] = frozenset(DiagramType)
     llm_model: LLMModel = LLMModel.DEEPSEEK_V4_FLASH
     llm_config: PhaseConfig = field(default_factory=PhaseConfig)
-    llm_workers: int = _DEFAULT_VISUALS_LLM_WORKERS
+    llm_workers: int = DEFAULT_VISUALS_LLM_WORKERS
     cost_ceiling_usd: float | None = None
 
     def __post_init__(self) -> None:

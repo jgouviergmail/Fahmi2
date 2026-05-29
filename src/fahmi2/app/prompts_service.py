@@ -5,7 +5,7 @@ Permet à l'UI de :
 
 - Lister les templates LLM disponibles (11 prompts de génération — phases 1 à 7,
   sous-prompts 5a/5b, et 3 prompts 5c/5d/5e du mode thématique — ; 8 supports
-  pédagogiques ; 3 prompts du Dialogue).
+  pédagogiques ; 3 prompts du Dialogue ; 5 prompts des Visualisations).
 - Lire le contenu **par défaut** (bundlé) d'un template.
 - Lire le contenu **actuellement actif** (override utilisateur si présent,
   défaut sinon).
@@ -216,6 +216,46 @@ _TEMPLATE_METADATA: tuple[PromptTemplateMeta, ...] = (
         display_name="Dialogue — Expansion de requête",
         description=(
             "Chat : reformule une question en mots-clés pour le retrieval lexical."
+        ),
+    ),
+    PromptTemplateMeta(
+        name="visuals_graph_extraction",
+        display_name="Visualisations — Extraction du graphe",
+        description=(
+            "Extrait concepts, idées et exemples (+ relations) d'une unité de "
+            "texte pour la carte des connaissances."
+        ),
+    ),
+    PromptTemplateMeta(
+        name="visuals_community_report",
+        display_name="Visualisations — Rapport de communauté",
+        description=(
+            "Résume une communauté de nœuds en un titre + une synthèse "
+            "(thématique de la carte)."
+        ),
+    ),
+    PromptTemplateMeta(
+        name="visuals_idea_chains",
+        display_name="Visualisations — Enchaînements d'idées",
+        description=(
+            "Relie les communautés en enchaînements d'idées transversaux "
+            "(map-reduce sur les rapports)."
+        ),
+    ),
+    PromptTemplateMeta(
+        name="visuals_diagram_authoring",
+        display_name="Visualisations — Génération de diagrammes",
+        description=(
+            "Produit des diagrammes typés (organigramme, cycle, chronologie…) "
+            "à partir d'une unité de texte."
+        ),
+    ),
+    PromptTemplateMeta(
+        name="visuals_label_translation",
+        display_name="Visualisations — Traduction des libellés",
+        description=(
+            "Traduit les libellés du graphe et des diagrammes dans une langue "
+            "cible (structure inchangée)."
         ),
     ),
 )

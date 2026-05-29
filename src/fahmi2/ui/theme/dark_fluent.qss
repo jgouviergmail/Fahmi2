@@ -283,24 +283,29 @@ QPushButton[role="danger"]:disabled {
     font-size: 11px;
 }
 
-/* ===== Bandeau d'état pédagogie ===== */
-#pedagogyStateBanner {
+/* ===== Bandeau d'état pédagogie / visualisations ===== */
+#pedagogyStateBanner,
+#visualsStateBanner {
     padding: 7px 12px;
     border-radius: 8px;
     font-weight: 600;
     background-color: #232831;
     color: #9aa3b2;
 }
-#pedagogyStateBanner[state="ready"] {
+#pedagogyStateBanner[state="ready"],
+#visualsStateBanner[state="ready"] {
     background-color: #15314d;
     color: #9cc8f4;
 }
-#pedagogyStateBanner[state="up_to_date"] {
+#pedagogyStateBanner[state="up_to_date"],
+#visualsStateBanner[state="up_to_date"] {
     background-color: #122c1a;
     color: #3fb950;
 }
 #pedagogyStateBanner[state="stale"],
-#pedagogyStateBanner[state="generation_required"] {
+#pedagogyStateBanner[state="generation_required"],
+#visualsStateBanner[state="stale"],
+#visualsStateBanner[state="generation_required"] {
     background-color: #2c1f0f;
     color: #d29922;
 }

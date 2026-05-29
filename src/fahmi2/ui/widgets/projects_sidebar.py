@@ -73,11 +73,13 @@ class ProjectListEntry:
         project: Projet.
         generation_status: Statut du dernier run de génération.
         pedagogy_status: Statut de la dernière exécution pédagogie.
+        visuals_status: Statut de la dernière exécution des visualisations.
     """
 
     project: Project
     generation_status: RunStatus
     pedagogy_status: RunStatus
+    visuals_status: RunStatus = RunStatus.CREATED
 
 
 #: Priorité des accents pour la pastille agrégée. Le plus haut « gagne » :
@@ -102,9 +104,12 @@ def _aggregated_accent(entry: ProjectListEntry) -> str:
         L'identifiant d'accent (``"running"``/``"success"``/...) à passer à
         la propriété QSS ``accent`` de la pastille.
     """
-    gen = run_status_accent(entry.generation_status)
-    ped = run_status_accent(entry.pedagogy_status)
-    return gen if _ACCENT_PRIORITY[gen] >= _ACCENT_PRIORITY[ped] else ped
+    accents = (
+        run_status_accent(entry.generation_status),
+        run_status_accent(entry.pedagogy_status),
+        run_status_accent(entry.visuals_status),
+    )
+    return max(accents, key=lambda accent: _ACCENT_PRIORITY[accent])
 
 
 def _entry_subtitle(entry: ProjectListEntry) -> str:
@@ -122,12 +127,15 @@ def _entry_subtitle(entry: ProjectListEntry) -> str:
     """
     gen_label = run_status_label(entry.generation_status)
     ped_label = run_status_label(entry.pedagogy_status)
-    # ``{gen}`` / ``{ped}`` sont des placeholders nommés (Qt + Python
+    vis_label = run_status_label(entry.visuals_status)
+    # ``{gen}`` / ``{ped}`` / ``{vis}`` sont des placeholders nommés (Qt + Python
     # ``str.format`` les conservent à travers la traduction). Les
     # traducteurs ne doivent pas les renommer.
     return QCoreApplication.translate(
-        "ProjectsSidebar", "Génération {gen} · Supports {ped}"
-    ).format(gen=gen_label.lower(), ped=ped_label.lower())
+        "ProjectsSidebar", "Génération {gen} · Supports {ped} · Visuels {vis}"
+    ).format(
+        gen=gen_label.lower(), ped=ped_label.lower(), vis=vis_label.lower()
+    )
 
 
 def _entry_tooltip(entry: ProjectListEntry) -> str:
@@ -140,10 +148,11 @@ def _entry_tooltip(entry: ProjectListEntry) -> str:
         Texte d'infobulle.
     """
     return QCoreApplication.translate(
-        "ProjectsSidebar", "Génération : {gen}\nSupports : {ped}"
+        "ProjectsSidebar", "Génération : {gen}\nSupports : {ped}\nVisuels : {vis}"
     ).format(
         gen=run_status_label(entry.generation_status),
         ped=run_status_label(entry.pedagogy_status),
+        vis=run_status_label(entry.visuals_status),
     )
 
 

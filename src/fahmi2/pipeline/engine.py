@@ -228,6 +228,7 @@ class PipelineEngine:
             artifact_path=result.artifact_path,
             retry_count=attempts["n"] - 1,
             cost_usd=result.cost_usd,
+            per_source_costs=result.per_source_costs,
             error=result.error,
         )
         ctx.state.upsert_phase_execution(ctx.run.id, finalized, source_id=source_id)

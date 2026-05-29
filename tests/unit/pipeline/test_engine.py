@@ -1,8 +1,12 @@
 """Tests du PipelineEngine."""
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
+
+import pytest
 
 from fahmi2.core.errors.exceptions import (
     BudgetExceededError,
@@ -54,6 +58,7 @@ class _CountingHandler(PhaseHandler):
         raise_on_call: Fahmi2Error | None = None,
         cost_per_call: float = 0.0,
         parallel_workers: int = 1,
+        per_source_costs: Mapping[SourceId, float] | None = None,
     ) -> None:
         self._phase_id = phase_id
         self._per_source = is_per_source
@@ -63,6 +68,7 @@ class _CountingHandler(PhaseHandler):
         self._raise_on_call = raise_on_call
         self._cost_per_call = cost_per_call
         self._parallel_workers = parallel_workers
+        self._per_source_costs = per_source_costs
         self._attempts: dict[str, int] = {}
 
     @property
@@ -99,11 +105,14 @@ class _CountingHandler(PhaseHandler):
                 user_message="retry me",
                 severity=Severity.WARNING,
             )
-        return PhaseExecution(
-            phase_id=self._phase_id,
-            status=PhaseStatus.SUCCEEDED,
-            cost_usd=self._cost_per_call,
-        )
+        kwargs: dict[str, Any] = {
+            "phase_id": self._phase_id,
+            "status": PhaseStatus.SUCCEEDED,
+            "cost_usd": self._cost_per_call,
+        }
+        if self._per_source_costs is not None:
+            kwargs["per_source_costs"] = self._per_source_costs
+        return PhaseExecution(**kwargs)
 
 
 def _make_ctx(
@@ -193,6 +202,35 @@ def test_engine_runs_batch_phase_once(tmp_path: Path, make_generation_settings: 
     engine = _make_engine(handler)
     engine.execute(ctx)
     assert handler.calls == [None]
+
+
+def test_engine_preserves_handler_per_source_costs_through_persistence(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    """Reg : l'engine reconstruit une ``PhaseExecution`` finalisée à partir
+    du résultat handler avant de la persister. Le champ ``per_source_costs``
+    DOIT être recopié, sinon la ventilation produite par phases 5/6 est
+    silencieusement écrasée au mapping vide et la matrice n'affiche rien.
+    """
+    ctx = _make_ctx(tmp_path, make_generation_settings, n_sources=2)
+    src0 = ctx.run.sources[0].source_id
+    src1 = ctx.run.sources[1].source_id
+    attribution: Mapping[SourceId, float] = MappingProxyType(
+        {src0: 0.07, src1: 0.13}
+    )
+    handler = _CountingHandler(
+        PhaseId.TRANSLATION,
+        is_per_source=False,
+        cost_per_call=0.30,  # total inclut résidu (0.30 - 0.07 - 0.13 = 0.10)
+        per_source_costs=attribution,
+    )
+    engine = _make_engine(handler)
+    engine.execute(ctx)
+
+    cells = ctx.state.list_phase_cells(ctx.run.id)
+    translation_cell = next(c for c in cells if c.phase_id is PhaseId.TRANSLATION)
+    assert dict(translation_cell.per_source_costs) == {src0: 0.07, src1: 0.13}
+    assert translation_cell.cost_usd == pytest.approx(0.30)
 
 
 def test_engine_skips_already_succeeded(tmp_path: Path, make_generation_settings: Any) -> None:

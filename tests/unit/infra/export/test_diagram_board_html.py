@@ -6,6 +6,8 @@ import json
 import re
 from typing import Any
 
+import pytest
+
 from fahmi2.domain.enums import DiagramType, Language
 from fahmi2.domain.visuals import (
     ComparisonTable,
@@ -150,10 +152,19 @@ def test_bouton_agrandir_et_overlay_plein_ecran() -> None:
     assert re.search(r"@@[A-Z_]+@@", html) is None  # token @@CLOSE@@ bien substitué
 
 
-def test_overlay_libelles_localises_en() -> None:
-    from fahmi2.domain.visuals import DiagramBoard  # noqa: PLC0415
-
+@pytest.mark.parametrize(
+    ("language", "expand", "close"),
+    [
+        (Language.EN, "Enlarge", "Close"),
+        (Language.DE, "Vergrößern", "Schließen"),  # umlaut + ß : garde-fou encodage
+        (Language.ES, "Ampliar", "Cerrar"),
+        (Language.IT, "Ingrandisci", "Chiudi"),
+    ],
+)
+def test_overlay_libelles_localises(
+    language: Language, expand: str, close: str
+) -> None:
     html = render_diagram_board_html(
-        DiagramBoard(diagrams=_board().diagrams, language=Language.EN)
+        DiagramBoard(diagrams=_board().diagrams, language=language)
     )
-    assert 'title="Enlarge"' in html and 'title="Close"' in html
+    assert f'title="{expand}"' in html and f'title="{close}"' in html

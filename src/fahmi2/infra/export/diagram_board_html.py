@@ -297,7 +297,7 @@ def render_diagram_board_html(board: DiagramBoard) -> str:
         "@@CHIPS@@": _chips(board, strings),
         "@@COUNT@@": strings.count_template.format(n=len(board.diagrams)),
         "@@EMPTY@@": strings.empty,
-        "@@CLOSE@@": strings.close_label,
+        "@@CLOSE@@": escape(strings.close_label, quote=True),
         "@@APP_CSS@@": f"{read_visuals_asset(_TOKENS_CSS)}\n{read_visuals_asset(_CSS)}",
         "@@APP_JS@@": read_visuals_asset(_JS),
         "@@VENDORED@@": vendored_scripts_html(_BOARD_SCRIPTS),

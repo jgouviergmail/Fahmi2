@@ -124,14 +124,19 @@
   var lightbox = document.getElementById("lightbox");
   var lightboxBody = document.getElementById("lightbox-body");
   var lightboxTitle = document.getElementById("lightbox-title");
+  var lightboxClose = document.getElementById("lightbox-close");
+  var lastTrigger = null;  // bouton .expand ayant ouvert l'overlay (focus restitué à la fermeture)
 
   function closeLightbox() {
     if (lightboxCy) { lightboxCy.destroy(); lightboxCy = null; }
     lightboxBody.innerHTML = "";
     lightbox.setAttribute("hidden", "");
+    if (lastTrigger) { lastTrigger.focus(); lastTrigger = null; }  // retour du focus
   }
 
-  function openLightbox(card) {
+  function openLightbox(card, trigger) {
+    if (lightboxCy) { lightboxCy.destroy(); lightboxCy = null; }  // ré-ouverture : pas de fuite
+    lastTrigger = trigger || null;
     var h3 = card.querySelector("h3");
     lightboxTitle.textContent = h3 ? h3.textContent : "";
     lightboxBody.innerHTML = "";
@@ -148,17 +153,22 @@
       var linear = card.querySelector(".timeline, .cmp");
       if (linear) { lightboxBody.appendChild(linear.cloneNode(true)); }
     }
+    lightboxClose.focus();  // focus dans la modale (accessibilité clavier)
   }
 
   document.querySelectorAll(".expand").forEach(function (btn) {
     btn.addEventListener("click", function () {
       var card = btn.closest(".card");
-      if (card) { openLightbox(card); }
+      if (card) { openLightbox(card, btn); }
     });
   });
-  document.getElementById("lightbox-close").addEventListener("click", closeLightbox);
+  lightboxClose.addEventListener("click", closeLightbox);
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape" && !lightbox.hasAttribute("hidden")) { closeLightbox(); }
+    if (lightbox.hasAttribute("hidden")) { return; }
+    if (e.key === "Escape") { closeLightbox(); }
+    // Piège de focus : le seul contrôle de la modale est le bouton de fermeture ;
+    // on garde donc le focus dessus (Tab/Shift+Tab ne sortent pas de l'overlay).
+    else if (e.key === "Tab") { e.preventDefault(); lightboxClose.focus(); }
   });
 
   // ---- Thème ----

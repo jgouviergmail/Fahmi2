@@ -17,7 +17,7 @@
 <div class="subbar">@@CHIPS@@<span class="count">@@COUNT@@</span></div>
 <main class="board">@@CARDS@@</main>
 <div class="empty" id="empty" style="display:none">@@EMPTY@@</div>
-<div class="lightbox" id="lightbox" hidden>
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-labelledby="lightbox-title" hidden>
   <div class="lightbox-head">
     <h3 class="lightbox-title" id="lightbox-title"></h3>
     <button class="lightbox-close" id="lightbox-close" type="button" title="@@CLOSE@@" aria-label="@@CLOSE@@">✕</button>

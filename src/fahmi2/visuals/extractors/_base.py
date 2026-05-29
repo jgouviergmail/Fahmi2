@@ -8,9 +8,13 @@
 
 from __future__ import annotations
 
+import threading
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import TypeVar
 
+from fahmi2.core.concurrency import map_bounded
 from fahmi2.core.concurrency.pause_token import PauseToken
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.retry.policy import RetryPolicy
@@ -20,7 +24,15 @@ from fahmi2.infra.llm.interface import LLMProvider, LLMResponse
 from fahmi2.infra.llm.invocation import invoke_llm_chat_with_retry
 from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.pipeline.event_bus import EventBus
-from fahmi2.visuals.events import VisualsEvent, VisualsRetryAttempt
+from fahmi2.visuals.events import (
+    VisualsEvent,
+    VisualsRetryAttempt,
+    VisualsStructureProgress,
+    VisualsStructureStep,
+)
+
+_T = TypeVar("_T")
+_R = TypeVar("_R")
 
 
 @dataclass(frozen=True)
@@ -51,6 +63,56 @@ def _now() -> datetime:
         ``datetime`` UTC aware.
     """
     return datetime.now(tz=UTC)
+
+
+def map_units_with_progress(
+    ctx: VisualsContext,
+    items: Sequence[_T],
+    worker: Callable[[_T], _R],
+    *,
+    step: VisualsStructureStep,
+) -> list[_R]:
+    """Applique ``worker`` à chaque item en parallèle, en émettant la progression.
+
+    Parallélise via ``map_bounded`` (borné par ``settings.llm_workers``, honore le
+    ``PauseToken``) et publie un ``VisualsStructureProgress`` à **chaque** item terminé
+    (compteur protégé par un verrou) — pour matérialiser l'avancement de la phase de
+    structure. **L'ordre des résultats est préservé** (déterminisme inchangé).
+
+    Args:
+        ctx: Contexte d'exécution (workers, pause token, bus d'événements).
+        items: Items à traiter (unités de texte, communautés…).
+        worker: Traitement d'un item (appel(s) LLM) ; peut lever (*fail-fast*).
+        step: Étape de structure concernée (pour l'événement de progression).
+
+    Returns:
+        Les résultats dans l'ordre des ``items`` (liste vide si ``items`` est vide).
+    """
+    total = len(items)
+    if total == 0:
+        return []
+    lock = threading.Lock()
+    done = 0
+
+    def _tracked(item: _T) -> _R:
+        nonlocal done
+        result = worker(item)
+        with lock:
+            done += 1
+            completed = done
+        ctx.event_bus.publish(
+            VisualsStructureProgress(
+                timestamp=_now(), step=step, completed=completed, total=total
+            )
+        )
+        return result
+
+    return map_bounded(
+        _tracked,
+        items,
+        max_workers=ctx.settings.llm_workers,
+        pause_token=ctx.pause_token,
+    )
 
 
 def invoke_visuals_llm(

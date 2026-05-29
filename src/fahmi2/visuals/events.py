@@ -10,9 +10,23 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.domain.enums import Language, PhaseStatus, RunStatus
+
+
+class VisualsStructureStep(StrEnum):
+    """Étape de l'extraction de structure (phase commune, avant les langues).
+
+    Sert à matérialiser l'avancement (logs + matrice) de la phase la plus longue,
+    exécutée **une seule fois** en langue de structure.
+    """
+
+    GRAPH = "graph"
+    COMMUNITY_REPORTS = "community_reports"
+    IDEA_CHAINS = "idea_chains"
+    DIAGRAMS = "diagrams"
 
 
 @dataclass(frozen=True)
@@ -42,6 +56,31 @@ class VisualsGenerationFinished(VisualsEvent):
 
     status: RunStatus
     total_cost_usd: float
+
+
+@dataclass(frozen=True)
+class VisualsStructureStarted(VisualsEvent):
+    """Début de l'extraction de structure (graphe + diagrammes, une seule fois)."""
+
+
+@dataclass(frozen=True)
+class VisualsStructureProgress(VisualsEvent):
+    """Avancement d'une étape de l'extraction de structure.
+
+    Attributes:
+        step: Étape concernée (graphe / rapports / enchaînements / diagrammes).
+        completed: Nombre d'items traités.
+        total: Nombre total d'items de l'étape.
+    """
+
+    step: VisualsStructureStep
+    completed: int
+    total: int
+
+
+@dataclass(frozen=True)
+class VisualsStructureFinished(VisualsEvent):
+    """Fin de l'extraction de structure (avant la production par langue)."""
 
 
 @dataclass(frozen=True)

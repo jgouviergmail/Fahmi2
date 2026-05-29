@@ -55,6 +55,8 @@ from fahmi2.visuals.events import (
     VisualsGenerationStarted,
     VisualsLanguageFinished,
     VisualsLanguageStarted,
+    VisualsStructureFinished,
+    VisualsStructureStarted,
 )
 from fahmi2.visuals.extractors._base import VisualsContext
 from fahmi2.visuals.extractors.community_reporter import generate_community_reports
@@ -217,6 +219,7 @@ class VisualsOrchestrator:
             return self._finalize(
                 event_bus, visuals_dir, RunStatus.PAUSED, started_at, base_cost
             )
+        event_bus.publish(VisualsStructureStarted(timestamp=_now()))
         try:
             graph_source, board_source, struct_cost = self._build_structure(
                 ctx, structure_lang, output_dir, glossary
@@ -232,6 +235,7 @@ class VisualsOrchestrator:
             return self._finalize(
                 event_bus, visuals_dir, RunStatus.FAILED, started_at, base_cost
             )
+        event_bus.publish(VisualsStructureFinished(timestamp=_now()))
         return self._run_languages(
             ctx,
             languages,

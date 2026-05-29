@@ -32,8 +32,13 @@ from fahmi2.infra.llm.json_schema import (
     require_str,
 )
 from fahmi2.visuals._constants import MAX_DIAGRAMS_PER_UNIT
-from fahmi2.visuals._excerpts import build_section_index
-from fahmi2.visuals.extractors._base import VisualsContext, invoke_visuals_llm
+from fahmi2.visuals._excerpts import SectionIndex, build_section_index
+from fahmi2.visuals.events import VisualsStructureStep
+from fahmi2.visuals.extractors._base import (
+    VisualsContext,
+    invoke_visuals_llm,
+    map_units_with_progress,
+)
 from fahmi2.visuals.sources import TextUnit
 
 _STAGE = "diagram_authoring"
@@ -274,44 +279,83 @@ def extract_diagrams(
     index = build_section_index(units)
     max_diagrams = MAX_DIAGRAMS_PER_UNIT[ctx.settings.density]
     allowed_values = sorted(diagram_type.value for diagram_type in allowed)
+    # Unités traitées en parallèle (borné par llm_workers), ordre préservé.
+    results = map_units_with_progress(
+        ctx,
+        units,
+        lambda unit: _diagrams_of_unit(
+            ctx,
+            language=language,
+            unit=unit,
+            allowed=allowed,
+            allowed_values=allowed_values,
+            max_diagrams=max_diagrams,
+            index=index,
+        ),
+        step=VisualsStructureStep.DIAGRAMS,
+    )
     diagrams: list[Diagram] = []
     total_cost = 0.0
-    for unit in units:
-        ctx.pause_token.wait_if_paused()
-        ctx.pause_token.raise_if_cancelled()
-        user_prompt = ctx.prompts.render(
-            _TEMPLATE_NAME,
-            section_title=unit.title,
-            section_markdown=unit.text,
-            allowed_types=allowed_values,
-            max_diagrams=max_diagrams,
-        )
-        response = invoke_visuals_llm(
-            ctx,
-            stage=_STAGE,
-            language=language,
-            user_prompt=user_prompt,
-            response_format=JSON_OBJECT_RESPONSE_FORMAT,
-        )
-        total_cost += response.cost_usd
-        context_label = f"{_STAGE}:{'.'.join(str(p) for p in unit.section_path)}"
-        mapping = require_mapping(
-            parse_llm_json(
-                response.content,
-                context_label=context_label,
-                finish_reason=response.finish_reason,
-            ),
-            context_label=context_label,
-        )
-        excerpt = index.excerpt(unit.section_path)
-        diagrams.extend(
-            _diagrams_for_unit(
-                require_list(mapping, "diagrams", context_label=context_label),
-                allowed=allowed,
-                unit=unit,
-                excerpts=(excerpt,) if excerpt else (),
-                max_diagrams=max_diagrams,
-                context_label=f"{context_label}.diagrams",
-            )
-        )
+    for unit_diagrams, cost in results:
+        diagrams.extend(unit_diagrams)
+        total_cost += cost
     return DiagramExtraction(diagrams=tuple(diagrams), total_cost_usd=total_cost)
+
+
+def _diagrams_of_unit(
+    ctx: VisualsContext,
+    *,
+    language: Language,
+    unit: TextUnit,
+    allowed: frozenset[DiagramType],
+    allowed_values: list[str],
+    max_diagrams: int,
+    index: SectionIndex,
+) -> tuple[list[Diagram], float]:
+    """Génère les diagrammes d'une **seule** unité de texte.
+
+    Args:
+        ctx: Contexte d'exécution.
+        language: Langue du document lu.
+        unit: Unité de texte à traiter.
+        allowed: Types de diagrammes autorisés.
+        allowed_values: Valeurs (str) des types autorisés, triées (pour le prompt).
+        max_diagrams: Plafond de diagrammes pour l'unité (densité).
+        index: Index des sections (extraits source).
+
+    Returns:
+        ``(diagrammes de l'unité, coût)``.
+    """
+    user_prompt = ctx.prompts.render(
+        _TEMPLATE_NAME,
+        section_title=unit.title,
+        section_markdown=unit.text,
+        allowed_types=allowed_values,
+        max_diagrams=max_diagrams,
+    )
+    response = invoke_visuals_llm(
+        ctx,
+        stage=_STAGE,
+        language=language,
+        user_prompt=user_prompt,
+        response_format=JSON_OBJECT_RESPONSE_FORMAT,
+    )
+    context_label = f"{_STAGE}:{'.'.join(str(p) for p in unit.section_path)}"
+    mapping = require_mapping(
+        parse_llm_json(
+            response.content,
+            context_label=context_label,
+            finish_reason=response.finish_reason,
+        ),
+        context_label=context_label,
+    )
+    excerpt = index.excerpt(unit.section_path)
+    unit_diagrams = _diagrams_for_unit(
+        require_list(mapping, "diagrams", context_label=context_label),
+        allowed=allowed,
+        unit=unit,
+        excerpts=(excerpt,) if excerpt else (),
+        max_diagrams=max_diagrams,
+        context_label=f"{context_label}.diagrams",
+    )
+    return unit_diagrams, response.cost_usd

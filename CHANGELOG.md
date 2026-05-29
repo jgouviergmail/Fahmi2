@@ -47,6 +47,21 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 - **Packaging**: `.spec` bundles the vendored `_assets/visuals/*` and
   `collect_submodules('networkx')`.
 
+### Changed — Visualizations: parallel structure extraction + progress visibility
+
+- The structure-extraction phase (graph / diagrams / community reports) now
+  **parallelises its per-unit/per-community LLM calls** via the shared
+  `extractors/_base.map_units_with_progress` (bounded by `llm_workers`, honours the
+  `PauseToken`, **order preserved → deterministic**). Previously it was fully
+  sequential and ignored the configured worker count — a 2-video test course
+  (~32 units, thinking on) took tens of minutes; it now completes in minutes.
+  Token cost is unchanged (per-token billing): a 12-video nominal run is ~$0.20.
+- **Progress visibility**: new `VisualsStructureStarted` / `VisualsStructureProgress`
+  / `VisualsStructureFinished` events; the progress matrix gains a **Structure**
+  column **before** the per-language columns (per-deliverable status + `Graph 12/32`
+  tooltip), and the Logs panel shows per-step advancement. The structure phase
+  (the long pole, run once on the structure language) is no longer invisible.
+
 ## [1.5.2] — 2026-05-29
 
 ### Fixed — Critical: `Project.chat` was reset on every Run

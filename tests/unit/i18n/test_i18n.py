@@ -130,6 +130,9 @@ _TRANSLATION_SMOKE_TESTS: tuple[tuple[str, str, str], ...] = (
         "Generation {gen} · Materials {ped} · Visuals {vis}",
     ),
     ("AppMain", "Supprimer le projet ?", "Delete the project?"),
+    ("VisualsProgress", "Structure", "Structure"),
+    ("VisualsLabels", "Graphe", "Graph"),
+    ("VisualsLabels", "Thématiques", "Themes"),
 )
 
 

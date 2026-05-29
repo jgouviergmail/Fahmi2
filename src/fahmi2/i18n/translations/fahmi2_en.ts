@@ -2638,70 +2638,70 @@ Visuals: {vis}</translation>
 <context>
     <name>VisualsController</name>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="325"/>
+        <location filename="../../ui/visuals_controller.py" line="328"/>
         <source>Sélectionne un projet dans la sidebar avant de configurer.</source>
         <extracomment>Plafond de coût atteint : note ajoutée au log de fin (statut ``PAUSED``). Émis quand le statut de la génération change (démarrage / fin / échec / réinitialisation), pour rafraîchir les icônes de la sidebar.</extracomment>
         <translation>Select a project in the sidebar before configuring.</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="349"/>
-        <location filename="../../ui/visuals_controller.py" line="686"/>
+        <location filename="../../ui/visuals_controller.py" line="352"/>
+        <location filename="../../ui/visuals_controller.py" line="689"/>
         <source>Visualisations non configurées</source>
         <translation>Visualizations not configured</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="352"/>
-        <location filename="../../ui/visuals_controller.py" line="689"/>
+        <location filename="../../ui/visuals_controller.py" line="355"/>
+        <location filename="../../ui/visuals_controller.py" line="692"/>
         <source>Configurez d&apos;abord les visualisations (⚙ Réglages).</source>
         <translation>Configure the visualizations first (⚙ Settings).</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="393"/>
+        <location filename="../../ui/visuals_controller.py" line="396"/>
         <source>Sélectionne un projet dans la sidebar avant de générer.</source>
         <translation>Select a project in the sidebar before generating.</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="402"/>
+        <location filename="../../ui/visuals_controller.py" line="405"/>
         <source>Génération déjà en cours</source>
         <translation>Generation already in progress</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="405"/>
+        <location filename="../../ui/visuals_controller.py" line="408"/>
         <source>Une génération de visualisations est déjà en cours.</source>
         <translation>A visualization generation is already in progress.</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="503"/>
+        <location filename="../../ui/visuals_controller.py" line="506"/>
         <source>Aucun dossier de visualisations</source>
         <translation>No visualizations folder</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="506"/>
+        <location filename="../../ui/visuals_controller.py" line="509"/>
         <source>Aucune visualisation n&apos;a encore été produite pour ce projet.</source>
         <translation>No visualization has been produced for this project yet.</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="524"/>
+        <location filename="../../ui/visuals_controller.py" line="527"/>
         <source>Sélectionne un projet dans la sidebar avant de réinitialiser.</source>
         <translation>Select a project in the sidebar before resetting.</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="533"/>
+        <location filename="../../ui/visuals_controller.py" line="536"/>
         <source>Génération en cours</source>
         <translation>Generation in progress</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="534"/>
+        <location filename="../../ui/visuals_controller.py" line="537"/>
         <source>Impossible de réinitialiser pendant une génération. Annule-la d&apos;abord.</source>
         <translation>Cannot reset while generation is in progress. Cancel it first.</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="543"/>
+        <location filename="../../ui/visuals_controller.py" line="546"/>
         <source>Réinitialiser les visualisations ?</source>
         <translation>Reset the visualizations?</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="546"/>
+        <location filename="../../ui/visuals_controller.py" line="549"/>
         <source>Réinitialiser les visualisations de « {name} » ?
 
 Toutes les pages produites et l&apos;état d&apos;exécution seront supprimés. Cette action est irréversible.</source>
@@ -2710,67 +2710,67 @@ Toutes les pages produites et l&apos;état d&apos;exécution seront supprimés. 
 All produced pages and the execution state will be deleted. This action is irreversible.</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="628"/>
+        <location filename="../../ui/visuals_controller.py" line="631"/>
         <source>La génération s&apos;est terminée sur une erreur inattendue</source>
         <translation>Generation ended with an unexpected error</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="656"/>
+        <location filename="../../ui/visuals_controller.py" line="659"/>
         <source>Aucun projet sélectionné</source>
         <translation>No project selected</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="674"/>
+        <location filename="../../ui/visuals_controller.py" line="677"/>
         <source>Clé DeepSeek manquante</source>
         <translation>DeepSeek key missing</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="677"/>
+        <location filename="../../ui/visuals_controller.py" line="680"/>
         <source>Renseigne la clé DeepSeek dans « Édition → Paramètres globaux ».</source>
         <translation>Enter the DeepSeek key under “Edit → Global settings”.</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="699"/>
+        <location filename="../../ui/visuals_controller.py" line="702"/>
         <source>Génération impossible</source>
         <translation>Generation not possible</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="852"/>
+        <location filename="../../ui/visuals_controller.py" line="897"/>
         <source>&lt;b&gt;Projet :&lt;/b&gt; {name}</source>
         <translation>&lt;b&gt;Project:&lt;/b&gt; {name}</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="855"/>
+        <location filename="../../ui/visuals_controller.py" line="900"/>
         <source>&lt;b&gt;Langue de structure :&lt;/b&gt; {lang}</source>
         <translation>&lt;b&gt;Structure language:&lt;/b&gt; {lang}</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="858"/>
+        <location filename="../../ui/visuals_controller.py" line="903"/>
         <source>&lt;b&gt;Langues latines :&lt;/b&gt; {count}</source>
         <translation>&lt;b&gt;Latin languages:&lt;/b&gt; {count}</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="861"/>
+        <location filename="../../ui/visuals_controller.py" line="906"/>
         <source>&lt;b&gt;Unités de texte :&lt;/b&gt; {count}</source>
         <translation>&lt;b&gt;Text units:&lt;/b&gt; {count}</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="867"/>
+        <location filename="../../ui/visuals_controller.py" line="912"/>
         <source>Carte des connaissances</source>
         <translation>Knowledge map</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="871"/>
+        <location filename="../../ui/visuals_controller.py" line="916"/>
         <source>Diagrammes</source>
         <translation>Diagrams</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="875"/>
+        <location filename="../../ui/visuals_controller.py" line="920"/>
         <source>Traduction des libellés</source>
         <translation>Label translation</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="884"/>
+        <location filename="../../ui/visuals_controller.py" line="929"/>
         <source>Estimation du coût des visualisations</source>
         <translation>Visualizations cost estimate</translation>
     </message>
@@ -2778,67 +2778,83 @@ All produced pages and the execution state will be deleted. This action is irrev
 <context>
     <name>VisualsLabels</name>
     <message>
-        <location filename="../../ui/visuals_labels.py" line="34"/>
+        <location filename="../../ui/visuals_labels.py" line="35"/>
         <source>Carte des connaissances</source>
         <translation>Knowledge map</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_labels.py" line="37"/>
+        <location filename="../../ui/visuals_labels.py" line="38"/>
+        <location filename="../../ui/visuals_labels.py" line="72"/>
         <source>Diagrammes</source>
         <translation>Diagrams</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_labels.py" line="43"/>
+        <location filename="../../ui/visuals_labels.py" line="44"/>
         <source>Organigramme</source>
         <translation>Flowchart</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_labels.py" line="46"/>
+        <location filename="../../ui/visuals_labels.py" line="47"/>
         <source>Chronologie</source>
         <translation>Timeline</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_labels.py" line="49"/>
+        <location filename="../../ui/visuals_labels.py" line="50"/>
         <source>Comparaison</source>
         <translation>Comparison</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_labels.py" line="52"/>
+        <location filename="../../ui/visuals_labels.py" line="53"/>
         <source>Hiérarchie</source>
         <translation>Hierarchy</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_labels.py" line="54"/>
+        <location filename="../../ui/visuals_labels.py" line="55"/>
         <source>Cycle</source>
         <translation>Cycle</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_labels.py" line="56"/>
+        <location filename="../../ui/visuals_labels.py" line="57"/>
         <source>Arbre de décision</source>
         <translation>Decision tree</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_labels.py" line="62"/>
+        <location filename="../../ui/visuals_labels.py" line="63"/>
+        <source>Graphe</source>
+        <translation>Graph</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_labels.py" line="66"/>
+        <source>Thématiques</source>
+        <translation>Themes</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_labels.py" line="69"/>
+        <source>Enchaînements</source>
+        <translation>Idea chains</translation>
+    </message>
+    <message>
+        <location filename="../../ui/visuals_labels.py" line="78"/>
         <source>En attente</source>
         <translation>Pending</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_labels.py" line="64"/>
+        <location filename="../../ui/visuals_labels.py" line="80"/>
         <source>En cours</source>
         <translation>Running</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_labels.py" line="65"/>
+        <location filename="../../ui/visuals_labels.py" line="81"/>
         <source>Généré</source>
         <translation>Generated</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_labels.py" line="66"/>
+        <location filename="../../ui/visuals_labels.py" line="82"/>
         <source>À jour</source>
         <translation>Up to date</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_labels.py" line="67"/>
+        <location filename="../../ui/visuals_labels.py" line="83"/>
         <source>Échec</source>
         <translation>Failed</translation>
     </message>
@@ -2849,6 +2865,12 @@ All produced pages and the execution state will be deleted. This action is irrev
         <location filename="../../ui/widgets/visuals_progress_view.py" line="39"/>
         <source>Livrable</source>
         <translation>Deliverable</translation>
+    </message>
+    <message>
+        <location filename="../../ui/viewmodels/visuals_progress.py" line="64"/>
+        <source>Structure</source>
+        <extracomment>Statuts considérés comme « langue terminée » pour le compteur de tuiles. En-tête de la colonne des libellés de lignes (livrables) de la matrice. Étape de structure → livrable dont elle alimente la colonne « Structure ».</extracomment>
+        <translation>Structure</translation>
     </message>
 </context>
 <context>

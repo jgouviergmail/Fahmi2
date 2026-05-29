@@ -16,6 +16,7 @@ from typing import cast
 from PySide6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication
 
 from fahmi2.domain.enums import DiagramType, PhaseStatus
+from fahmi2.visuals.events import VisualsStructureStep
 
 
 class VisualsDeliverable(StrEnum):
@@ -54,6 +55,21 @@ _DIAGRAM_TYPE_SOURCES: dict[DiagramType, str] = {
     DiagramType.CYCLE: cast(str, QT_TRANSLATE_NOOP("VisualsLabels", "Cycle")),
     DiagramType.DECISION_TREE: cast(
         str, QT_TRANSLATE_NOOP("VisualsLabels", "Arbre de décision")
+    ),
+}
+
+_STRUCTURE_STEP_SOURCES: dict[VisualsStructureStep, str] = {
+    VisualsStructureStep.GRAPH: cast(
+        str, QT_TRANSLATE_NOOP("VisualsLabels", "Graphe")
+    ),
+    VisualsStructureStep.COMMUNITY_REPORTS: cast(
+        str, QT_TRANSLATE_NOOP("VisualsLabels", "Thématiques")
+    ),
+    VisualsStructureStep.IDEA_CHAINS: cast(
+        str, QT_TRANSLATE_NOOP("VisualsLabels", "Enchaînements")
+    ),
+    VisualsStructureStep.DIAGRAMS: cast(
+        str, QT_TRANSLATE_NOOP("VisualsLabels", "Diagrammes")
     ),
 }
 
@@ -105,6 +121,18 @@ def diagram_type_label(diagram_type: DiagramType) -> str:
 def diagram_type_labels() -> dict[DiagramType, str]:
     """Libellés traduits de tous les types de diagramme."""
     return {kind: _tr(source) for kind, source in _DIAGRAM_TYPE_SOURCES.items()}
+
+
+def structure_step_label(step: VisualsStructureStep) -> str:
+    """Libellé d'affichage traduit d'une étape de l'extraction de structure.
+
+    Args:
+        step: Étape de structure.
+
+    Returns:
+        Le libellé traduit.
+    """
+    return _tr(_STRUCTURE_STEP_SOURCES[step])
 
 
 def status_label(status: PhaseStatus | None) -> str:

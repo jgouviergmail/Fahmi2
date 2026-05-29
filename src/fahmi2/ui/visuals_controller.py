@@ -57,7 +57,7 @@ from fahmi2.ui.dialogs.visuals_settings_view import VisualsSettingsView
 from fahmi2.ui.qt_event_bus import VisualsQtEventBus
 from fahmi2.ui.viewmodels.visuals_progress import VisualsProgressViewModel
 from fahmi2.ui.viewmodels.visuals_state import VisualsStateViewModel
-from fahmi2.ui.visuals_labels import VisualsDeliverable
+from fahmi2.ui.visuals_labels import VisualsDeliverable, structure_step_label
 from fahmi2.ui.widgets.logs_dock import LogsDock
 from fahmi2.ui.widgets.project_header_bar import ProjectHeaderBar
 from fahmi2.ui.widgets.visuals_progress_view import VisualsProgressView
@@ -68,6 +68,9 @@ from fahmi2.visuals.events import (
     VisualsLanguageFinished,
     VisualsLanguageStarted,
     VisualsRetryAttempt,
+    VisualsStructureFinished,
+    VisualsStructureProgress,
+    VisualsStructureStarted,
 )
 from fahmi2.visuals.sources import (
     available_visuals_languages,
@@ -745,6 +748,52 @@ class VisualsController(QObject):
         return project.workspace_folder / VISUALS_WORKSPACE_SUBDIR
 
 
+def _lifecycle_event_to_log(event: VisualsEvent) -> LogEvent | None:
+    """Convertit un évènement de cycle de vie / structure en ``LogEvent`` (ou ``None``).
+
+    Couvre le démarrage global et la phase d'extraction de structure (début /
+    progression / fin) ; les autres évènements sont traités par l'appelant.
+
+    Args:
+        event: Évènement Visualisations.
+
+    Returns:
+        Le ``LogEvent`` correspondant, ou ``None`` si non couvert ici.
+    """
+    if isinstance(event, VisualsGenerationStarted):
+        return LogEvent(
+            timestamp=event.timestamp,
+            severity=Severity.INFO,
+            code="VISUALS_STARTED",
+            message="Génération des visualisations démarrée",
+        )
+    if isinstance(event, VisualsStructureStarted):
+        return LogEvent(
+            timestamp=event.timestamp,
+            severity=Severity.INFO,
+            code="VISUALS_STRUCTURE_STARTED",
+            message="Extraction de la structure (graphe + diagrammes)…",
+        )
+    if isinstance(event, VisualsStructureProgress):
+        return LogEvent(
+            timestamp=event.timestamp,
+            severity=Severity.INFO,
+            code="VISUALS_STRUCTURE_PROGRESS",
+            message=(
+                f"Structure — {structure_step_label(event.step)} : "
+                f"{event.completed}/{event.total}"
+            ),
+        )
+    if isinstance(event, VisualsStructureFinished):
+        return LogEvent(
+            timestamp=event.timestamp,
+            severity=Severity.INFO,
+            code="VISUALS_STRUCTURE_FINISHED",
+            message="Extraction de la structure terminée — production par langue…",
+        )
+    return None
+
+
 def _visuals_event_to_log(event: VisualsEvent) -> LogEvent:
     """Convertit un ``VisualsEvent`` en ``LogEvent`` pour le LogsDock.
 
@@ -754,13 +803,9 @@ def _visuals_event_to_log(event: VisualsEvent) -> LogEvent:
     Returns:
         Un ``LogEvent`` lisible dans le panneau de logs.
     """
-    if isinstance(event, VisualsGenerationStarted):
-        return LogEvent(
-            timestamp=event.timestamp,
-            severity=Severity.INFO,
-            code="VISUALS_STARTED",
-            message="Génération des visualisations démarrée",
-        )
+    lifecycle_log = _lifecycle_event_to_log(event)
+    if lifecycle_log is not None:
+        return lifecycle_log
     if isinstance(event, VisualsLanguageStarted):
         return LogEvent(
             timestamp=event.timestamp,

@@ -235,7 +235,10 @@ Dependencies flow downwards (UI → app → pipeline/infra → domain/core).
   best-effort, leaving the input folder and the global database alone),
   `RunOrchestrator`, `SupportsOrchestrator`, `VisualsOrchestrator` (Visualizations:
   extract structure once → per-Latin-language localise + render, freshness
-  manifest + `run_state`, best-effort cost cap, per-language parallelism),
+  manifest + `run_state`, best-effort cost cap; **both the structure extraction
+  (graph/diagrams/community-reports, via `map_units_with_progress` →
+  `map_bounded(llm_workers)`, emitting `VisualsStructureProgress`) and the
+  per-language localise/render are parallelised**),
   `CostEstimator`, `PedagogyCostEstimator`, `VisualsCostEstimator`,
   `pedagogy_export` (Anki/MD/PDF/HTML/DOCX) +
   `generation_export` (consolidated + glossary MD/PDF/HTML/DOCX) on the
@@ -632,7 +635,13 @@ The barriers remain the batch phases 2 and 5 (the engine stays
   hash + structure/glossary/content mtimes) → coarse resume of an interrupted
   set, full regenerate of a complete one; `visuals/run_state.json` (shared
   `feature_run_state`) drives the sidebar pastille + tab banner. **Cost cap**
-  best-effort (`VisualsCostEstimator` for the pre-run estimate). All magic
+  best-effort (`VisualsCostEstimator` for the pre-run estimate). **Throughput &
+  observability**: the structure extraction parallelises its per-unit/per-community
+  LLM calls via `extractors/_base.map_units_with_progress` (bounded by
+  `llm_workers`, honours the `PauseToken`, **order preserved → deterministic**) and
+  emits `VisualsStructureProgress` events; the progress UI shows a **Structure**
+  column **before** the per-language columns + per-step logs (the structure phase is
+  the long pole and runs once on the structure language). All magic
   numbers (gleaning rounds, per-density node/diagram caps, cosine threshold,
   Louvain seed, excerpt length) centralised in `visuals/_constants.py`. Spec:
   `docs/superpowers/specs/2026-05-29-visualisations-html-autonomes-design.md`.

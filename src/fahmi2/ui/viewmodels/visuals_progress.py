@@ -19,19 +19,29 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 
+from PySide6.QtCore import QCoreApplication
+
 from fahmi2.domain.enums import Language, PhaseStatus, RunStatus
 from fahmi2.ui.viewmodels.cost_matrix import (
     CostMatrixCell,
     CostMatrixSnapshot,
     build_cost_matrix,
 )
-from fahmi2.ui.visuals_labels import VisualsDeliverable, deliverable_label
+from fahmi2.ui.visuals_labels import (
+    VisualsDeliverable,
+    deliverable_label,
+    structure_step_label,
+)
 from fahmi2.visuals.events import (
     VisualsEvent,
     VisualsGenerationFinished,
     VisualsGenerationStarted,
     VisualsLanguageFinished,
     VisualsLanguageStarted,
+    VisualsStructureFinished,
+    VisualsStructureProgress,
+    VisualsStructureStarted,
+    VisualsStructureStep,
 )
 
 #: Statuts considérés comme « langue terminée » pour le compteur de tuiles.
@@ -39,6 +49,19 @@ _DONE_STATUSES = frozenset({PhaseStatus.SUCCEEDED, PhaseStatus.SKIPPED})
 
 #: En-tête de la colonne des libellés de lignes (livrables) de la matrice.
 _ROW_HEADER = "Livrable"
+
+#: Étape de structure → livrable dont elle alimente la colonne « Structure ».
+_STEP_TO_DELIVERABLE: dict[VisualsStructureStep, VisualsDeliverable] = {
+    VisualsStructureStep.GRAPH: VisualsDeliverable.KNOWLEDGE_MAP,
+    VisualsStructureStep.COMMUNITY_REPORTS: VisualsDeliverable.KNOWLEDGE_MAP,
+    VisualsStructureStep.IDEA_CHAINS: VisualsDeliverable.KNOWLEDGE_MAP,
+    VisualsStructureStep.DIAGRAMS: VisualsDeliverable.DIAGRAMS,
+}
+
+
+def _structure_column_label() -> str:
+    """Libellé traduit de la colonne « Structure » (extraction commune)."""
+    return QCoreApplication.translate("VisualsProgress", "Structure")
 
 
 @dataclass(frozen=True)
@@ -82,6 +105,9 @@ class VisualsProgressViewModel:
         self._total_cost_usd: float = 0.0
         self._started_at: datetime | None = None
         self._finished_at: datetime | None = None
+        # Phase de structure (commune, avant les langues) : statut + détail par livrable.
+        self._structure_status: dict[VisualsDeliverable, PhaseStatus | None] = {}
+        self._structure_detail: dict[VisualsDeliverable, str] = {}
 
     def reset(
         self,
@@ -105,6 +131,8 @@ class VisualsProgressViewModel:
         self._total_cost_usd = 0.0
         self._started_at = None
         self._finished_at = None
+        self._structure_status = {deliverable: None for deliverable in deliverables}
+        self._structure_detail = {}
 
     def load_persisted(
         self,
@@ -143,9 +171,15 @@ class VisualsProgressViewModel:
         self._total_cost_usd = total_cost_usd
         self._started_at = started_at
         self._finished_at = finished_at
-        for language in generated_languages:
+        generated = list(generated_languages)
+        for language in generated:
             if language in self._status:
                 self._status[language] = PhaseStatus.SUCCEEDED
+        # Des livrables présents impliquent que la structure a été extraite : les
+        # cellules « Structure » sont donc à jour (SUCCEEDED).
+        if generated:
+            for deliverable in self._deliverables:
+                self._structure_status[deliverable] = PhaseStatus.SUCCEEDED
 
     def apply_event(self, event: VisualsEvent) -> None:
         """Met à jour l'état à partir d'un événement Visualisations.
@@ -158,6 +192,11 @@ class VisualsProgressViewModel:
             self._started_at = event.timestamp
             self._finished_at = None
             self._total_cost_usd = 0.0
+        elif isinstance(
+            event,
+            VisualsStructureStarted | VisualsStructureProgress | VisualsStructureFinished,
+        ):
+            self._apply_structure_event(event)
         elif isinstance(event, VisualsLanguageStarted):
             self._status[event.language] = PhaseStatus.RUNNING
         elif isinstance(event, VisualsLanguageFinished):
@@ -168,22 +207,75 @@ class VisualsProgressViewModel:
             self._finished_at = event.timestamp
             self._total_cost_usd = event.total_cost_usd
 
+    def _apply_structure_event(
+        self,
+        event: VisualsStructureStarted
+        | VisualsStructureProgress
+        | VisualsStructureFinished,
+    ) -> None:
+        """Met à jour les cellules « Structure » à partir d'un évènement de structure.
+
+        Args:
+            event: Évènement de structure (début / progression / fin).
+        """
+        if isinstance(event, VisualsStructureStarted):
+            for deliverable in self._deliverables:
+                self._structure_status[deliverable] = PhaseStatus.RUNNING
+        elif isinstance(event, VisualsStructureProgress):
+            deliverable = _STEP_TO_DELIVERABLE[event.step]
+            if deliverable in self._structure_status:
+                self._structure_status[deliverable] = PhaseStatus.RUNNING
+                self._structure_detail[deliverable] = (
+                    f"{structure_step_label(event.step)} "
+                    f"{event.completed}/{event.total}"
+                )
+        else:
+            for deliverable in self._deliverables:
+                self._structure_status[deliverable] = PhaseStatus.SUCCEEDED
+                self._structure_detail.pop(deliverable, None)
+
     def cost_matrix_snapshot(self) -> CostMatrixSnapshot:
-        """Construit la matrice livrables × langues (statut par cellule, sans coût).
+        """Construit la matrice livrables × (Structure + langues), statut par cellule.
+
+        La colonne **Structure** (extraction commune, exécutée une fois) précède les
+        colonnes de langues, pour matérialiser l'avancement de la phase la plus longue
+        **avant** la production par langue.
 
         Returns:
-            ``CostMatrixSnapshot`` (lignes = livrables, colonnes = langues).
+            ``CostMatrixSnapshot`` (lignes = livrables ; colonnes = Structure + langues).
         """
-        column_labels = tuple(lang.value for lang in self._languages)
+        column_labels = (
+            _structure_column_label(),
+            *(lang.value for lang in self._languages),
+        )
         rows = tuple(
             (
                 deliverable_label(deliverable),
-                tuple(self._cell(lang) for lang in self._languages),
+                (
+                    self._structure_cell(deliverable),
+                    *(self._cell(lang) for lang in self._languages),
+                ),
             )
             for deliverable in self._deliverables
         )
         return build_cost_matrix(
             row_header=_ROW_HEADER, column_labels=column_labels, rows=rows
+        )
+
+    def _structure_cell(self, deliverable: VisualsDeliverable) -> CostMatrixCell:
+        """Cellule de la colonne « Structure » pour un livrable (statut + détail).
+
+        Args:
+            deliverable: Livrable (ligne).
+
+        Returns:
+            ``CostMatrixCell`` (coût ``None`` ; infobulle = ex. « Graphe 12/32 »).
+        """
+        status = self._structure_status.get(deliverable)
+        return CostMatrixCell(
+            status=status or PhaseStatus.PENDING,
+            cost_usd=None,
+            tooltip=self._structure_detail.get(deliverable, ""),
         )
 
     def _cell(self, language: Language) -> CostMatrixCell:

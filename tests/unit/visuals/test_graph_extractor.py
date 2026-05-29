@@ -14,7 +14,11 @@ from fahmi2.infra.llm._fakes import FakeLLMProvider
 from fahmi2.infra.llm.interface import JSON_OBJECT_RESPONSE_FORMAT, LLMResponse
 from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.pipeline.event_bus import EventBus
-from fahmi2.visuals.events import VisualsEvent
+from fahmi2.visuals.events import (
+    VisualsEvent,
+    VisualsStructureProgress,
+    VisualsStructureStep,
+)
 from fahmi2.visuals.extractors._base import VisualsContext
 from fahmi2.visuals.extractors.graph_extractor import (
     build_glossary_skeleton,
@@ -136,3 +140,23 @@ def test_extract_graph_gleaning_saute_si_cap_atteint() -> None:
 
     assert len(result.raw_entities) == 4  # plafonné à la densité LIGHT
     assert len(provider.calls) == 1  # cap atteint à l'initial → gleaning sauté
+
+
+def test_extract_graph_emet_progression_par_unite() -> None:
+    payload = {"entities": [{"label": "Bilan", "type": "concept"}], "relations": []}
+    provider = FakeLLMProvider(default_response=_response(payload))
+    ctx = _ctx(provider, density=SupportDensity.STANDARD)
+    events: list[VisualsStructureProgress] = []
+    ctx.event_bus.subscribe(
+        lambda e: events.append(e)
+        if isinstance(e, VisualsStructureProgress)
+        else None
+    )
+    units = (_unit(), _unit())  # 2 unités
+
+    extract_graph(ctx, language=Language.FR, units=units, glossary=())
+
+    graph_events = [e for e in events if e.step is VisualsStructureStep.GRAPH]
+    assert len(graph_events) == 2  # une progression par unité terminée
+    assert all(e.total == 2 for e in graph_events)
+    assert {e.completed for e in graph_events} == {1, 2}

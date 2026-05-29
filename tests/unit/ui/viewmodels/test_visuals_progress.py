@@ -12,10 +12,18 @@ from fahmi2.visuals.events import (
     VisualsGenerationStarted,
     VisualsLanguageFinished,
     VisualsLanguageStarted,
+    VisualsStructureFinished,
+    VisualsStructureProgress,
+    VisualsStructureStarted,
+    VisualsStructureStep,
 )
 
 _DELIVERABLES = (VisualsDeliverable.KNOWLEDGE_MAP, VisualsDeliverable.DIAGRAMS)
 _LANGS = (Language.FR, Language.EN)
+# Colonnes : [Structure, fr, en] → langues décalées d'une position.
+_COL_STRUCTURE = 0
+_COL_FR = 1
+_COL_EN = 2
 
 
 def _ts() -> datetime:
@@ -35,7 +43,8 @@ def test_reset_initialises_pending_grid() -> None:
         deliverable_label(VisualsDeliverable.KNOWLEDGE_MAP),
         deliverable_label(VisualsDeliverable.DIAGRAMS),
     )
-    assert matrix.column_labels == ("fr", "en")
+    # La colonne « Structure » précède les colonnes de langues.
+    assert matrix.column_labels == ("Structure", "fr", "en")
     assert all(
         cell.status is PhaseStatus.PENDING for row in matrix.cells for cell in row
     )
@@ -45,12 +54,41 @@ def test_reset_initialises_pending_grid() -> None:
     assert stats.cost_ceiling_usd == 5.0
 
 
+def test_structure_progress_updates_structure_column() -> None:
+    vm = _vm()
+    vm.apply_event(VisualsGenerationStarted(timestamp=_ts()))
+    vm.apply_event(VisualsStructureStarted(timestamp=_ts()))
+    matrix = vm.cost_matrix_snapshot()
+    # Les deux cellules « Structure » passent en cours.
+    assert matrix.cells[0][_COL_STRUCTURE].status is PhaseStatus.RUNNING
+    assert matrix.cells[1][_COL_STRUCTURE].status is PhaseStatus.RUNNING
+    # Une progression « graphe » alimente la cellule Structure de la Carte.
+    vm.apply_event(
+        VisualsStructureProgress(
+            timestamp=_ts(), step=VisualsStructureStep.GRAPH, completed=12, total=32
+        )
+    )
+    matrix = vm.cost_matrix_snapshot()
+    assert "12/32" in matrix.cells[0][_COL_STRUCTURE].tooltip
+    # Les langues restent en attente tant que la structure n'est pas finie.
+    assert matrix.cells[0][_COL_FR].status is PhaseStatus.PENDING
+
+
+def test_structure_finished_marks_structure_succeeded() -> None:
+    vm = _vm()
+    vm.apply_event(VisualsStructureStarted(timestamp=_ts()))
+    vm.apply_event(VisualsStructureFinished(timestamp=_ts()))
+    matrix = vm.cost_matrix_snapshot()
+    assert matrix.cells[0][_COL_STRUCTURE].status is PhaseStatus.SUCCEEDED
+    assert matrix.cells[1][_COL_STRUCTURE].status is PhaseStatus.SUCCEEDED
+
+
 def test_language_lifecycle_updates_status_and_cost() -> None:
     vm = _vm()
     vm.apply_event(VisualsGenerationStarted(timestamp=_ts()))
     vm.apply_event(VisualsLanguageStarted(timestamp=_ts(), language=Language.FR))
     matrix = vm.cost_matrix_snapshot()
-    assert matrix.cells[0][0].status is PhaseStatus.RUNNING
+    assert matrix.cells[0][_COL_FR].status is PhaseStatus.RUNNING
     vm.apply_event(
         VisualsLanguageFinished(
             timestamp=_ts(),
@@ -62,10 +100,10 @@ def test_language_lifecycle_updates_status_and_cost() -> None:
     )
     matrix = vm.cost_matrix_snapshot()
     # Les deux livrables de la langue partagent le même statut.
-    assert matrix.cells[0][0].status is PhaseStatus.SUCCEEDED
-    assert matrix.cells[1][0].status is PhaseStatus.SUCCEEDED
+    assert matrix.cells[0][_COL_FR].status is PhaseStatus.SUCCEEDED
+    assert matrix.cells[1][_COL_FR].status is PhaseStatus.SUCCEEDED
     # Le coût n'est pas rattaché aux cellules (porté par les tuiles).
-    assert matrix.cells[0][0].cost_usd is None
+    assert matrix.cells[0][_COL_FR].cost_usd is None
     stats = vm.stats_snapshot()
     assert stats.languages_done == 1
     assert stats.total_cost_usd == 0.4
@@ -108,11 +146,11 @@ def test_failed_language_marks_both_deliverables() -> None:
         )
     )
     matrix = vm.cost_matrix_snapshot()
-    assert matrix.cells[0][1].status is PhaseStatus.FAILED
-    assert matrix.cells[1][1].status is PhaseStatus.FAILED
+    assert matrix.cells[0][_COL_EN].status is PhaseStatus.FAILED
+    assert matrix.cells[1][_COL_EN].status is PhaseStatus.FAILED
 
 
-def test_load_persisted_marks_generated_languages() -> None:
+def test_load_persisted_marks_generated_languages_and_structure() -> None:
     vm = VisualsProgressViewModel()
     vm.load_persisted(
         deliverables=_DELIVERABLES,
@@ -125,8 +163,10 @@ def test_load_persisted_marks_generated_languages() -> None:
         finished_at=_ts(),
     )
     matrix = vm.cost_matrix_snapshot()
-    assert matrix.cells[0][0].status is PhaseStatus.SUCCEEDED  # fr généré
-    assert matrix.cells[0][1].status is PhaseStatus.PENDING  # en non généré
+    # Des livrables présents → structure à jour.
+    assert matrix.cells[0][_COL_STRUCTURE].status is PhaseStatus.SUCCEEDED
+    assert matrix.cells[0][_COL_FR].status is PhaseStatus.SUCCEEDED  # fr généré
+    assert matrix.cells[0][_COL_EN].status is PhaseStatus.PENDING  # en non généré
     stats = vm.stats_snapshot()
     assert stats.languages_done == 1
     assert stats.total_cost_usd == 0.9

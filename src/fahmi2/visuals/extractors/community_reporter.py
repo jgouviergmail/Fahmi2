@@ -15,7 +15,12 @@ from fahmi2.domain.visuals import Community, KnowledgeGraph
 from fahmi2.infra.llm.interface import JSON_OBJECT_RESPONSE_FORMAT
 from fahmi2.infra.llm.invocation import parse_llm_json
 from fahmi2.infra.llm.json_schema import require_mapping, require_str
-from fahmi2.visuals.extractors._base import VisualsContext, invoke_visuals_llm
+from fahmi2.visuals.events import VisualsStructureStep
+from fahmi2.visuals.extractors._base import (
+    VisualsContext,
+    invoke_visuals_llm,
+    map_units_with_progress,
+)
 
 _STAGE = "community_report"
 _TEMPLATE_NAME = "visuals_community_report"
@@ -38,39 +43,66 @@ def generate_community_reports(
     if not graph.communities:
         return graph, 0.0
     label_by_id = {node.id: node.label for node in graph.nodes}
-    reported: list[Community] = []
-    total_cost = 0.0
-    for community in graph.communities:
-        ctx.pause_token.wait_if_paused()
-        ctx.pause_token.raise_if_cancelled()
-        member_labels = [
-            label_by_id[member_id]
-            for member_id in community.member_ids
-            if member_id in label_by_id
-        ]
-        user_prompt = ctx.prompts.render(_TEMPLATE_NAME, member_labels=member_labels)
-        response = invoke_visuals_llm(
-            ctx,
-            stage=_STAGE,
-            language=language,
-            user_prompt=user_prompt,
-            response_format=JSON_OBJECT_RESPONSE_FORMAT,
-        )
-        total_cost += response.cost_usd
-        context_label = f"{_STAGE}:{community.id}"
-        mapping = require_mapping(
-            parse_llm_json(
-                response.content,
-                context_label=context_label,
-                finish_reason=response.finish_reason,
-            ),
-            context_label=context_label,
-        )
-        reported.append(
-            replace(
-                community,
-                label=require_str(mapping, "label", context_label=context_label),
-                report=require_str(mapping, "report", context_label=context_label),
-            )
-        )
+    # Communautés traitées en parallèle (borné par llm_workers), ordre préservé.
+    results = map_units_with_progress(
+        ctx,
+        graph.communities,
+        lambda community: _report_community(
+            ctx, community, language=language, label_by_id=label_by_id
+        ),
+        step=VisualsStructureStep.COMMUNITY_REPORTS,
+    )
+    reported = [community for community, _ in results]
+    total_cost = sum(cost for _, cost in results)
     return replace(graph, communities=tuple(reported)), total_cost
+
+
+def _report_community(
+    ctx: VisualsContext,
+    community: Community,
+    *,
+    language: Language,
+    label_by_id: dict[str, str],
+) -> tuple[Community, float]:
+    """Produit le libellé + rapport d'une **seule** communauté.
+
+    Args:
+        ctx: Contexte d'exécution.
+        community: Communauté à étiqueter.
+        language: Langue du contenu (événements ; le LLM répond dans la langue des
+            libellés fournis).
+        label_by_id: Index ``id de nœud -> libellé`` (membres de la communauté).
+
+    Returns:
+        ``(communauté enrichie de label/report, coût)``.
+    """
+    member_labels = [
+        label_by_id[member_id]
+        for member_id in community.member_ids
+        if member_id in label_by_id
+    ]
+    user_prompt = ctx.prompts.render(_TEMPLATE_NAME, member_labels=member_labels)
+    response = invoke_visuals_llm(
+        ctx,
+        stage=_STAGE,
+        language=language,
+        user_prompt=user_prompt,
+        response_format=JSON_OBJECT_RESPONSE_FORMAT,
+    )
+    context_label = f"{_STAGE}:{community.id}"
+    mapping = require_mapping(
+        parse_llm_json(
+            response.content,
+            context_label=context_label,
+            finish_reason=response.finish_reason,
+        ),
+        context_label=context_label,
+    )
+    return (
+        replace(
+            community,
+            label=require_str(mapping, "label", context_label=context_label),
+            report=require_str(mapping, "report", context_label=context_label),
+        ),
+        response.cost_usd,
+    )

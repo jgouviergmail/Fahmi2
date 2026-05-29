@@ -21,7 +21,12 @@ from fahmi2.infra.llm.interface import JSON_OBJECT_RESPONSE_FORMAT
 from fahmi2.infra.llm.invocation import parse_llm_json
 from fahmi2.infra.llm.json_schema import require_list, require_mapping, require_str
 from fahmi2.visuals._constants import GLEANING_ROUNDS, MAX_SEMANTIC_NODES_PER_UNIT
-from fahmi2.visuals.extractors._base import VisualsContext, invoke_visuals_llm
+from fahmi2.visuals.events import VisualsStructureStep
+from fahmi2.visuals.extractors._base import (
+    VisualsContext,
+    invoke_visuals_llm,
+    map_units_with_progress,
+)
 from fahmi2.visuals.sources import TextUnit
 
 _STAGE = "graph_extraction"
@@ -314,23 +319,79 @@ def extract_graph(
     """
     glossary_nodes = build_glossary_skeleton(glossary)
     max_entities = MAX_SEMANTIC_NODES_PER_UNIT[ctx.settings.density]
+    # Unités traitées en parallèle (borné par llm_workers), ordre préservé →
+    # assemblage déterministe. Progression émise par unité terminée.
+    results = map_units_with_progress(
+        ctx,
+        units,
+        lambda unit: _extract_unit(
+            ctx, language=language, unit=unit, max_entities=max_entities
+        ),
+        step=VisualsStructureStep.GRAPH,
+    )
     all_entities: list[RawEntity] = []
     all_relations: list[RawRelation] = []
     total_cost = 0.0
-    for unit in units:
-        ctx.pause_token.wait_if_paused()
-        ctx.pause_token.raise_if_cancelled()
-        unit_entities: list[RawEntity] = []
-        unit_relations: list[RawRelation] = []
-        seen_labels: set[str] = set()
+    for unit_entities, unit_relations, cost in results:
+        all_entities.extend(unit_entities)
+        all_relations.extend(unit_relations)
+        total_cost += cost
+    return GraphExtraction(
+        glossary_nodes=glossary_nodes,
+        raw_entities=tuple(all_entities),
+        raw_relations=tuple(all_relations),
+        total_cost_usd=total_cost,
+    )
 
+
+def _extract_unit(
+    ctx: VisualsContext,
+    *,
+    language: Language,
+    unit: TextUnit,
+    max_entities: int,
+) -> tuple[list[RawEntity], list[RawRelation], float]:
+    """Extrait les entités/relations d'une **seule** unité (initial + gleaning).
+
+    Args:
+        ctx: Contexte d'exécution.
+        language: Langue du document lu.
+        unit: Unité de texte à traiter.
+        max_entities: Plafond d'entités sémantiques pour l'unité (densité).
+
+    Returns:
+        ``(entités, relations, coût)`` de l'unité (dédoublonnées, plafonnées).
+    """
+    unit_entities: list[RawEntity] = []
+    unit_relations: list[RawRelation] = []
+    seen_labels: set[str] = set()
+    entities, relations, cost = _extract_unit_once(
+        ctx,
+        language=language,
+        unit=unit,
+        max_entities=max_entities,
+        gleaning=False,
+        already_found=(),
+    )
+    total_cost = cost
+    _absorb(
+        entities,
+        relations,
+        unit_entities=unit_entities,
+        unit_relations=unit_relations,
+        seen_labels=seen_labels,
+        max_entities=max_entities,
+    )
+    for _ in range(GLEANING_ROUNDS):
+        if len(unit_entities) >= max_entities:
+            break
         entities, relations, cost = _extract_unit_once(
             ctx,
             language=language,
             unit=unit,
             max_entities=max_entities,
-            gleaning=False,
-            already_found=(),
+            gleaning=True,
+            already_found=tuple(seen_labels),
         )
         total_cost += cost
         _absorb(
@@ -341,34 +402,4 @@ def extract_graph(
             seen_labels=seen_labels,
             max_entities=max_entities,
         )
-
-        for _ in range(GLEANING_ROUNDS):
-            if len(unit_entities) >= max_entities:
-                break
-            entities, relations, cost = _extract_unit_once(
-                ctx,
-                language=language,
-                unit=unit,
-                max_entities=max_entities,
-                gleaning=True,
-                already_found=tuple(seen_labels),
-            )
-            total_cost += cost
-            _absorb(
-                entities,
-                relations,
-                unit_entities=unit_entities,
-                unit_relations=unit_relations,
-                seen_labels=seen_labels,
-                max_entities=max_entities,
-            )
-
-        all_entities.extend(unit_entities)
-        all_relations.extend(unit_relations)
-
-    return GraphExtraction(
-        glossary_nodes=glossary_nodes,
-        raw_entities=tuple(all_entities),
-        raw_relations=tuple(all_relations),
-        total_cost_usd=total_cost,
-    )
+    return unit_entities, unit_relations, total_cost

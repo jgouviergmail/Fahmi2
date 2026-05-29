@@ -9,7 +9,7 @@
   forme de **pages HTML pleinement autonomes**.
 - **Prérequis** : une génération aboutie (consolidé + glossaire sur disque). Réutilise
   les acquis : glossaire **réconcilié** (phase 2), `EmbeddingProvider` (Dialogue),
-  parser de chapitres (Pédagogie), `slugify_anchor` (core).
+  parser de sections (relocalisé en `core/corpus`, §11), `slugify_anchor` (core).
 
 ---
 
@@ -88,6 +88,14 @@ de Fahmi2 :
 Un seul mécanisme (communautés) résout donc **la cohérence transversale** *et* **la
 lisibilité à l'échelle**.
 
+**Alignement sur le pipeline GraphRAG canonique** (standard du marché) : extraction par
+**unité de texte** + **gleaning** (passe de rappel) → **consolidation des descriptions**
+(résolution d'entités) → **communautés** Louvain hiérarchiques → **community reports**
+(résumés bottom-up) → **map-reduce** pour le raisonnement transversal. Fahmi2 y greffe
+ses acquis (glossaire réconcilié comme colonne vertébrale, `EmbeddingProvider`,
+`slugify_anchor`). Les *community reports* sont **à double usage** : étiquette lisible des
+communautés (UI) **et** unité de raisonnement des enchaînements inter-communautés.
+
 ---
 
 ## 3. Modèle de données (domain)
@@ -108,10 +116,13 @@ de `pedagogy/labels.py` ; les variantes UI traduites passent par `ui/` (cf. §9)
 
 ### 3.2 Entités immuables (`domain/visuals.py`, `@dataclass(frozen=True)`)
 
-- `SourceExcerpt` : `text: str`, `chapter_title: str`, `anchor: str` (extrait verbatim
-  + ancre GFM — calqué sur le « grand livre des faits » T1 de la consolidation
-  thématique).
-- `GraphNode` : `id: str` (stable, dérivé de `slugify_anchor`), `label: str`,
+- `SourceExcerpt` : `text: str`, `section_path: tuple[int, ...]` (chemin structurel
+  **invariant par langue**, ex. `(2,1,1)`), `chapter_title: str`, `anchor: str` (ancre
+  GFM **de la langue rendue**) — calqué sur le « grand livre des faits » T1 de la
+  consolidation thématique.
+- `GraphNode` : `id: str` (**stable et unique** :
+  `f"{node_type}:{slugify_anchor(label)}"` + compteur de désambiguïsation en cas de
+  collision — cf. §13), `label: str`,
   `node_type: NodeType`, `definition: str | None`, `excerpts: tuple[SourceExcerpt, ...]`,
   `chapter_anchor: str | None`, `community_path: tuple[int, ...]` (chemin dans la
   hiérarchie de communautés, rempli par Louvain).
@@ -119,7 +130,8 @@ de `pedagogy/labels.py` ; les variantes UI traduites passent par `ui/` (cf. §9)
   `label: str | None`.
 - `KnowledgeGraph` : `nodes: tuple[GraphNode, ...]`, `edges: tuple[GraphEdge, ...]`,
   `communities: tuple[Community, ...]`, `language: Language`.
-- `Community` : `id: int`, `label: str`, `level: int`, `member_ids: tuple[str, ...]`,
+- `Community` : `id: int`, `label: str`, `report: str` (synthèse courte + idée-clé —
+  **double usage** UI/raisonnement), `level: int`, `member_ids: tuple[str, ...]`,
   `parent_id: int | None`.
 - Diagrammes (modèles **typés**, jamais de DSL) :
   - `DiagramNode` (`id`, `label`, `role: str | None`), `DiagramLink` (`from_id`,
@@ -141,52 +153,70 @@ Les entités sont **pures** (aucun import Qt/HTTP/SQL), validées dans `__post_i
 
 ## 4. Pipeline de construction (orchestrateur `visuals/`)
 
-Paquet `visuals/` (modelé sur `pedagogy/`, sans STT/SQLite). Étapes (toutes les
-sorties LLM sont du **JSON typé** parsé via le `_base` Pédagogie + retry
-`core/retry/classification.default_classify`) :
+Paquet `visuals/` (modelé sur `pedagogy/`, sans STT/SQLite). Le pipeline **calque les
+phases canoniques de GraphRAG** (cf. §2). Toutes les sorties LLM sont du **JSON typé**
+(parsé via le `_base` Pédagogie + retry `core/retry/classification.default_classify`) :
 
-1. **Chargement (`visuals/sources.py`)** : lit `consolidated.{src}.md` (parsé en
-   chapitres — réutilise le parser de `pedagogy/chapters`; cf. §11 sur sa
-   relocalisation éventuelle) et `glossary_master.json`.
-2. **Squelette déterministe** : crée les nœuds `GLOSSARY_TERM` depuis le glossaire
-   (définition connue → **aucun appel LLM**) ; rattache chaque terme à ses chapitres
-   par balayage d'occurrences (label + `aliases`, normalisé via `slugify_anchor`).
-3. **Extraction sémantique par chapitre** (`visuals/extractors/graph_extractor.py`,
-   LLM, parallèle) : pour chaque chapitre → concepts / idées / exemples + relations
-   typées + extrait verbatim + ancre. **Borné par `density`** (plafond de nœuds/
-   chapitre). Prompt `visuals_graph_extraction.j2`.
-4. **Résolution d'entités** (`visuals/extractors/entity_resolver.py`) :
-   - **Termes** : mappés aux entrées de glossaire (déjà réconciliées) — coût nul.
-   - **Entités libres** (concepts/idées/exemples) : **embeddings** (`EmbeddingProvider`
-     existant) sur `label + courte description`, fusion des clusters au-dessus d'un
-     **seuil cosinus** (constante nommée, §13). **Fallback AUTO** sans clé OpenAI :
-     résolution par label/alias normalisés (`slugify_anchor`) — exactement le pattern
-     `retriever_factory` du Dialogue. Mini-passe LLM `visuals_entity_canonicalize.j2`
-     pour nommer chaque cluster fusionné.
-5. **Liens inter-chapitres** : les entités partagées (après résolution) **relient
-   naturellement** les chapitres (un nœud unique référencé par plusieurs chapitres).
-   + passe **« ponts » bornée** (`visuals_bridges.j2`) sur la **seule liste d'entités
-   résolues** (petit contexte) → relations de haut niveau entre concepts majeurs.
-6. **Communautés** (`visuals/community.py`, **déterministe, pur Python, zéro LLM**) :
-   `networkx.louvain_partitions` → **dendrogramme** (hiérarchie multi-niveaux). Seed
-   fixe (constante) pour la **reproductibilité**. Remplit `community_path` des nœuds et
-   construit les `Community`.
-7. **Étiquetage des communautés** (LLM court, borné — quelques dizaines) :
-   `visuals_community_label.j2` → nom lisible par communauté.
-8. **Diagrammes** (`visuals/extractors/diagram_author.py`, LLM, parallèle par
-   chapitre/thème) : sélectionne les types pertinents **parmi `diagram_types`** et émet
-   le **modèle JSON typé** (`Diagram`) + extrait. **Borné par `density`**. Prompt
-   `visuals_diagram_authoring.j2`.
-9. **Localisation par langue latine cible** (`visuals/extractors/label_translator.py`)
-   : traduit *labels* de nœuds, définitions, libellés de relations, communautés, et
-   titres/légendes/labels de diagrammes. Les nœuds `GLOSSARY_TERM` réutilisent
-   `cross_lang[L]` (zéro appel). Prompt `visuals_label_translation.j2`. Les **extraits
-   sources** ne sont **pas** traduits : ils sont **puisés dans `consolidated.{lang}.md`**
-   par l'ancre de chapitre (réutilise la traduction de génération).
-10. **Rendu** (`infra/export/`, §6) → `knowledge_map.{lang}.html` +
+1. **Chargement (`visuals/sources.py`)** : lit `output/consolidated.{lang}.md` (toutes
+   les langues **latines** présentes) + `glossary_master.json`. Parse le consolidé en
+   **arbre de sections** via le parser relocalisé (`core/corpus`, §11), qui expose pour
+   chaque section son **`section_path`** (chemin structurel, ex. `(2,1,1)`) — **invariant
+   par langue** —, son titre et son ancre GFM.
+2. **Unités de texte** : l'unité d'extraction = **sous-section `###`** (à défaut le
+   chapitre `##`), **bornée en taille** (chunk si trop longue) — granularité alignée sur
+   le « text unit » GraphRAG (≈ 1200 tokens), meilleure pour le rappel qu'un chapitre
+   entier.
+3. **Squelette déterministe (zéro LLM)** : nœuds `GLOSSARY_TERM` depuis le glossaire
+   (définition connue) ; rattachement terme↔section par balayage d'occurrences (label +
+   `aliases`, normalisés `slugify_anchor`).
+4. **Extraction sémantique par unité** (`extractors/graph_extractor.py`, LLM, parallèle)
+   : concepts / idées / exemples + relations typées + **span de citation** (texte +
+   `section_path`). **Borné par `density`**. Prompt `visuals_graph_extraction.j2`.
+   - **Gleaning** (standard du marché, **1 passe** bornée) : re-prompt « as-tu manqué des
+     entités/relations ? » pour améliorer le **rappel** sans exploser le coût.
+5. **Consolidation des descriptions / résolution d'entités**
+   (`extractors/entity_resolver.py`) :
+   - **Termes** → entrées de glossaire (déjà réconciliées) — coût nul.
+   - **Entités libres** (concepts/idées/exemples) → fusion par **embeddings**
+     (`EmbeddingProvider`) sur `label + courte description`, au-dessus d'un **seuil
+     cosinus** (constante nommée, §13). **Fallback AUTO** sans clé OpenAI : label/alias
+     normalisés (`slugify_anchor`) — pattern `retriever_factory` du Dialogue. Pour chaque
+     cluster fusionné, une mini-passe LLM (`visuals_entity_canonicalize.j2`) **fusionne
+     les descriptions variantes en une seule** + nom canonique (étape « entity
+     description summarization » de GraphRAG).
+6. **Liens inter-chapitres émergents** : les entités partagées (après résolution)
+   **relient naturellement** les sections (un nœud unique référencé par plusieurs).
+7. **Communautés** (`visuals/community.py`, **déterministe, pur Python, zéro LLM**) :
+   `networkx.louvain_partitions` → **dendrogramme** (hiérarchie multi-niveaux). Seed fixe
+   (constante) pour la **reproductibilité**. Remplit `community_path` et construit les
+   `Community`.
+8. **Community reports — double usage** (`extractors/community_reporter.py`, LLM,
+   **bottom-up**) : par communauté → un **rapport court** (label lisible + 1–2 phrases de
+   synthèse + idée-clé). Sert **à la fois** l'étiquetage UI **et** d'unité de raisonnement
+   transversal. Prompt `visuals_community_report.j2`.
+9. **Enchaînements transversaux (idea-chains)** : une passe **reduce**
+   (`visuals_idea_chains.j2`) **sur les community reports** (et non sur des labels nus)
+   ajoute les relations typées **inter-communautés** de haut niveau (ex. « fraude Enron →
+   défiance → besoin d'IFRS → comparabilité ») — c'est le *global map-reduce* GraphRAG,
+   donc sémantiquement riche **et** borné en contexte. (Remplace l'ancienne « passe ponts »
+   jugée trop simpliste.)
+10. **Diagrammes** (`extractors/diagram_author.py`, LLM, parallèle) : par unité/thème,
+    sélectionne les types pertinents **parmi `diagram_types`** et émet le **modèle JSON
+    typé** (`Diagram`) + span de citation (`section_path`). **Borné par `density`**.
+    Prompt `visuals_diagram_authoring.j2`.
+11. **Localisation par langue latine** (`extractors/label_translator.py`) : traduit les
+    *textes* (labels de nœuds, définitions, libellés de relations, reports de communautés,
+    titres/légendes/labels de diagrammes). `GLOSSARY_TERM` → `cross_lang[L]` (zéro appel).
+    Prompt `visuals_label_translation.j2`.
+12. **Résolution des extraits par langue** (§5) : pour chaque span, le **`section_path`**
+    (invariant) est résolu vers la section correspondante de `consolidated.{lang}.md`, et
+    l'extrait embarqué = le **passage de cette sous-section dans la langue cible** (tronqué
+    proprement) + ancre/`§x.y` **de cette langue**. **Aucun alignement phrase-à-phrase
+    fragile, aucune ancre ni quote partagée entre langues.**
+13. **Rendu** (`infra/export/`, §6) → `knowledge_map.{lang}.html` +
     `diagrams.{lang}.html`, écrits atomiquement (`infra/storage/fs_artifacts`) dans
     `visuals/output/`.
-11. **Persistance d'état** : manifeste de fraîcheur + `run_state.json` ; événements →
+14. **Persistance d'état** : manifeste de fraîcheur + `run_state.json` ; événements →
     UI (cf. §7, §9).
 
 ---
@@ -198,6 +228,10 @@ sorties LLM sont du **JSON typé** parsé via le `_base` Pédagogie + retry
 - La **structure** (ids de nœuds, arêtes, communautés, formes/liens de diagrammes) est
   produite une fois et **partagée** ; seuls les textes varient → cohérence structurelle
   garantie entre langues.
+- **Extraits** : keyés par `section_path` (**invariant par langue**) → résolus vers le
+  passage de `consolidated.{lang}.md` de chaque langue (cf. §4.12). L'ancre/`§x.y`
+  affichée est celle **de la langue rendue**. Jamais d'ancre ni de citation partagée
+  entre langues (les titres traduits produisent des ancres différentes).
 - Si `EmbeddingProvider` absent (pas de clé OpenAI) → résolution dégradée par label
   (fallback AUTO), le reste inchangé.
 
@@ -217,17 +251,22 @@ données est testable** en pytest.
   et inlinés** (cf. §6.5).
 - **Données** : `KnowledgeGraph` sérialisé en JSON inline (`<script type="application/
   json">`), incluant définitions, extraits et `community_path`.
-- **Interactions** :
-  - Vue **réseau** par défaut (layout `fcose`, communautés = nœuds composés repliés au
-    niveau haut).
-  - **Clic sur un nœud → bascule « arbre »** : ce nœud devient racine, layout
-    `dagre`/`breadthfirst` sur son voisinage (arbre couvrant BFS, arêtes hors-arbre en
-    secondaire) ; bouton/clic → retour réseau.
-  - **Déplier/replier** une communauté (`expand-collapse`).
-  - **Recherche** (focus + surbrillance), **filtres** par `NodeType`/`EdgeType`,
-    **zoom/déplacement**.
-  - **Panneau latéral** au clic : badge de type, label, définition, **extrait source**
-    cité (renvoi `§x.y`), **relations** (chips typés cliquables), bouton **« recentrer »**.
+- **Deux modes explicites — modèle d'exploration standard du marché** (focus /
+  ego-network façon Neo4j Bloom / Linkurious, combiné au regroupement par communautés) :
+  - **Mode réseau (défaut)** : layout `fcose` ; communautés = **nœuds composés** repliés
+    au niveau haut (≈ une douzaine). **Déplier** une communauté (`expand-collapse`)
+    révèle ses nœuds. Recherche (focus + surbrillance), filtres `NodeType`/`EdgeType`,
+    zoom/déplacement.
+  - **Mode arbre (focus)** : **clic sur un nœud individuel** → ce nœud devient **racine**,
+    layout `dagre` sur son **ego-network** (voisinage ; arbre couvrant BFS, arêtes
+    hors-arbre en secondaire), tiré **par-delà les communautés** — qui **dégradent alors
+    en simple code-couleur** (et non plus en conteneurs). Bouton/clic « retour » → mode
+    réseau, **état des communautés restauré**.
+  - Les deux modes **ne se concurrencent plus** : le rôle « conteneur » des communautés
+    est propre au mode réseau ; en mode focus, elles ne sont qu'un attribut visuel.
+- **Panneau latéral** au clic : badge de type, label, définition, **extrait source** cité
+  (renvoi `§x.y` de la langue rendue), **relations** (chips typés cliquables), bouton
+  **« recentrer (mode focus) »**.
 
 ### 6.3 Document B — `infra/export/diagram_board_html.py`
 - Diagrammes **« graphe »** (`FLOWCHART`, `HIERARCHY`, `DECISION_TREE`, `CYCLE`) →
@@ -237,6 +276,8 @@ données est testable** en pytest.
   déterministe** (aucune lib).
 - Galerie de **cartes** (titre + schéma + légende + renvoi chapitre) ; **sommaire**
   filtrable par `DiagramType` ; clic sur un élément → panneau d'extrait.
+- **Perf** : les instances Cytoscape des cartes sont **initialisées paresseusement**
+  (IntersectionObserver) → une galerie de dizaines de diagrammes reste fluide.
 
 ### 6.4 Système de design (référence : maquette HF validée)
 - Réplique la **palette de tokens** (`ui/theme/_tokens.py`) : mode **clair** + mode
@@ -259,6 +300,9 @@ données est testable** en pytest.
   `cytoscape-fcose`, `cytoscape-dagre` (+ `dagre`), `cytoscape-expand-collapse`
   (+ dépendances `layout-base`/`cose-base` requises). **Tous MIT.** Versions épinglées,
   provenance documentée (`packaging/README.md`).
+- **Ordre d'inline** (l'enregistrement des extensions en dépend) :
+  `layout-base`/`cose-base`/`dagre` → `cytoscape` → extensions (`fcose` / `dagre` /
+  `expand-collapse`). Un test vérifie la présence et l'ordre.
 - Le renderer **lit ces assets et les inline** dans `<script>` → **fichier unique**,
   hors-ligne. Résolution du chemin des assets à l'exécution via `core/config/paths`
   (même mécanisme que ffmpeg bundlé).
@@ -273,8 +317,8 @@ données est testable** en pytest.
 - **`VisualsOrchestrator`** (modelé sur `SupportsOrchestrator`) : parallélise les unités
   via **`core/concurrency/map_bounded`** (borné par `VisualsSettings.llm_workers`),
   honore le **`PauseToken`**, verrou sur le manifeste, **compteur de coût partagé**.
-  Unités parallélisables : extraction par chapitre, diagrammes par chapitre, traduction
-  par langue.
+  Unités parallélisables : extraction par unité (sous-section), diagrammes par unité,
+  community reports, traduction par langue.
 - **Fraîcheur** (`visuals/manifest.py`) : `manifest.json` = hash des réglages +
   **mtime par langue** de `consolidated.{lang}.md` **et** `glossary_master.json`. Une
   source régénérée **périme** les visuels (bannière d'état UI). **Alignement
@@ -286,7 +330,7 @@ données est testable** en pytest.
 - **Plafond de coût** best-effort en parallèle (léger dépassement toléré par les requêtes
   en vol), via `VisualsCostEstimator` (cf. §10).
 - **Réutilisation** : `map_bounded`, `PauseToken`, `default_classify`, `PromptLoader`,
-  `LLMProvider`, `EmbeddingProvider`, `slugify_anchor`, parser de chapitres.
+  `LLMProvider`, `EmbeddingProvider`, `slugify_anchor`, parser de sections (`core/corpus`).
 
 ---
 
@@ -326,7 +370,9 @@ Miroir de Pédagogie/Dialogue, **logique testable sans Qt** :
 - **Action « ouvrir le livrable »** : bouton ouvrant le HTML produit dans le navigateur
   par défaut / révélant le dossier (réutilise le helper d'ouverture existant si
   présent).
-- **PromptsEditor** : ajout des templates `visuals_*` au catalogue éditable.
+- **PromptsEditor** : ajout au catalogue éditable des templates
+  `visuals_graph_extraction`, `visuals_entity_canonicalize`, `visuals_community_report`,
+  `visuals_idea_chains`, `visuals_diagram_authoring`, `visuals_label_translation`.
 - **i18n** : chaînes via `self.tr()` / `QCoreApplication.translate("<Contexte>", ...)`,
   nouveau(x) contexte(s) Linguist, extraction/compilation `scripts/i18n_*`, +
   **tests garde-fou** paramétrés (≥ 1 chaîne par nouveau contexte).
@@ -337,21 +383,23 @@ Miroir de Pédagogie/Dialogue, **logique testable sans Qt** :
 
 ## 10. Coût (`app/VisualsCostEstimator`)
 
-Réutilise `app/_cost_common`. Comptabilise : extraction sémantique (par chapitre),
-canonicalisation, passe « ponts », étiquetage des communautés, **traduction de
-libellés × langues**, génération des diagrammes, **embeddings** (via
-`infra/embeddings/_pricing`). Le clustering Louvain = 0. Exposé dans l'estimation UI
-(opt-in) et appliqué comme plafond best-effort à l'exécution.
+Réutilise `app/_cost_common`. Comptabilise : extraction sémantique par unité
+(**+ gleaning**), **canonicalisation des descriptions**, **community reports**, passe
+**idea-chains** (reduce), **traduction de libellés × langues**, génération des
+diagrammes, **embeddings** (via `infra/embeddings/_pricing`). Le clustering Louvain = 0.
+Exposé dans l'estimation UI (opt-in) et appliqué comme plafond best-effort à
+l'exécution.
 
 ---
 
 ## 11. Réutilisations transverses & points d'attention
 
-- **Parser de chapitres** : aujourd'hui dans `pedagogy/chapters`. Pour éviter un
-  couplage inter-features, **option recommandée** : le **relocaliser** dans un module
-  neutre partagé (p. ex. `core/` ou un module `corpus` commun à Pédagogie/Dialogue/
-  Visualisations) ; sinon import direct de `pedagogy.chapters` (parser pur, acceptable).
-  À trancher au plan d'implémentation.
+- **Parser de sections — RELOCALISÉ (décidé)** : `pedagogy/chapters` est déplacé vers un
+  **module neutre partagé `core/corpus`** (pur, sans Qt/HTTP/SQL), enrichi pour exposer le
+  **`section_path`** (chemin structurel invariant par langue) en plus du titre et de
+  l'ancre. La Pédagogie est **refactorée** pour importer depuis ce module (Boy Scout,
+  **zéro duplication**) ; Visualisations le consomme aussi. Le découpage par section du
+  Dialogue (`chat/corpus`) pourra l'adopter ultérieurement (hors périmètre, non bloquant).
 - **`EmbeddingProvider`** : déjà utilisé par le Dialogue ; réutilisé tel quel, avec
   résolution **AUTO** (présence de clé OpenAI ou non).
 - **`slugify_anchor`** : source unique des ids de nœuds et ancres → cohérence avec les
@@ -376,19 +424,25 @@ de données est testable** :
 - **orchestrateur** : fraîcheur / reprise / plafond de coût (patterns Pédagogie).
 - **viewmodels** sans Qt ; smoke `pytest-qt` des widgets.
 - **i18n** : garde-fou chaînes paramétrées.
-- **Smoke navigateur (décision E — par défaut : optionnel/dev)** : un test
-  **Playwright** ouvrant les HTML produits et vérifiant *nœuds rendus / clic→arbre /
-  zéro erreur console*. **Non requis** dans la suite standard (le chemin de données est
-  déjà couvert) ; **recommandé** en outillage dev. À confirmer en revue.
+- **Smoke navigateur — DÉCIDÉ : optionnel/dev** : un test **Playwright** (ouverture des
+  HTML produits → *nœuds rendus / clic→arbre / zéro erreur console*) reste **hors suite
+  standard** (inutile aux utilisateurs finaux ; le chemin de données est déjà couvert en
+  pytest). Conservé comme **outillage dev** facultatif.
 
 ---
 
 ## 13. Constantes & limites assumées
 
-- **Centralisation des constantes** (directive #1) : seuil cosinus de fusion, seed
-  Louvain, plafonds de nœuds/diagrammes par niveau de `density`, dimensions de canvas,
-  noms de fichiers (`knowledge_map.{lang}.html`, `diagrams.{lang}.html`), sous-dossier
-  `visuals/` — **tous nommés**, aucun littéral épars.
+- **Centralisation des constantes** (directive #1) : seuil cosinus de fusion, **seed
+  Louvain**, **nombre de passes de gleaning** (= 1), plafonds de nœuds/diagrammes par
+  niveau de `density`, taille max d'une unité de texte (chunk), longueur max d'un extrait,
+  **règle d'id de nœud** (`type:slug` + compteur), dimensions de canvas, noms de fichiers
+  (`knowledge_map.{lang}.html`, `diagrams.{lang}.html`), sous-dossier `visuals/` — **tous
+  nommés**, aucun littéral épars.
+- **Cas dégénérés** (garantis valides) : cours minuscule / glossaire vide / unité sans
+  entité extractible → HTML **valide même clairsemé** (graphe/galerie possiblement vide,
+  message d'état) ; `produce_knowledge_map`/`produce_diagrams` à `False` → un seul livrable
+  produit.
 - **Limites assumées** :
   - `zh`/`ar` **hors périmètre** de la fonctionnalité (décision produit §1.3).
   - Le seuil de fusion d'entités est une **constante ajustable** (risque
@@ -402,8 +456,9 @@ de données est testable** :
 
 - **`networkx`** (BSD, **pur Python**, bundlable PyInstaller) — communautés Louvain
   hiérarchiques.
-- **Assets JS vendorisés** (MIT, checkés au repo, **non** dépendances pip) : Cytoscape +
-  `fcose` + `dagre` (+ `dagre`) + `expand-collapse` (+ `layout-base`/`cose-base`).
+- **Assets JS vendorisés** (MIT, checkés au repo, **non** dépendances pip) : `cytoscape`
+  + `cytoscape-fcose` + `cytoscape-dagre` (+ la lib de layout `dagre`) +
+  `cytoscape-expand-collapse` (+ `layout-base`/`cose-base`).
 - Embeddings : **déjà** présent (OpenAI), aucune nouvelle dépendance.
 
 **Packaging (`packaging/fahmi2.spec`, gitignored — à patcher)** : `collect`/
@@ -419,8 +474,11 @@ transverse), `packaging/README.md` (networkx + assets vendorisés), et cette spe
 
 ---
 
-## 16. Décisions encore ouvertes (à confirmer en revue)
+## 16. Décisions — toutes verrouillées
 
-- **(E)** Smoke test **Playwright** : optionnel/dev (défaut proposé) vs requis.
-- **(§11)** Relocalisation du parser de chapitres vs import direct `pedagogy.chapters`.
-- Le reste est **verrouillé** par le brainstorming.
+- Smoke test **Playwright** : **optionnel/dev** (décidé).
+- Parser de sections : **relocalisé dans `core/corpus`** (décidé, §11).
+- Modèle d'interaction Doc A : **deux modes focus/réseau réconciliés** (§6.2).
+- Extraits multilingues : **par `section_path`** (§4.12, §5).
+- Enchaînements transversaux : **map-reduce sur les community reports** (§4.8–4.9).
+- Aucune décision ouverte restante.

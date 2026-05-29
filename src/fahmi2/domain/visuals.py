@@ -20,7 +20,7 @@ from fahmi2.domain.enums import (
 from fahmi2.domain.phase import PhaseConfig
 
 #: Types de diagramme dont la charge utile est un graphe (nodes + links).
-_GRAPH_DIAGRAM_TYPES: frozenset[DiagramType] = frozenset(
+GRAPH_DIAGRAM_TYPES: frozenset[DiagramType] = frozenset(
     {
         DiagramType.FLOWCHART,
         DiagramType.HIERARCHY,
@@ -249,7 +249,7 @@ class Diagram:
     excerpts: tuple[SourceExcerpt, ...]
 
     def __post_init__(self) -> None:
-        if self.diagram_type in _GRAPH_DIAGRAM_TYPES:
+        if self.diagram_type in GRAPH_DIAGRAM_TYPES:
             if not self.nodes:
                 raise ValueError(f"Diagram {self.diagram_type}: nodes requis")
         elif self.diagram_type is DiagramType.TIMELINE:

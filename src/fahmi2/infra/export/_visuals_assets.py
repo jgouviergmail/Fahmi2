@@ -43,15 +43,21 @@ def read_visuals_asset(name: str) -> str:
     return resource.read_text(encoding=_ENCODING_UTF8)
 
 
-def vendored_scripts_html() -> str:
-    """Construit le bloc ``<script>`` inlinant toutes les bibliothèques vendorisées.
+def vendored_scripts_html(names: tuple[str, ...] = VENDORED_SCRIPTS) -> str:
+    """Construit le bloc ``<script>`` inlinant les bibliothèques vendorisées.
+
+    Args:
+        names: Sous-ensemble (ordonné) des scripts à inliner. Par défaut
+            ``VENDORED_SCRIPTS`` (toutes les bibliothèques) ; un livrable qui n'utilise
+            qu'une partie (ex. la galerie de schémas : cytoscape + dagre) en passe un
+            sous-ensemble pour un fichier plus léger.
 
     Returns:
-        Une concaténation de balises ``<script>`` (une par bibliothèque, dans
-        l'ordre d'enregistrement) prête à être insérée dans le ``<head>`` du HTML.
+        Une concaténation de balises ``<script>`` (une par bibliothèque, dans l'ordre
+        fourni) prête à être insérée dans le HTML.
     """
     blocks = [
         f"<script>/* vendored: {name} */\n{read_visuals_asset(name)}\n</script>"
-        for name in VENDORED_SCRIPTS
+        for name in names
     ]
     return "\n".join(blocks)

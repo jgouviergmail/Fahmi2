@@ -17,6 +17,7 @@ from fahmi2.domain.visuals import KnowledgeGraph
 from fahmi2.infra.export._visuals_assets import read_visuals_asset, vendored_scripts_html
 
 _TEMPLATE = "knowledge_map.html.template"
+_TOKENS_CSS = "visuals_tokens.css"
 _CSS = "knowledge_map.css"
 _JS = "knowledge_map.js"
 
@@ -186,7 +187,7 @@ def render_knowledge_map_html(graph: KnowledgeGraph) -> str:
         "@@LANG@@": graph.language.value,
         "@@DIR@@": "rtl" if is_rtl(graph.language) else "ltr",
         "@@TITLE@@": strings.header,
-        "@@APP_CSS@@": read_visuals_asset(_CSS),
+        "@@APP_CSS@@": f"{read_visuals_asset(_TOKENS_CSS)}\n{read_visuals_asset(_CSS)}",
         "@@APP_JS@@": read_visuals_asset(_JS),
         "@@VENDORED@@": vendored_scripts_html(),
         "@@DATA_JSON@@": data_json,

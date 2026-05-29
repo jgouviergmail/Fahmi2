@@ -1,0 +1,23 @@
+/* Tokens de design partagés des Visualisations (carte de connaissances + schémas).
+   Mode clair + mode sombre miroir, alignés sur les tokens Fluent de l'application.
+   Inclus en tête du CSS de chaque livrable (source unique des couleurs). */
+
+:root {
+  --bg: #f5f7fb; --surface: #fff; --surface-soft: #fbfcfe; --border-card: #e9ecf1;
+  --divider: #eef0f4; --t1: #1f2328; --t2: #57606a; --t3: #8b95a1;
+  --accent: #0078d4; --accent-strong: #0a4f93; --accent-soft: #e3f0fb;
+  --concept: #0a4f93; --term: #1a7f37; --example: #b45309; --idea: #c2185b;
+  --edge: #c2ccd8; --canvas: #fbfcff; --dot: #e7ebf2;
+  --shadow: 0 4px 22px rgba(15, 23, 42, .10);
+  --shadow-sm: 0 1px 4px rgba(15, 23, 42, .08);
+}
+html[data-theme="dark"] {
+  --bg: #11151c; --surface: #1a1f27; --surface-soft: #161b22; --border-card: #262b34;
+  --divider: #232831; --t1: #e6e9ef; --t2: #9aa3b2; --t3: #6e7787;
+  --accent: #4aa3ee; --accent-strong: #9cc8f4; --accent-soft: #15314d;
+  --concept: #4aa3ee; --term: #3fb950; --example: #d29922; --idea: #ec5e87;
+  --edge: #39414d; --canvas: #11151c; --dot: #1c222c;
+  --shadow: 0 6px 24px rgba(0, 0, 0, .45); --shadow-sm: 0 1px 4px rgba(0, 0, 0, .4);
+}
+
+* { box-sizing: border-box; }

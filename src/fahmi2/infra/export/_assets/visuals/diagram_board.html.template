@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="@@LANG@@" dir="@@DIR@@" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>@@TITLE@@</title>
+<style>
+@@APP_CSS@@
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <div class="brand"><span class="crumb">@@CRUMB@@</span><span class="title">@@HEADER@@</span></div>
+  <div class="spacer"></div>
+  <button class="iconbtn" id="theme" title="@@THEME@@">◐</button>
+</div>
+<div class="subbar">@@CHIPS@@<span class="count">@@COUNT@@</span></div>
+<main class="board">@@CARDS@@</main>
+<div class="empty" id="empty" style="display:none">@@EMPTY@@</div>
+@@VENDORED@@
+<script>
+@@APP_JS@@
+</script>
+</body>
+</html>

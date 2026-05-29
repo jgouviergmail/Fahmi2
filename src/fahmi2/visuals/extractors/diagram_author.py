@@ -15,6 +15,7 @@ from typing import Any
 from fahmi2.core.errors.exceptions import Fahmi2Error
 from fahmi2.domain.enums import DiagramType, Language
 from fahmi2.domain.visuals import (
+    GRAPH_DIAGRAM_TYPES,
     ComparisonTable,
     Diagram,
     DiagramLink,
@@ -37,16 +38,6 @@ from fahmi2.visuals.sources import TextUnit
 
 _STAGE = "diagram_authoring"
 _TEMPLATE_NAME = "visuals_diagram_authoring"
-
-#: Types de diagramme dont la charge utile est un graphe (nœuds + liens).
-_GRAPH_DIAGRAM_TYPES: frozenset[DiagramType] = frozenset(
-    {
-        DiagramType.FLOWCHART,
-        DiagramType.HIERARCHY,
-        DiagramType.DECISION_TREE,
-        DiagramType.CYCLE,
-    }
-)
 
 
 @dataclass(frozen=True)
@@ -194,7 +185,7 @@ def _build_diagram(
     try:
         title = require_str(item, "title", context_label=context_label)
         caption = optional_str(item, "caption") or ""
-        if diagram_type in _GRAPH_DIAGRAM_TYPES:
+        if diagram_type in GRAPH_DIAGRAM_TYPES:
             nodes, links = _parse_graph_payload(item, context_label=context_label)
             return Diagram(
                 id=diagram_id, title=title, diagram_type=diagram_type, nodes=nodes,

@@ -188,6 +188,19 @@ the full breakdown.
 
 ## Status
 
+**v1.5.1** — **Quality round on cost tracking and reliability**:
+phase 6 translation hardened against unescaped quotes from DeepSeek
+(JSON mode strict at the provider level) + per-source cost attribution
+for batch phases 5 and 6 in the Generation matrix (cross-cutting
+refactor with new `PhaseExecution.per_source_costs` field, SQLite
+soft migration, end-to-end propagation handler → engine → viewmodel) +
+cumulative cost preserved across resumes on both Generation
+(`SUCCEEDED` state preserved by the engine) and Pedagogy (cost
+accumulator rebased on the historical total). Two DeepSeek-documented
+failure modes hardened with typed retryable errors
+(`LLM.EMPTY_CONTENT`, `LLM.UNEXPECTED_JSON_SHAPE`). Enriched diagnostic
+logs on JSON parse failures.
+
 **v1.5.0** — **UI/UX redesign** (Light Fluent design system + mirrored
 **dark mode** + cards with soft shadows on the 6 settings screens +
 plain-language glossary labels + redesigned project sidebar with status

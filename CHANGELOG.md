@@ -5,101 +5,59 @@ All notable changes to the Fahmi2 project.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.5.1] — 2026-05-29
 
-### Fixed — Phase 6 translation: `LLM.INVALID_JSON` from unescaped quotes in target-language definitions
+### Added — Per-source cost attribution for batch phases in the Generation matrix (cross-cutting refactor)
 
-- DeepSeek can produce straight quotes `"..."` inside a string value (especially
-  when highlighting a term inside an Arabic / German definition like
-  `"الحب المالي" (Love money)`) **without escaping them**, which breaks the
-  JSON parser downstream and fails the entire phase 6 with
-  `LLM.INVALID_JSON` even though `finish_reason="stop"`. Observed in
-  production on the term "Triple F" (1 occurrence over 114 glossary terms
-  on a real accounting course → triggered systematically when running the
-  glossary localisation in Arabic).
-- Fix: **JSON mode strict** on the provider side
-  (`response_format={"type": "json_object"}`, supported by DeepSeek through
-  the OpenAI-compatible API). The server now guarantees a syntactically
-  valid JSON output — it escapes its own quotes inside string values.
-- Implementation: new constant `JSON_OBJECT_RESPONSE_FORMAT` in
-  `infra/llm/interface.py` (single source of truth). `LLMProvider.chat` +
-  `chat_stream` extended with a `response_format: dict | None = None`
-  additive kwarg (defaults to `None` → unchanged behaviour, retro-compat
-  with existing scenarios and tests). Propagated through
-  `invoke_llm_chat`, `invoke_llm` (pipeline), and `invoke_support_llm`
-  (pedagogy). Wired in every call site that parses JSON downstream:
-  pipeline phases 1, 2, 5 (ordered + thematic ×4) and 6, and all 9
-  pedagogy generators (concept flashcards, MCQ, true/false, cloze, open
-  questions, sheet, key points, mock exam).
-- Prompt restructuring: `phase_6_glossary_localization.j2` now requests
-  a root **object** `{"items": [...]}` instead of a root array `[...]`
-  (the OpenAI/DeepSeek JSON mode requires an object root). All other JSON
-  prompts (pipeline + pedagogy) already returned object roots — no other
-  prompt touched. `_localize_glossary` reads `payload["items"]` with a
-  defensive fallback on array-root payloads (handles legacy user
-  overrides of the prompt).
-- **User-facing notice**: if you have overridden
-  `phase_6_glossary_localization.j2` in `%APPDATA%/Fahmi2/prompts/`,
-  click **Edit → Edit prompts → ↩ Reset to default** on this template
-  to pick up the new `{"items": [...]}` skeleton (the fallback parser
-  accepts your previous array-root version too, but you lose the
-  provider-side escaping guarantee).
-
-### Added — Per-source cost attribution for batch phases (Generation matrix)
-
-- Phases 5 (consolidation) and 6 (translation) are batch phases but have
+- Phases 5 (consolidation) and 6 (translation) are batch phases at the
+  engine level (single `PhaseExecution` with `source_id=NULL`) but have
   internal operations that ARE attributable to a specific source:
   - Phase 5 ordered: T1 video-summary per source.
   - Phase 5 thematic: T1 fact-ledger per source.
-  - Phase 6: translation per (source × language).
-- The matrix now displays the per-source attributable cost on each cell
-  for these phases, instead of falling back to the "first-cell-only"
-  rendering (which remains correct for purely batch phases 2 and 7).
-- Cross-cutting refactor introducing `PhaseExecution.per_source_costs`
-  (`Mapping[SourceId, float]`, immutable via `MappingProxyType`,
-  defaulting to empty). Persisted in a new SQLite column
-  `phase_executions.per_source_costs_json` (NULL = no attribution, full
-  back-compat). Soft migration `ALTER TABLE ADD COLUMN`.
-- Producer side: phase 5 strategies (`ordered.py`, `thematic.py`) and
-  phase 6 (`phase_6_translation.py`) now populate the dict from their
-  parallel per-source loops. The strategy result type
-  (`ConsolidationResult`) carries the dict alongside the total.
-  `_TranslationTask` is enriched with `source_id: SourceId | None`
-  (None for cross-source tasks like the consolidated translation, which
-  remain in the batch residue).
-- Consumer side: `RunMatrixViewModel._build` now picks
-  `pc.per_source_costs[source_id]` for each cell when available, fully
-  reusing the existing display path. The column total stays the
-  authoritative `cost_usd` (includes per-source attributed + residue
-  like glossary localisation, thematic plan, meta). If the vertical
-  sum is below the column total, that difference is the non-attributable
-  batch part.
-- Tests:
-  - `test_batch_phase_with_per_source_attribution_renders_per_cell`
-    (UI viewmodel).
-  - `test_phase_execution_per_source_costs_round_trip` (SQLite).
-  - `test_phase_execution_without_per_source_costs_is_null_in_db`
-    (rétrocompat).
-- 1213 tests passing (+3), ruff/mypy clean.
+  - Phase 6: translation per (source × language) — aggregated to source.
+- The Generation matrix now displays the per-source attributable cost on
+  each cell for these phases, instead of the previous fallback to the
+  "first-cell-only" rendering (which remains correct for purely batch
+  phases 2 and 7). The column total stays the authoritative `cost_usd`
+  (includes per-source attributed + residual: glossary localisation,
+  thematic plan, meta…). If the vertical sum of visible cells is below
+  the column total, that difference is the non-attributable batch
+  residue.
+- Cross-cutting refactor:
+  - `PhaseExecution.per_source_costs: Mapping[SourceId, float]`
+    (immutable via `MappingProxyType`, defaulting to empty mapping).
+  - New SQLite column `phase_executions.per_source_costs_json` (NULL =
+    no attribution, full back-compat). Soft migration via
+    `ALTER TABLE ADD COLUMN`.
+  - `ConsolidationResult` carries the dict alongside the total.
+  - Phase 6 `_TranslationTask` enriched with `source_id: SourceId | None`
+    (None for the cross-source consolidated translation, which remains in
+    the batch residue).
+  - `build_succeeded_phase(per_source_costs=...)` and
+    `PipelineEngine` propagate the dict end-to-end (handler → engine →
+    SQLite → viewmodel).
+- Phase 5 thematic intra-phase resume: the per-source attribution is
+  persisted in `facts_master.json` under the `per_source_costs` key, so
+  that a resume after a mid-phase failure (`fresh=True`) preserves the
+  T1 attribution instead of producing an empty mapping.
+- 4 dedicated regression tests + 1 e2e (`test_engine_preserves_handler_per_source_costs_through_persistence`,
+  `test_thematic_resume_intra_phase_preserves_per_source_costs`,
+  `test_grand_total_no_double_counting_when_batch_phase_attributes_per_source`,
+  `test_execute_attributes_translation_cost_per_source`,
+  `test_phase_execution_per_source_costs_round_trip`).
 
-### Fixed — Generation matrix: batch phase cost no longer hidden behind a tooltip
+### Fixed — Generation matrix: batch phase costs no longer hidden behind a tooltip
 
-- Batch phases (Glossary, Consolidation, Translation, Coherence) have a
-  single cost shared across all sources (persisted with
-  `source_id=NULL`). The cost was visible **only** in the column total
-  at the bottom, while each per-source cell of the column showed `—`.
-  Users naturally read that as "the per-cell cost is missing", even
-  though a tooltip was explaining "(coût au niveau du run)" on hover.
-- Fix: in `RunMatrixViewModel`, the batch cost is now rendered on the
-  **first row** of its column. Other rows of the same column stay `—`
-  to prevent a mental "cost × N rows" miscount. The column total
-  remains the single authoritative figure, and the grand total is
-  unchanged (batch counted once, never multiplied).
-- Why not show per-source costs for phases 5/6 (which DO have internal
-  per-source operations — fact ledger per source, translation per
-  (source × language))? That would require persisting per-source costs
-  for those phases, refactoring the `phase_executions` rows and the
-  engine's bookkeeping. Deferred — let me know if you want it.
+- Before this release, batch phases (Glossary, Consolidation,
+  Translation, Coherence) had their cost only visible in the column
+  total at the bottom; every cell of the column showed `—` with a
+  tooltip "(coût au niveau du run)" on hover. Users naturally read that
+  as "the per-cell cost is missing" without finding the tooltip.
+- Fix: for purely batch phases (no per-source attribution), the batch
+  cost is now rendered on the **first row** of its column; other rows
+  stay `—` to prevent a mental "cost × N rows" miscount. For batch
+  phases with per-source attribution (5/6, cf. the refactor above),
+  every relevant cell now carries its own attributed cost.
 
 ### Fixed — Pedagogy: cumulative cost reset to zero on every resume
 
@@ -179,6 +137,44 @@ through to the generic `LLM.INVALID_JSON` (which is non-retryable).
   `finish_reason` propagated from the provider through
   `LLMResponse.finish_reason`. Already in place since commit `01f8b41`
   but re-stated here for completeness.
+
+### Fixed — Phase 6 translation: `LLM.INVALID_JSON` from unescaped quotes in target-language definitions
+
+- DeepSeek can produce straight quotes `"..."` inside a string value (especially
+  when highlighting a term inside an Arabic / German definition like
+  `"الحب المالي" (Love money)`) **without escaping them**, which breaks the
+  JSON parser downstream and fails the entire phase 6 with
+  `LLM.INVALID_JSON` even though `finish_reason="stop"`. Observed in
+  production on the term "Triple F" (1 occurrence over 114 glossary terms
+  on a real accounting course → triggered systematically when running the
+  glossary localisation in Arabic).
+- Fix: **JSON mode strict** on the provider side
+  (`response_format={"type": "json_object"}`, supported by DeepSeek through
+  the OpenAI-compatible API). The server now guarantees a syntactically
+  valid JSON output — it escapes its own quotes inside string values.
+- Implementation: new constant `JSON_OBJECT_RESPONSE_FORMAT` in
+  `infra/llm/interface.py` (single source of truth). `LLMProvider.chat` +
+  `chat_stream` extended with a `response_format: dict | None = None`
+  additive kwarg (defaults to `None` → unchanged behaviour, retro-compat
+  with existing scenarios and tests). Propagated through
+  `invoke_llm_chat`, `invoke_llm` (pipeline), and `invoke_support_llm`
+  (pedagogy). Wired in every call site that parses JSON downstream:
+  pipeline phases 1, 2, 5 (ordered + thematic ×4) and 6, and all 9
+  pedagogy generators (concept flashcards, MCQ, true/false, cloze, open
+  questions, sheet, key points, mock exam).
+- Prompt restructuring: `phase_6_glossary_localization.j2` now requests
+  a root **object** `{"items": [...]}` instead of a root array `[...]`
+  (the OpenAI/DeepSeek JSON mode requires an object root). All other JSON
+  prompts (pipeline + pedagogy) already returned object roots — no other
+  prompt touched. `_localize_glossary` reads `payload["items"]` with a
+  defensive fallback on array-root payloads (handles legacy user
+  overrides of the prompt).
+- **User-facing notice**: if you have overridden
+  `phase_6_glossary_localization.j2` in `%APPDATA%/Fahmi2/prompts/`,
+  click **Edit → Edit prompts → ↩ Reset to default** on this template
+  to pick up the new `{"items": [...]}` skeleton (the fallback parser
+  accepts your previous array-root version too, but you lose the
+  provider-side escaping guarantee).
 
 ## [1.5.0] — 2026-05-28
 

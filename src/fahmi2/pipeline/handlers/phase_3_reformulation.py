@@ -7,35 +7,30 @@ reformulé dans ``workspace/reformulated/{source_id}.md``.
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
-from fahmi2.core.errors.exceptions import StorageError
-from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import PhaseId, SourceKind
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.source import SourceExecution
 from fahmi2.pipeline.handlers._base import (
+    DEFAULT_TOP_K_GLOSSARY,
     build_succeeded_phase,
     invoke_llm,
     language_label,
     load_glossary_master,
+    load_transcription_text,
     select_top_glossary_terms,
     style_label,
     utc_now,
 )
 from fahmi2.pipeline.phase_handler import PhaseContext, PhaseHandler
+from fahmi2.pipeline.workspace_layout import reformulated_path
 
-_REFORMULATED_SUBDIR = "reformulated"
-_TRANSCRIPTS_SUBDIR = "transcripts"
 _TEMPLATE_NAME = "phase_3_reformulation"
-_DEFAULT_TOP_K_GLOSSARY = 30
 
 
 class Phase3ReformulationHandler(PhaseHandler):
     """Phase 3 — reformulation per video du discours oral en texte écrit."""
 
-    def __init__(self, *, top_k_glossary: int = _DEFAULT_TOP_K_GLOSSARY) -> None:
+    def __init__(self, *, top_k_glossary: int = DEFAULT_TOP_K_GLOSSARY) -> None:
         """Construit le handler.
 
         Args:
@@ -81,16 +76,14 @@ class Phase3ReformulationHandler(PhaseHandler):
         if source is None:
             raise ValueError("Phase3ReformulationHandler requires a SourceExecution")
         started_at = utc_now()
-        out_path = (
-            ctx.workspace / _REFORMULATED_SUBDIR / f"{source.source_id.value}.md"
-        )
+        out_path = reformulated_path(ctx.workspace, source.source_id.value)
         if (
             source.source.kind is SourceKind.DOCUMENT
             and not ctx.settings.reformulate_documents
         ):
             # Pass-through : un document déjà rédigé est inséré tel quel (le
             # segment unique de l'ingestion préserve la structure du texte).
-            text = _load_transcription_text(ctx.workspace, source.source_id.value)
+            text = load_transcription_text(ctx.workspace, source.source_id.value)
             ctx.artifacts.write_text_atomic(out_path, text)
             return build_succeeded_phase(
                 phase_id=self.phase_id,
@@ -98,7 +91,7 @@ class Phase3ReformulationHandler(PhaseHandler):
                 started_at=started_at,
                 cost_usd=0.0,
             )
-        transcription_text = _load_transcription_text(
+        transcription_text = load_transcription_text(
             ctx.workspace, source.source_id.value
         )
         master_terms = load_glossary_master(ctx.workspace)
@@ -126,31 +119,3 @@ class Phase3ReformulationHandler(PhaseHandler):
             started_at=started_at,
             cost_usd=response.cost_usd,
         )
-
-
-def _load_transcription_text(workspace: Path, source_id: str) -> str:
-    """Charge le texte complet d'une transcription persistée.
-
-    Args:
-        workspace: Dossier de travail.
-        source_id: ULID de la source.
-
-    Returns:
-        Texte concaténé.
-
-    Raises:
-        StorageError: Si le fichier est introuvable.
-    """
-    transcript_path = workspace / _TRANSCRIPTS_SUBDIR / f"{source_id}.json"
-    if not transcript_path.exists():
-        raise StorageError(
-            code="STORAGE.TRANSCRIPT_MISSING",
-            user_message=(
-                f"La transcription pour {source_id} est introuvable. "
-                "Relance la phase STT."
-            ),
-            severity=Severity.ERROR,
-            technical_details={"path": str(transcript_path)},
-        )
-    payload = json.loads(transcript_path.read_text(encoding="utf-8"))
-    return " ".join(str(s.get("text", "")) for s in payload.get("segments", []))

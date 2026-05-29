@@ -8,34 +8,30 @@ dans ``workspace/structured/{source_id}.md``.
 
 from __future__ import annotations
 
-from pathlib import Path
-
-from fahmi2.core.errors.exceptions import StorageError
-from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import PhaseId
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.source import SourceExecution
 from fahmi2.pipeline.handlers._base import (
+    DEFAULT_TOP_K_GLOSSARY,
     build_succeeded_phase,
     invoke_llm,
     language_label,
     load_glossary_master,
+    load_reformulated_text,
     select_top_glossary_terms,
     style_label,
     utc_now,
 )
 from fahmi2.pipeline.phase_handler import PhaseContext, PhaseHandler
+from fahmi2.pipeline.workspace_layout import structured_path
 
-_REFORMULATED_SUBDIR = "reformulated"
-_STRUCTURED_SUBDIR = "structured"
 _TEMPLATE_NAME = "phase_4_structuration"
-_DEFAULT_TOP_K_GLOSSARY = 30
 
 
 class Phase4StructurationHandler(PhaseHandler):
     """Phase 4 — structuration Markdown du contenu reformulé per video."""
 
-    def __init__(self, *, top_k_glossary: int = _DEFAULT_TOP_K_GLOSSARY) -> None:
+    def __init__(self, *, top_k_glossary: int = DEFAULT_TOP_K_GLOSSARY) -> None:
         """Construit le handler.
 
         Args:
@@ -81,7 +77,9 @@ class Phase4StructurationHandler(PhaseHandler):
         if source is None:
             raise ValueError("Phase4StructurationHandler requires a SourceExecution")
         started_at = utc_now()
-        reformulated_text = _load_reformulated(ctx.workspace, source.source_id.value)
+        reformulated_text = load_reformulated_text(
+            ctx.workspace, source.source_id.value
+        )
         master_terms = load_glossary_master(ctx.workspace)
         glossary_terms = select_top_glossary_terms(
             master_terms,
@@ -100,7 +98,7 @@ class Phase4StructurationHandler(PhaseHandler):
         response = invoke_llm(
             ctx, phase_id=self.phase_id, system_prompt=None, user_prompt=prompt
         )
-        out_path = ctx.workspace / _STRUCTURED_SUBDIR / f"{source.source_id.value}.md"
+        out_path = structured_path(ctx.workspace, source.source_id.value)
         ctx.artifacts.write_text_atomic(out_path, response.content)
         return build_succeeded_phase(
             phase_id=self.phase_id,
@@ -108,30 +106,3 @@ class Phase4StructurationHandler(PhaseHandler):
             started_at=started_at,
             cost_usd=response.cost_usd,
         )
-
-
-def _load_reformulated(workspace: Path, source_id: str) -> str:
-    """Charge le contenu reformulé d'une source.
-
-    Args:
-        workspace: Dossier de travail.
-        source_id: ULID de la source.
-
-    Returns:
-        Le contenu reformulé sous forme de chaîne.
-
-    Raises:
-        StorageError: Si le fichier est introuvable.
-    """
-    path = workspace / _REFORMULATED_SUBDIR / f"{source_id}.md"
-    if not path.exists():
-        raise StorageError(
-            code="STORAGE.REFORMULATED_MISSING",
-            user_message=(
-                f"Le contenu reformulé pour {source_id} est introuvable. "
-                "Relance la phase de reformulation."
-            ),
-            severity=Severity.ERROR,
-            technical_details={"path": str(path)},
-        )
-    return path.read_text(encoding="utf-8")

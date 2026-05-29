@@ -14,12 +14,11 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from fahmi2.core.logging.sink import register_secret
+from fahmi2.core.logging.sink import MIN_SECRET_LENGTH, register_secret
 from fahmi2.infra.secrets.interface import SecretsStore
 
 KEY_OPENAI = "openai_api_key"
 KEY_DEEPSEEK = "deepseek_api_key"
-_MIN_LENGTH_FOR_REDACTION = 4
 
 
 class SecretsService:
@@ -105,5 +104,5 @@ class SecretsService:
     def _register_existing_secrets(self) -> None:
         for key in self._store.keys():
             value = self._store.get(key)
-            if value is not None and len(value) >= _MIN_LENGTH_FOR_REDACTION:
+            if value is not None and len(value) >= MIN_SECRET_LENGTH:
                 register_secret(value)

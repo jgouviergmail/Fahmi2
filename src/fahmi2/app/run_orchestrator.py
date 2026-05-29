@@ -19,10 +19,12 @@ Le déport asynchrone vers un ``QThread`` (UI) sera fait par la couche UI
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 
 from fahmi2.app.input_sources import build_input_sources
 from fahmi2.app.project_service import ProjectService
+from fahmi2.core.concurrency.pause_token import PauseToken
 from fahmi2.core.errors.exceptions import ConfigError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import RunStatus
@@ -32,7 +34,6 @@ from fahmi2.domain.run import Run
 from fahmi2.domain.state_machine import validate_transition_run
 from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.pipeline.engine import PipelineEngine
-from fahmi2.pipeline.pause_token import PauseToken
 from fahmi2.pipeline.phase_handler import PhaseContext
 
 # Statuts pour lesquels le dernier Run d'un projet est considéré comme
@@ -161,16 +162,14 @@ class RunOrchestrator:
 
         project = self._project_service.get_project(running_run.project_id)
         if project is not None:
+            # ``replace`` préserve **tous** les autres champs (notamment ``chat``,
+            # ajouté après la création initiale de ce code) : reconstruire le
+            # Project champ par champ a déjà fait perdre ``chat`` une fois.
             self._project_service.update_project(
-                Project(
-                    id=project.id,
-                    name=project.name,
-                    workspace_folder=project.workspace_folder,
-                    created_at=project.created_at,
+                replace(
+                    project,
                     last_run_at=finished_run.finished_at,
                     runs=(*project.runs, finished_run.id),
-                    generation=project.generation,
-                    pedagogy=project.pedagogy,
                 )
             )
         return final_status

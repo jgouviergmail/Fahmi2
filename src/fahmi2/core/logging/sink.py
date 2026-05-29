@@ -16,7 +16,11 @@ from fahmi2.core.errors.severity import Severity
 from fahmi2.core.logging.event import LogEvent
 
 _REDACTION_PLACEHOLDER = "***"
-_MIN_SECRET_LENGTH = 4
+#: Longueur minimale d'une valeur **avant** son enregistrement pour redaction.
+#: Évite de remplacer des fragments anodins (ex. ``"a"`` qui matcherait toute la
+#: prose). Constante publique partagée avec ``SecretsService`` qui s'en sert pour
+#: pré-filtrer les valeurs chargées depuis le store DPAPI.
+MIN_SECRET_LENGTH = 4
 
 _secret_lock = threading.Lock()
 _secrets: set[str] = set()
@@ -29,12 +33,12 @@ def register_secret(value: str) -> None:
         value: Valeur secrète (clé API, token, etc.).
 
     Raises:
-        ValueError: Si la valeur fait moins de ``_MIN_SECRET_LENGTH`` caractères
+        ValueError: Si la valeur fait moins de ``MIN_SECRET_LENGTH`` caractères
             (pour éviter de matcher des fragments anodins).
     """
-    if not value or len(value) < _MIN_SECRET_LENGTH:
+    if not value or len(value) < MIN_SECRET_LENGTH:
         raise ValueError(
-            f"Secret value must be at least {_MIN_SECRET_LENGTH} characters"
+            f"Secret value must be at least {MIN_SECRET_LENGTH} characters"
         )
     with _secret_lock:
         _secrets.add(value)

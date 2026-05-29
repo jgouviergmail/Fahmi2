@@ -35,6 +35,7 @@ from fahmi2.app.pedagogy_export import (
 from fahmi2.app.project_service import ProjectService
 from fahmi2.app.secrets_service import SecretsService
 from fahmi2.app.supports_orchestrator import SupportsOrchestrator
+from fahmi2.core.concurrency.pause_token import PauseToken
 from fahmi2.core.config.paths import AppPaths
 from fahmi2.core.errors.exceptions import Fahmi2Error
 from fahmi2.core.errors.severity import Severity
@@ -64,7 +65,6 @@ from fahmi2.pedagogy.events import (
 from fahmi2.pedagogy.run_state import read_run_state
 from fahmi2.pedagogy.sources import load_chapters
 from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
-from fahmi2.pipeline.pause_token import PauseToken
 from fahmi2.ui._export_ui import choose_export_format, run_document_export
 from fahmi2.ui._file_explorer import open_in_file_explorer
 from fahmi2.ui._fs import remove_feature_dir

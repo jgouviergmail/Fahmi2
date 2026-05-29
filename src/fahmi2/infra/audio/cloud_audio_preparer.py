@@ -16,6 +16,11 @@ from typing import Protocol
 
 from fahmi2.core.errors.exceptions import FFmpegError
 from fahmi2.core.errors.severity import Severity
+from fahmi2.infra.audio._ffmpeg_common import (
+    DEFAULT_FFMPEG_BINARY,
+    DEFAULT_FFPROBE_BINARY,
+    FFMPEG_LOGLEVEL_ERROR,
+)
 
 _OPUS_BITRATE_KBPS = 24
 _MAX_CHUNK_BYTES = 24_000_000  # marge sous les 25 Mo (overhead conteneur)
@@ -23,9 +28,6 @@ _SILENCE_NOISE_DB = -30
 _SILENCE_MIN_SECONDS = 0.5
 _OPUS_CONTAINER_SUFFIX = ".ogg"
 _OPUS_APPLICATION = "voip"
-_FFMPEG_BINARY = "ffmpeg"
-_FFPROBE_BINARY = "ffprobe"
-_LOGLEVEL_ERROR = "error"
 # Vise des segments un peu plus courts que la limite (VBR : la taille n'est pas
 # strictement proportionnelle à la durée).
 _SIZE_SAFETY_RATIO = 0.9
@@ -94,8 +96,8 @@ class CloudAudioPreparer:
             silence_noise_db: Seuil de silence (dB) pour ``silencedetect``.
             silence_min_seconds: Durée minimale d'un silence détecté.
         """
-        self._ffmpeg = ffmpeg_binary or _FFMPEG_BINARY
-        self._ffprobe = ffprobe_binary or _FFPROBE_BINARY
+        self._ffmpeg = ffmpeg_binary or DEFAULT_FFMPEG_BINARY
+        self._ffprobe = ffprobe_binary or DEFAULT_FFPROBE_BINARY
         self._bitrate_kbps = bitrate_kbps
         self._max_chunk_bytes = max_chunk_bytes
         self._silence_noise_db = silence_noise_db
@@ -229,7 +231,7 @@ class CloudAudioPreparer:
         try:
             result = subprocess.run(  # noqa: S603
                 [
-                    self._ffprobe, "-loglevel", _LOGLEVEL_ERROR,
+                    self._ffprobe, "-loglevel", FFMPEG_LOGLEVEL_ERROR,
                     "-show_entries", "format=duration",
                     "-of", "default=noprint_wrappers=1:nokey=1", str(media_path),
                 ],
@@ -265,7 +267,7 @@ class CloudAudioPreparer:
         cmd += [
             "-vn", "-ac", "1", "-c:a", "libopus",
             "-b:a", f"{self._bitrate_kbps}k", "-application", _OPUS_APPLICATION,
-            "-loglevel", _LOGLEVEL_ERROR, str(out),
+            "-loglevel", FFMPEG_LOGLEVEL_ERROR, str(out),
         ]
         try:
             subprocess.run(cmd, check=True, capture_output=True)  # noqa: S603

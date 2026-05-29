@@ -12,6 +12,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 
+from fahmi2.core.concurrency.pause_token import PauseToken
 from fahmi2.core.retry.policy import RetryPolicy
 from fahmi2.domain.enums import Language, SupportType
 from fahmi2.domain.glossary import Term
@@ -23,7 +24,6 @@ from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.pedagogy.chapters import Chapter
 from fahmi2.pedagogy.events import PedagogyEvent
 from fahmi2.pipeline.event_bus import EventBus
-from fahmi2.pipeline.pause_token import PauseToken
 
 
 @dataclass(frozen=True)

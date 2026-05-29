@@ -106,9 +106,11 @@ Dependencies flow downwards (UI → app → pipeline/infra → domain/core).
   `AppPaths` + runtime resolution of bundled ffmpeg), `migrations`,
   `retrieval` (TF-IDF glossary), `concurrency` (`map_bounded`: bounded
   pool, fail-fast, order preserved, honours the `PauseToken`; shared for
-  parallelising I/O-bound LLM/STT calls), `ids`, `slugify`
-  (`slugify_anchor`: GFM anchor **single source** — consolidated TOC in
-  generation, pedagogy chapter parser, HTML export heading ids).
+  parallelising I/O-bound LLM/STT calls; **`PauseToken`** — coopérative
+  pause/cancel token consumed by `map_bounded`, orchestrators and UI
+  controllers), `ids`, `slugify` (`slugify_anchor`: GFM anchor **single
+  source** — consolidated TOC in generation, pedagogy chapter parser,
+  HTML export heading ids).
 - `domain/` — pure immutable entities (`Project` [minimal identity: name +
   location + per-feature settings], `GenerationSettings`,
   `PedagogySettings`, `Run`, `InputSource`, `SourceExecution`,
@@ -122,8 +124,13 @@ Dependencies flow downwards (UI → app → pipeline/infra → domain/core).
 - `pipeline/` — pure execution engine for **generation**: `PipelineEngine`
   (per-phase SQLite checkpoint + retry + events + pause/cancel),
   `PhaseRegistry` (canonical order of the 8 phases),
-  `PhaseHandler`/`PhaseContext` (DI), `EventBus` (generic), `PauseToken`,
-  `handlers/phase_N_*.py` (one per phase).
+  `PhaseHandler`/`PhaseContext` (DI), `EventBus` (generic),
+  **`workspace_layout`** (single source of artifact paths:
+  `transcripts/`, `candidates/`, `reformulated/`, `structured/`,
+  `glossary_master.json`, `consolidated_master.md`, `per-video/`),
+  `handlers/phase_N_*.py` (one per phase). The coopérative
+  pause/cancel `PauseToken` lives in `core/concurrency/` since it is
+  shared with `map_bounded` and the pedagogy orchestrator.
 - `pedagogy/` — **revision materials** engine (modelled after `pipeline/`
   but without STT/SQLite): `SupportGenerator` (ABC) + `SupportContext` (DI),
   `SupportGeneratorRegistry` + `build_default_support_registry`,

@@ -8,9 +8,11 @@ import pytest
 
 from fahmi2.app.project_service import ProjectService
 from fahmi2.app.run_orchestrator import RunOrchestrator
+from fahmi2.core.concurrency.pause_token import PauseToken
 from fahmi2.core.errors.exceptions import ConfigError
 from fahmi2.core.retrieval.interface import PassthroughRetriever
 from fahmi2.core.retry.policy import RetryPolicy
+from fahmi2.domain.chat import ChatSettings
 from fahmi2.domain.enums import PhaseId, PhaseStatus, RunStatus
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.project import Project
@@ -25,7 +27,6 @@ from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.infra.stt._fakes import FakeSTTProvider
 from fahmi2.pipeline.engine import PipelineEngine
 from fahmi2.pipeline.event_bus import EventBus
-from fahmi2.pipeline.pause_token import PauseToken
 from fahmi2.pipeline.phase_handler import PhaseContext, PhaseHandler
 from fahmi2.pipeline.phase_registry import PhaseRegistry
 
@@ -446,3 +447,31 @@ def test_execute_preserves_pedagogy_settings(
     reloaded = project_service.get_project(project.id)
     assert reloaded is not None
     assert reloaded.pedagogy is not None
+
+
+def test_execute_preserves_chat_settings(
+    tmp_path: Path,
+    make_generation_settings: Any,
+) -> None:
+    """Anti-régression : un run ne doit pas effacer ``Project.chat``.
+
+    Variante du test pédagogie : ``RunOrchestrator.execute`` a déjà reconstruit
+    le ``Project`` champ par champ et oublié un nouveau champ. ``replace`` garantit
+    désormais que **tout** champ ajouté plus tard est préservé sans modifier ce
+    code.
+    """
+    orchestrator, _, project_service = _build_orchestrator(tmp_path)
+    input_folder = _seed_input_folder(tmp_path)
+    settings = make_generation_settings(input_folder=input_folder)
+    project = project_service.create_project(
+        name="Test",
+        workspace_folder=tmp_path / "ws",
+        generation=settings,
+        chat=ChatSettings(),
+    )
+    run = orchestrator.create_run(project)
+    orchestrator.execute(run=run, ctx=_build_ctx(tmp_path, run))
+
+    reloaded = project_service.get_project(project.id)
+    assert reloaded is not None
+    assert reloaded.chat is not None

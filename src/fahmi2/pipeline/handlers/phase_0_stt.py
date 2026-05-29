@@ -22,9 +22,7 @@ from fahmi2.domain.source import SourceExecution
 from fahmi2.infra.ingestion.interface import IngestionDeps
 from fahmi2.infra.stt.interface import Transcription
 from fahmi2.pipeline.phase_handler import PhaseContext, PhaseHandler
-
-_TRANSCRIPTS_SUBDIR = "transcripts"
-_TRANSCRIPT_EXTENSION = ".json"
+from fahmi2.pipeline.workspace_layout import transcript_path
 
 
 class Phase0SttHandler(PhaseHandler):
@@ -71,11 +69,7 @@ class Phase0SttHandler(PhaseHandler):
             raise ValueError("Phase0SttHandler requires a SourceExecution")
 
         started = datetime.now(tz=UTC)
-        transcript_path = (
-            ctx.workspace
-            / _TRANSCRIPTS_SUBDIR
-            / f"{source.source_id.value}{_TRANSCRIPT_EXTENSION}"
-        )
+        out_path = transcript_path(ctx.workspace, source.source_id.value)
         deps = IngestionDeps(
             workspace=ctx.workspace,
             artifacts=ctx.artifacts,
@@ -91,7 +85,7 @@ class Phase0SttHandler(PhaseHandler):
         )
         cost = ctx.stt_provider.estimate_cost(transcription.duration_seconds)
         ctx.artifacts.write_json_atomic(
-            transcript_path,
+            out_path,
             _serialize_transcription(transcription),
         )
 
@@ -101,7 +95,7 @@ class Phase0SttHandler(PhaseHandler):
             status=PhaseStatus.SUCCEEDED,
             started_at=started,
             finished_at=finished,
-            artifact_path=transcript_path,
+            artifact_path=out_path,
             cost_usd=cost,
         )
 

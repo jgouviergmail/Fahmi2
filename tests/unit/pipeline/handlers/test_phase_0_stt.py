@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from fahmi2.core.concurrency.pause_token import PauseToken
 from fahmi2.core.errors.exceptions import FFmpegError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.core.retrieval.interface import PassthroughRetriever
@@ -27,7 +28,6 @@ from fahmi2.infra.stt._fakes import FakeSTTProvider
 from fahmi2.infra.stt.interface import Transcription, TranscriptionSegment
 from fahmi2.pipeline.event_bus import EventBus
 from fahmi2.pipeline.handlers.phase_0_stt import Phase0SttHandler
-from fahmi2.pipeline.pause_token import PauseToken
 from fahmi2.pipeline.phase_handler import PhaseContext
 from tests.unit.pipeline.handlers._helpers import build_phase_context
 

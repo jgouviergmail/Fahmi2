@@ -46,11 +46,13 @@ from fahmi2.pipeline.handlers._base import (
     utc_now,
 )
 from fahmi2.pipeline.phase_handler import PhaseContext, PhaseHandler
+from fahmi2.pipeline.workspace_layout import (
+    PER_SOURCE_OUTPUT_SUBDIR,
+    consolidated_master_path,
+    glossary_master_path,
+    structured_path,
+)
 
-_STRUCTURED_SUBDIR = "structured"
-_CONSOLIDATED_MASTER_FILENAME = "consolidated_master.md"
-_GLOSSARY_MASTER_FILENAME = "glossary_master.json"
-_PER_VIDEO_OUTPUT_SUBDIR = "per-video"
 _TEMPLATE_NAME = "phase_6_translation"
 _GLOSSARY_LOCALIZATION_TEMPLATE = "phase_6_glossary_localization"
 
@@ -118,13 +120,13 @@ class Phase6TranslationHandler(PhaseHandler):
         started_at = utc_now()
 
         consolidated_master = _load_required(
-            ctx.workspace / _CONSOLIDATED_MASTER_FILENAME,
+            consolidated_master_path(ctx.workspace),
             "STORAGE.CONSOLIDATED_MISSING",
             "Le document consolidé master est introuvable.",
         )
         glossary_master = json.loads(
             _load_required(
-                ctx.workspace / _GLOSSARY_MASTER_FILENAME,
+                glossary_master_path(ctx.workspace),
                 "STORAGE.GLOSSARY_MISSING",
                 "Le glossaire master est introuvable.",
             )
@@ -230,7 +232,7 @@ class Phase6TranslationHandler(PhaseHandler):
         for source_id, structured_md in per_source_structured.items():
             target_path = (
                 ctx.output_dir
-                / _PER_VIDEO_OUTPUT_SUBDIR
+                / PER_SOURCE_OUTPUT_SUBDIR
                 / target.value
                 / f"{source_id}.md"
             )
@@ -466,7 +468,7 @@ def _load_per_source_structured(
     """
     result: dict[str, str] = {}
     for source in sources:
-        path = workspace / _STRUCTURED_SUBDIR / f"{source.source_id.value}.md"
+        path = structured_path(workspace, source.source_id.value)
         if not path.exists():
             raise StorageError(
                 code="STORAGE.STRUCTURED_MISSING",
@@ -580,6 +582,4 @@ def _persist_cross_lang(
             for lang, localized in localized_by_language.items()
             if source in localized
         }
-    ctx.artifacts.write_json_atomic(
-        ctx.workspace / _GLOSSARY_MASTER_FILENAME, payload
-    )
+    ctx.artifacts.write_json_atomic(glossary_master_path(ctx.workspace), payload)

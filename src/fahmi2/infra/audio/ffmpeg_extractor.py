@@ -15,13 +15,15 @@ from pathlib import Path
 
 from fahmi2.core.errors.exceptions import FFmpegError
 from fahmi2.core.errors.severity import Severity
+from fahmi2.infra.audio._ffmpeg_common import (
+    DEFAULT_FFMPEG_BINARY,
+    DEFAULT_FFPROBE_BINARY,
+    FFMPEG_LOGLEVEL_ERROR,
+)
 
 _DEFAULT_SAMPLE_RATE_HZ = 16_000
 _DEFAULT_CHANNELS = 1
 _DEFAULT_AUDIO_CODEC = "pcm_s16le"
-_FFMPEG_BINARY = "ffmpeg"
-_FFPROBE_BINARY = "ffprobe"
-_LOGLEVEL_ERROR = "error"
 
 
 @dataclass(frozen=True)
@@ -58,8 +60,8 @@ class FFmpegExtractor:
             sample_rate_hz: Fréquence d'échantillonnage cible.
             channels: Nombre de canaux cible (1 = mono).
         """
-        self._ffmpeg = ffmpeg_binary or _FFMPEG_BINARY
-        self._ffprobe = ffprobe_binary or _FFPROBE_BINARY
+        self._ffmpeg = ffmpeg_binary or DEFAULT_FFMPEG_BINARY
+        self._ffprobe = ffprobe_binary or DEFAULT_FFPROBE_BINARY
         self._sample_rate_hz = sample_rate_hz
         self._channels = channels
 
@@ -101,7 +103,7 @@ class FFmpegExtractor:
             "-c:a",
             _DEFAULT_AUDIO_CODEC,
             "-loglevel",
-            _LOGLEVEL_ERROR,
+            FFMPEG_LOGLEVEL_ERROR,
             str(output_path),
         ]
         try:
@@ -144,7 +146,7 @@ class FFmpegExtractor:
                 [
                     self._ffprobe,
                     "-loglevel",
-                    _LOGLEVEL_ERROR,
+                    FFMPEG_LOGLEVEL_ERROR,
                     "-select_streams",
                     "a",
                     "-show_entries",
@@ -216,7 +218,7 @@ class FFmpegExtractor:
                 [
                     self._ffprobe,
                     "-loglevel",
-                    _LOGLEVEL_ERROR,
+                    FFMPEG_LOGLEVEL_ERROR,
                     "-show_entries",
                     "format=duration",
                     "-of",
@@ -240,4 +242,4 @@ def has_ffmpeg_in_path() -> bool:
     Returns:
         ``True`` si ``shutil.which("ffmpeg")`` retourne un chemin.
     """
-    return shutil.which(_FFMPEG_BINARY) is not None
+    return shutil.which(DEFAULT_FFMPEG_BINARY) is not None

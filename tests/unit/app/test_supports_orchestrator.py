@@ -11,6 +11,7 @@ import pytest
 
 from fahmi2.app.project_service import ProjectService
 from fahmi2.app.supports_orchestrator import SupportsOrchestrator
+from fahmi2.core.concurrency.pause_token import PauseToken
 from fahmi2.core.errors.exceptions import ConfigError, LLMError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.core.retry.policy import RetryPolicy
@@ -50,7 +51,6 @@ from fahmi2.pedagogy.run_state import (
 from fahmi2.pedagogy.support_generator import SupportContext, SupportGenerator
 from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
 from fahmi2.pipeline.event_bus import EventBus
-from fahmi2.pipeline.pause_token import PauseToken
 
 
 def _seed_completed_run_with_glossary(

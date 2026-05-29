@@ -17,6 +17,8 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
+from fahmi2.core.errors.exceptions import StorageError
+from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import Language, PhaseId, PhaseStatus, StylePreset
 from fahmi2.domain.ids import SourceId
 from fahmi2.domain.languages import language_label as _language_label
@@ -24,6 +26,11 @@ from fahmi2.domain.phase import PhaseExecution
 from fahmi2.infra.llm.interface import LLMResponse
 from fahmi2.infra.llm.invocation import invoke_llm_chat, parse_llm_json
 from fahmi2.pipeline.phase_handler import PhaseContext
+from fahmi2.pipeline.workspace_layout import (
+    glossary_master_path,
+    reformulated_path,
+    transcript_path,
+)
 
 _STYLE_LABELS_FR: dict[StylePreset, str] = {
     StylePreset.DECONTRACTE: "décontracté",
@@ -31,6 +38,11 @@ _STYLE_LABELS_FR: dict[StylePreset, str] = {
     StylePreset.PROFESSIONNEL: "professionnel",
     StylePreset.ACADEMIQUE: "académique",
 }
+
+#: Nombre maximal de termes du glossaire injectés en contexte LLM (phases 3, 4).
+#: Choisi pour garder le prompt court tout en couvrant les termes pertinents
+#: d'un chapitre type. Source unique partagée entre les handlers concernés.
+DEFAULT_TOP_K_GLOSSARY = 30
 
 
 def style_label(style: StylePreset) -> str:
@@ -182,12 +194,76 @@ def load_glossary_master(workspace: Path) -> list[dict[str, Any]]:
     Returns:
         Liste des termes (dict). Liste vide si le master n'existe pas encore.
     """
-    master_path = workspace / "glossary_master.json"
+    master_path = glossary_master_path(workspace)
     if not master_path.exists():
         return []
     payload = json.loads(master_path.read_text(encoding="utf-8"))
     terms = payload.get("terms", [])
     return [dict(t) for t in terms]
+
+
+def load_transcription_text(workspace: Path, source_id: str) -> str:
+    """Charge le texte complet d'une transcription persistée (phase 0).
+
+    Source unique partagée par les handlers qui consomment la transcription
+    brute (phases 1 et 3). Le texte de tous les segments est concaténé par
+    une espace ; un document non STT (segment unique préservant la structure)
+    revient donc tel quel.
+
+    Args:
+        workspace: Dossier de travail du run.
+        source_id: ULID de la source.
+
+    Returns:
+        Le texte concaténé de tous les segments.
+
+    Raises:
+        StorageError: ``STORAGE.TRANSCRIPT_MISSING`` si le fichier n'existe pas.
+    """
+    path = transcript_path(workspace, source_id)
+    if not path.exists():
+        raise StorageError(
+            code="STORAGE.TRANSCRIPT_MISSING",
+            user_message=(
+                f"La transcription pour {source_id} est introuvable. "
+                "Relance la phase STT."
+            ),
+            severity=Severity.ERROR,
+            technical_details={"path": str(path)},
+        )
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    segments = payload.get("segments", [])
+    return " ".join(str(s.get("text", "")) for s in segments)
+
+
+def load_reformulated_text(workspace: Path, source_id: str) -> str:
+    """Charge le contenu reformulé d'une source (phase 3).
+
+    Source unique partagée par les handlers qui consomment l'artefact de la
+    phase 3 (typiquement la phase 4 de structuration).
+
+    Args:
+        workspace: Dossier de travail du run.
+        source_id: ULID de la source.
+
+    Returns:
+        Le contenu Markdown reformulé.
+
+    Raises:
+        StorageError: ``STORAGE.REFORMULATED_MISSING`` si le fichier n'existe pas.
+    """
+    path = reformulated_path(workspace, source_id)
+    if not path.exists():
+        raise StorageError(
+            code="STORAGE.REFORMULATED_MISSING",
+            user_message=(
+                f"Le contenu reformulé pour {source_id} est introuvable. "
+                "Relance la phase de reformulation."
+            ),
+            severity=Severity.ERROR,
+            technical_details={"path": str(path)},
+        )
+    return path.read_text(encoding="utf-8")
 
 
 def select_top_glossary_terms(

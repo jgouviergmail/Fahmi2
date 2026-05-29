@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fahmi2"
-version = "1.5.1"
+version = "1.5.2"
 description = "Local desktop app converting pedagogical video lectures to consolidated Markdown documents."
 authors = [{ name = "Fahmi2 contributors" }]
 readme = "README.md"

@@ -182,7 +182,8 @@ class GenerationSettings:
             invalid = sorted(
                 f.value for f in self.export_formats - GENERATION_EXPORT_FORMATS
             )
+            allowed = sorted(f.value for f in GENERATION_EXPORT_FORMATS)
             raise ValueError(
-                f"export_formats must be a subset of {{markdown, pdf, html}}; "
+                f"export_formats must be a subset of {allowed}; "
                 f"got invalid: {invalid}"
             )

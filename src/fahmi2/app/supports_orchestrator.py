@@ -15,6 +15,7 @@ import threading
 from datetime import UTC, datetime
 
 from fahmi2.core.concurrency import map_bounded
+from fahmi2.core.concurrency.pause_token import PauseToken
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.exceptions import ConfigError, Fahmi2Error, PausedError
 from fahmi2.core.errors.severity import Severity
@@ -61,7 +62,6 @@ from fahmi2.pedagogy.sources import (
 from fahmi2.pedagogy.support_generator import SupportContext
 from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
 from fahmi2.pipeline.event_bus import EventBus
-from fahmi2.pipeline.pause_token import PauseToken
 
 #: Statuts d'exécution antérieurs considérés comme « reprise utile » : on
 #: rebase le coût cumulé sur l'historique persisté plutôt que de repartir à 0.

@@ -29,11 +29,20 @@ from fahmi2.core.slugify import slugify_anchor
 from fahmi2.domain.ids import SourceId
 from fahmi2.domain.source import SourceExecution
 from fahmi2.pipeline.phase_handler import PhaseContext
+from fahmi2.pipeline.workspace_layout import (
+    CONSOLIDATED_MASTER_FILENAME as _LAYOUT_CONSOLIDATED_MASTER_FILENAME,
+)
+from fahmi2.pipeline.workspace_layout import (
+    STRUCTURED_SUBDIR as _LAYOUT_STRUCTURED_SUBDIR,
+)
+from fahmi2.pipeline.workspace_layout import (
+    structured_path,
+)
 
-#: Sous-dossier du workspace contenant les Markdown structurés (phase 4).
-STRUCTURED_SUBDIR = "structured"
-#: Nom de fichier du document consolidé en langue source.
-CONSOLIDATED_MASTER_FILENAME = "consolidated_master.md"
+#: Ré-exports des constantes du layout workspace pour compatibilité historique
+#: des handlers de consolidation. La source unique reste ``workspace_layout``.
+STRUCTURED_SUBDIR = _LAYOUT_STRUCTURED_SUBDIR
+CONSOLIDATED_MASTER_FILENAME = _LAYOUT_CONSOLIDATED_MASTER_FILENAME
 #: Libellé de la section résumé exécutif (sous le titre, avant l'intro).
 SUMMARY_HEADING = "Résumé"
 #: Profondeur maximale incluse dans le sommaire et la numérotation
@@ -142,7 +151,7 @@ def load_all_structured(
     """
     result: dict[str, str] = {}
     for source in sources:
-        path = workspace / STRUCTURED_SUBDIR / f"{source.source_id.value}.md"
+        path = structured_path(workspace, source.source_id.value)
         if not path.exists():
             raise StorageError(
                 code="STORAGE.STRUCTURED_MISSING",

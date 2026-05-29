@@ -56,6 +56,10 @@ def build_passage_retriever(
         source_mtime_ns: mtime (ns) du consolidé (empreinte d'index).
         language: Langue du corpus.
         artifacts: Store d'écriture atomique.
+        glossary_mtime_ns: mtime (ns) du glossaire master (empreinte d'index).
+            ``None`` si absent. Une édition du glossaire qui ne change pas le
+            nombre de chunks (ex. définition modifiée) doit invalider l'index
+            sémantique pour éviter des embeddings périmés.
 
     Returns:
         Le ``PassageRetriever`` (sémantique, ou lexical éventuellement enveloppé).

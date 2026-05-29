@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from fahmi2.core.concurrency.pause_token import PauseToken
 from fahmi2.core.retrieval.interface import PassthroughRetriever
 from fahmi2.domain.enums import RunStatus
 from fahmi2.domain.ids import ProjectId, RunId
@@ -21,8 +22,8 @@ from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.infra.stt._fakes import FakeSTTProvider
 from fahmi2.pipeline.event_bus import EventBus
-from fahmi2.pipeline.pause_token import PauseToken
 from fahmi2.pipeline.phase_handler import PhaseContext
+from fahmi2.pipeline.workspace_layout import transcript_path
 
 
 def write_transcription_fixture(
@@ -38,7 +39,7 @@ def write_transcription_fixture(
     Returns:
         Chemin du fichier écrit.
     """
-    path = workspace / "transcripts" / f"{source_id}.json"
+    path = transcript_path(workspace, source_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "detected_language": "fr",

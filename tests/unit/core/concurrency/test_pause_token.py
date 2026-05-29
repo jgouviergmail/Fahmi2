@@ -5,8 +5,8 @@ import time
 
 import pytest
 
+from fahmi2.core.concurrency.pause_token import PauseToken
 from fahmi2.core.errors.exceptions import PausedError
-from fahmi2.pipeline.pause_token import PauseToken
 
 
 def test_initial_state_neither_paused_nor_cancelled() -> None:

@@ -12,6 +12,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 
+from fahmi2.core.concurrency.pause_token import PauseToken
 from fahmi2.core.retrieval.interface import GlossaryRetriever
 from fahmi2.domain.enums import PhaseId
 from fahmi2.domain.generation import GenerationSettings
@@ -27,7 +28,6 @@ from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.infra.stt.interface import STTProvider
 from fahmi2.pipeline.event_bus import EventBus
 from fahmi2.pipeline.events import PipelineEvent
-from fahmi2.pipeline.pause_token import PauseToken
 
 
 @dataclass(frozen=True)

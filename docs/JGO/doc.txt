@@ -29,3 +29,28 @@ mypy src tests
 Lancer l'app :
 
 python -m fahmi2.ui.app_main
+
+----------------------------------------
+
+es tu pleinement satisfait et convaincu ?
+
+----------------------------------------
+
+Toujours inline.
+
+Tu implémentes toutes les phases, en faisant systématiquemennt des revues de code approfondies à chaque fin de phase jusqu'à être parfaitement convaincu et satisfait à chaque fois.
+Puis tu écris le plan de la phase suivante, tu fais systématiquement des repasses jusqu'à être parfaitement convaincu et satisfait du plan à chaque fois, puis tu implementes, etc.
+Cela jusqu'à la fin.
+A la fin de la dernière itération finalisée tu fais des revues de code approfondies, rigoureuses et exigentes du code de toute la branche jusqu'à être parfaitement convaincu et satisfait à chaque fois.
+
+Pour les revues de code voici des points à vérifier systématiquement que tu complèteras avec toutes les actions standards et professionelles des revues de code :
+
+Toujours valider la complétude du plan
+Constants centralization — pas de magic string, magic number, valeur par défaut directement dans le code mais dans des constantes
+Conformity with existing codebase patterns (reuse existing classes, methods, helpers, constants, mixins, base classes)
+Follow the Google Python Style Guide — Google-style docstrings with Args, Returns, Raises sections; module-level docstrings on every file
+Verify naming consistency (imports, classes, methods, variables, constants) and that all arguments are properly defined and passed
+Respect framework patterns
+Respect DRY, YAGNI, KISS, SRP, SoC, Boy Scout Rule, Composition over Inheritance
+Write generic, extensible code — no duplication, reuse validator mixins and base classes
+Update all documentation in docs/ as well as all cross-cutting docs, README.md

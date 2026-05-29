@@ -27,9 +27,8 @@ from fahmi2.pipeline.handlers._base import (
     utc_now,
 )
 from fahmi2.pipeline.phase_handler import PhaseContext, PhaseHandler
+from fahmi2.pipeline.workspace_layout import candidates_path, glossary_master_path
 
-_CANDIDATES_SUBDIR = "candidates"
-_GLOSSARY_MASTER_FILENAME = "glossary_master.json"
 _TEMPLATE_NAME = "phase_2_glossary_reconciliation"
 
 
@@ -92,7 +91,7 @@ class Phase2GlossaryReconciliationHandler(PhaseHandler):
             phase_id=self.phase_id,
             finish_reason=response.finish_reason,
         )
-        out_path = ctx.workspace / _GLOSSARY_MASTER_FILENAME
+        out_path = glossary_master_path(ctx.workspace)
         ctx.artifacts.write_json_atomic(out_path, payload)
         return build_succeeded_phase(
             phase_id=self.phase_id,
@@ -119,9 +118,11 @@ def _load_all_candidates(
     """
     aggregated: dict[str, Any] = {}
     for source in sources:
-        path = workspace / _CANDIDATES_SUBDIR / f"{source.source_id.value}.json"
+        path = candidates_path(workspace, source.source_id.value)
         if path.exists():
-            aggregated[source.source_id.value] = json.loads(path.read_text(encoding="utf-8"))
+            aggregated[source.source_id.value] = json.loads(
+                path.read_text(encoding="utf-8")
+            )
     if not aggregated:
         raise StorageError(
             code="STORAGE.NO_CANDIDATES",

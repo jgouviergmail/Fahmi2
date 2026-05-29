@@ -19,6 +19,7 @@ from pytestqt.qtbot import QtBot
 from fahmi2.app.project_service import ProjectService
 from fahmi2.app.secrets_service import SecretsService
 from fahmi2.app.supports_orchestrator import SupportsOrchestrator
+from fahmi2.core.concurrency.pause_token import PauseToken
 from fahmi2.core.config.paths import AppPaths
 from fahmi2.core.retry.policy import RetryPolicy
 from fahmi2.domain.enums import (
@@ -55,7 +56,6 @@ from fahmi2.pedagogy.events import (
 )
 from fahmi2.pedagogy.support_generator import SupportContext, SupportGenerator
 from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
-from fahmi2.pipeline.pause_token import PauseToken
 from fahmi2.ui import pedagogy_controller as pc_module
 from fahmi2.ui.pedagogy_controller import (
     PedagogyController,

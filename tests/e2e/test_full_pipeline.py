@@ -19,6 +19,7 @@ import pytest
 
 from fahmi2.app.project_service import ProjectService
 from fahmi2.app.run_orchestrator import RunOrchestrator
+from fahmi2.core.concurrency.pause_token import PauseToken
 from fahmi2.core.retrieval.interface import PassthroughRetriever
 from fahmi2.core.retry.policy import RetryPolicy
 from fahmi2.domain.enums import Language, RunStatus
@@ -45,7 +46,6 @@ from fahmi2.pipeline.handlers.phase_4_structuration import Phase4StructurationHa
 from fahmi2.pipeline.handlers.phase_5_consolidation import Phase5ConsolidationHandler
 from fahmi2.pipeline.handlers.phase_6_translation import Phase6TranslationHandler
 from fahmi2.pipeline.handlers.phase_7_coherence import Phase7CoherenceHandler
-from fahmi2.pipeline.pause_token import PauseToken
 from fahmi2.pipeline.phase_handler import PhaseContext
 from fahmi2.pipeline.phase_registry import PhaseRegistry
 

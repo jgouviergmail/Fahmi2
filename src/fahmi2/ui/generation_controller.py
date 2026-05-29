@@ -32,6 +32,7 @@ from fahmi2.app.input_sources import build_input_sources
 from fahmi2.app.project_service import ProjectService
 from fahmi2.app.run_orchestrator import RunOrchestrator
 from fahmi2.app.secrets_service import SecretsService
+from fahmi2.core.concurrency.pause_token import PauseToken
 from fahmi2.core.config.paths import AppPaths, resolve_ytdlp_binary_or_none
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.exceptions import Fahmi2Error
@@ -82,7 +83,6 @@ from fahmi2.pipeline.handlers.phase_4_structuration import Phase4StructurationHa
 from fahmi2.pipeline.handlers.phase_5_consolidation import Phase5ConsolidationHandler
 from fahmi2.pipeline.handlers.phase_6_translation import Phase6TranslationHandler
 from fahmi2.pipeline.handlers.phase_7_coherence import Phase7CoherenceHandler
-from fahmi2.pipeline.pause_token import PauseToken
 from fahmi2.pipeline.phase_handler import PhaseContext
 from fahmi2.pipeline.phase_registry import PhaseRegistry
 from fahmi2.ui._export_ui import choose_export_format, run_document_export

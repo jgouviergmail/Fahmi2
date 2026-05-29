@@ -8,9 +8,9 @@ import time
 import pytest
 
 from fahmi2.core.concurrency import map_bounded
+from fahmi2.core.concurrency.pause_token import PauseToken
 from fahmi2.core.errors.exceptions import LLMError, PausedError
 from fahmi2.core.errors.severity import Severity
-from fahmi2.pipeline.pause_token import PauseToken
 
 
 def test_preserves_result_order() -> None:

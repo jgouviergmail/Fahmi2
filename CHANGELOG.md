@@ -5,6 +5,55 @@ All notable changes to the Fahmi2 project.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.2] — 2026-05-29
+
+### Fixed — Critical: `Project.chat` was reset on every Run
+
+- `RunOrchestrator.execute()` rebuilt the `Project` field-by-field after
+  each run and **silently dropped** the `chat` field (added later than
+  the original code). The Dialogue settings were therefore reset to
+  `None` on every generation run. Now uses `dataclasses.replace(project,
+  ...)` which preserves all fields, including any future ones.
+- Added regression test `test_execute_preserves_chat_settings` mirroring
+  the existing pedagogy guard.
+
+### Changed — Architecture cleanup (post v1.5.1 code review)
+
+- **`PauseToken` moved from `pipeline/` to `core/concurrency/`**. The
+  token is shared by `core.concurrency.map_bounded`, the generation and
+  pedagogy orchestrators, and the UI controllers — keeping it in
+  `pipeline/` made `core` depend on `pipeline`, violating the documented
+  dependency flow (UI → app → pipeline/infra → domain/core).
+- **New `pipeline/workspace_layout.py`** as single source of truth for
+  artifact paths: `transcripts/`, `candidates/`, `reformulated/`,
+  `structured/`, `per-video/` subdirs and `glossary_master.json`,
+  `consolidated_master.md` filenames (previously hardcoded in 7+
+  modules). Exposes typed helpers `transcript_path()`,
+  `candidates_path()`, `reformulated_path()`, `structured_path()`,
+  `glossary_master_path()`, `consolidated_master_path()`.
+- **DRY cleanup**: `load_transcription_text` and `load_reformulated_text`
+  centralised in `pipeline/handlers/_base.py` (duplicated across phases
+  1, 3, 4) ; `DEFAULT_TOP_K_GLOSSARY=30` centralised (duplicated phases
+  3 & 4) ; `MIN_SECRET_LENGTH=4` exported from `core.logging.sink`
+  (duplicated in `secrets_service`) ; `DEFAULT_FFMPEG_BINARY` /
+  `DEFAULT_FFPROBE_BINARY` / `FFMPEG_LOGLEVEL_ERROR` centralised in
+  `infra/audio/_ffmpeg_common.py` (duplicated between extractor and
+  cloud preparer).
+- `GenerationSettings.__post_init__` error message now derives the list
+  of allowed export formats from `GENERATION_EXPORT_FORMATS` rather than
+  a hardcoded `{markdown, pdf, html}` string (stale since DOCX support).
+- `chat.retriever_factory.build_passage_retriever` docstring completed
+  to document the `glossary_mtime_ns` parameter.
+
+### Notes
+
+- 1218 → **1219 tests** (added regression guard).
+- Net code: −150 lines (231 added, 384 removed) over 38 files.
+- No public API breakage. Internal `PauseToken` import path changes
+  from `fahmi2.pipeline.pause_token` to
+  `fahmi2.core.concurrency.pause_token` — all in-tree call sites
+  migrated.
+
 ## [1.5.1] — 2026-05-29
 
 ### Added — Per-source cost attribution for batch phases in the Generation matrix (cross-cutting refactor)

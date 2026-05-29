@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 
+from fahmi2.core.concurrency.pause_token import PauseToken
 from fahmi2.core.errors.exceptions import (
     BudgetExceededError,
     Fahmi2Error,
@@ -40,7 +41,6 @@ from fahmi2.pipeline.events import (
     RunFinished,
     RunStarted,
 )
-from fahmi2.pipeline.pause_token import PauseToken
 from fahmi2.pipeline.phase_handler import PhaseContext, PhaseHandler
 from fahmi2.pipeline.phase_registry import PhaseRegistry
 

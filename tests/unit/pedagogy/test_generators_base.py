@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 
+from fahmi2.core.concurrency.pause_token import PauseToken
 from fahmi2.core.errors.exceptions import LLMError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.core.retry.policy import RetryPolicy
@@ -22,7 +23,6 @@ from fahmi2.pedagogy.generators._base import (
 )
 from fahmi2.pedagogy.support_generator import SupportContext
 from fahmi2.pipeline.event_bus import EventBus
-from fahmi2.pipeline.pause_token import PauseToken
 
 
 class _FailingThenOk:

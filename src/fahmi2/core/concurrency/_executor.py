@@ -14,7 +14,7 @@ from collections.abc import Callable, Sequence
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from typing import TypeVar
 
-from fahmi2.pipeline.pause_token import PauseToken
+from fahmi2.core.concurrency.pause_token import PauseToken
 
 _T = TypeVar("_T")
 _R = TypeVar("_R")

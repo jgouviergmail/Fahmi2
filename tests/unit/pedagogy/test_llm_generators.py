@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 
+from fahmi2.core.concurrency.pause_token import PauseToken
 from fahmi2.core.errors.exceptions import LLMError
 from fahmi2.core.retry.policy import RetryPolicy
 from fahmi2.domain.enums import Language, SupportType
@@ -36,7 +37,6 @@ from fahmi2.pedagogy.generators.revision_sheet import RevisionSheetGenerator
 from fahmi2.pedagogy.generators.true_false import TrueFalseGenerator
 from fahmi2.pedagogy.support_generator import SupportContext
 from fahmi2.pipeline.event_bus import EventBus
-from fahmi2.pipeline.pause_token import PauseToken
 
 _CHAPTER = Chapter(index=1, title="Bases", anchor="1-bases", body_markdown="Contenu.")
 

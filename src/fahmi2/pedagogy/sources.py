@@ -15,9 +15,9 @@ from fahmi2.domain.enums import Language
 from fahmi2.domain.generation import consolidated_doc_filename
 from fahmi2.domain.glossary import Term, parse_glossary_master_terms
 from fahmi2.pedagogy.chapters import Chapter, parse_chapters
+from fahmi2.pipeline.workspace_layout import glossary_master_path
 
 _ENCODING_UTF8 = "utf-8"
-_GLOSSARY_MASTER_FILENAME = "glossary_master.json"
 
 
 def consolidated_doc_path(generation_output_dir: Path, language: Language) -> Path:
@@ -131,7 +131,7 @@ def glossary_master_mtime_ns(generation_dir: Path) -> int | None:
     Returns:
         Le ``st_mtime_ns`` du ``glossary_master.json``, ou ``None``.
     """
-    path = generation_dir / _GLOSSARY_MASTER_FILENAME
+    path = glossary_master_path(generation_dir)
     if not path.exists():
         return None
     return path.stat().st_mtime_ns
@@ -150,7 +150,7 @@ def load_glossary_master_terms(generation_dir: Path) -> tuple[Term, ...]:
     Returns:
         Les termes (tuple vide si le master n'existe pas).
     """
-    path = generation_dir / _GLOSSARY_MASTER_FILENAME
+    path = glossary_master_path(generation_dir)
     if not path.exists():
         return ()
     payload = json.loads(path.read_text(encoding=_ENCODING_UTF8))

@@ -32,9 +32,9 @@ from fahmi2.pipeline.handlers._base import (
     utc_now,
 )
 from fahmi2.pipeline.phase_handler import PhaseContext, PhaseHandler
+from fahmi2.pipeline.workspace_layout import glossary_master_path
 
 _TEMPLATE_NAME = "phase_7_coherence"
-_GLOSSARY_MASTER_FILENAME = "glossary_master.json"
 
 
 class Phase7CoherenceHandler(PhaseHandler):
@@ -146,7 +146,7 @@ def _load_glossary_terms(workspace: Path) -> list[dict[str, Any]]:
     Returns:
         Liste des termes (potentiellement vide).
     """
-    master_path = workspace / _GLOSSARY_MASTER_FILENAME
+    master_path = glossary_master_path(workspace)
     if not master_path.exists():
         return []
     payload = json.loads(master_path.read_text(encoding="utf-8"))

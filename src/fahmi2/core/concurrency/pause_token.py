@@ -1,11 +1,17 @@
-"""Jeton de pause/annulation injecté à l'orchestrateur du pipeline.
+"""Jeton de pause/annulation coopératif transverse.
 
 Le ``PauseToken`` permet de signaler depuis l'UI un événement utilisateur
-(pause volontaire ou annulation) ; le moteur du pipeline check le token aux
-frontières sûres (entre phases, entre retries) et se met en attente ou lève
-une ``PausedError`` selon le cas.
+(pause volontaire ou annulation) ; les orchestrateurs (génération, pédagogie)
+et le primitif ``map_bounded`` le consultent aux frontières sûres (entre
+phases, entre retries, entre soumissions de tâches) et se mettent en attente
+ou lèvent une ``PausedError`` selon le cas.
 
 Thread-safe : repose sur ``threading.Event``.
+
+Module ``core`` (et non ``pipeline``) car consommé hors pipeline :
+``core.concurrency._executor``, ``app.run_orchestrator``,
+``app.supports_orchestrator``, ``pedagogy.support_generator``, ainsi que
+les contrôleurs UI.
 """
 
 from __future__ import annotations
@@ -17,7 +23,7 @@ from fahmi2.core.errors.severity import Severity
 
 
 class PauseToken:
-    """Token coopératif de pause/annulation du pipeline."""
+    """Token coopératif de pause/annulation."""
 
     def __init__(self) -> None:
         # _resume_event : set quand la pause est terminée (le thread peut continuer).

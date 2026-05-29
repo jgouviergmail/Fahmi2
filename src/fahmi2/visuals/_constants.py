@@ -46,3 +46,7 @@ EXCERPT_MAX_CHARS = 500
 #: Graine fixe du clustering Louvain, pour des communautés **reproductibles** à
 #: graphe d'entrée identique.
 LOUVAIN_SEED = 17
+
+#: Nombre minimal de communautés requis pour rechercher des enchaînements
+#: inter-communautés (idea-chains) ; en deçà, la passe est sans objet.
+MIN_COMMUNITIES_FOR_IDEA_CHAINS = 2

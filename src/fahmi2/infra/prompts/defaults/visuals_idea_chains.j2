@@ -1,0 +1,21 @@
+Voici les **grands thèmes** d'un cours (regroupements de notions), chacun avec son identifiant, son titre et une synthèse :
+
+{% for community in communities -%}
+[{{ community.id }}] {{ community.label }} — {{ community.report }}
+{% endfor %}
+Identifie les **enchaînements de haut niveau entre ces thèmes** : comment l'un mène à un autre, le conditionne, l'illustre ou s'y oppose. Propose uniquement les liens **réellement justifiés** par les synthèses (aucune invention), de préférence transverses (entre thèmes distincts).
+
+Travaille **dans la langue des thèmes** (ne traduis pas). `source` et `target` sont des **identifiants numériques** de thèmes (distincts).
+
+Types de relation autorisés (champ `type`) :
+- `leads_to` : mène à / a pour conséquence.
+- `prerequisite` : est un prérequis de.
+- `illustrates` : illustre.
+- `contrasts_with` : s'oppose à.
+- `part_of` : relève de / fait partie de.
+- `related` : simplement lié à.
+
+Réponds STRICTEMENT en JSON valide, sans préambule :
+{"relations": [{"source": 0, "target": 1, "type": "leads_to", "label": "..."}]}
+
+Le champ `label` (courte glose de la relation) est facultatif.

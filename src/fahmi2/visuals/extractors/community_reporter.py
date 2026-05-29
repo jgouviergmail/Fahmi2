@@ -1,0 +1,76 @@
+"""Rapports de communauté : un libellé + une synthèse courte par communauté (LLM).
+
+Pour chaque communauté détectée, un appel LLM produit un **libellé lisible** (titre
+court) et un **rapport** (1-2 phrases de synthèse + idée-clé) à partir des libellés de
+ses membres. Ces rapports ont un **double usage** : étiquette de la communauté dans
+l'UI **et** unité de raisonnement pour les enchaînements inter-communautés (idea-chains).
+"""
+
+from __future__ import annotations
+
+from dataclasses import replace
+
+from fahmi2.domain.enums import Language
+from fahmi2.domain.visuals import Community, KnowledgeGraph
+from fahmi2.infra.llm.interface import JSON_OBJECT_RESPONSE_FORMAT
+from fahmi2.infra.llm.invocation import parse_llm_json
+from fahmi2.infra.llm.json_schema import require_mapping, require_str
+from fahmi2.visuals.extractors._base import VisualsContext, invoke_visuals_llm
+
+_STAGE = "community_report"
+_TEMPLATE_NAME = "visuals_community_report"
+
+
+def generate_community_reports(
+    ctx: VisualsContext, graph: KnowledgeGraph, *, language: Language
+) -> tuple[KnowledgeGraph, float]:
+    """Renseigne le libellé et le rapport de chaque communauté du graphe.
+
+    Args:
+        ctx: Contexte d'exécution (provider, prompts, retry, bus, pause).
+        graph: Graphe dont les communautés ont des libellés/rapports vides.
+        language: Langue du contenu (pour les événements ; le LLM répond dans la
+            langue des libellés fournis).
+
+    Returns:
+        ``(graphe_mis_à_jour, coût_usd)`` : communautés enrichies de ``label``/``report``.
+    """
+    if not graph.communities:
+        return graph, 0.0
+    label_by_id = {node.id: node.label for node in graph.nodes}
+    reported: list[Community] = []
+    total_cost = 0.0
+    for community in graph.communities:
+        ctx.pause_token.wait_if_paused()
+        ctx.pause_token.raise_if_cancelled()
+        member_labels = [
+            label_by_id[member_id]
+            for member_id in community.member_ids
+            if member_id in label_by_id
+        ]
+        user_prompt = ctx.prompts.render(_TEMPLATE_NAME, member_labels=member_labels)
+        response = invoke_visuals_llm(
+            ctx,
+            stage=_STAGE,
+            language=language,
+            user_prompt=user_prompt,
+            response_format=JSON_OBJECT_RESPONSE_FORMAT,
+        )
+        total_cost += response.cost_usd
+        context_label = f"{_STAGE}:{community.id}"
+        mapping = require_mapping(
+            parse_llm_json(
+                response.content,
+                context_label=context_label,
+                finish_reason=response.finish_reason,
+            ),
+            context_label=context_label,
+        )
+        reported.append(
+            replace(
+                community,
+                label=require_str(mapping, "label", context_label=context_label),
+                report=require_str(mapping, "report", context_label=context_label),
+            )
+        )
+    return replace(graph, communities=tuple(reported)), total_cost

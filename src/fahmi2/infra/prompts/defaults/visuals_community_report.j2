@@ -1,0 +1,13 @@
+Tu analyses un **regroupement thématique** de notions issues d'un cours. Voici les éléments de ce groupe :
+
+{% for label in member_labels -%}
+- {{ label }}
+{% endfor %}
+À partir de ces éléments, produis :
+- `label` : un **titre court** (2 à 4 mots) nommant le thème commun de ce groupe.
+- `report` : **1 à 2 phrases** synthétisant ce que ce groupe recouvre et son **idée-clé**.
+
+Travaille **dans la langue des éléments** (ne traduis pas). Reste fidèle (aucune invention).
+
+Réponds STRICTEMENT en JSON valide, sans préambule :
+{"label": "...", "report": "..."}

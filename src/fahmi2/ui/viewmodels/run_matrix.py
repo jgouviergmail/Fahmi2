@@ -155,7 +155,6 @@ class RunMatrixViewModel:
             row_totals.append(row_total)
 
         column_totals: list[float] = []
-        grand_total = sum(row_totals)
         for phase_id, per_source in phases:
             if per_source:
                 column_totals.append(
@@ -167,9 +166,13 @@ class RunMatrixViewModel:
                 )
             else:
                 batch = cells_by_key.get((phase_id, None))
-                batch_cost = batch.cost_usd if batch is not None else 0.0
-                column_totals.append(batch_cost)
-                grand_total += batch_cost
+                column_totals.append(batch.cost_usd if batch is not None else 0.0)
+        # ``grand_total`` = somme des totaux de **colonnes** (autorités). NE PAS
+        # additionner ``row_totals`` + ``batch_costs`` ici : pour une phase batch
+        # mixte, ses attributions per-source sont déjà dans ``row_totals`` ET
+        # dans ``column_totals`` (via le ``cost_usd`` batch entier). Sommer les
+        # deux double-compterait la part attribuée.
+        grand_total = sum(column_totals)
 
         return CostMatrixSnapshot(
             row_header=QCoreApplication.translate("RunMatrix", "Source"),

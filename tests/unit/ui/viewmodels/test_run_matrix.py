@@ -142,7 +142,10 @@ def test_batch_phase_with_per_source_attribution_renders_per_cell(
 
     Comportement clé : le total de colonne reste le coût batch unique (peut
     être supérieur à la somme des cellules visibles → résidu non
-    attribuable). Les row_totals incluent les attributions per-source.
+    attribuable). Les row_totals incluent les attributions per-source pour
+    le rendu informationnel, mais le ``grand_total`` est calculé via la
+    somme des ``column_totals`` (autorités) pour éviter de double-compter
+    les parts attribuées (cf. ``test_grand_total_no_double_counting``).
     """
     state, run, registry = _setup(tmp_path, make_generation_settings)
     # On simule une attribution sur la 1ʳᵉ source (typique : ledger pour
@@ -165,12 +168,55 @@ def test_batch_phase_with_per_source_attribution_renders_per_cell(
     assert snap.cells[1][2].cost_usd is None
     # Total colonne : coût batch entier (autorité, inclut résidu non attribué).
     assert snap.column_totals[2] == 0.20
-    # row_totals : source 0 voit sa part, source 1 ne voit rien.
+    # row_totals : source 0 voit sa part (informationnel), source 1 rien.
     assert snap.row_totals[0] == 0.07
     assert snap.row_totals[1] == 0.0
-    # grand_total = somme row_totals + batch (qui inclut tout) ;
-    # le résidu non attribué (0.20 - 0.07 = 0.13) n'est pas perdu.
-    assert snap.grand_total == 0.07 + 0.20
+    # grand_total = somme column_totals = coût batch unique (PAS row_totals +
+    # batch, qui compterait les attributions deux fois).
+    assert snap.grand_total == 0.20
+
+
+def test_grand_total_no_double_counting_when_batch_phase_attributes_per_source(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    """Reg : le ``grand_total`` ne doit pas compter deux fois les attributions
+    d'une phase batch mixte. Les attributions per-source apparaissent à la
+    fois dans ``row_totals`` (informationnel) ET dans le ``column_total``
+    batch (= ``cost_usd`` entier). Sommer aveuglément les deux double-compte.
+
+    Setup : 1 phase per-source (Termes, source 0 = 0.05) + 1 phase batch
+    mixte (Glossaire, total 0.30 dont 0.07 + 0.13 attribués).
+    Coût réel total = 0.05 + 0.30 = 0.35.
+    """
+    state, run, registry = _setup(tmp_path, make_generation_settings)
+    state.upsert_phase_execution(
+        run.id,
+        PhaseExecution(
+            phase_id=PhaseId.TERM_EXTRACTION,
+            status=PhaseStatus.SUCCEEDED,
+            cost_usd=0.05,
+        ),
+        source_id=run.sources[0].source_id,
+    )
+    state.upsert_phase_execution(
+        run.id,
+        PhaseExecution(
+            phase_id=PhaseId.GLOSSARY_RECONCILIATION,
+            status=PhaseStatus.SUCCEEDED,
+            cost_usd=0.30,
+            per_source_costs=MappingProxyType(
+                {run.sources[0].source_id: 0.07, run.sources[1].source_id: 0.13}
+            ),
+        ),
+        source_id=None,
+    )
+    vm = RunMatrixViewModel(state=state, registry=registry)
+    snap = vm.cost_matrix_snapshot(run)
+    # Coût total réel : 0.05 (per-source pure) + 0.30 (batch entier).
+    assert snap.grand_total == 0.05 + 0.30
+    # Et NON 0.05 + 0.07 + 0.13 + 0.30 = 0.55 (= ce qu'aurait donné un
+    # ``sum(row_totals) + sum(batch_costs)`` aveugle).
+    assert snap.grand_total != 0.55
 
 
 def test_pending_batch_phase_shows_no_cost_anywhere(

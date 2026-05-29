@@ -30,6 +30,28 @@ _BOARD_SCRIPTS: tuple[str, ...] = (
     "cytoscape-dagre.js",
 )
 
+#: Hauteur (px) du canvas d'un diagramme « graphe », adaptée au nombre de nœuds : un
+#: graphe dense a besoin de plus de place pour rester lisible. Calculée **au rendu**
+#: (côté serveur) pour éviter tout saut de mise en page (pas de redimensionnement JS
+#: après coup). ``height = clamp(BASE + nœuds × PER_NODE, MIN, MAX)``.
+_GRAPH_BASE_HEIGHT_PX = 210
+_GRAPH_PER_NODE_PX = 52
+_GRAPH_MIN_HEIGHT_PX = 300
+_GRAPH_MAX_HEIGHT_PX = 560
+
+
+def _graph_diagram_height_px(node_count: int) -> int:
+    """Hauteur (px) du canvas pour un graphe de ``node_count`` nœuds.
+
+    Args:
+        node_count: Nombre de nœuds du graphe.
+
+    Returns:
+        La hauteur bornée à ``[_GRAPH_MIN_HEIGHT_PX, _GRAPH_MAX_HEIGHT_PX]``.
+    """
+    raw = _GRAPH_BASE_HEIGHT_PX + node_count * _GRAPH_PER_NODE_PX
+    return max(_GRAPH_MIN_HEIGHT_PX, min(_GRAPH_MAX_HEIGHT_PX, raw))
+
 
 @dataclass(frozen=True)
 class _BoardStrings:
@@ -194,10 +216,15 @@ def _card(diagram: Diagram, strings: _BoardStrings) -> str:
         Le HTML de la carte.
     """
     kind = escape(strings.types.get(diagram.diagram_type.value, diagram.diagram_type.value))
+    # Hauteur adaptative pour les graphes (lisibilité) ; hauteur CSS par défaut
+    # pour les diagrammes linéaires (timeline/comparison, défilables).
+    diagram_style = ""
+    if diagram.diagram_type in GRAPH_DIAGRAM_TYPES:
+        diagram_style = f' style="height:{_graph_diagram_height_px(len(diagram.nodes))}px"'
     parts = [
         f'<article class="card" data-type="{escape(diagram.diagram_type.value)}">',
         f'<header><span class="kind">{kind}</span><h3>{escape(diagram.title)}</h3></header>',
-        f'<div class="diagram">{_diagram_body(diagram)}</div>',
+        f'<div class="diagram"{diagram_style}>{_diagram_body(diagram)}</div>',
     ]
     if diagram.caption:
         parts.append(f'<div class="caption">{escape(diagram.caption)}</div>')

@@ -62,6 +62,17 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   tooltip), and the Logs panel shows per-step advancement. The structure phase
   (the long pole, run once on the structure language) is no longer invisible.
 
+### Fixed — Visualizations: dense diagram legibility (diagrams gallery)
+
+- Graph diagrams (flowchart/hierarchy/decision tree/cycle) were squeezed into a
+  **fixed 280 px** canvas by `cy.fit()` with zoom/pan disabled — verbose node
+  labels became unreadable. The canvas height is now **adaptive to node count**
+  (computed server-side, `clamp(210 + nodes×52, 300, 560)` px → no layout shift),
+  fonts are slightly larger, and an **initial-zoom floor** (≥ 0.62) guarantees
+  legibility; **wheel-zoom and drag-pan are enabled** (grab cursor) as a safety net
+  for the densest graphs. Timelines/comparisons (HTML) keep the default scrollable
+  height.
+
 ## [1.5.2] — 2026-05-29
 
 ### Fixed — Critical: `Project.chat` was reset on every Run

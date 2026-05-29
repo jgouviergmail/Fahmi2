@@ -54,11 +54,14 @@ body {
   padding: 3px 9px; border-radius: 14px; margin-bottom: 8px;
 }
 .card h3 { margin: 0; font-size: 16px; font-weight: 650; color: var(--t1); }
-.diagram { height: 280px; position: relative; background:
+.diagram { height: 320px; position: relative; background:
    radial-gradient(circle at 16px 16px, var(--dot) 1px, transparent 1px);
    background-size: 22px 22px; border-top: 1px solid var(--divider);
    border-bottom: 1px solid var(--divider); }
-.cy-diagram { width: 100%; height: 100%; }
+/* Le canvas d'un diagramme « graphe » est zoomable (molette) et déplaçable
+   (glisser) : le curseur « grab » signale cette interactivité. */
+.cy-diagram { width: 100%; height: 100%; cursor: grab; }
+.cy-diagram:active { cursor: grabbing; }
 .card .caption { padding: 12px 18px; font-size: 13px; color: var(--t2); line-height: 1.5; }
 .card .excerpt { padding: 0 18px 14px; }
 .card .excerpt summary {

@@ -106,3 +106,34 @@ def test_extrait_source_present() -> None:
     html = render_diagram_board_html(_board())
     assert "Extrait source · § Le bilan" in html
     assert "Passage source du chapitre." in html
+
+
+def test_graphe_hauteur_adaptative_au_nombre_de_noeuds() -> None:
+    # Un graphe « graphe » reçoit une hauteur inline ; un graphe plus dense est plus
+    # haut (lisibilité), borné au plafond.
+    def _flow(n: int) -> Diagram:
+        nodes = tuple(DiagramNode(f"n{i}", f"Étape {i}", None) for i in range(n))
+        links = tuple(DiagramLink(f"n{i}", f"n{i + 1}", "") for i in range(n - 1))
+        return Diagram(
+            id=f"f{n}", title=f"Flux {n}", diagram_type=DiagramType.FLOWCHART,
+            nodes=nodes, links=links, events=(), comparison=None, caption="",
+            chapter_anchor="1-x", excerpts=(),
+        )
+
+    small = render_diagram_board_html(DiagramBoard(diagrams=(_flow(3),), language=Language.FR))
+    big = render_diagram_board_html(DiagramBoard(diagrams=(_flow(8),), language=Language.FR))
+
+    def _height(html: str) -> int:
+        match = re.search(r'class="diagram" style="height:(\d+)px"', html)
+        assert match is not None
+        return int(match.group(1))
+
+    assert _height(big) > _height(small)
+    assert _height(big) <= 560  # borné au plafond
+
+
+def test_comparison_sans_hauteur_inline() -> None:
+    # Les diagrammes linéaires gardent la hauteur CSS par défaut (pas de style inline).
+    html = render_diagram_board_html(_board())
+    assert '<div class="diagram"><div class="cmp">' in html
+    assert '<div class="diagram"><div class="timeline">' in html

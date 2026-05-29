@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fahmi2.pedagogy.chapters import parse_chapters
+from fahmi2.core.corpus import parse_chapters
 
 _DOC = """# Mon cours
 

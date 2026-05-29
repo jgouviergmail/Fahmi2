@@ -11,10 +11,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from fahmi2.core.corpus import Chapter, parse_chapters
 from fahmi2.domain.enums import Language
 from fahmi2.domain.generation import consolidated_doc_filename
 from fahmi2.domain.glossary import Term, parse_glossary_master_terms
-from fahmi2.pedagogy.chapters import Chapter, parse_chapters
 from fahmi2.pipeline.workspace_layout import glossary_master_path
 
 _ENCODING_UTF8 = "utf-8"

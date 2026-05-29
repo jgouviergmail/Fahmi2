@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 
+from fahmi2.core.corpus import Chapter
 from fahmi2.domain.enums import Language, SupportType
 from fahmi2.domain.glossary import Term
 from fahmi2.domain.supports import Flashcard, SupportArtifact
-from fahmi2.pedagogy.chapters import Chapter
 from fahmi2.pedagogy.support_generator import SupportContext, SupportGenerator
 from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
 

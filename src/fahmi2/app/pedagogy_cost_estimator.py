@@ -18,10 +18,10 @@ from fahmi2.app._cost_common import (
     cost_range,
     thinking_output_multiplier,
 )
+from fahmi2.core.corpus import Chapter
 from fahmi2.domain.enums import Language, SupportDensity, SupportType
 from fahmi2.domain.pedagogy import NO_LLM_SUPPORTS, PedagogySettings
 from fahmi2.infra.llm._pricing import ModelPricing, get_pricing
-from fahmi2.pedagogy.chapters import Chapter
 
 #: Tokens de sortie estimés par chapitre, selon la densité (supports par chapitre).
 _DENSITY_OUTPUT_TOKENS: dict[SupportDensity, int] = {

@@ -1,7 +1,7 @@
 """Chargement et découpage (chunking) du corpus interrogeable du chat.
 
 Le corpus = document consolidé (chunké par section, cf. spec §5.1) + entrées de
-glossaire (un chunk par terme). Réutilise ``pedagogy.chapters`` et
+glossaire (un chunk par terme). Réutilise ``core.corpus`` et
 ``pedagogy.sources``. Toutes les valeurs de découpage sont des constantes.
 """
 
@@ -10,12 +10,12 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from fahmi2.core.corpus import Chapter, parse_chapters
 from fahmi2.core.slugify import slugify_anchor
 from fahmi2.core.text_metrics import estimate_tokens
 from fahmi2.domain.chat import CorpusChunk
 from fahmi2.domain.enums import Language
 from fahmi2.domain.glossary import Term, localize_glossary_terms
-from fahmi2.pedagogy.chapters import Chapter, parse_chapters
 from fahmi2.pedagogy.sources import load_chapters, load_glossary_master_terms
 
 _CHUNK_TARGET_TOKENS = 700

@@ -17,6 +17,7 @@ from abc import abstractmethod
 from datetime import UTC, datetime
 from typing import Any, Generic, TypeVar
 
+from fahmi2.core.corpus import Chapter
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.exceptions import Fahmi2Error, LLMError
 from fahmi2.core.errors.severity import Severity
@@ -28,7 +29,6 @@ from fahmi2.domain.glossary import Term
 from fahmi2.domain.supports import SupportArtifact, SupportItem
 from fahmi2.infra.llm.interface import JSON_OBJECT_RESPONSE_FORMAT, LLMResponse
 from fahmi2.infra.llm.invocation import invoke_llm_chat, parse_llm_json
-from fahmi2.pedagogy.chapters import Chapter
 from fahmi2.pedagogy.events import SupportRetryAttempt
 from fahmi2.pedagogy.labels import (
     audience_label,

@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 from fahmi2.app.pedagogy_cost_estimator import PedagogyCostEstimator
+from fahmi2.core.corpus import Chapter
 from fahmi2.domain.enums import Language, SupportType
-from fahmi2.pedagogy.chapters import Chapter
 
 
 def _chapters(n: int) -> tuple[Chapter, ...]:

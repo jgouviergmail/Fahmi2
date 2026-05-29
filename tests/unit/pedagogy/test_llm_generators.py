@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 
 from fahmi2.core.concurrency.pause_token import PauseToken
+from fahmi2.core.corpus import Chapter
 from fahmi2.core.errors.exceptions import LLMError
 from fahmi2.core.retry.policy import RetryPolicy
 from fahmi2.domain.enums import Language, SupportType
@@ -25,7 +26,6 @@ from fahmi2.infra.llm._fakes import FakeLLMProvider
 from fahmi2.infra.llm.interface import LLMResponse
 from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
-from fahmi2.pedagogy.chapters import Chapter
 from fahmi2.pedagogy.events import PedagogyEvent
 from fahmi2.pedagogy.generators.cloze import ClozeGenerator
 from fahmi2.pedagogy.generators.flashcards_concepts import FlashcardsConceptsGenerator

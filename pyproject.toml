@@ -107,5 +107,6 @@ module = [
   "docx.*",
   "htmldocx.*",
   "bs4.*",
+  "networkx.*",
 ]
 ignore_missing_imports = true

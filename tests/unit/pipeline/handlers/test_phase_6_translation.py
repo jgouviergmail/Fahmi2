@@ -318,6 +318,54 @@ def test_execute_accumulates_per_video_translation_cost(
     assert result.cost_usd == pytest.approx(0.03)
 
 
+def test_execute_attributes_translation_cost_per_source(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    """Ventilation per-source du coût de traduction (utilisé par la matrice UI).
+
+    Setup : 2 sources × 2 langues (FR=source, EN=cible). Chaque appel LLM
+    factice coûte 0.01.
+
+    Appels attendus pour EN :
+    - 1 localisation du glossaire (NON attribuable, résidu batch).
+    - 2 traductions per-source (attribuables à s1 et s2).
+    - 1 traduction du consolidé (NON attribuable, résidu batch).
+
+    Total : 0.04. Ventilation : ``{s1: 0.01, s2: 0.01}``. Résidu batch
+    (loc glossaire + consolidé) = 0.02 = ``cost_usd`` - somme attribuée.
+    """
+    s1 = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / "v1.mp4")),
+    )
+    s2 = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / "v2.mp4")),
+    )
+    ctx, _ = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        llm_response=_localization_response(
+            [{"source": "PIB", "term": "GDP", "definition": "gross domestic product"}]
+        ),
+        sources=(s1, s2),
+        settings_overrides={
+            "source_language": Language.FR,
+            "output_languages": (Language.FR, Language.EN),
+        },
+    )
+    _seed_workspace(ctx.workspace, sources=(s1, s2))
+    result = Phase6TranslationHandler().execute(ctx, source=None)
+
+    assert set(result.per_source_costs.keys()) == {s1.source_id, s2.source_id}
+    assert result.per_source_costs[s1.source_id] == pytest.approx(0.01)
+    assert result.per_source_costs[s2.source_id] == pytest.approx(0.01)
+    # Le total inclut les attributions + le résidu batch (loc + consolidé).
+    assert result.cost_usd == pytest.approx(0.04)
+    residual = result.cost_usd - sum(result.per_source_costs.values())
+    assert residual == pytest.approx(0.02)
+
+
 def test_localize_glossary_accepts_items_wrapper_from_json_mode(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:

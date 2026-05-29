@@ -270,6 +270,95 @@ def test_thematic_consolidate_end_to_end(
     assert (base / "chapters" / "1.md").exists()
 
 
+def test_thematic_per_source_costs_attribution_and_persistence(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    """T1 (fact-ledger) attribue son coût à la source courante. Le résultat
+    porte la ventilation et elle est aussi persistée dans
+    ``facts_master.json`` pour survivre à une reprise intra-phase
+    (``fresh=True``). T2/T3/T4 sont batch (non attribuables) et leur coût
+    finit en résidu dans ``cost_usd``.
+    """
+    sources = _two_sources(tmp_path)
+    fake = _sequential(_full_responses(sources))
+    ctx, _ = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        sources=sources,
+        settings_overrides={
+            "consolidation_mode": ConsolidationMode.THEMATIC,
+            "parallelism": ParallelismConfig(llm_workers=1),
+        },
+    )
+    ctx = _with_llm(ctx, fake)
+    _write_structured(ctx.workspace, sources[0].source_id.value, "# A\nContenu A")
+    _write_structured(ctx.workspace, sources[1].source_id.value, "# B\nContenu B")
+    structured = load_all_structured(ctx.workspace, ctx.run.sources)
+
+    result = ThematicConsolidationStrategy().consolidate(ctx, structured)
+
+    # Les 2 sources ont chacune leur coût T1 attribué.
+    assert set(result.per_source_costs.keys()) == {
+        sources[0].source_id,
+        sources[1].source_id,
+    }
+    attributed = sum(result.per_source_costs.values())
+    # ``cost_usd`` = attribuable + résidu batch (T2/T3/T4).
+    assert result.cost_usd >= attributed
+    # Persistance dans facts_master.json pour survivre à une reprise.
+    facts_payload = json.loads(
+        (ctx.workspace / "consolidation" / "facts_master.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert "per_source_costs" in facts_payload
+    assert set(facts_payload["per_source_costs"].keys()) == {
+        sources[0].source_id.value,
+        sources[1].source_id.value,
+    }
+
+
+def test_thematic_resume_intra_phase_preserves_per_source_costs(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    """Reprise intra-phase 5 thématique : si ``facts_master.json`` existe
+    déjà (T1 effectué au passage précédent), la ventilation T1 doit être
+    relue depuis le fichier et reportée sur le ``ConsolidationResult`` du
+    nouveau passage. Sinon, la matrice afficherait ``—`` partout pour
+    phase 5 après chaque reprise.
+    """
+    sources = _two_sources(tmp_path)
+    fake = _sequential(_full_responses(sources))
+    ctx, _ = build_phase_context(
+        tmp_path,
+        make_generation_settings,
+        sources=sources,
+        settings_overrides={
+            "consolidation_mode": ConsolidationMode.THEMATIC,
+            "parallelism": ParallelismConfig(llm_workers=1),
+        },
+    )
+    ctx = _with_llm(ctx, fake)
+    _write_structured(ctx.workspace, sources[0].source_id.value, "# A\nContenu A")
+    _write_structured(ctx.workspace, sources[1].source_id.value, "# B\nContenu B")
+    structured = load_all_structured(ctx.workspace, ctx.run.sources)
+
+    # 1er passage : T1 exécuté → facts_master.json créé avec ventilation.
+    first = ThematicConsolidationStrategy().consolidate(ctx, structured)
+    expected = dict(first.per_source_costs)
+    assert len(expected) == 2
+
+    # 2e passage : T1 sauté (fresh=True), seuls T2/T3/T4 sont relancés.
+    # On rejoue la conso avec un nouveau Fake pour ne pas re-consommer T1.
+    fake2 = _sequential(_full_responses(sources)[2:])  # skip les 2 ledgers
+    ctx2 = _with_llm(ctx, fake2)
+    second = ThematicConsolidationStrategy().consolidate(ctx2, structured)
+
+    # La ventilation T1 historique doit être préservée à l'identique malgré
+    # le fresh skip.
+    assert dict(second.per_source_costs) == expected
+
+
 def test_final_document_contains_no_raw_provenance_ids(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:

@@ -609,11 +609,21 @@ class ThematicConsolidationStrategy(ConsolidationStrategy):
         # T1 — relevé factuel par source (ou rechargement si frais).
         # ``per_source_costs`` ventile uniquement T1 (la seule étape
         # attribuable à une source précise — T2/T3/T4 sont batch par nature).
+        # **Persistance** : la ventilation est sauvegardée dans
+        # ``facts_master.json`` sous la clé ``per_source_costs`` pour qu'une
+        # reprise intra-phase (``fresh=True``) ne **perde pas** l'attribution
+        # T1 → la matrice continuerait sinon d'afficher ``—`` partout après
+        # la 1ère reprise. Rétrocompat : un artefact pré-fix sans cette clé
+        # se relit en mapping vide (dégradé mais non bloquant).
         per_source_costs: dict[SourceId, float] = {}
         facts_path = base_dir / FACTS_MASTER_FILENAME
         if fresh and facts_path.exists():
             payload = json.loads(facts_path.read_text(encoding="utf-8"))
             elements = [_FactElement(**raw) for raw in payload.get("elements", [])]
+            per_source_costs = {
+                SourceId(value=str(k)): float(v)
+                for k, v in payload.get("per_source_costs", {}).items()
+            }
         else:
             ledger_results = map_bounded(
                 lambda kv: _extract_ledger_one(ctx, kv),
@@ -629,7 +639,13 @@ class ThematicConsolidationStrategy(ConsolidationStrategy):
                 total_cost += cost
                 per_source_costs[SourceId(value=source_id_str)] = cost
             ctx.artifacts.write_json_atomic(
-                facts_path, {"elements": [asdict(el) for el in elements]}
+                facts_path,
+                {
+                    "elements": [asdict(el) for el in elements],
+                    "per_source_costs": {
+                        sid.value: cost for sid, cost in per_source_costs.items()
+                    },
+                },
             )
             ctx.artifacts.write_text_atomic(
                 base_dir / FACTS_READABLE_FILENAME,

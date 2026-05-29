@@ -109,8 +109,11 @@ Dependencies flow downwards (UI → app → pipeline/infra → domain/core).
   parallelising I/O-bound LLM/STT calls; **`PauseToken`** — coopérative
   pause/cancel token consumed by `map_bounded`, orchestrators and UI
   controllers), `ids`, `slugify` (`slugify_anchor`: GFM anchor **single
-  source** — consolidated TOC in generation, pedagogy chapter parser,
-  HTML export heading ids).
+  source** — consolidated TOC in generation, section/chapter parser,
+  HTML export heading ids), `corpus` (`parse_chapters` / `parse_sections`:
+  **shared consolidated-structure parser** for pedagogy / dialogue /
+  visualisations; `parse_sections` exposes a **language-invariant**
+  `section_path` derived from the numeric heading prefix).
 - `domain/` — pure immutable entities (`Project` [minimal identity: name +
   location + per-feature settings], `GenerationSettings`,
   `PedagogySettings`, `Run`, `InputSource`, `SourceExecution`,
@@ -134,7 +137,7 @@ Dependencies flow downwards (UI → app → pipeline/infra → domain/core).
 - `pedagogy/` — **revision materials** engine (modelled after `pipeline/`
   but without STT/SQLite): `SupportGenerator` (ABC) + `SupportContext` (DI),
   `SupportGeneratorRegistry` + `build_default_support_registry`,
-  `chapters` (parser), `sources`, `events`, `manifest` (freshness),
+  `sources` (consume `core/corpus`), `events`, `manifest` (freshness),
   `artifact_writer`/`artifact_reader`, `generators/` (`_base` per-chapter +
   evaluative mixin + 8 LLM generators: concept flashcards, MCQ,
   true/false, cloze, open questions, sheet, key points, mock exam),

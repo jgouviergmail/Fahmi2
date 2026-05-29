@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from fahmi2.domain.enums import SupportDensity
 from fahmi2.visuals._constants import (
+    ENTITY_MERGE_COSINE_THRESHOLD,
+    EXCERPT_MAX_CHARS,
     GLEANING_ROUNDS,
+    LOUVAIN_SEED,
     MAX_SEMANTIC_NODES_PER_UNIT,
     MAX_UNIT_CHARS,
     MIN_UNIT_BODY_CHARS,
@@ -24,3 +27,9 @@ def test_caps_croissants_avec_la_densite() -> None:
 def test_bornes_unite_coherentes() -> None:
     assert 0 < MIN_UNIT_BODY_CHARS < MAX_UNIT_CHARS
     assert GLEANING_ROUNDS >= 0
+
+
+def test_bornes_resolution_coherentes() -> None:
+    assert 0.0 < ENTITY_MERGE_COSINE_THRESHOLD <= 1.0
+    assert EXCERPT_MAX_CHARS > 0
+    assert isinstance(LOUVAIN_SEED, int)

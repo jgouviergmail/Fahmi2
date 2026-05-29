@@ -34,3 +34,15 @@ MAX_SEMANTIC_NODES_PER_UNIT: dict[SupportDensity, int] = {
     SupportDensity.STANDARD: 7,
     SupportDensity.DENSE: 12,
 }
+
+#: Seuil de similarité cosinus au-dessus duquel deux entités libres (non glossaire)
+#: sont considérées comme une même entité et fusionnées (résolution par embeddings).
+ENTITY_MERGE_COSINE_THRESHOLD = 0.82
+
+#: Longueur maximale (caractères) d'un extrait source embarqué ; au-delà, l'extrait
+#: est tronqué proprement (à la frontière d'un mot) et suffixé d'une ellipse.
+EXCERPT_MAX_CHARS = 500
+
+#: Graine fixe du clustering Louvain, pour des communautés **reproductibles** à
+#: graphe d'entrée identique.
+LOUVAIN_SEED = 17

@@ -29,6 +29,13 @@ GRAPH_DIAGRAM_TYPES: frozenset[DiagramType] = frozenset(
     }
 )
 
+#: Langues (scripts latins) supportées par la fonctionnalité Visualisations. Le chinois
+#: et l'arabe sont **volontairement écartés** (décision produit : ne pas brider le rendu
+#: interactif par les contraintes RTL/CJK).
+VISUALS_LANGUAGES: frozenset[Language] = frozenset(
+    {Language.FR, Language.EN, Language.DE, Language.ES, Language.IT}
+)
+
 #: Sous-dossier du workspace dédié aux artefacts de la fonctionnalité Visualisations.
 VISUALS_WORKSPACE_SUBDIR = "visuals"
 

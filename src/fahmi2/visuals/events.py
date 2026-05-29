@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from fahmi2.core.errors.error_info import ErrorInfo
-from fahmi2.domain.enums import Language
+from fahmi2.domain.enums import Language, PhaseStatus, RunStatus
 
 
 @dataclass(frozen=True)
@@ -24,6 +24,52 @@ class VisualsEvent:
     """
 
     timestamp: datetime
+
+
+@dataclass(frozen=True)
+class VisualsGenerationStarted(VisualsEvent):
+    """Début de la génération des visualisations."""
+
+
+@dataclass(frozen=True)
+class VisualsGenerationFinished(VisualsEvent):
+    """Fin de la génération des visualisations.
+
+    Attributes:
+        status: Statut final (``COMPLETED`` / ``FAILED`` / ``CANCELLED`` / ``PAUSED``).
+        total_cost_usd: Coût LLM cumulé de l'exécution.
+    """
+
+    status: RunStatus
+    total_cost_usd: float
+
+
+@dataclass(frozen=True)
+class VisualsLanguageStarted(VisualsEvent):
+    """Début de la production des livrables d'une langue.
+
+    Attributes:
+        language: Langue concernée.
+    """
+
+    language: Language
+
+
+@dataclass(frozen=True)
+class VisualsLanguageFinished(VisualsEvent):
+    """Fin de la production des livrables d'une langue.
+
+    Attributes:
+        language: Langue concernée.
+        status: Statut (``SUCCEEDED`` / ``SKIPPED`` / ``FAILED``).
+        cost_usd: Coût LLM de la localisation de cette langue.
+        error: ``ErrorInfo`` si échec, sinon ``None``.
+    """
+
+    language: Language
+    status: PhaseStatus
+    cost_usd: float
+    error: ErrorInfo | None
 
 
 @dataclass(frozen=True)

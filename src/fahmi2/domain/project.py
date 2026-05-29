@@ -17,6 +17,7 @@ from fahmi2.domain.chat import ChatSettings
 from fahmi2.domain.generation import GenerationSettings
 from fahmi2.domain.ids import ProjectId, RunId
 from fahmi2.domain.pedagogy import PedagogySettings
+from fahmi2.domain.visuals import VisualsSettings
 
 
 @dataclass(frozen=True)
@@ -37,6 +38,8 @@ class Project:
             tant qu'elle n'est pas configurée.
         chat: Réglages de la fonctionnalité Dialogue (chat), ou ``None`` tant
             qu'elle n'est pas configurée.
+        visuals: Réglages de la fonctionnalité Visualisations, ou ``None`` tant
+            qu'elle n'est pas configurée.
     """
 
     id: ProjectId
@@ -48,6 +51,18 @@ class Project:
     generation: GenerationSettings | None = None
     pedagogy: PedagogySettings | None = None
     chat: ChatSettings | None = None
+    visuals: VisualsSettings | None = None
+
+    def with_visuals(self, visuals: VisualsSettings | None) -> Project:
+        """Retourne une copie avec de nouveaux réglages Visualisations.
+
+        Args:
+            visuals: Réglages Visualisations, ou ``None``.
+
+        Returns:
+            Nouvelle instance immuable (autres réglages préservés).
+        """
+        return replace(self, visuals=visuals)
 
     def with_name(self, name: str) -> Project:
         """Retourne une copie avec un nouveau ``name``.

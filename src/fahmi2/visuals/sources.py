@@ -18,6 +18,7 @@ from fahmi2.core.corpus import parse_sections
 from fahmi2.domain.enums import Language
 from fahmi2.domain.generation import consolidated_doc_filename
 from fahmi2.domain.glossary import Term, parse_glossary_master_terms
+from fahmi2.domain.visuals import VISUALS_LANGUAGES
 from fahmi2.pipeline.workspace_layout import glossary_master_path
 from fahmi2.visuals._constants import MAX_UNIT_CHARS, MIN_UNIT_BODY_CHARS
 
@@ -122,6 +123,57 @@ def load_text_units(
                 )
             )
     return tuple(units)
+
+
+def source_mtime_ns(generation_output_dir: Path, language: Language) -> int | None:
+    """mtime (ns) du document consolidé d'une langue, ou ``None`` s'il est absent.
+
+    Args:
+        generation_output_dir: Dossier des livrables de génération.
+        language: Langue.
+
+    Returns:
+        Le ``st_mtime_ns`` du ``consolidated.{lang}.md``, ou ``None``.
+    """
+    doc = consolidated_doc_path(generation_output_dir, language)
+    if not doc.exists():
+        return None
+    return doc.stat().st_mtime_ns
+
+
+def glossary_master_mtime_ns(generation_dir: Path) -> int | None:
+    """mtime (ns) du glossaire master, ou ``None`` s'il est absent.
+
+    Args:
+        generation_dir: Dossier de travail de la génération (contient le master).
+
+    Returns:
+        Le ``st_mtime_ns`` du ``glossary_master.json``, ou ``None``.
+    """
+    path = glossary_master_path(generation_dir)
+    if not path.exists():
+        return None
+    return path.stat().st_mtime_ns
+
+
+def available_visuals_languages(generation_output_dir: Path) -> list[Language]:
+    """Langues **latines** dont un document consolidé existe (ordre de l'enum).
+
+    Restreint aux langues supportées par les Visualisations (``VISUALS_LANGUAGES`` :
+    zh/ar exclus) et réellement produites par la Génération.
+
+    Args:
+        generation_output_dir: Dossier des livrables de génération.
+
+    Returns:
+        Liste ordonnée des ``Language`` exploitables (vide si aucune).
+    """
+    return [
+        language
+        for language in Language
+        if language in VISUALS_LANGUAGES
+        and consolidated_doc_path(generation_output_dir, language).exists()
+    ]
 
 
 def load_glossary_master_terms(generation_dir: Path) -> tuple[Term, ...]:

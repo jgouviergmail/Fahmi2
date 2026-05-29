@@ -289,27 +289,33 @@ QPushButton[role="danger"]:disabled {
     font-size: 11px;
 }
 
-/* ===== Bandeau d'état pédagogie (pastille de statut) =====
- * QLabel#pedagogyStateBanner : fond doux + texte d'accent selon la propriété
- * dynamique ``state`` (cf. PedagogyState). Réutilise la palette success/warning/
- * accent des tuiles pour une présentation homogène. */
-#pedagogyStateBanner {
+/* ===== Bandeau d'état pédagogie / visualisations (pastille de statut) =====
+ * QLabel#pedagogyStateBanner / #visualsStateBanner : fond doux + texte d'accent
+ * selon la propriété dynamique ``state`` (cf. PedagogyState / VisualsState ;
+ * mêmes valeurs d'état). Réutilise la palette success/warning/accent des tuiles
+ * pour une présentation homogène. */
+#pedagogyStateBanner,
+#visualsStateBanner {
     padding: 7px 12px;
     border-radius: 8px;
     font-weight: 600;
     background-color: #eef0f4;
     color: #57606a;
 }
-#pedagogyStateBanner[state="ready"] {
+#pedagogyStateBanner[state="ready"],
+#visualsStateBanner[state="ready"] {
     background-color: #e3f0fb;
     color: #0a4f93;
 }
-#pedagogyStateBanner[state="up_to_date"] {
+#pedagogyStateBanner[state="up_to_date"],
+#visualsStateBanner[state="up_to_date"] {
     background-color: #e6f6ec;
     color: #1a7f37;
 }
 #pedagogyStateBanner[state="stale"],
-#pedagogyStateBanner[state="generation_required"] {
+#pedagogyStateBanner[state="generation_required"],
+#visualsStateBanner[state="stale"],
+#visualsStateBanner[state="generation_required"] {
     background-color: #fef3c7;
     color: #b45309;
 }

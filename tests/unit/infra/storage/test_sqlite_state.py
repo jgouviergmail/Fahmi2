@@ -15,24 +15,29 @@ from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import (
     CloudSttModel,
     ConsolidationMode,
+    DiagramType,
     ExportFormat,
     LocalSttModel,
     PhaseId,
     PhaseStatus,
     RunStatus,
+    SupportDensity,
 )
 from fahmi2.domain.ids import ProjectId, RunId, SourceId
 from fahmi2.domain.pedagogy import DEFAULT_PEDAGOGY_LLM_WORKERS
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
+from fahmi2.domain.visuals import VisualsSettings
 from fahmi2.infra.storage.sqlite_state import (
     SCHEMA_VERSION,
     SqliteState,
     _deserialize_generation_settings,
     _deserialize_pedagogy_settings,
+    _deserialize_visuals_settings,
     _serialize_generation_settings,
     _serialize_pedagogy_settings,
+    _serialize_visuals_settings,
 )
 
 
@@ -658,3 +663,62 @@ def test_pedagogy_llm_workers_missing_uses_default(
     del payload["llm_workers"]  # simule un blob écrit avant l'ajout du champ
     restored = _deserialize_pedagogy_settings(payload)
     assert restored.llm_workers == DEFAULT_PEDAGOGY_LLM_WORKERS
+
+
+def test_visuals_settings_round_trip(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    visuals = VisualsSettings(
+        produce_diagrams=False,
+        density=SupportDensity.DENSE,
+        diagram_types=frozenset({DiagramType.FLOWCHART, DiagramType.TIMELINE}),
+        llm_workers=8,
+        cost_ceiling_usd=2.5,
+    )
+    with SqliteState(tmp_path / "t.db") as state:
+        project = Project(
+            id=ProjectId.new(),
+            name="P",
+            workspace_folder=Path("./ws"),
+            created_at=_ts(),
+            generation=make_generation_settings(),
+            visuals=visuals,
+        )
+        state.upsert_project(project)
+        loaded = state.get_project(project.id)
+        assert loaded is not None and loaded.visuals is not None
+        assert loaded.visuals.produce_diagrams is False
+        assert loaded.visuals.density is SupportDensity.DENSE
+        assert loaded.visuals.diagram_types == visuals.diagram_types
+        assert loaded.visuals.llm_workers == 8
+        assert loaded.visuals.cost_ceiling_usd == 2.5
+
+
+def test_visuals_absent_is_none(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    with SqliteState(tmp_path / "t.db") as state:
+        project = Project(
+            id=ProjectId.new(),
+            name="P",
+            workspace_folder=Path("./ws"),
+            created_at=_ts(),
+            generation=make_generation_settings(),
+        )
+        state.upsert_project(project)
+        loaded = state.get_project(project.id)
+        assert loaded is not None and loaded.visuals is None
+
+
+def test_visuals_serialize_deserialize_round_trip() -> None:
+    visuals = VisualsSettings(density=SupportDensity.LIGHT, llm_workers=12)
+    restored = _deserialize_visuals_settings(_serialize_visuals_settings(visuals))
+    assert restored == visuals
+
+
+def test_visuals_missing_keys_use_defaults() -> None:
+    restored = _deserialize_visuals_settings({"produce_diagrams": False})
+    assert restored.produce_diagrams is False
+    assert restored.produce_knowledge_map is True
+    assert restored.density is SupportDensity.STANDARD
+    assert restored.diagram_types == frozenset(DiagramType)

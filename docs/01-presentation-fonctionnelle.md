@@ -51,7 +51,10 @@ The application is organised around **feature tabs**: **Generation** (videos
 → flashcards, MCQs, summary sheets, mock exam…) and **Dialogue**
 (conversational chat anchored on the corpus: natural-language questions,
 **cited** answers **streamed** live, configurable strict/augmented
-fidelity, lexical or semantic retrieval, persisted conversations). The
+fidelity, lexical or semantic retrieval, persisted conversations) and
+**Visualizations** (two **fully self-contained** interactive HTML pages —
+a **knowledge map** and a **diagram gallery** — for **Latin-script
+languages** only). The
 Revision materials tab exposes **settings** (⚙: materials, difficulty,
 languages, model & cost), a **Generate** button + **Estimate cost**, a
 **progress table** (material × language) and a **status banner** ("generation
@@ -213,6 +216,35 @@ clickable) and **streamed** live.
 - Settings (fidelity, retrieval, LLM/embedding models) and **editable
   prompts** like the rest.
 
+### 4.8 Visualizations (standalone interactive HTML)
+
+A fourth tab, **Visualizations**, turns a generated course into two
+**fully self-contained** interactive HTML pages (no internet connection, no
+external dependency — everything is inlined). Like the Revision materials,
+it is **on-demand** and configurable.
+
+- **Knowledge map**: an interactive graph of the course's **concepts**,
+  **glossary terms**, **ideas** and **examples**, with their **typed
+  relations** (leads to, prerequisite, illustrates, contrasts with, part of,
+  related). The graph reorganises from a **network** view to a **tree** when
+  you click a node (and back), groups nodes into **themes**, and shows, for
+  each node, its definition and an **excerpt of the source** it comes from.
+- **Diagram gallery**: **generated** diagrams (not AI images) — flowcharts,
+  timelines, comparisons, hierarchies, cycles, decision trees — chosen by the
+  AI to fit each part of the course. Each diagram card has an **« Enlarge »
+  (fullscreen)** button that opens the diagram in a full-window overlay (fit to
+  the viewport, wheel-zoom + drag-pan) so even a dense diagram stays legible; the
+  graph cards also size their canvas to the number of nodes, and **nodes can be
+  dragged** to rearrange the layout (with a *Reset layout* button).
+- **Latin-script languages only**: a page is produced for each generated
+  language among **French, English, German, Spanish, Italian**. Chinese and
+  Arabic are **not** supported for this feature (to keep the interactive
+  rendering uncompromised).
+- **Settings**: which deliverables to produce, content **density**, allowed
+  **diagram types**, model / reasoning, **budget cap** and parallelism.
+  A **pre-run cost estimate** is available, and the **prompts are editable**
+  like the rest.
+
 ## 5. Quality promises
 
 ### 5.1 Fidelity to the spoken content
@@ -294,6 +326,9 @@ clickable) and **streamed** live.
 - **Dialogue**: chat anchored on the corpus (citations + streaming),
   lexical (offline) or semantic (OpenAI embeddings; recommended for
   Chinese) retrieval.
+- **Visualizations**: two standalone interactive HTML pages (knowledge map +
+  generated-diagram gallery), **Latin-script languages only**
+  (fr/en/de/es/it).
 - **UI internationalisation**: native Qt stack (FR source + EN), language
   selectable from Global settings, persisted in `ui_prefs.json`.
 - Platform: **Windows 11** (10 minimum).

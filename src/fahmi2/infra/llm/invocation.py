@@ -9,10 +9,15 @@ avec mapping vers une erreur typée. Réutilisé par les handlers de phase
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from typing import Any
 
-from fahmi2.core.errors.exceptions import LLMError
+from fahmi2.core.errors.error_info import ErrorInfo
+from fahmi2.core.errors.exceptions import Fahmi2Error, LLMError
 from fahmi2.core.errors.severity import Severity
+from fahmi2.core.retry.classification import default_classify
+from fahmi2.core.retry.policy import RetryDecision, RetryPolicy
+from fahmi2.core.retry.runner import with_retry
 from fahmi2.domain.phase import PhaseConfig
 from fahmi2.infra.llm.interface import (
     DEFAULT_MAX_OUTPUT_TOKENS,
@@ -20,6 +25,11 @@ from fahmi2.infra.llm.interface import (
     LLMResponse,
     Message,
 )
+
+#: Signature du callback de retry : ``(numéro_tentative, délai_s, erreur) -> None``.
+#: Appelé **avant** la propagation d'une erreur **retryable**, pour permettre à
+#: l'appelant d'émettre un événement spécifique à sa fonctionnalité.
+RetryNotifier = Callable[[int, float, ErrorInfo], None]
 
 #: Limite haute du ``raw_content`` reporté dans les ``technical_details`` d'une
 #: erreur ``LLM.INVALID_JSON``. La précédente valeur (500) était trop courte
@@ -83,6 +93,71 @@ def invoke_llm_chat(
         max_tokens=max_tokens,
         response_format=response_format,
     )
+
+
+def invoke_llm_chat_with_retry(
+    llm_provider: LLMProvider,
+    *,
+    model: str,
+    config: PhaseConfig,
+    system_prompt: str | None,
+    user_prompt: str,
+    retry_policy: RetryPolicy,
+    on_retry: RetryNotifier,
+    classify: Callable[[BaseException], RetryDecision] = default_classify,
+    response_format: dict[str, str] | None = None,
+    max_tokens: int | None = DEFAULT_MAX_OUTPUT_TOKENS,
+) -> LLMResponse:
+    """Appelle ``invoke_llm_chat`` avec retry + notification de tentative.
+
+    Mutualise la boucle « appel → si erreur retryable, notifier puis relancer »
+    partagée par les fonctionnalités qui émettent un événement de retry propre
+    (Pédagogie, Visualisations). Le ``on_retry`` est invoqué **uniquement** pour une
+    erreur classée ``RETRY``, avant la propagation gérée par ``with_retry``.
+
+    Args:
+        llm_provider: Provider LLM à invoquer.
+        model: Identifiant du modèle.
+        config: Config LLM (thinking / reasoning_effort / température).
+        system_prompt: Prompt système optionnel.
+        user_prompt: Prompt utilisateur.
+        retry_policy: Politique de retry (tentatives, délais).
+        on_retry: Callback ``(tentative, délai_s, ErrorInfo)`` appelé avant chaque
+            relance d'une erreur retryable (typiquement : publier un événement).
+        classify: Classifieur d'erreur (défaut : ``default_classify``).
+        response_format: Contrainte de format provider (cf. ``invoke_llm_chat``).
+        max_tokens: Borne supérieure de tokens en sortie.
+
+    Returns:
+        La ``LLMResponse``.
+
+    Raises:
+        Fahmi2Error: La dernière erreur si toutes les tentatives échouent.
+    """
+    attempts = {"n": 0}
+
+    def _once() -> LLMResponse:
+        attempts["n"] += 1
+        try:
+            return invoke_llm_chat(
+                llm_provider,
+                model=model,
+                config=config,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                max_tokens=max_tokens,
+                response_format=response_format,
+            )
+        except Fahmi2Error as exc:
+            if classify(exc) is RetryDecision.RETRY:
+                on_retry(
+                    attempts["n"],
+                    retry_policy.compute_delay(attempt=attempts["n"]),
+                    ErrorInfo.from_exception(exc),
+                )
+            raise
+
+    return with_retry(_once, policy=retry_policy, classify=classify)
 
 
 def parse_llm_json(

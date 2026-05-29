@@ -8,14 +8,16 @@
 > and the glossary **export** to **Markdown / PDF / HTML / Word (`.docx`)** —
 > **Chinese** and **Arabic** (right-to-left) render correctly. Then make use of
 > this corpus effortlessly: **revision aids** (flashcards, MCQs, summary sheets,
-> mock exam…, **Anki / Markdown / PDF / HTML / Word** exports) and **Dialogue**
-> (chat anchored on the course, **cited** answers **streamed** live). All in **a
-> few minutes** with **no manual intervention**.
+> mock exam…, **Anki / Markdown / PDF / HTML / Word** exports), **Dialogue**
+> (chat anchored on the course, **cited** answers **streamed** live), and
+> **Visualizations** (two self-contained interactive HTML pages — an interactive
+> **knowledge map** and a **generated-diagram gallery**). All in **a few
+> minutes** with **no manual intervention**.
 
 Windows desktop application, single-user, **double-click install** (no system
 dependency to install — **ffmpeg and yt-dlp are bundled**). The interface is
 organised around **feature tabs** — **Generation** · **Revision materials** ·
-**Dialogue**. Generation relies on an 8-phase pipeline (polymorphic ingestion —
+**Dialogue** · **Visualizations**. Generation relies on an 8-phase pipeline (polymorphic ingestion —
 Whisper transcription or text extraction — followed by 7 DeepSeek v4 LLM
 phases), fully configurable from the graphical interface.
 
@@ -63,6 +65,17 @@ and takes effect at the next launch.
   in that language, with the cited glossary fully localised. Multiple
   conversations **persisted and deletable**; **exhaustive cumulative cost**
   (answer + embeddings + rephrasing).
+- **Visualizations (standalone interactive HTML)**: two **fully self-contained**
+  pages produced from a generated course — an interactive **knowledge map**
+  (a typed graph of concepts, glossary terms, ideas and examples with their
+  relations; reorganises from **network to tree on click**, with embedded
+  source excerpts) and a **gallery of generated diagrams** (flowcharts,
+  timelines, comparisons, hierarchies, cycles, decision trees). Rendered with
+  **vendored Cytoscape.js** inlined offline — **no CDN, works without a network
+  connection**. Produced for each generated **Latin-script** language
+  (French, English, German, Spanish, Italian); Chinese and Arabic are not
+  supported for this feature. Density slider, selectable diagram types, and a
+  **pre-run cost estimate** + budget cap.
 - 4 rendering styles: casual / standard / professional / academic + free
   directives.
 - **Navigable consolidated document**: hierarchically numbered headings (1,
@@ -173,10 +186,13 @@ Layered architecture inspired by hexagonal principles:
 
 ```
 src/fahmi2/
-├── core/         logging, errors, retry, config, migrations, retrieval, ids
+├── core/         logging, errors, retry, config, migrations, retrieval, ids, corpus
 ├── domain/       pure entities (Project, Run, PhaseExecution, Glossary, …)
-├── pipeline/     PipelineEngine + 8 phase handlers
-├── infra/        adapters (STT, LLM, ffmpeg, SQLite WAL, DPAPI, prompts)
+├── pipeline/     PipelineEngine + 8 phase handlers (+ generation_outputs readers)
+├── pedagogy/     revision-materials engine (SupportGenerator, SupportsOrchestrator)
+├── chat/         RAG Dialogue engine (corpus, retriever, citations, chat_service)
+├── visuals/      Visualizations engine (GraphRAG-lite: extractors, community)
+├── infra/        adapters (STT, LLM, ffmpeg, SQLite WAL, DPAPI, prompts, HTML export)
 ├── app/          use cases (ProjectService, RunOrchestrator, CostEstimator…)
 ├── i18n/         Qt translation stack (AppLanguage enum, install_translator,
 │                 .ts sources + .qm compiled files)
@@ -187,6 +203,25 @@ See [docs/02-presentation-technique.md](docs/02-presentation-technique.md) for
 the full breakdown.
 
 ## Status
+
+**v1.6.0** — **Visualizations** feature: two **fully self-contained**
+interactive HTML deliverables per Latin-script language — an interactive
+**knowledge map** (typed concept/term/idea/example graph, network↔tree,
+fullscreen, draggable nodes) and a **generated-diagram gallery** (flowcharts,
+timelines, comparisons, hierarchies, cycles, decision trees; per-card fullscreen).
+GraphRAG-lite pipeline (glossary backbone + LLM layer + gleaning, embedding entity
+resolution, networkx Louvain), structure extracted once then labels translated per
+language, **zero CDN / zero rendering DSL** (vendored Cytoscape.js inlined). New
+**Visualizations** tab + parallelised structure extraction with a live progress
+column. **1362 passing tests**, ruff + mypy `--strict` clean.
+
+**v1.5.2** — Critical fix: `Project.chat` (Dialogue settings) was silently
+reset to `None` on every generation Run (`RunOrchestrator` rebuilt the
+project field-by-field) — now preserved via `dataclasses.replace`. Plus a
+post-review architecture cleanup: `PauseToken` moved to `core/concurrency/`
+(restoring the documented dependency flow), new
+`pipeline/workspace_layout.py` as the single source of artifact paths, and
+several DRY consolidations.
 
 **v1.5.1** — **Quality round on cost tracking and reliability**:
 phase 6 translation hardened against unescaped quotes from DeepSeek

@@ -26,9 +26,14 @@ from fahmi2.ui.status_labels import (
     run_status_label,
 )
 from fahmi2.ui.viewmodels.stats_strip import StatsSnapshot
+from fahmi2.ui.widgets._progress_view import (
+    LIVE_REFRESH_INTERVAL_MS,
+    STRIP_MARGIN_H,
+    STRIP_MARGIN_V,
+    STRIP_SPACING,
+)
 from fahmi2.ui.widgets.stat_card import StatCard
 
-_LIVE_REFRESH_INTERVAL_MS = 1000
 # Tolérance pour considérer deux ``started_at`` identiques (réception de
 # deux snapshots successifs du même Run sans décalage suspect).
 _SAME_RUN_TIMESTAMP_TOLERANCE_S = 0.1
@@ -48,8 +53,10 @@ class StatsStripWidget(QWidget):
         super().__init__(parent)
         self.setObjectName("statsStrip")
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(12, 8, 12, 8)
-        layout.setSpacing(10)
+        layout.setContentsMargins(
+            STRIP_MARGIN_H, STRIP_MARGIN_V, STRIP_MARGIN_H, STRIP_MARGIN_V
+        )
+        layout.setSpacing(STRIP_SPACING)
 
         self._card_status = StatCard(icon="●", title=self.tr("Statut"), parent=self)
         self._card_sources = StatCard(icon="🗂", title=self.tr("Sources"), parent=self)
@@ -76,7 +83,7 @@ class StatsStripWidget(QWidget):
         self._paused_at: datetime | None = None
         self._paused_offset_seconds: float = 0.0
         self._timer = QTimer(self)
-        self._timer.setInterval(_LIVE_REFRESH_INTERVAL_MS)
+        self._timer.setInterval(LIVE_REFRESH_INTERVAL_MS)
         self._timer.timeout.connect(self._on_tick)
 
     def apply_snapshot(self, snapshot: StatsSnapshot) -> None:

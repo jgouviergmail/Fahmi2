@@ -12,6 +12,7 @@ import pytest
 from fahmi2.app.project_service import ProjectService
 from fahmi2.app.supports_orchestrator import SupportsOrchestrator
 from fahmi2.core.concurrency.pause_token import PauseToken
+from fahmi2.core.corpus import Chapter
 from fahmi2.core.errors.exceptions import ConfigError, LLMError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.core.retry.policy import RetryPolicy
@@ -36,7 +37,6 @@ from fahmi2.pedagogy.artifact_writer import (
     artifact_json_path,
     artifact_markdown_path,
 )
-from fahmi2.pedagogy.chapters import Chapter
 from fahmi2.pedagogy.events import (
     PedagogyEvent,
     SupportFinished,

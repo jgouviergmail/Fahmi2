@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fahmi2"
-version = "1.5.2"
+version = "1.6.0"
 description = "Local desktop app converting pedagogical video lectures to consolidated Markdown documents."
 authors = [{ name = "Fahmi2 contributors" }]
 readme = "README.md"
@@ -30,6 +30,7 @@ dependencies = [
   "python-docx>=1.1,<2",
   "htmldocx>=0.0.6,<0.1",
   "beautifulsoup4>=4.7,<5",
+  "networkx>=3.2,<4",
 ]
 
 [project.optional-dependencies]
@@ -106,5 +107,6 @@ module = [
   "docx.*",
   "htmldocx.*",
   "bs4.*",
+  "networkx.*",
 ]
 ignore_missing_imports = true

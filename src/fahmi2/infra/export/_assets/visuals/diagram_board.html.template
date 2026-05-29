@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="@@LANG@@" dir="@@DIR@@" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>@@TITLE@@</title>
+<style>
+@@APP_CSS@@
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <div class="brand"><span class="crumb">@@CRUMB@@</span><span class="title">@@HEADER@@</span></div>
+  <div class="spacer"></div>
+  <button class="iconbtn" id="theme" title="@@THEME@@">◐</button>
+</div>
+<div class="subbar">@@CHIPS@@<span class="count">@@COUNT@@</span></div>
+<main class="board">@@CARDS@@</main>
+<div class="empty" id="empty" style="display:none">@@EMPTY@@</div>
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-labelledby="lightbox-title" hidden>
+  <div class="lightbox-head">
+    <h3 class="lightbox-title" id="lightbox-title"></h3>
+    <button class="lightbox-reset" id="lightbox-reset" type="button" title="@@RESET@@" aria-label="@@RESET@@" hidden>↺</button>
+    <button class="lightbox-close" id="lightbox-close" type="button" title="@@CLOSE@@" aria-label="@@CLOSE@@">✕</button>
+  </div>
+  <div class="lightbox-body" id="lightbox-body"></div>
+</div>
+@@VENDORED@@
+<script>
+@@APP_JS@@
+</script>
+</body>
+</html>

@@ -2,15 +2,28 @@
 
 from __future__ import annotations
 
-from typing import cast
+from collections.abc import Iterator
+from typing import Any, cast
 
 import pytest
 
+from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.exceptions import LLMError
+from fahmi2.core.errors.severity import Severity
+from fahmi2.core.retry.policy import RetryPolicy
 from fahmi2.domain.phase import PhaseConfig
 from fahmi2.infra.llm._fakes import FakeLLMProvider
-from fahmi2.infra.llm.interface import DEFAULT_MAX_OUTPUT_TOKENS, Message
-from fahmi2.infra.llm.invocation import invoke_llm_chat, parse_llm_json
+from fahmi2.infra.llm.interface import (
+    DEFAULT_MAX_OUTPUT_TOKENS,
+    LLMResponse,
+    LLMStreamChunk,
+    Message,
+)
+from fahmi2.infra.llm.invocation import (
+    invoke_llm_chat,
+    invoke_llm_chat_with_retry,
+    parse_llm_json,
+)
 
 
 def test_parse_llm_json_strips_code_fence() -> None:
@@ -135,3 +148,65 @@ def test_invoke_llm_chat_without_system_prompt() -> None:
     )
     sent = cast("list[Message]", provider.calls[-1]["messages"])
     assert [m.role for m in sent] == ["user"]
+
+
+class _FailThenOk:
+    """Provider factice : échoue ``fail_times`` fois (retryable) puis répond ``{}``."""
+
+    def __init__(self, *, fail_times: int) -> None:
+        self._fail_times = fail_times
+        self.calls = 0
+
+    def chat(self, **_kwargs: Any) -> LLMResponse:
+        self.calls += 1
+        if self.calls <= self._fail_times:
+            raise LLMError(
+                code="LLM.RATE_LIMIT", user_message="rate", severity=Severity.ERROR
+            )
+        return LLMResponse(
+            content="{}", thinking_content=None, prompt_tokens=1,
+            completion_tokens=1, cached_prompt_tokens=0, cost_usd=0.0,
+        )
+
+    def chat_stream(self, **_kwargs: Any) -> Iterator[LLMStreamChunk]:
+        raise NotImplementedError
+
+    def estimate_cost(self, **_kwargs: Any) -> float:
+        return 0.0
+
+
+def _retry_policy() -> RetryPolicy:
+    return RetryPolicy(max_attempts=3, jitter=False, initial_delay_seconds=0.001)
+
+
+def test_invoke_with_retry_notifies_then_succeeds() -> None:
+    provider = _FailThenOk(fail_times=1)
+    notes: list[tuple[int, float, ErrorInfo]] = []
+    response = invoke_llm_chat_with_retry(
+        provider,
+        model="deepseek-v4-flash",
+        config=PhaseConfig(),
+        system_prompt=None,
+        user_prompt="u",
+        retry_policy=_retry_policy(),
+        on_retry=lambda attempt, delay, error: notes.append((attempt, delay, error)),
+    )
+    assert response.content == "{}"
+    assert provider.calls == 2
+    assert len(notes) == 1
+    assert notes[0][0] == 1
+    assert isinstance(notes[0][2], ErrorInfo)
+
+
+def test_invoke_with_retry_reraises_after_exhausting() -> None:
+    provider = _FailThenOk(fail_times=10)
+    with pytest.raises(LLMError):
+        invoke_llm_chat_with_retry(
+            provider,
+            model="deepseek-v4-flash",
+            config=PhaseConfig(),
+            system_prompt=None,
+            user_prompt="u",
+            retry_policy=_retry_policy(),
+            on_retry=lambda *_: None,
+        )

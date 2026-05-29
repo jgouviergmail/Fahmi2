@@ -2,14 +2,15 @@
 
 Construit l'``AppContext`` (dépendances injectées), instancie la
 ``MainWindow`` + les onglets de fonctionnalité (Génération, Supports
-pédagogiques), branche les menus et les callbacks de la sidebar (édition,
-suppression de projet), puis lance la boucle Qt.
+pédagogiques, Visualisations, Dialogue), branche les menus et les callbacks de la
+sidebar (édition, suppression de projet), puis lance la boucle Qt.
 """
 
 from __future__ import annotations
 
 import sys
 
+from PySide6.QtCore import QCoreApplication
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from fahmi2.app.hardware_probe import probe_hardware
@@ -23,6 +24,7 @@ from fahmi2.domain.enums import RunStatus
 from fahmi2.domain.ids import ProjectId
 from fahmi2.domain.pedagogy import PEDAGOGY_WORKSPACE_SUBDIR
 from fahmi2.domain.project import Project
+from fahmi2.domain.visuals import VISUALS_WORKSPACE_SUBDIR
 from fahmi2.infra.secrets.interface import InMemorySecretsStore, SecretsStore
 from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.pedagogy.default_registry import build_default_support_registry
@@ -34,6 +36,7 @@ from fahmi2.ui.features.chat_tab import ChatTab
 from fahmi2.ui.features.generation_tab import GenerationTab
 from fahmi2.ui.features.pedagogy_tab import PedagogyTab
 from fahmi2.ui.features.registry import FeatureRegistry
+from fahmi2.ui.features.visuals_tab import VisualsTab
 from fahmi2.ui.main_window import MainWindow
 from fahmi2.ui.widgets.projects_sidebar import ProjectListEntry
 
@@ -100,6 +103,14 @@ def main() -> int:  # noqa: PLR0915, C901
         app_paths=paths,
         registry=build_default_support_registry(),
     )
+    visuals_tab = VisualsTab(
+        logs_dock=window.logs_dock,
+        window=window,
+        project_service=project_service,
+        secrets_service=secrets_service,
+        state=state,
+        app_paths=paths,
+    )
     chat_tab = ChatTab(
         window=window,
         project_service=project_service,
@@ -107,7 +118,7 @@ def main() -> int:  # noqa: PLR0915, C901
         app_paths=paths,
     )
     window.set_feature_tabs(
-        FeatureRegistry([generation_tab, pedagogy_tab, chat_tab])
+        FeatureRegistry([generation_tab, pedagogy_tab, visuals_tab, chat_tab])
     )
 
     def _project_entry(project: Project) -> ProjectListEntry:
@@ -121,10 +132,19 @@ def main() -> int:  # noqa: PLR0915, C901
         pedagogy_status = (
             run_state.status if run_state is not None else RunStatus.CREATED
         )
+        visuals_run_state = read_run_state(
+            project.workspace_folder / VISUALS_WORKSPACE_SUBDIR
+        )
+        visuals_status = (
+            visuals_run_state.status
+            if visuals_run_state is not None
+            else RunStatus.CREATED
+        )
         return ProjectListEntry(
             project=project,
             generation_status=generation_status,
             pedagogy_status=pedagogy_status,
+            visuals_status=visuals_status,
         )
 
     def _entries() -> list[ProjectListEntry]:
@@ -144,6 +164,7 @@ def main() -> int:  # noqa: PLR0915, C901
     window.projects_sidebar.set_projects(_entries())
     generation_tab.controller.run_state_changed.connect(_refresh_statuses)
     pedagogy_tab.controller.run_state_changed.connect(_refresh_statuses)
+    visuals_tab.controller.run_state_changed.connect(_refresh_statuses)
     # Une (re)génération met à jour le consolidé/glossaire : le Dialogue recharge
     # son corpus si nécessaire (évite de citer un document périmé).
     generation_tab.controller.run_state_changed.connect(
@@ -201,15 +222,16 @@ def main() -> int:  # noqa: PLR0915, C901
             return
         reply = QMessageBox.question(
             window,
-            "Supprimer le projet ?",
-            (
-                f"Supprimer le projet « {project.name} » ?\n\n"
+            QCoreApplication.translate("AppMain", "Supprimer le projet ?"),
+            QCoreApplication.translate(
+                "AppMain",
+                "Supprimer le projet « {name} » ?\n\n"
                 "Cette action supprime ses runs et métadonnées en base, AINSI QUE "
                 "le dossier du projet et tout son contenu sur disque :\n"
-                f"{project.workspace_folder}\n\n"
+                "{path}\n\n"
                 "Le dossier d'entrée (vos fichiers sources) n'est PAS supprimé.\n\n"
-                "Cette action est irréversible."
-            ),
+                "Cette action est irréversible.",
+            ).format(name=project.name, path=project.workspace_folder),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -231,6 +253,7 @@ def main() -> int:  # noqa: PLR0915, C901
     # Garde une référence pour éviter la collection par le GC PySide.
     window._generation_tab = generation_tab  # type: ignore[attr-defined]  # noqa: SLF001
     window._pedagogy_tab = pedagogy_tab  # type: ignore[attr-defined]  # noqa: SLF001
+    window._visuals_tab = visuals_tab  # type: ignore[attr-defined]  # noqa: SLF001
     window._chat_tab = chat_tab  # type: ignore[attr-defined]  # noqa: SLF001
     window.show()
     return int(app.exec())

@@ -1,0 +1,139 @@
+/* Styles propres à la galerie de schémas (Visualisations).
+   Les tokens de couleur (clair/sombre) viennent de ``visuals_tokens.css`` (concaténé
+   en tête par le renderer). */
+
+body {
+  margin: 0; font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg);
+  color: var(--t1); min-height: 100vh;
+}
+
+.toolbar {
+  position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 16px;
+  padding: 0 22px; height: 60px; background: var(--surface);
+  border-bottom: 1px solid var(--border-card); box-shadow: var(--shadow-sm);
+}
+.brand { display: flex; flex-direction: column; line-height: 1.15; }
+.brand .crumb {
+  font-size: 11px; color: var(--t3); letter-spacing: .04em; text-transform: uppercase;
+}
+.brand .title { font-size: 15px; font-weight: 650; color: var(--accent-strong); }
+.spacer { flex: 1; }
+.iconbtn {
+  width: 32px; height: 32px; display: grid; place-items: center;
+  background: var(--surface-soft); border: 1px solid var(--border-card);
+  border-radius: 8px; color: var(--t2); font-size: 15px; cursor: pointer;
+}
+
+.subbar {
+  position: sticky; top: 60px; z-index: 4; display: flex; align-items: center; gap: 10px;
+  padding: 10px 22px; background: var(--surface); border-bottom: 1px solid var(--divider);
+  font-size: 12.5px; color: var(--t2); flex-wrap: wrap;
+}
+.chip {
+  display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px;
+  border-radius: 20px; border: 1px solid var(--border-card);
+  background: var(--surface-soft); cursor: pointer; font-weight: 600; color: var(--t2);
+  user-select: none;
+}
+.chip.off { opacity: .4; }
+.count { margin-left: auto; color: var(--t3); }
+
+.board {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 20px; padding: 22px; max-width: 1400px; margin: 0 auto;
+}
+.card {
+  background: var(--surface); border: 1px solid var(--border-card); border-radius: 14px;
+  box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column;
+}
+.card.hidden { display: none; }
+.card > header {
+  padding: 16px 18px 8px; display: flex; align-items: flex-start; gap: 10px;
+}
+.card > header .head-text { flex: 1; min-width: 0; }
+.expand {
+  flex: none; width: 30px; height: 30px; display: grid; place-items: center;
+  background: var(--surface-soft); border: 1px solid var(--border-card);
+  border-radius: 8px; color: var(--t2); font-size: 15px; cursor: pointer;
+  line-height: 1;
+}
+.expand:hover { color: var(--accent-strong); border-color: var(--accent); }
+
+/* Plein écran (agrandir) : overlay couvrant la fenêtre, pour les diagrammes
+   complexes que la carte ne peut afficher lisiblement. */
+.lightbox {
+  position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column;
+  background: var(--surface);
+}
+.lightbox[hidden] { display: none; }
+.lightbox-head {
+  display: flex; align-items: center; gap: 14px; padding: 12px 20px;
+  border-bottom: 1px solid var(--border-card); background: var(--surface);
+}
+.lightbox-title { flex: 1; margin: 0; font-size: 16px; font-weight: 650; color: var(--t1); }
+.lightbox-reset, .lightbox-close {
+  flex: none; width: 36px; height: 36px; display: grid; place-items: center;
+  background: var(--surface-soft); border: 1px solid var(--border-card);
+  border-radius: 9px; color: var(--t2); font-size: 17px; cursor: pointer;
+}
+.lightbox-reset[hidden] { display: none; }
+.lightbox-reset:hover { color: var(--accent-strong); border-color: var(--accent); }
+.lightbox-close:hover { color: var(--danger, #cf222e); border-color: var(--danger, #cf222e); }
+.lightbox-body {
+  flex: 1; position: relative; overflow: auto; background:
+   radial-gradient(circle at 16px 16px, var(--dot) 1px, transparent 1px);
+   background-size: 22px 22px;
+}
+.lightbox-body .cy-full { position: absolute; inset: 0; cursor: grab; }
+.lightbox-body .cy-full:active { cursor: grabbing; }
+/* Diagrammes linéaires agrandis : contenu HTML défilable, marges confortables. */
+.lightbox-body .timeline, .lightbox-body .cmp { height: auto; padding: 24px 28px; max-width: 1100px; margin: 0 auto; }
+.card .kind {
+  display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--accent-strong); background: var(--accent-soft);
+  padding: 3px 9px; border-radius: 14px; margin-bottom: 8px;
+}
+.card h3 { margin: 0; font-size: 16px; font-weight: 650; color: var(--t1); }
+.diagram { height: 320px; position: relative; background:
+   radial-gradient(circle at 16px 16px, var(--dot) 1px, transparent 1px);
+   background-size: 22px 22px; border-top: 1px solid var(--divider);
+   border-bottom: 1px solid var(--divider); }
+/* Le canvas d'un diagramme « graphe » est zoomable (molette) et déplaçable
+   (glisser) : le curseur « grab » signale cette interactivité. */
+.cy-diagram { width: 100%; height: 100%; cursor: grab; }
+.cy-diagram:active { cursor: grabbing; }
+.card .caption { padding: 12px 18px; font-size: 13px; color: var(--t2); line-height: 1.5; }
+.card .excerpt { padding: 0 18px 14px; }
+.card .excerpt summary {
+  cursor: pointer; font-size: 11.5px; font-weight: 600; color: var(--accent);
+  letter-spacing: .02em;
+}
+.card .excerpt blockquote {
+  margin: 8px 0 0; font-size: 12.5px; line-height: 1.55; color: var(--t2);
+  font-style: italic; background: var(--surface-soft);
+  border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; padding: 10px 12px;
+}
+
+/* Chronologie (HTML/CSS déterministe) */
+.timeline { padding: 18px 22px; height: 100%; overflow: auto; }
+.timeline .ev { position: relative; padding: 0 0 16px 22px; border-left: 2px solid var(--edge); }
+.timeline .ev:last-child { border-left-color: transparent; }
+.timeline .ev::before {
+  content: ""; position: absolute; left: -7px; top: 2px; width: 12px; height: 12px;
+  border-radius: 50%; background: var(--accent); border: 2px solid var(--surface);
+}
+.timeline .date { font-size: 11px; font-weight: 700; color: var(--accent-strong); }
+.timeline .ev h4 { margin: 2px 0; font-size: 13.5px; font-weight: 650; color: var(--t1); }
+.timeline .ev p { margin: 0; font-size: 12.5px; color: var(--t2); line-height: 1.5; }
+
+/* Comparaison (tableau) */
+.cmp { padding: 14px 18px; height: 100%; overflow: auto; }
+.cmp table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+.cmp th, .cmp td {
+  border: 1px solid var(--border-card); padding: 7px 10px; text-align: left;
+  vertical-align: top; color: var(--t1);
+}
+.cmp th { background: var(--surface-soft); font-weight: 650; color: var(--t2); }
+.cmp tbody td:first-child { font-weight: 600; }
+
+.empty { padding: 60px 22px; text-align: center; color: var(--t3); font-size: 14px; }

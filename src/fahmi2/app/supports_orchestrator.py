@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 
 from fahmi2.core.concurrency import map_bounded
 from fahmi2.core.concurrency.pause_token import PauseToken
+from fahmi2.core.corpus import Chapter
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.core.errors.exceptions import ConfigError, Fahmi2Error, PausedError
 from fahmi2.core.errors.severity import Severity
@@ -38,7 +39,6 @@ from fahmi2.pedagogy.artifact_writer import (
     artifact_markdown_path,
     serialize_artifact,
 )
-from fahmi2.pedagogy.chapters import Chapter
 from fahmi2.pedagogy.events import (
     PedagogyEvent,
     SupportFinished,

@@ -21,6 +21,7 @@ from fahmi2.app.secrets_service import SecretsService
 from fahmi2.app.supports_orchestrator import SupportsOrchestrator
 from fahmi2.core.concurrency.pause_token import PauseToken
 from fahmi2.core.config.paths import AppPaths
+from fahmi2.core.corpus import Chapter
 from fahmi2.core.retry.policy import RetryPolicy
 from fahmi2.domain.enums import (
     ExportFormat,
@@ -48,7 +49,6 @@ from fahmi2.pedagogy.artifact_writer import (
     artifact_markdown_path,
     serialize_artifact,
 )
-from fahmi2.pedagogy.chapters import Chapter
 from fahmi2.pedagogy.events import (
     SupportFinished,
     SupportGenerationFinished,

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="@@LANG@@" dir="@@DIR@@" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>@@TITLE@@</title>
+<style>
+@@APP_CSS@@
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="toolbar">
+    <div class="brand"><span class="crumb">@@CRUMB@@</span><span class="title">@@HEADER@@</span></div>
+    <div class="search"><span>🔎</span><input id="search" type="search" aria-label="@@SEARCH_PH@@" placeholder="@@SEARCH_PH@@"></div>
+    <div class="spacer"></div>
+    <div class="seg" role="group"><button type="button" id="btn-network" class="on" aria-pressed="true">@@NETWORK@@</button><button type="button" id="btn-tree" aria-pressed="false">@@TREE@@</button></div>
+    <div class="seg"><button type="button" class="iconbtn" id="zoom-out" title="@@ZOOM_OUT@@" aria-label="@@ZOOM_OUT@@">−</button><button type="button" class="iconbtn" id="zoom-fit" title="@@ZOOM_FIT@@" aria-label="@@ZOOM_FIT@@">⌖</button><button type="button" class="iconbtn" id="zoom-in" title="@@ZOOM_IN@@" aria-label="@@ZOOM_IN@@">+</button></div>
+    <button type="button" class="iconbtn" id="theme" title="@@THEME@@" aria-label="@@THEME@@">◐</button>
+  </div>
+  <div class="subbar">
+    <span class="chip" data-type="concept"><span class="dot" style="background:var(--concept)"></span>@@CONCEPT@@</span>
+    <span class="chip" data-type="glossary_term"><span class="dot" style="background:var(--term)"></span>@@TERM@@</span>
+    <span class="chip" data-type="example"><span class="dot" style="background:var(--example)"></span>@@EXAMPLE@@</span>
+    <span class="chip" data-type="idea"><span class="dot" style="background:var(--idea)"></span>@@IDEA@@</span>
+    <span class="count">@@COUNT@@</span>
+  </div>
+  <div class="stage">
+    <div id="cy"></div>
+    <aside class="panel hidden" id="panel"></aside>
+  </div>
+</div>
+<script id="km-data" type="application/json">@@DATA_JSON@@</script>
+@@VENDORED@@
+<script>
+@@APP_JS@@
+</script>
+</body>
+</html>

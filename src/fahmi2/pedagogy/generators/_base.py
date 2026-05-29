@@ -1,11 +1,16 @@
 """Socle des générateurs de supports LLM.
 
 Mutualise : l'appel LLM avec retry (parité moteur via ``default_classify`` +
-émission de ``SupportRetryAttempt``), des helpers de parsing JSON typé, et un
-template-method par chapitre (boucle → prompt → LLM → parse → items → rendu).
-Le contexte de prompt commun (public/Bloom/densité/directives/langue/glossaire +
-chapitre) est construit ici : un générateur concret ne déclare que son
-``_template_name``, son parsing et son rendu.
+émission de ``SupportRetryAttempt``), et un template-method par chapitre (boucle →
+prompt → LLM → parse → items → rendu). Le contexte de prompt commun
+(public/Bloom/densité/directives/langue/glossaire + chapitre) est construit ici :
+un générateur concret ne déclare que son ``_template_name``, son parsing et son
+rendu.
+
+Les helpers de parsing JSON typé (``schema_error``, ``require_*``) vivent désormais
+dans le module neutre ``infra/llm/json_schema`` (source unique, partagée avec les
+extracteurs des Visualisations) ; ils sont **ré-exposés** ici pour les générateurs
+concrets (rétro-compatibilité d'import).
 
 Les bases sont **génériques** sur le type d'item produit (``_ItemT``), ce qui
 évite tout ``cast``/``assert`` dans les générateurs concrets.
@@ -17,18 +22,25 @@ from abc import abstractmethod
 from datetime import UTC, datetime
 from typing import Any, Generic, TypeVar
 
+from fahmi2.core.corpus import Chapter
 from fahmi2.core.errors.error_info import ErrorInfo
-from fahmi2.core.errors.exceptions import Fahmi2Error, LLMError
-from fahmi2.core.errors.severity import Severity
-from fahmi2.core.retry.classification import default_classify
-from fahmi2.core.retry.policy import RetryDecision
-from fahmi2.core.retry.runner import with_retry
 from fahmi2.domain.enums import Language, SupportType
 from fahmi2.domain.glossary import Term
 from fahmi2.domain.supports import SupportArtifact, SupportItem
 from fahmi2.infra.llm.interface import JSON_OBJECT_RESPONSE_FORMAT, LLMResponse
-from fahmi2.infra.llm.invocation import invoke_llm_chat, parse_llm_json
-from fahmi2.pedagogy.chapters import Chapter
+from fahmi2.infra.llm.invocation import invoke_llm_chat_with_retry, parse_llm_json
+
+# Helpers de parsing JSON typé — source unique dans ``infra/llm/json_schema`` ;
+# **ré-exportés** ici (cf. ``__all__``) pour les générateurs concrets.
+from fahmi2.infra.llm.json_schema import (
+    require_bool,
+    require_int,
+    require_list,
+    require_mapping,
+    require_str,
+    require_str_list,
+    schema_error,
+)
 from fahmi2.pedagogy.events import SupportRetryAttempt
 from fahmi2.pedagogy.labels import (
     audience_label,
@@ -39,7 +51,17 @@ from fahmi2.pedagogy.labels import (
 )
 from fahmi2.pedagogy.support_generator import SupportContext, SupportGenerator
 
-_INVALID_SCHEMA_CODE = "LLM.INVALID_SCHEMA"
+# Ré-export explicite des helpers de parsing JSON typé (source : ``infra/llm/json_schema``)
+# pour les générateurs concrets qui les importent depuis ce socle.
+__all__ = [
+    "require_bool",
+    "require_int",
+    "require_list",
+    "require_mapping",
+    "require_str",
+    "require_str_list",
+    "schema_error",
+]
 
 _ItemT = TypeVar("_ItemT", bound=SupportItem)
 
@@ -51,147 +73,6 @@ def _now() -> datetime:
         ``datetime`` UTC aware.
     """
     return datetime.now(tz=UTC)
-
-
-def schema_error(context_label: str, detail: str) -> LLMError:
-    """Construit une ``LLMError`` de schéma invalide (non retryable).
-
-    Args:
-        context_label: Libellé de contexte (ex: ``"qcm:1"``).
-        detail: Détail du problème de schéma.
-
-    Returns:
-        L'``LLMError`` (``LLM.INVALID_SCHEMA``).
-    """
-    return LLMError(
-        code=_INVALID_SCHEMA_CODE,
-        user_message=f"Réponse du LLM inattendue pour {context_label} : {detail}",
-        severity=Severity.ERROR,
-        technical_details={"context_label": context_label, "detail": detail},
-    )
-
-
-def require_mapping(value: Any, *, context_label: str) -> dict[str, Any]:  # noqa: ANN401
-    """Exige un objet JSON (dict).
-
-    Args:
-        value: Valeur décodée.
-        context_label: Libellé de contexte (messages d'erreur).
-
-    Returns:
-        Le dict.
-
-    Raises:
-        LLMError: Si ``value`` n'est pas un dict.
-    """
-    if not isinstance(value, dict):
-        raise schema_error(context_label, "objet JSON attendu")
-    return value
-
-
-def require_list(
-    mapping: dict[str, Any], key: str, *, context_label: str
-) -> list[Any]:
-    """Exige une liste à ``key``.
-
-    Args:
-        mapping: Objet JSON.
-        key: Clé attendue.
-        context_label: Libellé de contexte.
-
-    Returns:
-        La liste.
-
-    Raises:
-        LLMError: Si la valeur n'est pas une liste.
-    """
-    value = mapping.get(key)
-    if not isinstance(value, list):
-        raise schema_error(context_label, f"liste attendue pour « {key} »")
-    return value
-
-
-def require_str(mapping: dict[str, Any], key: str, *, context_label: str) -> str:
-    """Exige une chaîne non vide à ``key``.
-
-    Args:
-        mapping: Objet JSON.
-        key: Clé attendue.
-        context_label: Libellé de contexte.
-
-    Returns:
-        La chaîne.
-
-    Raises:
-        LLMError: Si la valeur n'est pas une chaîne non vide.
-    """
-    value = mapping.get(key)
-    if not isinstance(value, str) or not value.strip():
-        raise schema_error(context_label, f"chaîne attendue pour « {key} »")
-    return value
-
-
-def require_int(mapping: dict[str, Any], key: str, *, context_label: str) -> int:
-    """Exige un entier à ``key`` (rejette ``bool``).
-
-    Args:
-        mapping: Objet JSON.
-        key: Clé attendue.
-        context_label: Libellé de contexte.
-
-    Returns:
-        L'entier.
-
-    Raises:
-        LLMError: Si la valeur n'est pas un entier.
-    """
-    value = mapping.get(key)
-    if isinstance(value, bool) or not isinstance(value, int):
-        raise schema_error(context_label, f"entier attendu pour « {key} »")
-    return value
-
-
-def require_bool(mapping: dict[str, Any], key: str, *, context_label: str) -> bool:
-    """Exige un booléen à ``key``.
-
-    Args:
-        mapping: Objet JSON.
-        key: Clé attendue.
-        context_label: Libellé de contexte.
-
-    Returns:
-        Le booléen.
-
-    Raises:
-        LLMError: Si la valeur n'est pas un booléen.
-    """
-    value = mapping.get(key)
-    if not isinstance(value, bool):
-        raise schema_error(context_label, f"booléen attendu pour « {key} »")
-    return value
-
-
-def require_str_list(
-    mapping: dict[str, Any], key: str, *, context_label: str
-) -> tuple[str, ...]:
-    """Exige une liste de chaînes non vide à ``key``.
-
-    Args:
-        mapping: Objet JSON.
-        key: Clé attendue.
-        context_label: Libellé de contexte.
-
-    Returns:
-        Le tuple de chaînes (vides écartées).
-
-    Raises:
-        LLMError: Si aucune chaîne exploitable n'est trouvée.
-    """
-    raw = require_list(mapping, key, context_label=context_label)
-    out = [str(x) for x in raw if str(x).strip()]
-    if not out:
-        raise schema_error(context_label, f"liste de chaînes attendue pour « {key} »")
-    return tuple(out)
 
 
 def invoke_support_llm(
@@ -221,36 +102,29 @@ def invoke_support_llm(
     Raises:
         Fahmi2Error: La dernière erreur si toutes les tentatives échouent.
     """
-    attempts = {"n": 0}
 
-    def _once() -> LLMResponse:
-        attempts["n"] += 1
-        try:
-            return invoke_llm_chat(
-                ctx.llm_provider,
-                model=str(ctx.pedagogy.llm_model),
-                config=ctx.pedagogy.llm_config,
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                response_format=response_format,
+    def _on_retry(attempt: int, delay_seconds: float, error: ErrorInfo) -> None:
+        ctx.event_bus.publish(
+            SupportRetryAttempt(
+                timestamp=_now(),
+                support_type=support_type,
+                language=language,
+                attempt=attempt,
+                delay_seconds=delay_seconds,
+                error=error,
             )
-        except Fahmi2Error as exc:
-            if default_classify(exc) is RetryDecision.RETRY:
-                ctx.event_bus.publish(
-                    SupportRetryAttempt(
-                        timestamp=_now(),
-                        support_type=support_type,
-                        language=language,
-                        attempt=attempts["n"],
-                        delay_seconds=ctx.retry_policy.compute_delay(
-                            attempt=attempts["n"]
-                        ),
-                        error=ErrorInfo.from_exception(exc),
-                    )
-                )
-            raise
+        )
 
-    return with_retry(_once, policy=ctx.retry_policy, classify=default_classify)
+    return invoke_llm_chat_with_retry(
+        ctx.llm_provider,
+        model=str(ctx.pedagogy.llm_model),
+        config=ctx.pedagogy.llm_config,
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        retry_policy=ctx.retry_policy,
+        on_retry=_on_retry,
+        response_format=response_format,
+    )
 
 
 class _PerChapterLlmGenerator(SupportGenerator, Generic[_ItemT]):

@@ -7,6 +7,7 @@ et transversal. Il reste évaluatif : le barème/corrigé est séparable.
 
 from __future__ import annotations
 
+from fahmi2.core.corpus import Chapter
 from fahmi2.domain.enums import Language, SupportType
 from fahmi2.domain.glossary import Term
 from fahmi2.domain.supports import (
@@ -16,7 +17,6 @@ from fahmi2.domain.supports import (
 )
 from fahmi2.infra.llm.interface import JSON_OBJECT_RESPONSE_FORMAT
 from fahmi2.infra.llm.invocation import parse_llm_json
-from fahmi2.pedagogy.chapters import Chapter
 from fahmi2.pedagogy.generators._base import (
     invoke_support_llm,
     require_list,

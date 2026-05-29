@@ -1,0 +1,11 @@
+Traduis chacun des textes suivants en **{{ target_language_label }}**. Règles :
+- **un texte traduit par entrée**, dans le **même ordre** que l'entrée.
+- conserve le **sens**, le **registre** et la concision ; ne fusionne ni ne scinde.
+- ne traduis pas les nombres seuls, les sigles ou noms propres sans équivalent (recopie-les).
+
+Textes à traduire (dans l'ordre) :
+{% for text in texts %}
+{{ loop.index0 }}. {{ text }}
+{% endfor %}
+Réponds STRICTEMENT en JSON valide, sans préambule, avec **exactement {{ texts | length }} éléments dans le même ordre** :
+{"translations": ["...", "..."]}

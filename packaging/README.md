@@ -105,6 +105,7 @@ dist/Fahmi2/
 │   │   ├── core/errors/messages.fr.json
 │   │   ├── infra/prompts/defaults/*.j2   ← 8 phases + 3 phase_5_* thematic + phase_6_glossary_localization + 8 pedagogy_* + 3 chat_*
 │   │   ├── infra/storage/_schema.sql
+│   │   ├── infra/export/_assets/visuals/*   ← Visualizations: vendored JS (Cytoscape + extensions) + CSS + JS + HTML templates
 │   │   └── i18n/compiled/*.qm            ← UI translations (FR source + EN)
 │   └── genanki/                          ← collected data (apkg_schema.sql, apkg_col.anki2)
 └── …
@@ -137,6 +138,25 @@ validated against the v1.0.0 build):
   **already** pulled in by `python-docx` (see ingestion). Lazy imports in
   `markdown_docx` → `hiddenimports += ['htmldocx']` +
   `collect_submodules('bs4')` in the `.spec`.
+
+### Visualizations (standalone HTML deliverables)
+
+The **Visualizations** feature produces two **fully self-contained** HTML
+pages (knowledge map + diagram gallery) with **no CDN dependency**. Two things
+must be bundled (**already wired up** in `packaging/fahmi2.spec`, gitignored):
+
+- **Vendored JS/CSS/HTML assets** — the **Cytoscape.js** core and its
+  extensions (`fcose`, `dagre`, `expand-collapse`, plus `layout-base` /
+  `cose-base`), the rendering CSS, the front-end JS, and the HTML templates
+  live under `src/fahmi2/infra/export/_assets/visuals/`. They are loaded via
+  `importlib.resources` (`fahmi2.infra.export._assets.visuals`) and **inlined**
+  into the produced HTML. The `.spec` bundles **every file** of that folder to
+  `fahmi2/infra/export/_assets/visuals` (pure text, no native binary). These
+  libraries are **MIT-licensed** and committed to the repo — there is **no
+  download step** (unlike ffmpeg/yt-dlp).
+- **`networkx`** (Louvain community detection on the knowledge graph) imports
+  its submodules **lazily** → `hiddenimports += collect_submodules('networkx')`
+  in the `.spec`, otherwise community detection fails in packaged mode.
 - **PDF fonts**: PDF rendering uses **Windows system fonts**, registered with
   ReportLab — **no font to bundle**, but the EXE depends on them at runtime
   (always present on a standard Windows target): **Arial**

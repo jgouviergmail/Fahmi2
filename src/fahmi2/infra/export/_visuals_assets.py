@@ -1,0 +1,67 @@
+"""Chargement et *inlining* des bibliothèques JS vendorisées des Visualisations.
+
+Les livrables HTML des Visualisations sont **pleinement autonomes** : les
+bibliothèques JS (Cytoscape + extensions) sont **vendorisées** sous
+``_assets/visuals/*.js`` et inlinées dans le HTML produit (aucun CDN). L'ordre
+d'inline respecte les dépendances d'enregistrement (les bibliothèques de layout et
+``cytoscape`` avant les extensions qui s'y enregistrent).
+"""
+
+from __future__ import annotations
+
+from importlib.resources import files
+
+_ASSETS_PACKAGE = "fahmi2.infra.export"
+_ASSETS_SUBDIR = "_assets/visuals"
+
+#: Feuille de tokens de design partagée par les deux livrables (source unique des
+#: couleurs clair/sombre), concaténée en tête de chaque CSS par les renderers.
+VISUALS_TOKENS_CSS = "visuals_tokens.css"
+
+#: Ordre d'inline (= ordre de chargement/enregistrement) des bibliothèques vendorisées.
+#: ``layout-base`` → ``cose-base`` → ``dagre`` → ``cytoscape`` (cœur) → extensions
+#: (``fcose`` / ``dagre`` / ``expand-collapse``) qui s'enregistrent sur le cœur.
+VENDORED_SCRIPTS: tuple[str, ...] = (
+    "layout-base.js",
+    "cose-base.js",
+    "dagre.min.js",
+    "cytoscape.min.js",
+    "cytoscape-fcose.js",
+    "cytoscape-dagre.js",
+    "cytoscape-expand-collapse.js",
+)
+
+_ENCODING_UTF8 = "utf-8"
+
+
+def read_visuals_asset(name: str) -> str:
+    """Lit le contenu d'un asset des Visualisations (JS vendorisé, CSS, JS, template).
+
+    Args:
+        name: Nom de fichier (ex. ``"cytoscape.min.js"``, ``"knowledge_map.css"``).
+
+    Returns:
+        Le contenu textuel de l'asset.
+    """
+    resource = files(_ASSETS_PACKAGE).joinpath(_ASSETS_SUBDIR).joinpath(name)
+    return resource.read_text(encoding=_ENCODING_UTF8)
+
+
+def vendored_scripts_html(names: tuple[str, ...] = VENDORED_SCRIPTS) -> str:
+    """Construit le bloc ``<script>`` inlinant les bibliothèques vendorisées.
+
+    Args:
+        names: Sous-ensemble (ordonné) des scripts à inliner. Par défaut
+            ``VENDORED_SCRIPTS`` (toutes les bibliothèques) ; un livrable qui n'utilise
+            qu'une partie (ex. la galerie de schémas : cytoscape + dagre) en passe un
+            sous-ensemble pour un fichier plus léger.
+
+    Returns:
+        Une concaténation de balises ``<script>`` (une par bibliothèque, dans l'ordre
+        fourni) prête à être insérée dans le HTML.
+    """
+    blocks = [
+        f"<script>/* vendored: {name} */\n{read_visuals_asset(name)}\n</script>"
+        for name in names
+    ]
+    return "\n".join(blocks)

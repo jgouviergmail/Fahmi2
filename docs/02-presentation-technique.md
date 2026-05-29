@@ -142,8 +142,9 @@ or SQLite state):
 - `pedagogy/support_registry.py` — `SupportGeneratorRegistry` (canonical
   order of the 8 materials); `pedagogy/default_registry.py` —
   `build_default_support_registry()`.
-- `pedagogy/chapters.py` — chapter parser for the consolidated document;
-  `pedagogy/sources.py` — source path / mtime / chapters.
+- `pedagogy/sources.py` — source path / mtime / chapters (the chapter parser
+  itself now lives in the shared `core/corpus/structure.py`, see the
+  Visualizations section below).
 - `pedagogy/events.py` — events (`SupportGenerationStarted`,
   `SupportStarted`, `SupportRetryAttempt`, `SupportFinished`,
   `SupportGenerationFinished`).
@@ -194,7 +195,9 @@ External adapters (ports/adapters):
 - `infra/prompts/` — `PromptLoader` with `%APPDATA%/Fahmi2/prompts/`
   override + **bundled Jinja2 templates**: 8 generation phases + **3
   `phase_5_*` thematic-mode** + **`phase_6_glossary_localization`**
-  (glossary term localisation) + 8 `pedagogy_*` + 3 `chat_*`.
+  (glossary term localisation) + 8 `pedagogy_*` + 3 `chat_*` + **5 `visuals_*`**
+  (`visuals_graph_extraction`, `visuals_community_report`, `visuals_idea_chains`,
+  `visuals_diagram_authoring`, `visuals_label_translation`).
 - `infra/anki/genanki_exporter.py` — `.apkg` export (genanki: Basic/Cloze/
   MCQ, stable GUIDs, sub-decks per material, tags).
 - `infra/export/markdown_pdf.py` — Markdown → HTML
@@ -267,7 +270,7 @@ Application services:
   prompts/`, Jinja2 validation). Backend for the `PromptsEditorDialog`.
   Catalogue: generation prompts (8 phases + 3 thematic `phase_5_*` +
   `phase_6_glossary_localization`) + 8 `pedagogy_*` templates + 3
-  `chat_*`.
+  `chat_*` + 5 `visuals_*` templates.
 - `SecretsService` — `SecretsStore` wrapper with automatic log
   redaction.
 - `HardwareProbe` — CUDA/GPU detection at startup.
@@ -486,6 +489,58 @@ Configurable **fidelity** (`chat_strict`/`chat_augmented` prompts);
 **lexical** (offline) or **semantic** (OpenAI embeddings) retrieval,
 `AUTO` strategy.
 
+### 2.10 Visualizations feature (standalone interactive HTML)
+
+Cross-cutting (engine `visuals/` + HTML renderers + UI): a 4th tab
+(`FeatureId.VISUALS`) that turns a generated course into two fully
+self-contained interactive HTML pages. **GraphRAG-lite**, modelled after the
+Pedagogy feature (lightweight orchestrator, no `PipelineEngine`).
+
+- `core/corpus/structure.py` — **shared** consolidated-structure parser
+  (`parse_chapters` / `parse_sections`); `parse_sections` exposes a
+  **language-invariant** `section_path` from the numeric heading prefix
+  (reused by Pedagogy, Dialogue and Visualizations).
+- `visuals/` (engine) — `sources.py` (consolidated doc → per-section
+  `TextUnit`, fragmented past `MAX_UNIT_CHARS`; `available_visuals_languages`
+  restricts to **Latin** `VISUALS_LANGUAGES`), `_constants.py` (all magic
+  numbers: gleaning rounds, per-density node/diagram caps, entity-merge cosine
+  threshold, Louvain seed, excerpt length), `_excerpts.py` (`SectionIndex` for
+  embedded source excerpts), `extractors/` (`graph_extractor` [glossary
+  backbone + LLM semantic layer + **gleaning**], `entity_resolver` [embedding
+  cosine merge + glossary spine + **AUTO** label-normalisation fallback],
+  `community_reporter`, `idea_chains` [map-reduce over reports],
+  `diagram_author` [typed diagrams], `label_translator`), `community.py`
+  (`detect_communities`: networkx Louvain with fixed seed → deterministic),
+  `events.py`, `manifest.py` (per-language freshness).
+- `infra/export/` — `knowledge_map_html.py` / `diagram_board_html.py`
+  (deterministic typed-JSON → self-contained HTML); `_visuals_assets.py` reads
+  and **inlines** the vendored **Cytoscape.js** core + extensions from
+  `_assets/visuals/` (**no CDN**); `_assets/visuals/*` (vendored MIT libs +
+  CSS + JS + HTML templates). `storage/feature_run_state.py` — shared
+  `run_state.json` model (pedagogy + visuals).
+- `app/` — `VisualsOrchestrator` (extract structure **once** in a structure
+  language → per-Latin-language localise + render, freshness manifest +
+  `run_state`, best-effort cost cap). **Both phases are parallelised**: the
+  structure extraction parallelises its per-unit / per-community LLM calls via
+  `extractors/_base.map_units_with_progress` (bounded by `llm_workers`, honours the
+  `PauseToken`, **order preserved → deterministic**) emitting
+  `VisualsStructureProgress`; the per-language localise+render uses per-language
+  `map_bounded`. `VisualsCostEstimator` (pre-run estimate, reuses `_cost_common`).
+- `ui/` — `VisualsTab`, `VisualsController` (`QThread` worker +
+  `VisualsQtEventBus`), `VisualsSettingsView` (deliverables / content / AI
+  generation), `VisualsProgressView` (status grid + tiles), with a **Structure**
+  column **before** the per-language columns (per-deliverable extraction status +
+  `Graph N/total` tooltip + per-step logs),
+  `VisualsProgressViewModel` / `VisualsStateViewModel` (Qt-free),
+  `visuals_labels.py`. The sidebar gains a **third** status (Visualizations).
+- Prompts: 5 `visuals_*` templates (graph extraction, community report,
+  idea-chains, diagram authoring, label translation) editable from the
+  PromptsEditor.
+
+**Multilingual = structure extracted once + labels localised** (Latin-script
+languages only: fr/en/de/es/it; Chinese & Arabic deliberately excluded).
+**Zero rendering DSL** (no Mermaid): the LLM emits typed JSON only.
+
 ## 3. Main Run flow
 
 ```
@@ -548,7 +603,9 @@ CREATE TABLE phase_executions (
   status TEXT NOT NULL,
   started_at TEXT, finished_at TEXT,
   artifact_path TEXT, retry_count INTEGER NOT NULL DEFAULT 0,
-  cost_usd REAL NOT NULL DEFAULT 0, error_json TEXT,
+  cost_usd REAL NOT NULL DEFAULT 0,
+  per_source_costs_json TEXT,  -- v1.5.1 (soft migration): {source_id: cost} for batch phases 5/6; NULL = no attribution
+  error_json TEXT,
   UNIQUE (run_id, phase_id, source_id),
   FOREIGN KEY (run_id) REFERENCES runs(id) ON DELETE CASCADE
 );
@@ -604,6 +661,13 @@ loss):
     ├── {support}.json                ← Structured artefact (typed items)
     ├── {support}.md                  ← Markdown rendering (question)
     └── {support}.corrige.md          ← Separate answer key (evaluative, if requested)
+
+<location>/visuals/                    ← Visualizations
+├── manifest.json                     ← Per-language freshness (settings hash + structure/glossary/content mtime)
+├── run_state.json                    ← Last execution status + cost (shared feature_run_state)
+└── output/
+    ├── knowledge_map.{lang}.html      ← Standalone interactive knowledge map (Latin langs only)
+    └── diagrams.{lang}.html           ← Standalone generated-diagram gallery
 ```
 
 > Revision materials are produced by `SupportsOrchestrator`
@@ -692,8 +756,8 @@ loss):
 
 ### 6.2 Current metrics
 
-- **1188 passing tests** × 3 consecutive runs
-- **ruff** + **mypy --strict** clean over 405 source files
+- **1362 passing tests** × 3 consecutive runs (on the `feat/visualisations-html-autonomes` branch)
+- **ruff** + **mypy --strict** clean over the whole `src` + `tests` tree
 
 ## 7. Packaging and distribution
 

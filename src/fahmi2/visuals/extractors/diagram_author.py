@@ -235,8 +235,8 @@ def _diagrams_for_unit(
     for index, raw in enumerate(item_list):
         if len(diagrams) >= max_diagrams:
             break
-        item = require_mapping(raw, context_label=f"{context_label}[{index}]")
         try:
+            item = require_mapping(raw, context_label=f"{context_label}[{index}]")
             diagram_type = DiagramType(require_str(item, "type", context_label=context_label))
         except (Fahmi2Error, ValueError):
             continue

@@ -2,6 +2,33 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="en" sourcelanguage="fr">
 <context>
+    <name>AppMain</name>
+    <message>
+        <location filename="../../ui/app_main.py" line="225"/>
+        <source>Supprimer le projet ?</source>
+        <translation>Delete the project?</translation>
+    </message>
+    <message>
+        <location filename="../../ui/app_main.py" line="226"/>
+        <source>Supprimer le projet « {name} » ?
+
+Cette action supprime ses runs et métadonnées en base, AINSI QUE le dossier du projet et tout son contenu sur disque :
+{path}
+
+Le dossier d&apos;entrée (vos fichiers sources) n&apos;est PAS supprimé.
+
+Cette action est irréversible.</source>
+        <translation>Delete the project “{name}”?
+
+This deletes its runs and metadata in the database, AS WELL AS the project folder and all its contents on disk:
+{path}
+
+The input folder (your source files) is NOT deleted.
+
+This action is irreversible.</translation>
+    </message>
+</context>
+<context>
     <name>ChatBubble</name>
     <message>
         <location filename="../../ui/widgets/_chat_bubble.py" line="94"/>
@@ -2187,7 +2214,7 @@ All generated materials, their intermediate exports, and the execution state wil
         <translation>Generation {gen} · Materials {ped} · Visuals {vis}</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/projects_sidebar.py" line="150"/>
+        <location filename="../../ui/widgets/projects_sidebar.py" line="151"/>
         <source>Génération : {gen}
 Supports : {ped}
 Visuels : {vis}</source>
@@ -2196,12 +2223,12 @@ Materials: {ped}
 Visuals: {vis}</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/projects_sidebar.py" line="333"/>
+        <location filename="../../ui/widgets/projects_sidebar.py" line="334"/>
         <source>Modifier…</source>
         <translation>Edit…</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/projects_sidebar.py" line="334"/>
+        <location filename="../../ui/widgets/projects_sidebar.py" line="335"/>
         <source>Supprimer…</source>
         <translation>Delete…</translation>
     </message>
@@ -2870,60 +2897,60 @@ All produced pages and the execution state will be deleted. This action is irrev
 <context>
     <name>VisualsSettingsView</name>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="86"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="85"/>
         <source>Réglages des visualisations</source>
         <translation>Visualization settings</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="87"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="86"/>
         <source>Configurer les visualisations</source>
         <translation>Configure visualizations</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="95"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="94"/>
         <location filename="../../ui/dialogs/visuals_settings_view.py" line="265"/>
         <source>Livrables</source>
         <translation>Deliverables</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="96"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="95"/>
         <location filename="../../ui/dialogs/visuals_settings_view.py" line="295"/>
         <source>Contenu</source>
         <translation>Content</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="97"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="96"/>
         <location filename="../../ui/dialogs/visuals_settings_view.py" line="334"/>
         <source>Génération IA</source>
         <translation>AI generation</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="177"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="176"/>
         <source>Carte des connaissances (graphe interactif)</source>
         <translation>Knowledge map (interactive graph)</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="182"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="181"/>
         <source>Page HTML autonome présentant un graphe interactif des concepts, termes du glossaire, idées et exemples, avec leurs relations.</source>
         <translation>Standalone HTML page showing an interactive graph of concepts, glossary terms, ideas and examples, with their relationships.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="187"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="186"/>
         <source>Diagrammes (galerie de schémas)</source>
         <translation>Diagrams (diagram gallery)</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="192"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="191"/>
         <source>Page HTML autonome présentant des organigrammes, chronologies, comparaisons, hiérarchies, cycles et arbres de décision générés.</source>
         <translation>Standalone HTML page showing generated flowcharts, timelines, comparisons, hierarchies, cycles and decision trees.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="200"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="199"/>
         <source>Volume des nœuds et diagrammes générés par section (compact, équilibré, dense).</source>
         <translation>Volume of nodes and diagrams generated per section (compact, balanced, dense).</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="216"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="215"/>
         <source>Activer la réflexion approfondie</source>
         <translation>Enable deep reasoning</translation>
     </message>

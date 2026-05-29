@@ -163,3 +163,20 @@ def test_visuals_settings_rejette_workers_invalides() -> None:
 def test_visuals_settings_rejette_cout_negatif() -> None:
     with pytest.raises(ValueError):
         VisualsSettings(cost_ceiling_usd=-1.0)
+
+
+def test_visuals_settings_rejette_aucun_livrable() -> None:
+    with pytest.raises(ValueError):
+        VisualsSettings(produce_knowledge_map=False, produce_diagrams=False)
+
+
+def test_visuals_settings_rejette_diagrammes_sans_type() -> None:
+    with pytest.raises(ValueError):
+        VisualsSettings(produce_diagrams=True, diagram_types=frozenset())
+
+
+def test_visuals_settings_diagrammes_desactives_tolere_types_vides() -> None:
+    # Diagrammes désactivés : l'absence de type est sans objet (pas d'erreur).
+    settings = VisualsSettings(produce_diagrams=False, diagram_types=frozenset())
+    assert settings.produce_knowledge_map is True
+    assert settings.diagram_types == frozenset()

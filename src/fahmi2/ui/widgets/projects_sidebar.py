@@ -139,7 +139,8 @@ def _entry_subtitle(entry: ProjectListEntry) -> str:
 
 
 def _entry_tooltip(entry: ProjectListEntry) -> str:
-    """Infobulle détaillant les deux statuts en clair (multi-lignes).
+    """Infobulle détaillant les trois statuts en clair (génération, supports,
+    visualisations), multi-lignes.
 
     Args:
         entry: Entrée à formater.

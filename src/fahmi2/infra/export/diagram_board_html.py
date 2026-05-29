@@ -243,20 +243,24 @@ def render_diagram_board_html(board: DiagramBoard) -> str:
     """
     strings = _STRINGS[board.language]
     cards = "".join(_card(diagram, strings) for diagram in board.diagrams)
+    # Petits libellés (UI) d'abord, puis gros contenus inlinés (assets + cartes
+    # générées) EN DERNIER : aucune substitution de libellé ne s'applique ainsi sur
+    # du contenu LLM déjà inliné (titre/légende/extrait contenant un littéral
+    # ``@@…@@`` ne peut donc plus être corrompu).
     replacements = {
         "@@LANG@@": board.language.value,
         "@@DIR@@": "rtl" if is_rtl(board.language) else "ltr",
         "@@TITLE@@": strings.header,
-        "@@APP_CSS@@": f"{read_visuals_asset(_TOKENS_CSS)}\n{read_visuals_asset(_CSS)}",
-        "@@APP_JS@@": read_visuals_asset(_JS),
-        "@@VENDORED@@": vendored_scripts_html(_BOARD_SCRIPTS),
         "@@CRUMB@@": f"{strings.crumb_prefix} · {board.language.value.upper()}",
         "@@HEADER@@": strings.header,
         "@@THEME@@": strings.theme,
         "@@CHIPS@@": _chips(board, strings),
-        "@@CARDS@@": cards,
         "@@COUNT@@": strings.count_template.format(n=len(board.diagrams)),
         "@@EMPTY@@": strings.empty,
+        "@@APP_CSS@@": f"{read_visuals_asset(_TOKENS_CSS)}\n{read_visuals_asset(_CSS)}",
+        "@@APP_JS@@": read_visuals_asset(_JS),
+        "@@VENDORED@@": vendored_scripts_html(_BOARD_SCRIPTS),
+        "@@CARDS@@": cards,
     }
     html = read_visuals_asset(_TEMPLATE)
     for token, value in replacements.items():

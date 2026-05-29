@@ -281,7 +281,9 @@ def _add_free_clusters(
             nodes_by_id[node.id] = node
         else:
             nodes_by_id[node.id] = replace(
-                existing, excerpts=_merge_excerpts(existing.excerpts, node.excerpts)
+                existing,
+                excerpts=_merge_excerpts(existing.excerpts, node.excerpts),
+                chapter_anchor=existing.chapter_anchor or node.chapter_anchor,
             )
         for member in cluster:
             slug_to_id[slugify_anchor(member.label)] = node.id

@@ -2,14 +2,15 @@
 
 Construit l'``AppContext`` (dépendances injectées), instancie la
 ``MainWindow`` + les onglets de fonctionnalité (Génération, Supports
-pédagogiques), branche les menus et les callbacks de la sidebar (édition,
-suppression de projet), puis lance la boucle Qt.
+pédagogiques, Visualisations, Dialogue), branche les menus et les callbacks de la
+sidebar (édition, suppression de projet), puis lance la boucle Qt.
 """
 
 from __future__ import annotations
 
 import sys
 
+from PySide6.QtCore import QCoreApplication
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from fahmi2.app.hardware_probe import probe_hardware
@@ -221,15 +222,16 @@ def main() -> int:  # noqa: PLR0915, C901
             return
         reply = QMessageBox.question(
             window,
-            "Supprimer le projet ?",
-            (
-                f"Supprimer le projet « {project.name} » ?\n\n"
+            QCoreApplication.translate("AppMain", "Supprimer le projet ?"),
+            QCoreApplication.translate(
+                "AppMain",
+                "Supprimer le projet « {name} » ?\n\n"
                 "Cette action supprime ses runs et métadonnées en base, AINSI QUE "
                 "le dossier du projet et tout son contenu sur disque :\n"
-                f"{project.workspace_folder}\n\n"
+                "{path}\n\n"
                 "Le dossier d'entrée (vos fichiers sources) n'est PAS supprimé.\n\n"
-                "Cette action est irréversible."
-            ),
+                "Cette action est irréversible.",
+            ).format(name=project.name, path=project.workspace_folder),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )

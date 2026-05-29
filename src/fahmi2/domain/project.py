@@ -3,8 +3,9 @@
 Un ``Project`` ne porte que son **nom** et son **emplacement** (``workspace_folder``,
 fixé à la création et immuable). Les paramètres métier vivent dans des blocs de
 réglages dédiés **par fonctionnalité** — ``generation`` (cf. ``domain.generation``),
-``pedagogy`` (cf. ``domain.pedagogy``) et ``chat`` (cf. ``domain.chat``) — chacun
-valant ``None`` tant que sa fonctionnalité n'est pas configurée.
+``pedagogy`` (cf. ``domain.pedagogy``), ``chat`` (cf. ``domain.chat``) et ``visuals``
+(cf. ``domain.visuals``) — chacun valant ``None`` tant que sa fonctionnalité n'est
+pas configurée.
 """
 
 from __future__ import annotations

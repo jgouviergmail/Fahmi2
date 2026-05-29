@@ -497,7 +497,8 @@ def _serialize_project_blob(project: Project) -> str:
         project: Projet à sérialiser.
 
     Returns:
-        Chaîne JSON ``{version, workspace_folder, generation, pedagogy}``.
+        Chaîne JSON ``{version, workspace_folder, generation, pedagogy, chat,
+        visuals}``.
     """
     payload: dict[str, Any] = {
         _BLOB_KEY_VERSION: _BLOB_VERSION,
@@ -547,7 +548,8 @@ def _deserialize_project_blob(
         raw: Chaîne JSON stockée en base.
 
     Returns:
-        ``(workspace_folder, generation_or_none, pedagogy_or_none, chat_or_none)``.
+        ``(workspace_folder, generation_or_none, pedagogy_or_none, chat_or_none,
+        visuals_or_none)``.
 
     Raises:
         StorageError: Si le blob est illisible ou incomplet.

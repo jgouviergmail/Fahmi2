@@ -97,11 +97,17 @@
     cy.layout({ name: name, animate: false, quality: "default", padding: 30 }).run();
   }
   function layoutTree() {
-    var roots = focusedId ? [focusedId] : undefined;
-    var name = window.cytoscapeDagre ? "dagre" : "breadthfirst";
-    var opts = name === "dagre"
-      ? { name: "dagre", animate: false, rankDir: "TB", nodeSep: 30, rankSep: 60 }
-      : { name: "breadthfirst", animate: false, directed: true, padding: 30, roots: roots };
+    // Un nœud focalisé recentre l'arbre sur lui : seul `breadthfirst` honore
+    // `roots` (le layout dagre ne supporte pas de racine unique). Sans focus,
+    // dagre donne un arbre hiérarchique global plus lisible (repli breadthfirst).
+    var opts;
+    if (focusedId) {
+      opts = { name: "breadthfirst", animate: false, directed: false, padding: 30, roots: [focusedId] };
+    } else if (window.cytoscapeDagre) {
+      opts = { name: "dagre", animate: false, rankDir: "TB", nodeSep: 30, rankSep: 60 };
+    } else {
+      opts = { name: "breadthfirst", animate: false, directed: true, padding: 30 };
+    }
     cy.layout(opts).run();
     cy.fit(undefined, 40);
   }

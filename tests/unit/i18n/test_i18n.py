@@ -129,6 +129,7 @@ _TRANSLATION_SMOKE_TESTS: tuple[tuple[str, str, str], ...] = (
         "Génération {gen} · Supports {ped} · Visuels {vis}",
         "Generation {gen} · Materials {ped} · Visuals {vis}",
     ),
+    ("AppMain", "Supprimer le projet ?", "Delete the project?"),
 )
 
 

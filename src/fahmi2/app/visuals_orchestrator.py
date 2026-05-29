@@ -221,6 +221,13 @@ class VisualsOrchestrator:
             graph_source, board_source, struct_cost = self._build_structure(
                 ctx, structure_lang, output_dir, glossary
             )
+        except PausedError:
+            # Annulation pendant l'extraction de structure (hors map_bounded) :
+            # PausedError est une sous-classe de Fahmi2Error, on la laisse donc
+            # remonter ici pour rapporter CANCELLED plutôt qu'un FAILED erroné.
+            return self._finalize(
+                event_bus, visuals_dir, RunStatus.CANCELLED, started_at, base_cost
+            )
         except Fahmi2Error:
             return self._finalize(
                 event_bus, visuals_dir, RunStatus.FAILED, started_at, base_cost
@@ -394,6 +401,10 @@ class VisualsOrchestrator:
                 units=units,
                 embedding_provider=self._embedding_provider,
             )
+            # Le coût des embeddings de résolution d'entités (appel unique par run)
+            # est porté par le provider : on l'agrège au total (cf. pattern Dialogue).
+            if self._embedding_provider is not None:
+                cost += self._embedding_provider.consumed_cost_usd()
             graph = assemble_graph(nodes, edges, language=structure_lang)
             graph, report_cost = generate_community_reports(
                 ctx, graph, language=structure_lang
@@ -446,7 +457,7 @@ class VisualsOrchestrator:
                 glossary_mtime_ns=glossary_mtime,
                 content_mtime_ns=content_mtime,
             )
-        if not regenerate and fresh and self._files_present(out_dir, language, ctx.settings):
+        if not regenerate and fresh and outputs_present(out_dir, language, ctx.settings):
             ctx.event_bus.publish(
                 VisualsLanguageFinished(
                     timestamp=_now(), language=language,
@@ -495,7 +506,25 @@ class VisualsOrchestrator:
         output_dir: Path,
         out_dir: Path,
     ) -> float:
-        """Localise la structure dans une langue et écrit les HTML. Retourne le coût."""
+        """Localise la structure dans une langue et écrit les HTML.
+
+        Args:
+            ctx: Contexte d'exécution (LLM, prompts, retry, pause token).
+            language: Langue cible de la localisation.
+            structure_lang: Langue d'extraction de la structure source.
+            graph_source: Graphe source à localiser, ou ``None`` si Doc A désactivé.
+            board_source: Board source à localiser, ou ``None`` si Doc B désactivé.
+            glossary: Termes du glossaire master (langue source).
+            output_dir: Dossier des livrables de génération (chargement des unités).
+            out_dir: Dossier de sortie des HTML (``visuals/output``).
+
+        Returns:
+            Le coût LLM cumulé (USD) de la localisation (0.0 si ``language`` est la
+            langue de structure : aucun appel de traduction).
+
+        Raises:
+            Fahmi2Error: Si un appel LLM de localisation échoue après les retries.
+        """
         units = load_text_units(output_dir, language)
         cost = 0.0
         if graph_source is not None:
@@ -524,21 +553,6 @@ class VisualsOrchestrator:
                 render_diagram_board_html(board),
             )
         return cost
-
-    def _files_present(
-        self, out_dir: Path, language: Language, settings: VisualsSettings
-    ) -> bool:
-        """Indique si les fichiers attendus (selon les réglages) existent pour la langue.
-
-        Args:
-            out_dir: Dossier de sortie ``visuals/output``.
-            language: Langue.
-            settings: Réglages (quels livrables sont attendus).
-
-        Returns:
-            ``True`` si chaque livrable activé est présent sur disque.
-        """
-        return outputs_present(out_dir, language, settings)
 
     def _is_complete(
         self,
@@ -576,7 +590,7 @@ class VisualsOrchestrator:
                 content_mtime_ns=content_mtime,
             ):
                 return False
-            if not self._files_present(out_dir, language, settings):
+            if not outputs_present(out_dir, language, settings):
                 return False
         return True
 

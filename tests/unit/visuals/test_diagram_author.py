@@ -117,8 +117,13 @@ def test_extract_diagrams_cap_densite() -> None:
 
 
 def test_extract_diagrams_aucun_type_autorise() -> None:
+    # diagram_types vide n'est valide que si les diagrammes sont désactivés
+    # (invariant domaine) ; extract_diagrams court-circuite alors sans appel LLM.
     provider = FakeLLMProvider(default_response=_response({"diagrams": [_FLOWCHART]}))
-    ctx = _ctx(provider, settings=VisualsSettings(diagram_types=frozenset()))
+    ctx = _ctx(
+        provider,
+        settings=VisualsSettings(produce_diagrams=False, diagram_types=frozenset()),
+    )
     result = extract_diagrams(ctx, language=Language.FR, units=(_unit(),))
     assert result.diagrams == ()
     assert provider.calls == []

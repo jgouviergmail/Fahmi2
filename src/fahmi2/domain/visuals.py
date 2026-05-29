@@ -328,7 +328,9 @@ class VisualsSettings:
         cost_ceiling_usd: Plafond de coût (``None`` = pas de plafond).
 
     Raises:
-        ValueError: Si ``llm_workers < 1`` ou ``cost_ceiling_usd < 0``.
+        ValueError: Si aucun livrable n'est activé, si ``produce_diagrams`` est
+            actif sans aucun type de diagramme, si ``llm_workers < 1`` ou si
+            ``cost_ceiling_usd < 0``.
     """
 
     produce_knowledge_map: bool = True
@@ -341,6 +343,15 @@ class VisualsSettings:
     cost_ceiling_usd: float | None = None
 
     def __post_init__(self) -> None:
+        if not self.produce_knowledge_map and not self.produce_diagrams:
+            raise ValueError(
+                "at least one deliverable must be enabled "
+                "(produce_knowledge_map or produce_diagrams)"
+            )
+        if self.produce_diagrams and not self.diagram_types:
+            raise ValueError(
+                "diagram_types must not be empty when produce_diagrams is True"
+            )
         if self.llm_workers < 1:
             raise ValueError("llm_workers must be >= 1")
         if self.cost_ceiling_usd is not None and self.cost_ceiling_usd < 0:

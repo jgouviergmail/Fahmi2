@@ -183,14 +183,14 @@ def render_knowledge_map_html(graph: KnowledgeGraph) -> str:
     data_json = json.dumps(
         _graph_to_json(graph, strings), ensure_ascii=False
     ).replace("</", "<\\/")
+    # Les petits libellés (UI) d'abord, puis les gros contenus inlinés (assets +
+    # JSON LLM) EN DERNIER : aucune substitution de libellé ne s'applique ainsi sur
+    # du contenu déjà inliné (un libellé/définition LLM contenant un littéral
+    # ``@@…@@`` ne peut donc plus être corrompu).
     replacements = {
         "@@LANG@@": graph.language.value,
         "@@DIR@@": "rtl" if is_rtl(graph.language) else "ltr",
         "@@TITLE@@": strings.header,
-        "@@APP_CSS@@": f"{read_visuals_asset(_TOKENS_CSS)}\n{read_visuals_asset(_CSS)}",
-        "@@APP_JS@@": read_visuals_asset(_JS),
-        "@@VENDORED@@": vendored_scripts_html(),
-        "@@DATA_JSON@@": data_json,
         "@@CRUMB@@": f"{strings.crumb_prefix} · {graph.language.value.upper()}",
         "@@HEADER@@": strings.header,
         "@@SEARCH_PH@@": strings.search_ph,
@@ -204,6 +204,10 @@ def render_knowledge_map_html(graph: KnowledgeGraph) -> str:
         "@@COUNT@@": strings.count_template.format(
             c=len(graph.communities), n=len(graph.nodes), e=len(graph.edges)
         ),
+        "@@APP_CSS@@": f"{read_visuals_asset(_TOKENS_CSS)}\n{read_visuals_asset(_CSS)}",
+        "@@APP_JS@@": read_visuals_asset(_JS),
+        "@@VENDORED@@": vendored_scripts_html(),
+        "@@DATA_JSON@@": data_json,
     }
     html = read_visuals_asset(_TEMPLATE)
     for token, value in replacements.items():

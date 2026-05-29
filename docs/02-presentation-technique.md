@@ -142,8 +142,9 @@ or SQLite state):
 - `pedagogy/support_registry.py` — `SupportGeneratorRegistry` (canonical
   order of the 8 materials); `pedagogy/default_registry.py` —
   `build_default_support_registry()`.
-- `pedagogy/chapters.py` — chapter parser for the consolidated document;
-  `pedagogy/sources.py` — source path / mtime / chapters.
+- `pedagogy/sources.py` — source path / mtime / chapters (the chapter parser
+  itself now lives in the shared `core/corpus/structure.py`, see the
+  Visualizations section below).
 - `pedagogy/events.py` — events (`SupportGenerationStarted`,
   `SupportStarted`, `SupportRetryAttempt`, `SupportFinished`,
   `SupportGenerationFinished`).

@@ -62,7 +62,6 @@ _COST_CEILING_MAX_USD: Final[float] = 10_000.0
 _TEMPERATURE_MIN: Final[float] = 0.0
 _TEMPERATURE_MAX: Final[float] = 2.0
 _TEMPERATURE_STEP: Final[float] = 0.1
-_DEFAULT_TEMPERATURE: Final[float] = 0.3
 
 
 class VisualsSettingsView(QDialog):
@@ -224,7 +223,8 @@ class VisualsSettingsView(QDialog):
         self._temperature_input = QDoubleSpinBox(self)
         self._temperature_input.setRange(_TEMPERATURE_MIN, _TEMPERATURE_MAX)
         self._temperature_input.setSingleStep(_TEMPERATURE_STEP)
-        self._temperature_input.setValue(_DEFAULT_TEMPERATURE)
+        # Défaut lu depuis le domaine (PhaseConfig) plutôt que dupliqué localement.
+        self._temperature_input.setValue(PhaseConfig().temperature)
         self._cost_ceiling_input = QDoubleSpinBox(self)
         self._cost_ceiling_input.setRange(0.0, _COST_CEILING_MAX_USD)
         self._cost_ceiling_input.setDecimals(2)

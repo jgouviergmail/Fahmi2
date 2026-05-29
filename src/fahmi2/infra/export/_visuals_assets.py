@@ -30,11 +30,11 @@ VENDORED_SCRIPTS: tuple[str, ...] = (
 _ENCODING_UTF8 = "utf-8"
 
 
-def read_vendored_asset(name: str) -> str:
-    """Lit le contenu d'un asset JS vendorisé.
+def read_visuals_asset(name: str) -> str:
+    """Lit le contenu d'un asset des Visualisations (JS vendorisé, CSS, JS, template).
 
     Args:
-        name: Nom de fichier (ex. ``"cytoscape.min.js"``).
+        name: Nom de fichier (ex. ``"cytoscape.min.js"``, ``"knowledge_map.css"``).
 
     Returns:
         Le contenu textuel de l'asset.
@@ -51,7 +51,7 @@ def vendored_scripts_html() -> str:
         l'ordre d'enregistrement) prête à être insérée dans le ``<head>`` du HTML.
     """
     blocks = [
-        f"<script>/* vendored: {name} */\n{read_vendored_asset(name)}\n</script>"
+        f"<script>/* vendored: {name} */\n{read_visuals_asset(name)}\n</script>"
         for name in VENDORED_SCRIPTS
     ]
     return "\n".join(blocks)

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="@@LANG@@" dir="@@DIR@@" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>@@TITLE@@</title>
+<style>
+@@APP_CSS@@
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="toolbar">
+    <div class="brand"><span class="crumb">@@CRUMB@@</span><span class="title">@@HEADER@@</span></div>
+    <div class="search"><span>🔎</span><input id="search" placeholder="@@SEARCH_PH@@"></div>
+    <div class="spacer"></div>
+    <div class="seg"><button id="btn-network" class="on">@@NETWORK@@</button><button id="btn-tree">@@TREE@@</button></div>
+    <div class="seg"><button class="iconbtn" id="zoom-out" title="−">−</button><button class="iconbtn" id="zoom-fit" title="⌖">⌖</button><button class="iconbtn" id="zoom-in" title="+">+</button></div>
+    <button class="iconbtn" id="theme" title="@@THEME@@">◐</button>
+  </div>
+  <div class="subbar">
+    <span class="chip" data-type="concept"><span class="dot" style="background:var(--concept)"></span>@@CONCEPT@@</span>
+    <span class="chip" data-type="glossary_term"><span class="dot" style="background:var(--term)"></span>@@TERM@@</span>
+    <span class="chip" data-type="example"><span class="dot" style="background:var(--example)"></span>@@EXAMPLE@@</span>
+    <span class="chip" data-type="idea"><span class="dot" style="background:var(--idea)"></span>@@IDEA@@</span>
+    <span class="count">@@COUNT@@</span>
+  </div>
+  <div class="stage">
+    <div id="cy"></div>
+    <aside class="panel hidden" id="panel"></aside>
+  </div>
+</div>
+<script id="km-data" type="application/json">@@DATA_JSON@@</script>
+@@VENDORED@@
+<script>
+@@APP_JS@@
+</script>
+</body>
+</html>

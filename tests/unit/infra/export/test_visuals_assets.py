@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from fahmi2.infra.export._visuals_assets import (
     VENDORED_SCRIPTS,
-    read_vendored_asset,
+    read_visuals_asset,
     vendored_scripts_html,
 )
 
 
 def test_tous_les_assets_vendorises_sont_presents_et_non_vides() -> None:
     for name in VENDORED_SCRIPTS:
-        content = read_vendored_asset(name)
+        content = read_visuals_asset(name)
         assert content.strip(), f"asset vide : {name}"
 
 

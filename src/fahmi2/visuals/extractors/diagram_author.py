@@ -204,11 +204,16 @@ def _build_diagram(
                 comparison=None, caption=caption, chapter_anchor=chapter_anchor,
                 excerpts=excerpts,
             )
-        return Diagram(
-            id=diagram_id, title=title, diagram_type=diagram_type, nodes=(), links=(),
-            events=(), comparison=_parse_comparison_payload(item, context_label=context_label),
-            caption=caption, chapter_anchor=chapter_anchor, excerpts=excerpts,
-        )
+        if diagram_type is DiagramType.COMPARISON:
+            return Diagram(
+                id=diagram_id, title=title, diagram_type=diagram_type, nodes=(), links=(),
+                events=(),
+                comparison=_parse_comparison_payload(item, context_label=context_label),
+                caption=caption, chapter_anchor=chapter_anchor, excerpts=excerpts,
+            )
+        # Type inconnu (ne devrait pas arriver après le filtre ``allowed``) : ignoré
+        # explicitement plutôt que traité comme une comparaison par défaut.
+        return None
     except (Fahmi2Error, ValueError):
         return None
 

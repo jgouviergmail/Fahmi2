@@ -51,7 +51,10 @@ The application is organised around **feature tabs**: **Generation** (videos
 → flashcards, MCQs, summary sheets, mock exam…) and **Dialogue**
 (conversational chat anchored on the corpus: natural-language questions,
 **cited** answers **streamed** live, configurable strict/augmented
-fidelity, lexical or semantic retrieval, persisted conversations). The
+fidelity, lexical or semantic retrieval, persisted conversations) and
+**Visualizations** (two **fully self-contained** interactive HTML pages —
+a **knowledge map** and a **diagram gallery** — for **Latin-script
+languages** only). The
 Revision materials tab exposes **settings** (⚙: materials, difficulty,
 languages, model & cost), a **Generate** button + **Estimate cost**, a
 **progress table** (material × language) and a **status banner** ("generation

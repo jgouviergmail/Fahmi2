@@ -6,6 +6,19 @@
 (function () {
   "use strict";
 
+  // Constantes d'interaction/layout centralisées (aucun nombre magique dispersé) —
+  // aligné sur le pattern de diagram_board.js.
+  var WHEEL_SENSITIVITY = 0.2;
+  var ZOOM_BOUND_MIN = 0.1;   // carte dense : plancher bas mais borné (pas d'invisibilité)
+  var ZOOM_BOUND_MAX = 3.0;
+  var ZOOM_STEP = 1.2;        // facteur des boutons zoom +/−
+  var FIT_PADDING = 40;       // marge de cadrage (fit) réseau/arbre/bouton recadrer
+  var SEARCH_FIT_PADDING = 60;// marge de cadrage sur les résultats de recherche
+  var NETWORK_PADDING = 30;   // padding des layouts fcose/dagre/breadthfirst
+  var DAGRE_NODE_SEP = 30;
+  var DAGRE_RANK_SEP = 60;
+  var MAX_PANEL_RELATIONS = 12;  // relations affichées dans le panneau latéral
+
   var DATA = JSON.parse(document.getElementById("km-data").textContent);
   var NODE_TYPES = ["concept", "glossary_term", "example", "idea"];
   var I = DATA.i18n || {};
@@ -80,7 +93,8 @@
     container: document.getElementById("cy"),
     elements: buildElements(),
     style: styles(),
-    wheelSensitivity: 0.2
+    wheelSensitivity: WHEEL_SENSITIVITY,
+    minZoom: ZOOM_BOUND_MIN, maxZoom: ZOOM_BOUND_MAX
   });
 
   // ---- Expand/collapse des communautés ----
@@ -94,7 +108,7 @@
   function layoutNetwork() {
     if (ec) { try { ec.expandAll(); } catch (e) { /* noop */ } }
     var name = window.cytoscapeFcose ? "fcose" : "cose";
-    cy.layout({ name: name, animate: false, quality: "default", padding: 30 }).run();
+    cy.layout({ name: name, animate: false, quality: "default", padding: NETWORK_PADDING }).run();
   }
   function layoutTree() {
     // Un nœud focalisé recentre l'arbre sur lui : seul `breadthfirst` honore
@@ -102,18 +116,22 @@
     // dagre donne un arbre hiérarchique global plus lisible (repli breadthfirst).
     var opts;
     if (focusedId) {
-      opts = { name: "breadthfirst", animate: false, directed: false, padding: 30, roots: [focusedId] };
+      opts = { name: "breadthfirst", animate: false, directed: false, padding: NETWORK_PADDING, roots: [focusedId] };
     } else if (window.cytoscapeDagre) {
-      opts = { name: "dagre", animate: false, rankDir: "TB", nodeSep: 30, rankSep: 60 };
+      opts = { name: "dagre", animate: false, rankDir: "TB", nodeSep: DAGRE_NODE_SEP, rankSep: DAGRE_RANK_SEP };
     } else {
-      opts = { name: "breadthfirst", animate: false, directed: true, padding: 30 };
+      opts = { name: "breadthfirst", animate: false, directed: true, padding: NETWORK_PADDING };
     }
     cy.layout(opts).run();
-    cy.fit(undefined, 40);
+    cy.fit(undefined, FIT_PADDING);
   }
   function setMode(mode) {
-    document.getElementById("btn-network").classList.toggle("on", mode === "network");
-    document.getElementById("btn-tree").classList.toggle("on", mode === "tree");
+    var btnNetwork = document.getElementById("btn-network");
+    var btnTree = document.getElementById("btn-tree");
+    btnNetwork.classList.toggle("on", mode === "network");
+    btnTree.classList.toggle("on", mode === "tree");
+    btnNetwork.setAttribute("aria-pressed", mode === "network" ? "true" : "false");
+    btnTree.setAttribute("aria-pressed", mode === "tree" ? "true" : "false");
     if (mode === "network") { focusedId = null; layoutNetwork(); } else { layoutTree(); }
   }
 
@@ -161,7 +179,7 @@
     if (rels.length) {
       html += '<section><div class="lbl">' + escapeHtml(UI.relations || "Relations")
         + '</div><div class="rel">';
-      rels.slice(0, 12).forEach(function (r) {
+      rels.slice(0, MAX_PANEL_RELATIONS).forEach(function (r) {
         var other = nodeData(r.id);
         if (!other) { return; }
         var oc = cssVar(TYPE_VAR[other.type] || "--concept");
@@ -214,7 +232,7 @@
     if (matches.length) {
       cy.elements().addClass("dim");
       matches.removeClass("dim").addClass("selected");
-      cy.fit(matches, 60);
+      cy.fit(matches, SEARCH_FIT_PADDING);
     }
   });
 
@@ -235,9 +253,9 @@
   // ---- Barre d'outils ----
   document.getElementById("btn-network").addEventListener("click", function () { setMode("network"); });
   document.getElementById("btn-tree").addEventListener("click", function () { setMode("tree"); });
-  document.getElementById("zoom-in").addEventListener("click", function () { cy.zoom(cy.zoom() * 1.2); });
-  document.getElementById("zoom-out").addEventListener("click", function () { cy.zoom(cy.zoom() / 1.2); });
-  document.getElementById("zoom-fit").addEventListener("click", function () { cy.fit(undefined, 40); });
+  document.getElementById("zoom-in").addEventListener("click", function () { cy.zoom(cy.zoom() * ZOOM_STEP); });
+  document.getElementById("zoom-out").addEventListener("click", function () { cy.zoom(cy.zoom() / ZOOM_STEP); });
+  document.getElementById("zoom-fit").addEventListener("click", function () { cy.fit(undefined, FIT_PADDING); });
   document.getElementById("theme").addEventListener("click", function () {
     var root = document.documentElement;
     root.setAttribute("data-theme", root.getAttribute("data-theme") === "dark" ? "light" : "dark");

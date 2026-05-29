@@ -14,10 +14,13 @@ from dataclasses import dataclass
 from fahmi2.domain.enums import Language
 from fahmi2.domain.languages import is_rtl
 from fahmi2.domain.visuals import KnowledgeGraph
-from fahmi2.infra.export._visuals_assets import read_visuals_asset, vendored_scripts_html
+from fahmi2.infra.export._visuals_assets import (
+    VISUALS_TOKENS_CSS,
+    read_visuals_asset,
+    vendored_scripts_html,
+)
 
 _TEMPLATE = "knowledge_map.html.template"
-_TOKENS_CSS = "visuals_tokens.css"
 _CSS = "knowledge_map.css"
 _JS = "knowledge_map.js"
 
@@ -36,6 +39,7 @@ class _KmStrings:
         types: ``node_type -> libellé`` (puces de filtre + badge du panneau).
         edges: ``edge_type -> libellé`` (relations).
         ui: Libellés du panneau (``definition``/``excerpt``/``relations``/``focus``).
+        zoom: Libellés des boutons de zoom (``out``/``fit``/``in``, pour ``aria-label``).
         count_template: Gabarit du compteur (``{c}``/``{n}``/``{e}``).
     """
 
@@ -48,6 +52,7 @@ class _KmStrings:
     types: dict[str, str]
     edges: dict[str, str]
     ui: dict[str, str]
+    zoom: dict[str, str]
     count_template: str
 
 
@@ -64,6 +69,7 @@ _STRINGS: dict[Language, _KmStrings] = {
                "part_of": "composé de", "related": "lié à"},
         ui={"definition": "Définition", "excerpt": "Extrait source",
             "relations": "Relations", "focus": "Recentrer (mode arbre) →"},
+        zoom={"out": "Dézoomer", "fit": "Ajuster à l'écran", "in": "Zoomer"},
         count_template="{c} communautés · {n} nœuds · {e} liens",
     ),
     Language.EN: _KmStrings(
@@ -78,6 +84,7 @@ _STRINGS: dict[Language, _KmStrings] = {
                "part_of": "part of", "related": "related"},
         ui={"definition": "Definition", "excerpt": "Source excerpt",
             "relations": "Relations", "focus": "Focus (tree mode) →"},
+        zoom={"out": "Zoom out", "fit": "Fit to screen", "in": "Zoom in"},
         count_template="{c} communities · {n} nodes · {e} links",
     ),
     Language.DE: _KmStrings(
@@ -92,6 +99,7 @@ _STRINGS: dict[Language, _KmStrings] = {
                "part_of": "Teil von", "related": "verwandt mit"},
         ui={"definition": "Definition", "excerpt": "Quellenauszug",
             "relations": "Beziehungen", "focus": "Fokus (Baummodus) →"},
+        zoom={"out": "Verkleinern", "fit": "An Bildschirm anpassen", "in": "Vergrößern"},
         count_template="{c} Gemeinschaften · {n} Knoten · {e} Kanten",
     ),
     Language.ES: _KmStrings(
@@ -106,6 +114,7 @@ _STRINGS: dict[Language, _KmStrings] = {
                "part_of": "parte de", "related": "relacionado con"},
         ui={"definition": "Definición", "excerpt": "Extracto de origen",
             "relations": "Relaciones", "focus": "Centrar (modo árbol) →"},
+        zoom={"out": "Alejar", "fit": "Ajustar a la pantalla", "in": "Acercar"},
         count_template="{c} comunidades · {n} nodos · {e} enlaces",
     ),
     Language.IT: _KmStrings(
@@ -120,6 +129,7 @@ _STRINGS: dict[Language, _KmStrings] = {
                "part_of": "parte di", "related": "collegato a"},
         ui={"definition": "Definizione", "excerpt": "Estratto della fonte",
             "relations": "Relazioni", "focus": "Centra (modalità albero) →"},
+        zoom={"out": "Rimpicciolisci", "fit": "Adatta allo schermo", "in": "Ingrandisci"},
         count_template="{c} comunità · {n} nodi · {e} collegamenti",
     ),
 }
@@ -197,6 +207,9 @@ def render_knowledge_map_html(graph: KnowledgeGraph) -> str:
         "@@NETWORK@@": strings.network,
         "@@TREE@@": strings.tree,
         "@@THEME@@": strings.theme,
+        "@@ZOOM_OUT@@": strings.zoom["out"],
+        "@@ZOOM_FIT@@": strings.zoom["fit"],
+        "@@ZOOM_IN@@": strings.zoom["in"],
         "@@CONCEPT@@": strings.types["concept"],
         "@@TERM@@": strings.types["glossary_term"],
         "@@EXAMPLE@@": strings.types["example"],
@@ -204,7 +217,7 @@ def render_knowledge_map_html(graph: KnowledgeGraph) -> str:
         "@@COUNT@@": strings.count_template.format(
             c=len(graph.communities), n=len(graph.nodes), e=len(graph.edges)
         ),
-        "@@APP_CSS@@": f"{read_visuals_asset(_TOKENS_CSS)}\n{read_visuals_asset(_CSS)}",
+        "@@APP_CSS@@": f"{read_visuals_asset(VISUALS_TOKENS_CSS)}\n{read_visuals_asset(_CSS)}",
         "@@APP_JS@@": read_visuals_asset(_JS),
         "@@VENDORED@@": vendored_scripts_html(),
         "@@DATA_JSON@@": data_json,

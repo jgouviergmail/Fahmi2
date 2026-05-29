@@ -12,11 +12,11 @@
 <div class="app">
   <div class="toolbar">
     <div class="brand"><span class="crumb">@@CRUMB@@</span><span class="title">@@HEADER@@</span></div>
-    <div class="search"><span>🔎</span><input id="search" placeholder="@@SEARCH_PH@@"></div>
+    <div class="search"><span>🔎</span><input id="search" type="search" aria-label="@@SEARCH_PH@@" placeholder="@@SEARCH_PH@@"></div>
     <div class="spacer"></div>
-    <div class="seg"><button id="btn-network" class="on">@@NETWORK@@</button><button id="btn-tree">@@TREE@@</button></div>
-    <div class="seg"><button class="iconbtn" id="zoom-out" title="−">−</button><button class="iconbtn" id="zoom-fit" title="⌖">⌖</button><button class="iconbtn" id="zoom-in" title="+">+</button></div>
-    <button class="iconbtn" id="theme" title="@@THEME@@">◐</button>
+    <div class="seg" role="group"><button type="button" id="btn-network" class="on" aria-pressed="true">@@NETWORK@@</button><button type="button" id="btn-tree" aria-pressed="false">@@TREE@@</button></div>
+    <div class="seg"><button type="button" class="iconbtn" id="zoom-out" title="@@ZOOM_OUT@@" aria-label="@@ZOOM_OUT@@">−</button><button type="button" class="iconbtn" id="zoom-fit" title="@@ZOOM_FIT@@" aria-label="@@ZOOM_FIT@@">⌖</button><button type="button" class="iconbtn" id="zoom-in" title="@@ZOOM_IN@@" aria-label="@@ZOOM_IN@@">+</button></div>
+    <button type="button" class="iconbtn" id="theme" title="@@THEME@@" aria-label="@@THEME@@">◐</button>
   </div>
   <div class="subbar">
     <span class="chip" data-type="concept"><span class="dot" style="background:var(--concept)"></span>@@CONCEPT@@</span>

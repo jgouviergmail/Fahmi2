@@ -81,8 +81,16 @@ from fahmi2.visuals.sources import (
     structure_language,
 )
 
-#: Statuts antérieurs considérés comme « reprise utile » (rebase du coût cumulé).
-_RESUMABLE_STATUSES: frozenset[RunStatus] = frozenset(
+#: Statuts d'exécution antérieurs considérés comme « reprise utile » : on rebase le
+#: coût cumulé sur l'historique persisté plutôt que de repartir de 0. Symétrique de
+#: ``_RESUMABLE_PEDAGOGY_STATUSES`` (``app/supports_orchestrator``) et
+#: ``_RESUMABLE_RUN_STATUSES`` (``app/run_orchestrator``).
+#: - ``FAILED`` : au moins une langue a échoué.
+#: - ``PAUSED`` : plafond de coût atteint (arrêt à une frontière sûre).
+#: - ``RUNNING`` : crash de l'app pendant un run (état resté coincé en RUNNING sur
+#:   disque) — on considère le run reprenable.
+#: Hors ce set (CREATED / COMPLETED / CANCELLED / aucun état) : nouvel agrégat à 0.
+_RESUMABLE_VISUALS_STATUSES: frozenset[RunStatus] = frozenset(
     {RunStatus.FAILED, RunStatus.PAUSED, RunStatus.RUNNING}
 )
 
@@ -187,7 +195,7 @@ class VisualsOrchestrator:
         previous = read_run_state(visuals_dir)
         base_cost = (
             previous.total_cost_usd
-            if previous is not None and previous.status in _RESUMABLE_STATUSES
+            if previous is not None and previous.status in _RESUMABLE_VISUALS_STATUSES
             else 0.0
         )
         started_at = _now()
@@ -444,6 +452,23 @@ class VisualsOrchestrator:
         regenerate: bool,
     ) -> tuple[float, bool]:
         """Produit (ou skippe) les livrables HTML d'une langue.
+
+        Args:
+            ctx: Contexte d'exécution (LLM, prompts, retry, pause token, bus).
+            language: Langue cible à produire.
+            structure_lang: Langue d'extraction de la structure (saut de traduction si
+                identique).
+            graph_source: Graphe source à localiser, ou ``None`` si Doc A désactivé.
+            board_source: Board source à localiser, ou ``None`` si Doc B désactivé.
+            glossary: Termes du glossaire master (langue source).
+            output_dir: Dossier des livrables de génération.
+            visuals_dir: Dossier de la fonctionnalité (écriture du manifeste).
+            manifest: Manifeste de fraîcheur (muté + persisté sous ``manifest_lock``).
+            manifest_lock: Verrou protégeant les accès concurrents au manifeste.
+            settings_hash: Hash courant des réglages.
+            structure_mtime: mtime du doc de structure (entrée du manifeste).
+            glossary_mtime: mtime du glossaire master (entrée du manifeste).
+            regenerate: Si ``True``, ignore la fraîcheur et produit même si frais.
 
         Returns:
             ``(cost_usd, failed)``.

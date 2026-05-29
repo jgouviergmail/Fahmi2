@@ -16,10 +16,13 @@ from html import escape
 from fahmi2.domain.enums import DiagramType, Language
 from fahmi2.domain.languages import is_rtl
 from fahmi2.domain.visuals import GRAPH_DIAGRAM_TYPES, Diagram, DiagramBoard
-from fahmi2.infra.export._visuals_assets import read_visuals_asset, vendored_scripts_html
+from fahmi2.infra.export._visuals_assets import (
+    VISUALS_TOKENS_CSS,
+    read_visuals_asset,
+    vendored_scripts_html,
+)
 
 _TEMPLATE = "diagram_board.html.template"
-_TOKENS_CSS = "visuals_tokens.css"
 _CSS = "diagram_board.css"
 _JS = "diagram_board.js"
 
@@ -306,7 +309,7 @@ def render_diagram_board_html(board: DiagramBoard) -> str:
         "@@EMPTY@@": strings.empty,
         "@@CLOSE@@": escape(strings.close_label, quote=True),
         "@@RESET@@": escape(strings.reset_label, quote=True),
-        "@@APP_CSS@@": f"{read_visuals_asset(_TOKENS_CSS)}\n{read_visuals_asset(_CSS)}",
+        "@@APP_CSS@@": f"{read_visuals_asset(VISUALS_TOKENS_CSS)}\n{read_visuals_asset(_CSS)}",
         "@@APP_JS@@": read_visuals_asset(_JS),
         "@@VENDORED@@": vendored_scripts_html(_BOARD_SCRIPTS),
         "@@CARDS@@": cards,

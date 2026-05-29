@@ -129,6 +129,13 @@ def _cluster_free_entities(
             centroids.append(vector)
         else:
             clusters[best_index].append(entity)
+            # Centroïde mis à jour par moyenne incrémentale : les entités suivantes
+            # sont comparées au barycentre réel du cluster (et non au seul fondateur).
+            size = len(clusters[best_index])
+            centroids[best_index] = [
+                (c * (size - 1) + v) / size
+                for c, v in zip(centroids[best_index], vector, strict=True)
+            ]
     return clusters
 
 

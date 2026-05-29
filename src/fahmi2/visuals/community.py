@@ -39,7 +39,7 @@ def _build_nx_graph(
         if graph.has_edge(edge.source_id, edge.target_id):
             graph[edge.source_id][edge.target_id][_WEIGHT] += 1.0
         else:
-            graph.add_edge(edge.source_id, edge.target_id, weight=1.0)
+            graph.add_edge(edge.source_id, edge.target_id, **{_WEIGHT: 1.0})
     return graph
 
 
@@ -59,6 +59,13 @@ def detect_communities(
     if not nodes:
         return (), ()
     graph = _build_nx_graph(nodes, edges)
+    # Choix V1 **assumé** : partition **plate** (un seul niveau) via
+    # ``louvain_communities`` — toutes les ``Community`` ont ``level=0`` /
+    # ``parent_id=None`` et un ``community_path`` à un seul entier. La spec évoquait un
+    # dendrogramme multi-niveaux (``louvain_partitions``) ; cette hiérarchie est
+    # **volontairement non livrée** (rendu plus simple, pas de besoin avéré). Les champs
+    # ``level``/``parent_id`` du domaine restent en place (compatibilité ascendante si
+    # la hiérarchie est introduite plus tard).
     partition = louvain_communities(graph, seed=LOUVAIN_SEED, weight=_WEIGHT)
     community_of: dict[str, int] = {}
     communities: list[Community] = []

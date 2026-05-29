@@ -24,15 +24,21 @@ from fahmi2.ui.status_labels import (
 from fahmi2.ui.viewmodels.cost_matrix import CostMatrixSnapshot
 from fahmi2.ui.viewmodels.pedagogy_progress import PedagogyStatsSnapshot
 from fahmi2.ui.viewmodels.pedagogy_state import PedagogyStateInfo
+from fahmi2.ui.widgets._progress_view import (
+    COST_DECIMALS,
+    LIVE_REFRESH_INTERVAL_MS,
+    STRIP_MARGIN_H,
+    STRIP_MARGIN_V,
+    STRIP_SPACING,
+    apply_banner_state,
+    elapsed_seconds,
+)
 from fahmi2.ui.widgets.cost_matrix_view import CostMatrixView
 from fahmi2.ui.widgets.stat_card import StatCard
 
 _BANNER_OBJECT_NAME = "pedagogyStateBanner"
-_COST_DECIMALS = 2
-_LIVE_REFRESH_INTERVAL_MS = 1000
 
-#: Snapshot vide. ``row_header`` est résolu à l'usage par
-#: :func:`empty_matrix` ci-dessous pour suivre la langue active.
+
 def empty_matrix() -> CostMatrixSnapshot:
     """Retourne un ``CostMatrixSnapshot`` vide avec en-tête traduit."""
     return CostMatrixSnapshot(
@@ -44,23 +50,6 @@ def empty_matrix() -> CostMatrixSnapshot:
         column_totals=(),
         grand_total=0.0,
     )
-
-
-def _elapsed_seconds(stats: PedagogyStatsSnapshot, now: datetime) -> float:
-    """Durée écoulée d'une exécution pédagogie.
-
-    Args:
-        stats: Indicateurs agrégés (horodatages de la dernière exécution).
-        now: Instant de référence (pour une exécution en cours).
-
-    Returns:
-        ``finished_at - started_at`` si terminé, ``now - started_at`` si en cours,
-        ``0`` si jamais lancé.
-    """
-    if stats.started_at is None:
-        return 0.0
-    end = stats.finished_at or now
-    return max(0.0, (end - stats.started_at).total_seconds())
 
 
 class PedagogyProgressView(QWidget):
@@ -83,8 +72,10 @@ class PedagogyProgressView(QWidget):
         strip = QWidget(self)
         strip.setObjectName("statsStrip")
         strip_layout = QHBoxLayout(strip)
-        strip_layout.setContentsMargins(12, 8, 12, 8)
-        strip_layout.setSpacing(10)
+        strip_layout.setContentsMargins(
+            STRIP_MARGIN_H, STRIP_MARGIN_V, STRIP_MARGIN_H, STRIP_MARGIN_V
+        )
+        strip_layout.setSpacing(STRIP_SPACING)
         self._card_status = StatCard(icon="●", title=self.tr("Statut"), parent=strip)
         self._card_supports = StatCard(
             icon="▤", title=self.tr("Supports"), parent=strip
@@ -109,7 +100,7 @@ class PedagogyProgressView(QWidget):
         self._row_count = 0
         self._last_stats: PedagogyStatsSnapshot | None = None
         self._timer = QTimer(self)
-        self._timer.setInterval(_LIVE_REFRESH_INTERVAL_MS)
+        self._timer.setInterval(LIVE_REFRESH_INTERVAL_MS)
         self._timer.timeout.connect(self._on_tick)
 
         layout.addWidget(self._banner)
@@ -152,7 +143,9 @@ class PedagogyProgressView(QWidget):
         )
         self._card_languages.set_value(format_languages(stats.languages))
         self._card_duration.set_value(
-            format_duration(_elapsed_seconds(stats, datetime.now(tz=UTC)))
+            format_duration(
+                elapsed_seconds(stats.started_at, stats.finished_at, datetime.now(tz=UTC))
+            )
         )
         if stats.cost_ceiling_usd is not None:
             cost_sub = self.tr("plafond ${ceiling:.2f}").format(
@@ -161,7 +154,7 @@ class PedagogyProgressView(QWidget):
         else:
             cost_sub = self.tr("sans plafond")
         self._card_cost.set_value(
-            f"${stats.total_cost_usd:.{_COST_DECIMALS}f}", cost_sub
+            f"${stats.total_cost_usd:.{COST_DECIMALS}f}", cost_sub
         )
         self._card_cost.set_accent(
             cost_accent(stats.total_cost_usd, stats.cost_ceiling_usd)
@@ -172,7 +165,13 @@ class PedagogyProgressView(QWidget):
         if self._last_stats is None:
             return
         self._card_duration.set_value(
-            format_duration(_elapsed_seconds(self._last_stats, datetime.now(tz=UTC)))
+            format_duration(
+                elapsed_seconds(
+                    self._last_stats.started_at,
+                    self._last_stats.finished_at,
+                    datetime.now(tz=UTC),
+                )
+            )
         )
 
     def set_state(self, info: PedagogyStateInfo) -> None:
@@ -183,7 +182,7 @@ class PedagogyProgressView(QWidget):
         """
         self._banner.setText(info.message)
         self._banner.setVisible(bool(info.message))
-        self._set_banner_state(info.state.value)
+        apply_banner_state(self._banner, info.state.value)
 
     def clear(self) -> None:
         """Réinitialise (aucun projet sélectionné)."""
@@ -194,7 +193,7 @@ class PedagogyProgressView(QWidget):
         self._row_count = 0
         self._banner.setText("")
         self._banner.setVisible(False)
-        self._set_banner_state("")
+        apply_banner_state(self._banner, "")
         for card in (
             self._card_status,
             self._card_supports,
@@ -204,18 +203,6 @@ class PedagogyProgressView(QWidget):
         ):
             card.set_value("—")
             card.set_accent(ACCENT_NEUTRAL)
-
-    def _set_banner_state(self, state: str) -> None:
-        """Applique la propriété QSS dynamique ``state`` et force le re-style.
-
-        Args:
-            state: Valeur de l'état (``""`` pour réinitialiser).
-        """
-        self._banner.setProperty("state", state)
-        style = self._banner.style()
-        if style is not None:
-            style.unpolish(self._banner)
-            style.polish(self._banner)
 
     def row_count(self) -> int:
         """Nombre de lignes (supports) affichées dans la matrice.

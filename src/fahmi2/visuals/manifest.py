@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -71,16 +70,17 @@ def compute_settings_hash(settings: VisualsSettings) -> str:
     return hashlib.sha256(serialized.encode(_ENCODING_UTF8)).hexdigest()
 
 
-@dataclass
 class VisualsManifest:
     """Manifeste de fraîcheur des livrables Visualisations (mutable, par langue).
 
-    Attributes:
-        entries: ``langue -> {settings_hash, structure_mtime_ns, glossary_mtime_ns,
-            content_mtime_ns}``.
+    Encapsule un dict privé ``langue -> {settings_hash, structure_mtime_ns,
+    glossary_mtime_ns, content_mtime_ns}`` ; on ne le manipule qu'via ``record`` /
+    ``is_fresh`` et la (dé)sérialisation ``to_dict`` / ``from_dict`` (même pattern que
+    ``PedagogyManifest``).
     """
 
-    entries: dict[str, dict[str, Any]] = field(default_factory=dict)
+    def __init__(self) -> None:
+        self._entries: dict[str, dict[str, Any]] = {}
 
     def is_fresh(
         self,
@@ -104,7 +104,7 @@ class VisualsManifest:
             ``True`` si tous les éléments enregistrés correspondent aux valeurs
             courantes ; ``False`` si absent ou périmé.
         """
-        entry = self.entries.get(language.value)
+        entry = self._entries.get(language.value)
         if entry is None:
             return False
         return (
@@ -132,12 +132,50 @@ class VisualsManifest:
             glossary_mtime_ns: mtime du glossaire master.
             content_mtime_ns: mtime du doc de la langue cible.
         """
-        self.entries[language.value] = {
+        self._entries[language.value] = {
             _KEY_SETTINGS: settings_hash,
             _KEY_STRUCTURE: structure_mtime_ns,
             _KEY_GLOSSARY: glossary_mtime_ns,
             _KEY_CONTENT: content_mtime_ns,
         }
+
+    def to_dict(self) -> dict[str, Any]:
+        """Sérialise le manifeste en dict JSON-compatible.
+
+        Returns:
+            ``{"version", "entries": {langue: {…}}}``.
+        """
+        return {"version": _MANIFEST_VERSION, "entries": dict(self._entries)}
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> VisualsManifest:
+        """Reconstruit un manifeste depuis un dict (tolérant aux entrées invalides).
+
+        Args:
+            payload: Dict issu de ``to_dict``.
+
+        Returns:
+            Le manifeste reconstruit (entrées illisibles ignorées).
+        """
+        manifest = cls()
+        entries = payload.get("entries", {})
+        if not isinstance(entries, dict):
+            return manifest
+        for lang_str, entry in entries.items():
+            try:
+                language = Language(lang_str)
+            except ValueError:
+                continue
+            if not isinstance(entry, dict):
+                continue
+            manifest.record(
+                language,
+                settings_hash=str(entry.get(_KEY_SETTINGS, "")),
+                structure_mtime_ns=entry.get(_KEY_STRUCTURE),
+                glossary_mtime_ns=entry.get(_KEY_GLOSSARY),
+                content_mtime_ns=entry.get(_KEY_CONTENT),
+            )
+        return manifest
 
 
 def read_manifest(visuals_dir: Path) -> VisualsManifest:
@@ -154,12 +192,9 @@ def read_manifest(visuals_dir: Path) -> VisualsManifest:
         return VisualsManifest()
     try:
         payload = json.loads(path.read_text(encoding=_ENCODING_UTF8))
-        entries = payload.get("entries", {})
-        if not isinstance(entries, dict):
-            return VisualsManifest()
-        return VisualsManifest(entries=entries)
     except (OSError, json.JSONDecodeError, ValueError, TypeError):
         return VisualsManifest()
+    return VisualsManifest.from_dict(payload)
 
 
 def write_manifest(
@@ -172,5 +207,4 @@ def write_manifest(
         visuals_dir: Dossier ``<emplacement>/visuals``.
         manifest: Manifeste à persister.
     """
-    payload = {"version": _MANIFEST_VERSION, "entries": manifest.entries}
-    artifacts.write_json_atomic(manifest_path(visuals_dir), payload)
+    artifacts.write_json_atomic(manifest_path(visuals_dir), manifest.to_dict())

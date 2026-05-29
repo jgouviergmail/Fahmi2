@@ -14,6 +14,10 @@ from importlib.resources import files
 _ASSETS_PACKAGE = "fahmi2.infra.export"
 _ASSETS_SUBDIR = "_assets/visuals"
 
+#: Feuille de tokens de design partagée par les deux livrables (source unique des
+#: couleurs clair/sombre), concaténée en tête de chaque CSS par les renderers.
+VISUALS_TOKENS_CSS = "visuals_tokens.css"
+
 #: Ordre d'inline (= ordre de chargement/enregistrement) des bibliothèques vendorisées.
 #: ``layout-base`` → ``cose-base`` → ``dagre`` → ``cytoscape`` (cœur) → extensions
 #: (``fcose`` / ``dagre`` / ``expand-collapse``) qui s'enregistrent sur le cœur.

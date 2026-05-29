@@ -8,45 +8,30 @@ l'orchestrateur, l'estimateur de coût et le calcul de fraîcheur de l'UI).
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from fahmi2.core.corpus import Chapter, parse_chapters
 from fahmi2.domain.enums import Language
-from fahmi2.domain.generation import consolidated_doc_filename
-from fahmi2.domain.glossary import Term, parse_glossary_master_terms
-from fahmi2.pipeline.workspace_layout import glossary_master_path
+from fahmi2.pipeline.generation_outputs import (
+    consolidated_doc_path,
+    glossary_master_mtime_ns,
+    load_glossary_master_terms,
+    source_mtime_ns,
+)
+
+#: Helpers de lecture des livrables de génération **partagés** (source unique dans
+#: ``pipeline/generation_outputs``), ré-exportés pour compatibilité des appelants.
+__all__ = [
+    "available_content_languages",
+    "consolidated_doc_path",
+    "glossary_master_mtime_ns",
+    "load_chapters",
+    "load_glossary_master_terms",
+    "resolve_content_language",
+    "source_mtime_ns",
+]
 
 _ENCODING_UTF8 = "utf-8"
-
-
-def consolidated_doc_path(generation_output_dir: Path, language: Language) -> Path:
-    """Chemin du document consolidé pour une langue.
-
-    Args:
-        generation_output_dir: Dossier des livrables de génération.
-        language: Langue.
-
-    Returns:
-        Le chemin ``…/consolidated.{lang}.md``.
-    """
-    return generation_output_dir / consolidated_doc_filename(language)
-
-
-def source_mtime_ns(generation_output_dir: Path, language: Language) -> int | None:
-    """mtime (ns) du doc consolidé, ou ``None`` s'il est absent.
-
-    Args:
-        generation_output_dir: Dossier des livrables de génération.
-        language: Langue.
-
-    Returns:
-        Le ``st_mtime_ns``, ou ``None``.
-    """
-    doc = consolidated_doc_path(generation_output_dir, language)
-    if not doc.exists():
-        return None
-    return doc.stat().st_mtime_ns
 
 
 def load_chapters(
@@ -117,41 +102,3 @@ def available_content_languages(generation_output_dir: Path) -> list[Language]:
         for language in Language
         if consolidated_doc_path(generation_output_dir, language).exists()
     ]
-
-
-def glossary_master_mtime_ns(generation_dir: Path) -> int | None:
-    """mtime (ns) du glossaire master, ou ``None`` s'il est absent.
-
-    Sert d'élément de fraîcheur (corpus du Dialogue, empreinte d'index sémantique) :
-    une régénération du glossaire doit invalider tout cache qui en dépend.
-
-    Args:
-        generation_dir: Dossier de travail de la génération (contient le master).
-
-    Returns:
-        Le ``st_mtime_ns`` du ``glossary_master.json``, ou ``None``.
-    """
-    path = glossary_master_path(generation_dir)
-    if not path.exists():
-        return None
-    return path.stat().st_mtime_ns
-
-
-def load_glossary_master_terms(generation_dir: Path) -> tuple[Term, ...]:
-    """Charge le glossaire master (langue source) depuis le disque.
-
-    Lit ``<generation_dir>/glossary_master.json`` produit par la phase 2 — comme
-    le pipeline (``load_glossary_master``). Sert l'injection terminologique des
-    prompts des générateurs LLM.
-
-    Args:
-        generation_dir: Dossier de travail de la génération (contient le master).
-
-    Returns:
-        Les termes (tuple vide si le master n'existe pas).
-    """
-    path = glossary_master_path(generation_dir)
-    if not path.exists():
-        return ()
-    payload = json.loads(path.read_text(encoding=_ENCODING_UTF8))
-    return parse_glossary_master_terms(payload)

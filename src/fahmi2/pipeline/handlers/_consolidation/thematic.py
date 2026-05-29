@@ -30,10 +30,12 @@ import json
 import shutil
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 from fahmi2.core.concurrency import map_bounded
 from fahmi2.domain.enums import PhaseId
+from fahmi2.domain.ids import SourceId
 from fahmi2.infra.llm.interface import JSON_OBJECT_RESPONSE_FORMAT
 from fahmi2.pipeline.handlers._base import (
     invoke_llm,
@@ -605,6 +607,9 @@ class ThematicConsolidationStrategy(ConsolidationStrategy):
         fresh = not stale
 
         # T1 — relevé factuel par source (ou rechargement si frais).
+        # ``per_source_costs`` ventile uniquement T1 (la seule étape
+        # attribuable à une source précise — T2/T3/T4 sont batch par nature).
+        per_source_costs: dict[SourceId, float] = {}
         facts_path = base_dir / FACTS_MASTER_FILENAME
         if fresh and facts_path.exists():
             payload = json.loads(facts_path.read_text(encoding="utf-8"))
@@ -617,9 +622,12 @@ class ThematicConsolidationStrategy(ConsolidationStrategy):
                 pause_token=ctx.pause_token,
             )
             elements = []
-            for els, cost in ledger_results:
+            for (source_id_str, _md), (els, cost) in zip(
+                structured_by_source.items(), ledger_results, strict=True
+            ):
                 elements.extend(els)
                 total_cost += cost
+                per_source_costs[SourceId(value=source_id_str)] = cost
             ctx.artifacts.write_json_atomic(
                 facts_path, {"elements": [asdict(el) for el in elements]}
             )
@@ -691,4 +699,8 @@ class ThematicConsolidationStrategy(ConsolidationStrategy):
         meta, meta_cost = _produce_meta(ctx, global_title, chapters_plan)
         total_cost += meta_cost
         markdown = assemble_document(meta, chapters)
-        return ConsolidationResult(consolidated_markdown=markdown, cost_usd=total_cost)
+        return ConsolidationResult(
+            consolidated_markdown=markdown,
+            cost_usd=total_cost,
+            per_source_costs=MappingProxyType(per_source_costs),
+        )

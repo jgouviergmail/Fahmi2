@@ -17,13 +17,16 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 from fahmi2.core.errors.exceptions import StorageError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.core.slugify import slugify_anchor
+from fahmi2.domain.ids import SourceId
 from fahmi2.domain.source import SourceExecution
 from fahmi2.pipeline.phase_handler import PhaseContext
 
@@ -55,11 +58,18 @@ class ConsolidationResult:
 
     Attributes:
         consolidated_markdown: Document consolidé final en langue source.
-        cost_usd: Coût cumulé de tous les appels LLM de la stratégie.
+        cost_usd: Coût cumulé total (per-source attribué + résidu batch).
+        per_source_costs: Ventilation per-source du coût attribuable (T1
+            fact-ledger pour la stratégie thématique, video-summary pour la
+            stratégie ordonnée). Mapping vide pour les futurs cas où aucune
+            opération n'est attribuable.
     """
 
     consolidated_markdown: str
     cost_usd: float
+    per_source_costs: Mapping[SourceId, float] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
 
 
 @dataclass(frozen=True)

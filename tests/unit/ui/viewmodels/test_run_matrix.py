@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 from fahmi2.domain.enums import PhaseId, PhaseStatus, RunStatus, SourceKind
@@ -129,6 +130,47 @@ def test_batch_phase_cost_visible_on_first_row_only(
     # Row totals des 2 lignes : aucune ne doit inclure le coût batch.
     assert snap.row_totals[0] == 0.0
     assert snap.row_totals[1] == 0.0
+
+
+def test_batch_phase_with_per_source_attribution_renders_per_cell(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    """Phase batch mixte (phase 5/6) avec ``per_source_costs`` : chaque cellule
+    affiche le coût attribué à sa source. Les cellules de sources non
+    attribuées (cas où le ``per_source_costs`` est partiel) restent à
+    ``None``.
+
+    Comportement clé : le total de colonne reste le coût batch unique (peut
+    être supérieur à la somme des cellules visibles → résidu non
+    attribuable). Les row_totals incluent les attributions per-source.
+    """
+    state, run, registry = _setup(tmp_path, make_generation_settings)
+    # On simule une attribution sur la 1ʳᵉ source (typique : ledger pour
+    # source 0 a coûté 0.07, total batch = 0.20 dont 0.13 non attribuable).
+    state.upsert_phase_execution(
+        run.id,
+        PhaseExecution(
+            phase_id=PhaseId.GLOSSARY_RECONCILIATION,
+            status=PhaseStatus.SUCCEEDED,
+            cost_usd=0.20,
+            per_source_costs=MappingProxyType({run.sources[0].source_id: 0.07}),
+        ),
+        source_id=None,
+    )
+    vm = RunMatrixViewModel(state=state, registry=registry)
+    snap = vm.cost_matrix_snapshot(run)
+    # Source 0 : cellule porte la part attribuée.
+    assert snap.cells[0][2].cost_usd == 0.07
+    # Source 1 : pas d'attribution → None.
+    assert snap.cells[1][2].cost_usd is None
+    # Total colonne : coût batch entier (autorité, inclut résidu non attribué).
+    assert snap.column_totals[2] == 0.20
+    # row_totals : source 0 voit sa part, source 1 ne voit rien.
+    assert snap.row_totals[0] == 0.07
+    assert snap.row_totals[1] == 0.0
+    # grand_total = somme row_totals + batch (qui inclut tout) ;
+    # le résidu non attribué (0.20 - 0.07 = 0.13) n'est pas perdu.
+    assert snap.grand_total == 0.07 + 0.20
 
 
 def test_pending_batch_phase_shows_no_cost_anywhere(

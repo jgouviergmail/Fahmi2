@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 from fahmi2.core.concurrency import map_bounded
@@ -32,6 +33,7 @@ from fahmi2.core.errors.exceptions import LLMError, StorageError
 from fahmi2.core.errors.severity import Severity
 from fahmi2.domain.enums import Language, PhaseId
 from fahmi2.domain.generation import consolidated_doc_filename, glossary_doc_filename
+from fahmi2.domain.ids import SourceId
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.source import SourceExecution
 from fahmi2.infra.llm.interface import JSON_OBJECT_RESPONSE_FORMAT
@@ -55,11 +57,18 @@ _GLOSSARY_LOCALIZATION_TEMPLATE = "phase_6_glossary_localization"
 
 @dataclass(frozen=True)
 class _TranslationTask:
-    """Une traduction LLM à effectuer : document source → fichier cible."""
+    """Une traduction LLM à effectuer : document source → fichier cible.
+
+    Le ``source_id`` permet d'attribuer le coût à la source quand la tâche
+    porte sur un document per-source (transcription structurée d'une vidéo
+    / d'un audio / d'un document texte). Reste ``None`` pour les tâches
+    cross-source (traduction du consolidé global).
+    """
 
     source_markdown: str
     target: Language
     target_path: Path
+    source_id: SourceId | None
 
 
 @dataclass(frozen=True)
@@ -179,11 +188,22 @@ class Phase6TranslationHandler(PhaseHandler):
             max_workers=ctx.settings.parallelism.llm_workers,
             pause_token=ctx.pause_token,
         )
+        # Ventilation per-source du coût des traductions : la traduction du
+        # consolidé global et la localisation du glossaire ne sont pas
+        # attribuables (résidu batch incorporé dans ``cost_usd`` mais hors
+        # ``per_source_costs``).
+        per_source_costs: dict[SourceId, float] = {}
+        for task, cost in zip(tasks, costs, strict=True):
+            if task.source_id is not None:
+                per_source_costs[task.source_id] = (
+                    per_source_costs.get(task.source_id, 0.0) + cost
+                )
         return build_succeeded_phase(
             phase_id=self.phase_id,
             artifact_path=ctx.output_dir,
             started_at=started_at,
             cost_usd=localization_cost + sum(costs),
+            per_source_costs=MappingProxyType(per_source_costs),
         )
 
     def _collect_doc_tasks(
@@ -217,14 +237,20 @@ class Phase6TranslationHandler(PhaseHandler):
             if is_source:
                 ctx.artifacts.write_text_atomic(target_path, structured_md)
             else:
-                tasks.append(_TranslationTask(structured_md, target, target_path))
+                tasks.append(
+                    _TranslationTask(
+                        structured_md, target, target_path, SourceId(value=source_id)
+                    )
+                )
 
         consolidated_target = ctx.output_dir / consolidated_doc_filename(target)
         if is_source:
             ctx.artifacts.write_text_atomic(consolidated_target, consolidated_master_md)
         else:
             tasks.append(
-                _TranslationTask(consolidated_master_md, target, consolidated_target)
+                _TranslationTask(
+                    consolidated_master_md, target, consolidated_target, None
+                )
             )
 
     def _run_translation(

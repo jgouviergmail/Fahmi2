@@ -45,6 +45,43 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   accepts your previous array-root version too, but you lose the
   provider-side escaping guarantee).
 
+### Added — Per-source cost attribution for batch phases (Generation matrix)
+
+- Phases 5 (consolidation) and 6 (translation) are batch phases but have
+  internal operations that ARE attributable to a specific source:
+  - Phase 5 ordered: T1 video-summary per source.
+  - Phase 5 thematic: T1 fact-ledger per source.
+  - Phase 6: translation per (source × language).
+- The matrix now displays the per-source attributable cost on each cell
+  for these phases, instead of falling back to the "first-cell-only"
+  rendering (which remains correct for purely batch phases 2 and 7).
+- Cross-cutting refactor introducing `PhaseExecution.per_source_costs`
+  (`Mapping[SourceId, float]`, immutable via `MappingProxyType`,
+  defaulting to empty). Persisted in a new SQLite column
+  `phase_executions.per_source_costs_json` (NULL = no attribution, full
+  back-compat). Soft migration `ALTER TABLE ADD COLUMN`.
+- Producer side: phase 5 strategies (`ordered.py`, `thematic.py`) and
+  phase 6 (`phase_6_translation.py`) now populate the dict from their
+  parallel per-source loops. The strategy result type
+  (`ConsolidationResult`) carries the dict alongside the total.
+  `_TranslationTask` is enriched with `source_id: SourceId | None`
+  (None for cross-source tasks like the consolidated translation, which
+  remain in the batch residue).
+- Consumer side: `RunMatrixViewModel._build` now picks
+  `pc.per_source_costs[source_id]` for each cell when available, fully
+  reusing the existing display path. The column total stays the
+  authoritative `cost_usd` (includes per-source attributed + residue
+  like glossary localisation, thematic plan, meta). If the vertical
+  sum is below the column total, that difference is the non-attributable
+  batch part.
+- Tests:
+  - `test_batch_phase_with_per_source_attribution_renders_per_cell`
+    (UI viewmodel).
+  - `test_phase_execution_per_source_costs_round_trip` (SQLite).
+  - `test_phase_execution_without_per_source_costs_is_null_in_db`
+    (rétrocompat).
+- 1213 tests passing (+3), ruff/mypy clean.
+
 ### Fixed — Generation matrix: batch phase cost no longer hidden behind a tooltip
 
 - Batch phases (Glossary, Consolidation, Translation, Coherence) have a

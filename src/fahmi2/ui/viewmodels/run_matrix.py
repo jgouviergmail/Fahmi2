@@ -102,12 +102,22 @@ class RunMatrixViewModel:
 
         Phases per-source : chaque cellule porte son coût propre.
 
-        Phases batch : un unique coût existe en base (``source_id=NULL``)
-        partagé par toutes les sources. Pour le rendre visible sans risque
-        d'addition mentale erronée (12 lignes × coût ≠ total réel), on
-        l'affiche **uniquement sur la cellule de la 1ʳᵉ ligne** ; les autres
-        restent à ``None`` (rendues ``—``). Le total de colonne reste la
-        valeur batch unique, qui sert d'autorité.
+        Phases batch : un unique ``PhaseExecution`` est persisté en base
+        (``source_id=NULL``) avec son coût total et, pour les phases batch
+        **mixtes** (phase 5 video-summary / fact-ledger, phase 6 traduction
+        per source × langue), une ventilation ``per_source_costs``. Rendu :
+
+        - Si une ventilation existe pour cette source → la cellule affiche
+          le coût attribué à la source.
+        - Sinon (phase batch pure : 2, 7 ; ou phase batch mixte mais aucune
+          attribution pour cette source) → on retombe sur le rendu
+          historique : coût batch visible **uniquement sur la 1ʳᵉ ligne**
+          (avoid d'inviter le lecteur à multiplier verticalement par N).
+
+        Le **total de colonne** reste le coût batch unique (``cost_usd``),
+        qui sert toujours d'autorité. Si la somme verticale des cellules
+        visibles est inférieure au total → c'est la part batch non
+        attribuable (résidu : localisation glossaire, plan thématique, etc.).
         """
         column_labels = tuple(_phase_short_label(p) for p, _ in phases)
         grid: list[tuple[CostMatrixCell, ...]] = []
@@ -123,9 +133,14 @@ class RunMatrixViewModel:
                 if per_source:
                     row_total += cost
                     cell_cost = cost if pc is not None else None
-                elif index == 0 and pc is not None:
-                    # Coût batch visible sur la 1ʳᵉ ligne uniquement
-                    # (cf. docstring de la méthode).
+                elif pc is not None and source.source_id in pc.per_source_costs:
+                    # Phase batch mixte avec attribution pour cette source.
+                    attributed = pc.per_source_costs[source.source_id]
+                    row_total += attributed
+                    cell_cost = attributed
+                elif index == 0 and pc is not None and not pc.per_source_costs:
+                    # Phase batch pure (pas d'attribution per-source) : coût
+                    # batch visible sur la 1ʳᵉ ligne uniquement.
                     cell_cost = cost
                 else:
                     cell_cost = None

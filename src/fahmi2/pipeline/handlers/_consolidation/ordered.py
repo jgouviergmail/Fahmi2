@@ -17,10 +17,12 @@ déterministes (cf. ``_base``).
 from __future__ import annotations
 
 import json
+from types import MappingProxyType
 from typing import Any
 
 from fahmi2.core.concurrency import map_bounded
 from fahmi2.domain.enums import PhaseId
+from fahmi2.domain.ids import SourceId
 from fahmi2.infra.llm.interface import JSON_OBJECT_RESPONSE_FORMAT
 from fahmi2.pipeline.handlers._base import (
     invoke_llm,
@@ -68,17 +70,29 @@ class OrderedConsolidationStrategy(ConsolidationStrategy):
             pause_token=ctx.pause_token,
         )
         summaries = [summary for summary, _ in summary_results]
-        total_cost = sum(cost for _, cost in summary_results)
+        # Ventilation per-source du coût T1 (video-summary) : utile à la
+        # matrice UI pour montrer le coût attribué à chaque source plutôt
+        # qu'un total batch opaque.
+        per_source_costs: dict[SourceId, float] = {}
+        for (source_id_str, _md), (_summary, cost) in zip(
+            structured_by_source.items(), summary_results, strict=True
+        ):
+            per_source_costs[SourceId(value=source_id_str)] = cost
+        total_cost = sum(per_source_costs.values())
 
         meta, meta_cost = self._produce_meta(ctx, summaries)
-        total_cost += meta_cost
+        total_cost += meta_cost  # part batch (méta) non attribuable per-source
 
         titles_by_source = {
             s.get("source_id", ""): s.get("title", "") for s in summaries
         }
         chapters = build_chapters(structured_by_source, titles_by_source)
         markdown = assemble_document(meta, chapters)
-        return ConsolidationResult(consolidated_markdown=markdown, cost_usd=total_cost)
+        return ConsolidationResult(
+            consolidated_markdown=markdown,
+            cost_usd=total_cost,
+            per_source_costs=MappingProxyType(per_source_costs),
+        )
 
     def _summarize_one(
         self, ctx: PhaseContext, item: tuple[str, str]

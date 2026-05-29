@@ -89,6 +89,7 @@ class Phase5ConsolidationHandler(PhaseHandler):
             artifact_path=out_path,
             started_at=started_at,
             cost_usd=result.cost_usd,
+            per_source_costs=result.per_source_costs,
         )
 
 

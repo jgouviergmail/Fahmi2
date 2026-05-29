@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from collections.abc import Mapping
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from pathlib import Path
+from types import MappingProxyType
 
 from fahmi2.core.errors.error_info import ErrorInfo
 from fahmi2.domain.enums import PhaseId, PhaseStatus, ReasoningEffort
+from fahmi2.domain.ids import SourceId
 
 _TEMPERATURE_MIN = 0.0
 _TEMPERATURE_MAX = 2.0
@@ -51,9 +54,15 @@ class PhaseConfig:
             raise ValueError(f"max_retries must be >= 0, got {self.max_retries}")
 
 
+#: Mapping vide partagé : sentinel pour ``PhaseExecution.per_source_costs``
+#: quand aucune ventilation per-source n'est attribuée. ``MappingProxyType``
+#: garantit l'immutabilité (cohérent avec ``@dataclass(frozen=True)``).
+_EMPTY_PER_SOURCE_COSTS: Mapping[SourceId, float] = MappingProxyType({})
+
+
 @dataclass(frozen=True)
 class PhaseExecution:
-    """État d'exécution d'une phase (pour une vidéo ou pour le batch).
+    """État d'exécution d'une phase (pour une source ou pour le batch).
 
     Attributes:
         phase_id: Identifiant de la phase.
@@ -62,7 +71,18 @@ class PhaseExecution:
         finished_at: Timestamp de fin (None si non terminée).
         artifact_path: Chemin de l'artefact produit (None si non produit).
         retry_count: Nombre de tentatives échouées avant la tentative courante.
-        cost_usd: Coût cumulé en USD pour cette phase.
+        cost_usd: Coût cumulé en USD pour cette phase. Pour une phase batch
+            mixte (phases 5, 6) c'est le **total** (per-source attribué +
+            résidu non attribuable) — ``per_source_costs`` ventile la part
+            attribuable.
+        per_source_costs: Ventilation per-source du coût pour les phases batch
+            qui ont des opérations attribuables à une source précise (phase 5
+            T1 fact-ledger / video-summary, phase 6 traduction per source ×
+            langue). ``Mapping`` immuable, vide par défaut pour les phases
+            per-source pures et les phases batch sans ventilation (2, 7). La
+            **somme** des valeurs ne dépasse jamais ``cost_usd`` (le reste est
+            la part batch non attribuable, ex. localisation du glossaire en
+            phase 6, plan thématique + meta en phase 5).
         error: ``ErrorInfo`` si la phase a échoué, sinon ``None``.
     """
 
@@ -73,6 +93,9 @@ class PhaseExecution:
     artifact_path: Path | None = None
     retry_count: int = 0
     cost_usd: float = 0.0
+    per_source_costs: Mapping[SourceId, float] = field(
+        default_factory=lambda: _EMPTY_PER_SOURCE_COSTS
+    )
     error: ErrorInfo | None = None
 
     def with_status(self, status: PhaseStatus) -> PhaseExecution:

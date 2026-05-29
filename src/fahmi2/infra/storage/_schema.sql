@@ -39,17 +39,21 @@ CREATE TABLE IF NOT EXISTS sources (
 CREATE INDEX IF NOT EXISTS idx_sources_run_id ON sources (run_id);
 
 CREATE TABLE IF NOT EXISTS phase_executions (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  run_id        TEXT NOT NULL,
-  phase_id      TEXT NOT NULL,
-  source_id     TEXT,
-  status        TEXT NOT NULL,
-  started_at    TEXT,
-  finished_at   TEXT,
-  artifact_path TEXT,
-  retry_count   INTEGER NOT NULL DEFAULT 0,
-  cost_usd      REAL NOT NULL DEFAULT 0,
-  error_json    TEXT,
+  id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+  run_id                 TEXT NOT NULL,
+  phase_id               TEXT NOT NULL,
+  source_id              TEXT,
+  status                 TEXT NOT NULL,
+  started_at             TEXT,
+  finished_at            TEXT,
+  artifact_path          TEXT,
+  retry_count            INTEGER NOT NULL DEFAULT 0,
+  cost_usd               REAL NOT NULL DEFAULT 0,
+  -- Ventilation per-source du coût pour les phases batch qui ont des
+  -- opérations attribuables (phase 5 fact-ledger / summary, phase 6
+  -- traduction per source × langue). JSON {"source_id": cost, ...} ou NULL.
+  per_source_costs_json  TEXT,
+  error_json             TEXT,
   UNIQUE (run_id, phase_id, source_id),
   FOREIGN KEY (run_id) REFERENCES runs (id) ON DELETE CASCADE
 );

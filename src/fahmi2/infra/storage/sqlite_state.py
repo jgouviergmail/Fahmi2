@@ -20,11 +20,12 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
-from dataclasses import dataclass, replace
+from collections.abc import Mapping
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from importlib.resources import files
 from pathlib import Path
-from types import TracebackType
+from types import MappingProxyType, TracebackType
 from typing import Any
 
 from fahmi2.core.errors.error_info import ErrorInfo
@@ -87,8 +88,12 @@ class PhaseCell:
         phase_id: Phase.
         source_id: Source (``None`` pour une phase batch).
         status: Statut.
-        cost_usd: Coût en USD.
+        cost_usd: Coût en USD (total : per-source attribué + résidu batch).
         retry_count: Nombre de retries.
+        per_source_costs: Ventilation per-source du coût pour les phases batch
+            mixtes (5, 6). Mapping immuable, vide si la phase n'attribue rien
+            ou si elle est per-source pure / batch pur. Cf.
+            ``PhaseExecution.per_source_costs``.
     """
 
     phase_id: PhaseId
@@ -96,6 +101,46 @@ class PhaseCell:
     status: PhaseStatus
     cost_usd: float
     retry_count: int
+    per_source_costs: Mapping[SourceId, float] = field(
+        default_factory=lambda: _EMPTY_PER_SOURCE_COSTS_CELL
+    )
+
+
+_EMPTY_PER_SOURCE_COSTS_CELL: Mapping[SourceId, float] = MappingProxyType({})
+
+
+def _serialize_per_source_costs(
+    per_source_costs: Mapping[SourceId, float],
+) -> str | None:
+    """Sérialise la ventilation per-source en JSON (``None`` si vide)."""
+    if not per_source_costs:
+        return None
+    return json.dumps(
+        {sid.value: cost for sid, cost in per_source_costs.items()},
+        sort_keys=True,
+        ensure_ascii=False,
+    )
+
+
+def _deserialize_per_source_costs(
+    raw: str | None,
+) -> Mapping[SourceId, float]:
+    """Désérialise un JSON ``{source_id: cost}`` en mapping immuable.
+
+    Toléant : ``None`` ou JSON invalide → mapping vide (pas d'exception, on
+    veut un retour gracieux pour un blob historique).
+    """
+    if raw is None:
+        return _EMPTY_PER_SOURCE_COSTS_CELL
+    try:
+        payload = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return _EMPTY_PER_SOURCE_COSTS_CELL
+    if not isinstance(payload, dict):
+        return _EMPTY_PER_SOURCE_COSTS_CELL
+    return MappingProxyType(
+        {SourceId(value=str(k)): float(v) for k, v in payload.items()}
+    )
 
 
 def _datetime_to_iso(value: datetime) -> str:
@@ -828,6 +873,7 @@ class SqliteState:
             else None,
             phase_execution.retry_count,
             phase_execution.cost_usd,
+            _serialize_per_source_costs(phase_execution.per_source_costs),
             _serialize_error_info(phase_execution.error),
         )
         if source_id is None:
@@ -842,8 +888,9 @@ class SqliteState:
                 """
                 INSERT INTO phase_executions (
                     run_id, phase_id, source_id, status, started_at, finished_at,
-                    artifact_path, retry_count, cost_usd, error_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    artifact_path, retry_count, cost_usd, per_source_costs_json,
+                    error_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 params,
             )
@@ -852,16 +899,18 @@ class SqliteState:
                 """
                 INSERT INTO phase_executions (
                     run_id, phase_id, source_id, status, started_at, finished_at,
-                    artifact_path, retry_count, cost_usd, error_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    artifact_path, retry_count, cost_usd, per_source_costs_json,
+                    error_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(run_id, phase_id, source_id) DO UPDATE SET
-                    status        = excluded.status,
-                    started_at    = excluded.started_at,
-                    finished_at   = excluded.finished_at,
-                    artifact_path = excluded.artifact_path,
-                    retry_count   = excluded.retry_count,
-                    cost_usd      = excluded.cost_usd,
-                    error_json    = excluded.error_json
+                    status                = excluded.status,
+                    started_at            = excluded.started_at,
+                    finished_at           = excluded.finished_at,
+                    artifact_path         = excluded.artifact_path,
+                    retry_count           = excluded.retry_count,
+                    cost_usd              = excluded.cost_usd,
+                    per_source_costs_json = excluded.per_source_costs_json,
+                    error_json            = excluded.error_json
                 """,
                 params,
             )
@@ -904,7 +953,8 @@ class SqliteState:
         """
         rows = self._get_connection().execute(
             "SELECT phase_id, status, started_at, finished_at, artifact_path, "
-            "retry_count, cost_usd, error_json FROM phase_executions "
+            "retry_count, cost_usd, per_source_costs_json, error_json "
+            "FROM phase_executions "
             "WHERE run_id = ? ORDER BY id",
             (run_id.value,),
         ).fetchall()
@@ -920,7 +970,8 @@ class SqliteState:
             Une ``PhaseCell`` par exécution (``source_id`` ``None`` = phase batch).
         """
         rows = self._get_connection().execute(
-            "SELECT phase_id, source_id, status, cost_usd, retry_count "
+            "SELECT phase_id, source_id, status, cost_usd, retry_count, "
+            "per_source_costs_json "
             "FROM phase_executions WHERE run_id = ? ORDER BY id",
             (run_id.value,),
         ).fetchall()
@@ -931,6 +982,7 @@ class SqliteState:
                 status=PhaseStatus(row[2]),
                 cost_usd=row[3],
                 retry_count=row[4],
+                per_source_costs=_deserialize_per_source_costs(row[5]),
             )
             for row in rows
         ]
@@ -1019,6 +1071,16 @@ class SqliteState:
         # générés (glossary_master.json).
         conn.execute("DROP TABLE IF EXISTS glossary_terms")
 
+        # Ajout de la colonne ``per_source_costs_json`` aux ``phase_executions``
+        # (ventilation per-source du coût pour les phases batch mixtes —
+        # phases 5/6). Rétrocompatible : NULL = pas de ventilation, l'UI
+        # retombe sur le rendu "coût batch global" historique.
+        pe_cols = {r[1] for r in conn.execute("PRAGMA table_info(phase_executions)")}
+        if "per_source_costs_json" not in pe_cols:
+            conn.execute(
+                "ALTER TABLE phase_executions ADD COLUMN per_source_costs_json TEXT"
+            )
+
         # Nettoyage rétroactif : SQLite a permis l'accumulation de doublons sur
         # les phases batch (source_id NULL) tant que upsert_phase_execution ne
         # gérait pas explicitement le NULL. On garde uniquement la ligne la
@@ -1093,6 +1155,7 @@ class SqliteState:
             artifact_path_str,
             retry_count,
             cost_usd,
+            per_source_costs_json,
             error_json,
         ) = row
         return PhaseExecution(
@@ -1103,6 +1166,7 @@ class SqliteState:
             artifact_path=Path(artifact_path_str) if artifact_path_str else None,
             retry_count=retry_count,
             cost_usd=cost_usd,
+            per_source_costs=_deserialize_per_source_costs(per_source_costs_json),
             error=_deserialize_error_info(error_json),
         )
 

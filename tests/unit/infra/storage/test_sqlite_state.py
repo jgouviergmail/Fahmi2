@@ -4,6 +4,7 @@ import json
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 import pytest
@@ -399,6 +400,69 @@ def test_list_phase_cells_returns_status_and_cost(
         assert by_key[(PhaseId.STT, vid)].cost_usd == 0.07
         assert by_key[(PhaseId.STT, vid)].status is PhaseStatus.SUCCEEDED
         assert by_key[(PhaseId.GLOSSARY_RECONCILIATION, None)].cost_usd == 0.20
+
+
+def test_phase_execution_per_source_costs_round_trip(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    """Roundtrip de la ventilation per-source du coût pour une phase batch
+    mixte (phase 5 fact-ledger, phase 6 traduction). Couvre :
+    - écriture : sérialisation JSON ``{source_id: cost}`` côté upsert.
+    - lecture : désérialisation côté ``list_phase_executions`` et
+      ``list_phase_cells`` en ``Mapping[SourceId, float]`` immuable.
+    """
+    with SqliteState(tmp_path / "t.db") as state:
+        project = _make_project(make_generation_settings)
+        state.upsert_project(project)
+        run = _make_run(project)
+        state.upsert_run(run)
+        s1, s2 = SourceId.new(), SourceId.new()
+        state.upsert_phase_execution(
+            run.id,
+            PhaseExecution(
+                phase_id=PhaseId.TRANSLATION,
+                status=PhaseStatus.SUCCEEDED,
+                cost_usd=0.50,  # total : 0.12 + 0.18 + 0.20 résidu (loc glossaire)
+                per_source_costs=MappingProxyType({s1: 0.12, s2: 0.18}),
+            ),
+            source_id=None,
+        )
+
+        # Côté list_phase_executions.
+        execs = state.list_phase_executions(run.id)
+        assert len(execs) == 1
+        loaded = execs[0]
+        assert loaded.cost_usd == 0.50
+        assert dict(loaded.per_source_costs) == {s1: 0.12, s2: 0.18}
+
+        # Côté list_phase_cells.
+        cells = state.list_phase_cells(run.id)
+        cell = next(c for c in cells if c.phase_id is PhaseId.TRANSLATION)
+        assert dict(cell.per_source_costs) == {s1: 0.12, s2: 0.18}
+
+
+def test_phase_execution_without_per_source_costs_is_null_in_db(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    """Rétrocompat : une ``PhaseExecution`` sans ventilation persiste avec
+    ``per_source_costs_json=NULL``, et se relit en mapping vide."""
+    with SqliteState(tmp_path / "t.db") as state:
+        project = _make_project(make_generation_settings)
+        state.upsert_project(project)
+        run = _make_run(project)
+        state.upsert_run(run)
+        state.upsert_phase_execution(
+            run.id,
+            PhaseExecution(
+                phase_id=PhaseId.TERM_EXTRACTION,
+                status=PhaseStatus.SUCCEEDED,
+                cost_usd=0.07,
+            ),
+            source_id=SourceId.new(),
+        )
+        execs = state.list_phase_executions(run.id)
+        assert len(execs) == 1
+        assert dict(execs[0].per_source_costs) == {}
 
 
 def test_delete_runs_for_project_keeps_project(

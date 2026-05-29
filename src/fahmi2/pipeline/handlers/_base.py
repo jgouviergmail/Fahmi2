@@ -11,11 +11,14 @@ Mutualise :
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 from fahmi2.domain.enums import Language, PhaseId, PhaseStatus, StylePreset
+from fahmi2.domain.ids import SourceId
 from fahmi2.domain.languages import language_label as _language_label
 from fahmi2.domain.phase import PhaseExecution
 from fahmi2.infra.llm.interface import LLMResponse
@@ -127,6 +130,7 @@ def build_succeeded_phase(
     artifact_path: Path,
     started_at: datetime,
     cost_usd: float,
+    per_source_costs: Mapping[SourceId, float] | None = None,
 ) -> PhaseExecution:
     """Construit une ``PhaseExecution`` SUCCEEDED standard.
 
@@ -134,11 +138,21 @@ def build_succeeded_phase(
         phase_id: Phase.
         artifact_path: Chemin de l'artefact produit.
         started_at: Timestamp de début.
-        cost_usd: Coût cumulé.
+        cost_usd: Coût cumulé total (per-source attribué + résidu batch).
+        per_source_costs: Ventilation per-source optionnelle (phases batch
+            mixtes — phase 5 fact-ledger / video-summary, phase 6 traduction
+            per source × langue). ``None`` = pas de ventilation (phase per-
+            source pure ou batch pur). Le mapping est gelé en
+            ``MappingProxyType`` à la construction.
 
     Returns:
         Une ``PhaseExecution`` finalisée.
     """
+    frozen = (
+        MappingProxyType(dict(per_source_costs))
+        if per_source_costs is not None
+        else MappingProxyType({})
+    )
     return PhaseExecution(
         phase_id=phase_id,
         status=PhaseStatus.SUCCEEDED,
@@ -146,6 +160,7 @@ def build_succeeded_phase(
         finished_at=datetime.now(tz=UTC),
         artifact_path=artifact_path,
         cost_usd=cost_usd,
+        per_source_costs=frozen,
     )
 
 

@@ -9,7 +9,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from fahmi2.domain.enums import DiagramType, EdgeType, Language, NodeType
+from fahmi2.domain.enums import (
+    DiagramType,
+    EdgeType,
+    Language,
+    NodeType,
+    SupportDensity,
+)
 
 #: Types de diagramme dont la charge utile est un graphe (nodes + links).
 _GRAPH_DIAGRAM_TYPES: frozenset[DiagramType] = frozenset(
@@ -20,6 +26,9 @@ _GRAPH_DIAGRAM_TYPES: frozenset[DiagramType] = frozenset(
         DiagramType.CYCLE,
     }
 )
+
+#: Nombre de workers LLM par défaut (aligné sur la Pédagogie).
+_DEFAULT_VISUALS_LLM_WORKERS = 16
 
 
 @dataclass(frozen=True)
@@ -260,3 +269,35 @@ class DiagramBoard:
 
     diagrams: tuple[Diagram, ...]
     language: Language
+
+
+@dataclass(frozen=True)
+class VisualsSettings:
+    """Paramètres de la fonctionnalité Visualisations.
+
+    Attributes:
+        produce_knowledge_map: Produire la carte de connaissances (Doc A).
+        produce_diagrams: Produire la galerie de diagrammes (Doc B).
+        density: Densité (volume) des nœuds/diagrammes ; réutilise ``SupportDensity``.
+        diagram_types: Types de diagrammes autorisés (sous-ensemble de ``DiagramType``).
+        llm_workers: Workers LLM concurrents (>= 1).
+        cost_ceiling_usd: Plafond de coût (``None`` = pas de plafond).
+
+    Raises:
+        ValueError: Si ``llm_workers < 1`` ou ``cost_ceiling_usd < 0``.
+    """
+
+    produce_knowledge_map: bool = True
+    produce_diagrams: bool = True
+    density: SupportDensity = SupportDensity.STANDARD
+    diagram_types: frozenset[DiagramType] = frozenset(DiagramType)
+    llm_workers: int = _DEFAULT_VISUALS_LLM_WORKERS
+    cost_ceiling_usd: float | None = None
+
+    def __post_init__(self) -> None:
+        if self.llm_workers < 1:
+            raise ValueError("llm_workers must be >= 1")
+        if self.cost_ceiling_usd is not None and self.cost_ceiling_usd < 0:
+            raise ValueError(
+                f"cost_ceiling_usd must be >= 0 or None, got {self.cost_ceiling_usd}"
+            )

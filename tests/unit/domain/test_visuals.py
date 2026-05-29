@@ -4,7 +4,13 @@ from __future__ import annotations
 
 import pytest
 
-from fahmi2.domain.enums import DiagramType, EdgeType, Language, NodeType
+from fahmi2.domain.enums import (
+    DiagramType,
+    EdgeType,
+    Language,
+    NodeType,
+    SupportDensity,
+)
 from fahmi2.domain.visuals import (
     ComparisonTable,
     Diagram,
@@ -12,6 +18,7 @@ from fahmi2.domain.visuals import (
     GraphNode,
     KnowledgeGraph,
     TimelineEvent,
+    VisualsSettings,
 )
 
 
@@ -132,3 +139,23 @@ def test_diagram_timeline_exige_events() -> None:
 def test_comparison_table_rejette_ligne_de_mauvaise_largeur() -> None:
     with pytest.raises(ValueError):
         ComparisonTable(columns=("A", "B"), rows=(("x",),))
+
+
+def test_visuals_settings_defaults() -> None:
+    settings = VisualsSettings()
+    assert settings.produce_knowledge_map is True
+    assert settings.produce_diagrams is True
+    assert settings.density is SupportDensity.STANDARD
+    assert settings.diagram_types == frozenset(DiagramType)
+    assert settings.llm_workers == 16
+    assert settings.cost_ceiling_usd is None
+
+
+def test_visuals_settings_rejette_workers_invalides() -> None:
+    with pytest.raises(ValueError):
+        VisualsSettings(llm_workers=0)
+
+
+def test_visuals_settings_rejette_cout_negatif() -> None:
+    with pytest.raises(ValueError):
+        VisualsSettings(cost_ceiling_usd=-1.0)

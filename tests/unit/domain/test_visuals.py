@@ -8,9 +8,11 @@ from fahmi2.domain.enums import (
     DiagramType,
     EdgeType,
     Language,
+    LLMModel,
     NodeType,
     SupportDensity,
 )
+from fahmi2.domain.phase import PhaseConfig
 from fahmi2.domain.visuals import (
     ComparisonTable,
     Diagram,
@@ -147,6 +149,8 @@ def test_visuals_settings_defaults() -> None:
     assert settings.produce_diagrams is True
     assert settings.density is SupportDensity.STANDARD
     assert settings.diagram_types == frozenset(DiagramType)
+    assert settings.llm_model is LLMModel.DEEPSEEK_V4_FLASH
+    assert settings.llm_config == PhaseConfig()
     assert settings.llm_workers == 16
     assert settings.cost_ceiling_usd is None
 

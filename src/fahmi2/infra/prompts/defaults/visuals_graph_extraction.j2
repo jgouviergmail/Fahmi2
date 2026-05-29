@@ -1,0 +1,29 @@
+Tu es un analyste de la connaissance. À partir de la section de cours ci-dessous, extrais une **carte de connaissances** : les concepts structurants, les idées, les exemples/cas, et les **relations typées** entre eux.
+
+Travaille **dans la langue de la section** (ne traduis pas). Reste **fidèle au contenu** (aucune invention). Sois sélectif : au plus **{{ max_entities }} entités** parmi les plus importantes de cette section.
+
+Types d'entité autorisés (champ `type`) :
+- `concept` : notion structurante (définissable). Renseigne alors une `definition` courte.
+- `idea` : idée, thèse ou enchaînement de raisonnement.
+- `example` : exemple, cas, illustration concrète.
+
+Types de relation autorisés (champ `type`) — `source` et `target` reprennent **exactement** un `label` d'entité :
+- `leads_to` : cause → effet / mène à.
+- `prerequisite` : prérequis de.
+- `illustrates` : illustre / exemplifie.
+- `contrasts_with` : s'oppose à / contraste avec.
+- `part_of` : composé de / partie de.
+- `related` : simplement lié à.
+{% if gleaning %}
+Tu as déjà extrait ces entités pour cette section : {{ already_found | join(", ") }}.
+**Complète** uniquement avec des entités ou relations **importantes que tu aurais manquées** ; ne répète pas les entités déjà listées. S'il n'y a rien à ajouter, renvoie des listes vides.
+{% endif %}
+Réponds STRICTEMENT en JSON valide, sans préambule :
+{"entities": [{"label": "...", "type": "concept|idea|example", "definition": "..."}], "relations": [{"source": "...", "target": "...", "type": "leads_to|prerequisite|illustrates|contrasts_with|part_of|related", "label": "..."}]}
+
+Le champ `definition` est facultatif (surtout pour les `concept`) ; le champ `label` d'une relation est facultatif.
+
+---
+Section : {{ section_title }}
+
+{{ section_markdown }}

@@ -7,15 +7,17 @@ pures (aucun import Qt/HTTP/SQL), validées dans ``__post_init__``.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from fahmi2.domain.enums import (
     DiagramType,
     EdgeType,
     Language,
+    LLMModel,
     NodeType,
     SupportDensity,
 )
+from fahmi2.domain.phase import PhaseConfig
 
 #: Types de diagramme dont la charge utile est un graphe (nodes + links).
 _GRAPH_DIAGRAM_TYPES: frozenset[DiagramType] = frozenset(
@@ -280,6 +282,8 @@ class VisualsSettings:
         produce_diagrams: Produire la galerie de diagrammes (Doc B).
         density: Densité (volume) des nœuds/diagrammes ; réutilise ``SupportDensity``.
         diagram_types: Types de diagrammes autorisés (sous-ensemble de ``DiagramType``).
+        llm_model: Modèle DeepSeek utilisé pour l'extraction/traduction.
+        llm_config: Config des appels LLM (thinking / effort / température / retries).
         llm_workers: Workers LLM concurrents (>= 1).
         cost_ceiling_usd: Plafond de coût (``None`` = pas de plafond).
 
@@ -291,6 +295,8 @@ class VisualsSettings:
     produce_diagrams: bool = True
     density: SupportDensity = SupportDensity.STANDARD
     diagram_types: frozenset[DiagramType] = frozenset(DiagramType)
+    llm_model: LLMModel = LLMModel.DEEPSEEK_V4_FLASH
+    llm_config: PhaseConfig = field(default_factory=PhaseConfig)
     llm_workers: int = _DEFAULT_VISUALS_LLM_WORKERS
     cost_ceiling_usd: float | None = None
 

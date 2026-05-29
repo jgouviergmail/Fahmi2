@@ -37,6 +37,7 @@ from fahmi2.domain.enums import (
     ChatGroundingMode,
     CloudSttModel,
     ConsolidationMode,
+    DiagramType,
     EmbeddingModel,
     ExportFormat,
     Language,
@@ -61,6 +62,7 @@ from fahmi2.domain.phase import PhaseConfig, PhaseExecution
 from fahmi2.domain.project import Project
 from fahmi2.domain.run import Run
 from fahmi2.domain.source import InputSource, SourceExecution
+from fahmi2.domain.visuals import VisualsSettings
 
 SCHEMA_VERSION = 1
 
@@ -78,6 +80,7 @@ _BLOB_KEY_WORKSPACE = "workspace_folder"
 _BLOB_KEY_GENERATION = "generation"
 _BLOB_KEY_PEDAGOGY = "pedagogy"
 _BLOB_KEY_CHAT = "chat"
+_BLOB_KEY_VISUALS = "visuals"
 
 
 @dataclass(frozen=True)
@@ -414,6 +417,79 @@ def _deserialize_chat_settings(payload: dict[str, Any]) -> ChatSettings:
     )
 
 
+def _serialize_visuals_settings(visuals: VisualsSettings) -> dict[str, Any]:
+    """Sérialise un ``VisualsSettings`` en dict JSON-compatible.
+
+    Args:
+        visuals: Réglages Visualisations.
+
+    Returns:
+        Dict prêt à être encodé en JSON.
+    """
+    cfg = visuals.llm_config
+    return {
+        "produce_knowledge_map": visuals.produce_knowledge_map,
+        "produce_diagrams": visuals.produce_diagrams,
+        "density": str(visuals.density),
+        "diagram_types": sorted(t.value for t in visuals.diagram_types),
+        "llm_model": str(visuals.llm_model),
+        "llm_config": {
+            "thinking_enabled": cfg.thinking_enabled,
+            "reasoning_effort": (
+                str(cfg.reasoning_effort) if cfg.reasoning_effort is not None else None
+            ),
+            "temperature": cfg.temperature,
+            "max_retries": cfg.max_retries,
+        },
+        "llm_workers": visuals.llm_workers,
+        "cost_ceiling_usd": visuals.cost_ceiling_usd,
+    }
+
+
+def _deserialize_visuals_settings(payload: dict[str, Any]) -> VisualsSettings:
+    """Désérialise un ``VisualsSettings`` (clés absentes → défauts, *lenient*).
+
+    Args:
+        payload: Sous-objet ``visuals`` du blob v2.
+
+    Returns:
+        Le ``VisualsSettings`` reconstitué.
+
+    Raises:
+        ValueError: Si une valeur d'enum présente est invalide (capturée par l'appelant).
+    """
+    defaults = VisualsSettings()
+    cfg = payload.get("llm_config", {})
+    diagram_types = (
+        frozenset(DiagramType(t) for t in payload["diagram_types"])
+        if "diagram_types" in payload
+        else defaults.diagram_types
+    )
+    return VisualsSettings(
+        produce_knowledge_map=bool(
+            payload.get("produce_knowledge_map", defaults.produce_knowledge_map)
+        ),
+        produce_diagrams=bool(
+            payload.get("produce_diagrams", defaults.produce_diagrams)
+        ),
+        density=SupportDensity(payload.get("density", defaults.density)),
+        diagram_types=diagram_types,
+        llm_model=LLMModel(payload.get("llm_model", defaults.llm_model)),
+        llm_config=PhaseConfig(
+            thinking_enabled=bool(cfg.get("thinking_enabled", False)),
+            reasoning_effort=(
+                ReasoningEffort(cfg["reasoning_effort"])
+                if cfg.get("reasoning_effort")
+                else None
+            ),
+            temperature=float(cfg.get("temperature", defaults.llm_config.temperature)),
+            max_retries=int(cfg.get("max_retries", defaults.llm_config.max_retries)),
+        ),
+        llm_workers=int(payload.get("llm_workers", defaults.llm_workers)),
+        cost_ceiling_usd=payload.get("cost_ceiling_usd"),
+    )
+
+
 def _serialize_project_blob(project: Project) -> str:
     """Sérialise le blob v2 ``settings_json`` d'un projet.
 
@@ -441,6 +517,11 @@ def _serialize_project_blob(project: Project) -> str:
             if project.chat is not None
             else None
         ),
+        _BLOB_KEY_VISUALS: (
+            _serialize_visuals_settings(project.visuals)
+            if project.visuals is not None
+            else None
+        ),
     }
     return json.dumps(payload, ensure_ascii=False)
 
@@ -448,7 +529,11 @@ def _serialize_project_blob(project: Project) -> str:
 def _deserialize_project_blob(
     raw: str,
 ) -> tuple[
-    Path, GenerationSettings | None, PedagogySettings | None, ChatSettings | None
+    Path,
+    GenerationSettings | None,
+    PedagogySettings | None,
+    ChatSettings | None,
+    VisualsSettings | None,
 ]:
     """Désérialise le blob d'un projet (v2, ou v1 à plat migré à la lecture).
 
@@ -504,6 +589,12 @@ def _deserialize_project_blob(
             if chat_payload is not None
             else None
         )
+        visuals_payload = payload.get(_BLOB_KEY_VISUALS)
+        visuals = (
+            _deserialize_visuals_settings(visuals_payload)
+            if visuals_payload is not None
+            else None
+        )
     except (KeyError, ValueError) as exc:
         raise StorageError(
             code="STORAGE.PROJECT_BLOB_INVALID",
@@ -513,7 +604,7 @@ def _deserialize_project_blob(
             severity=Severity.ERROR,
             technical_details={"missing_or_invalid": str(exc)},
         ) from exc
-    return workspace_folder, generation, pedagogy, chat
+    return workspace_folder, generation, pedagogy, chat, visuals
 
 
 def _serialize_run_snapshot(gen: GenerationSettings) -> str:
@@ -1110,9 +1201,13 @@ class SqliteState:
     @staticmethod
     def _row_to_project(row: tuple[Any, ...]) -> Project:
         project_id, name, created_at_str, settings_json, last_run_at_str = row
-        workspace_folder, generation, pedagogy, chat = _deserialize_project_blob(
-            settings_json
-        )
+        (
+            workspace_folder,
+            generation,
+            pedagogy,
+            chat,
+            visuals,
+        ) = _deserialize_project_blob(settings_json)
         return Project(
             id=ProjectId(value=project_id),
             name=name,
@@ -1122,6 +1217,7 @@ class SqliteState:
             generation=generation,
             pedagogy=pedagogy,
             chat=chat,
+            visuals=visuals,
         )
 
     @staticmethod

@@ -51,7 +51,7 @@ from fahmi2.pedagogy.manifest import (
     read_manifest,
     write_manifest,
 )
-from fahmi2.pedagogy.run_state import PedagogyRunState, write_run_state
+from fahmi2.pedagogy.run_state import PedagogyRunState, read_run_state, write_run_state
 from fahmi2.pedagogy.sources import (
     load_chapters,
     load_glossary_master_terms,
@@ -62,6 +62,19 @@ from fahmi2.pedagogy.support_generator import SupportContext
 from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
 from fahmi2.pipeline.event_bus import EventBus
 from fahmi2.pipeline.pause_token import PauseToken
+
+#: Statuts d'exécution antérieurs considérés comme « reprise utile » : on
+#: rebase le coût cumulé sur l'historique persisté plutôt que de repartir à 0.
+#: Symétrique de ``_RESUMABLE_RUN_STATUSES`` dans ``app/run_orchestrator``.
+#: - ``FAILED`` : au moins un support a échoué.
+#: - ``PAUSED`` : plafond de coût atteint (arrêt safe-boundary).
+#: - ``RUNNING`` : crash app pendant un Run (état resté coincé en RUNNING sur
+#:   disque), on considère le Run reprenable.
+#: Hors ce set (CREATED / COMPLETED / CANCELLED / pas d'état du tout) : on
+#: démarre un nouvel agrégat à 0.
+_RESUMABLE_PEDAGOGY_STATUSES: frozenset[RunStatus] = frozenset(
+    {RunStatus.FAILED, RunStatus.PAUSED, RunStatus.RUNNING}
+)
 
 
 class SupportsOrchestrator:
@@ -130,6 +143,23 @@ class SupportsOrchestrator:
         ctx = self._build_context(project, pedagogy, pause_token, event_bus)
         settings_hash = compute_settings_hash(pedagogy)
         manifest = read_manifest(ctx.pedagogy_dir)
+        # Base du coût cumulé : si la dernière exécution est dans un état
+        # « reprise utile » (FAILED / PAUSED / RUNNING-orphan suite à un crash
+        # app), on **part du total persisté** pour ne pas reset le coût
+        # historique à zéro. Sinon (CREATED / COMPLETED / CANCELLED / pas
+        # d'exécution précédente) on repart à 0 : nouvelle exécution.
+        # Symétrique du fix engine côté Génération
+        # (cf. ``_RESUMABLE_RUN_STATUSES`` dans ``app/run_orchestrator``) —
+        # même cause fonctionnelle (perte du coût cumulé à la reprise), cause
+        # technique distincte (la pédagogie n'utilise pas SQLite, le coût est
+        # persisté dans ``pedagogy/run_state.json``).
+        previous_state = read_run_state(ctx.pedagogy_dir)
+        base_cost = (
+            previous_state.total_cost_usd
+            if previous_state is not None
+            and previous_state.status in _RESUMABLE_PEDAGOGY_STATUSES
+            else 0.0
+        )
         started_at = _now()
         write_run_state(
             ctx.artifacts,
@@ -138,7 +168,7 @@ class SupportsOrchestrator:
                 status=RunStatus.RUNNING,
                 started_at=started_at,
                 finished_at=None,
-                total_cost_usd=0.0,
+                total_cost_usd=base_cost,
             ),
         )
         event_bus.publish(SupportGenerationStarted(timestamp=started_at))
@@ -201,7 +231,10 @@ class SupportsOrchestrator:
 
         manifest_lock = threading.Lock()
         cost_lock = threading.Lock()
-        cost_state = {"total": 0.0}
+        # Cumul démarré sur la base historique (cf. plus haut) — les coûts des
+        # tâches de ce passage s'y ajoutent. Le plafond est évalué sur ce total
+        # cumulé, pas seulement sur le passage courant.
+        cost_state = {"total": base_cost}
 
         def _run_task(task: tuple[Language, SupportType]) -> tuple[float, bool, bool]:
             """Exécute une unité (langue, support). Retourne (coût, échec, plafond)."""

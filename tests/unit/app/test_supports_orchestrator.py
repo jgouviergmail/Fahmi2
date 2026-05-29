@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -41,6 +42,11 @@ from fahmi2.pedagogy.events import (
     SupportGenerationFinished,
 )
 from fahmi2.pedagogy.generators.qcm import QcmGenerator
+from fahmi2.pedagogy.run_state import (
+    PedagogyRunState,
+    read_run_state,
+    write_run_state,
+)
 from fahmi2.pedagogy.support_generator import SupportContext, SupportGenerator
 from fahmi2.pedagogy.support_registry import SupportGeneratorRegistry
 from fahmi2.pipeline.event_bus import EventBus
@@ -154,6 +160,11 @@ def test_incomplete_set_resumes_skipping_fresh(
 ) -> None:
     # Ensemble incomplet (un support manque, ex. plafond atteint) : reprise — le
     # support frais déjà présent est skippé, le manquant est généré.
+    #
+    # Sémantique du plafond après le fix « coût cumulé inter-runs » :
+    # le 2e run doit voir un plafond suffisant **par rapport au cumul
+    # historique** pour pouvoir continuer. L'utilisateur ajuste son plafond
+    # entre les deux exécutions (cas réel quand on relance après PAUSED).
     registry = SupportGeneratorRegistry(
         [
             _CostlyGen(SupportType.FLASHCARDS_CONCEPTS, cost_usd=10.0),
@@ -183,10 +194,17 @@ def test_incomplete_set_resumes_skipping_fresh(
     )
     assert status1 is RunStatus.PAUSED
 
+    # L'utilisateur ajuste son plafond pour permettre la reprise (sinon le
+    # cumul historique 10.0 court-circuiterait immédiatement le 2e passage).
+    assert project.pedagogy is not None  # mypy narrowing
+    raised_pedagogy = replace(project.pedagogy, cost_ceiling_usd=20.0)
+    raised_project = project.with_pedagogy(raised_pedagogy)
+    project_service.update_project(raised_project)
+
     # 2e génération : ensemble incomplet -> reprise (flashcards frais skippé, QCM généré).
     bus: EventBus[PedagogyEvent] = EventBus()
     events = _collect(bus)
-    orchestrator.generate(project, pause_token=PauseToken(), event_bus=bus)
+    orchestrator.generate(raised_project, pause_token=PauseToken(), event_bus=bus)
     by_support = {
         e.support_type: e.status
         for e in events
@@ -603,3 +621,157 @@ def test_parallel_generation_two_languages(
         assert artifact_json_path(
             pedagogy_dir, SupportType.FLASHCARDS_CONCEPTS, lang
         ).exists()
+
+
+def test_resume_after_failed_preserves_cumulative_cost(
+    tmp_path: Path, make_generation_settings: Any, make_pedagogy_settings: Any
+) -> None:
+    """Reg : à la reprise d'une exécution FAILED, le ``total_cost_usd`` historique
+    persisté doit servir de **base** au nouveau cumul (parité avec le fix engine
+    côté Génération). Auparavant l'orchestrateur écrasait le total à 0 à chaque
+    ``generate()``, faisant disparaître le coût des supports déjà payés.
+    """
+    registry = SupportGeneratorRegistry(
+        [_CostlyGen(SupportType.FLASHCARDS_CONCEPTS, cost_usd=0.5)]
+    )
+    orchestrator, state, project_service = _build(tmp_path, registry)
+    project = project_service.create_project(
+        name="P",
+        workspace_folder=tmp_path / "ws",
+        generation=make_generation_settings(),
+        pedagogy=make_pedagogy_settings(
+            selected_supports=frozenset({SupportType.FLASHCARDS_CONCEPTS}),
+            separate_correction=frozenset(),
+            languages=(Language.FR,),
+        ),
+    )
+    _seed_completed_run_with_glossary(state, project, make_generation_settings())
+    pedagogy_dir = project.workspace_folder / "pedagogy"
+
+    # Simule un échec précédent qui a déjà consommé 3.0 USD avant de planter
+    # (utilise le store réel pour rester fidèle à l'écriture atomique).
+    write_run_state(
+        FsArtifactStore(),
+        pedagogy_dir,
+        PedagogyRunState(
+            status=RunStatus.FAILED,
+            started_at=datetime(2026, 5, 28, tzinfo=UTC),
+            finished_at=datetime(2026, 5, 28, tzinfo=UTC),
+            total_cost_usd=3.0,
+        ),
+    )
+
+    orchestrator.generate(project, pause_token=PauseToken(), event_bus=EventBus())
+
+    final = read_run_state(pedagogy_dir)
+    assert final is not None
+    # 3.0 historique + 0.5 du nouveau support = 3.5 au lieu de 0.5.
+    assert final.total_cost_usd == pytest.approx(3.5)
+
+
+def test_new_run_after_completed_resets_cost_to_zero(
+    tmp_path: Path, make_generation_settings: Any, make_pedagogy_settings: Any
+) -> None:
+    """Reg : un statut précédent ``COMPLETED`` n'est PAS une reprise — c'est une
+    relance volontaire. Le cumul redémarre à 0 pour ne pas mélanger plusieurs
+    générations distinctes.
+    """
+    registry = SupportGeneratorRegistry(
+        [_CostlyGen(SupportType.FLASHCARDS_CONCEPTS, cost_usd=0.5)]
+    )
+    orchestrator, state, project_service = _build(tmp_path, registry)
+    project = project_service.create_project(
+        name="P",
+        workspace_folder=tmp_path / "ws",
+        generation=make_generation_settings(),
+        pedagogy=make_pedagogy_settings(
+            selected_supports=frozenset({SupportType.FLASHCARDS_CONCEPTS}),
+            separate_correction=frozenset(),
+            languages=(Language.FR,),
+        ),
+    )
+    _seed_completed_run_with_glossary(state, project, make_generation_settings())
+    pedagogy_dir = project.workspace_folder / "pedagogy"
+
+    write_run_state(
+        FsArtifactStore(),
+        pedagogy_dir,
+        PedagogyRunState(
+            status=RunStatus.COMPLETED,
+            started_at=datetime(2026, 5, 28, tzinfo=UTC),
+            finished_at=datetime(2026, 5, 28, tzinfo=UTC),
+            total_cost_usd=10.0,
+        ),
+    )
+
+    orchestrator.generate(project, pause_token=PauseToken(), event_bus=EventBus())
+
+    final = read_run_state(pedagogy_dir)
+    assert final is not None
+    # Ancien total ignoré : seulement le coût du nouveau passage.
+    assert final.total_cost_usd == pytest.approx(0.5)
+
+
+def test_resume_cost_ceiling_evaluated_against_cumulative_total(
+    tmp_path: Path, make_generation_settings: Any, make_pedagogy_settings: Any
+) -> None:
+    """Reg : le plafond s'évalue sur le cumul historique + cumul du passage.
+    Sans rebase historique, l'utilisateur pourrait re-générer indéfiniment
+    en relançant après chaque ``PAUSED`` (le compteur repartait à 0). Avec
+    le fix, le plafond est respecté **inter-runs**.
+
+    Scénario : run précédent FAILED a consommé 1.0 USD, cap fixé à 1.0 USD,
+    2 supports à 0.5 USD chacun. Court-circuit immédiat : aucune nouvelle
+    tâche n'est lancée, le coût final reste 1.0.
+    """
+    registry = SupportGeneratorRegistry(
+        [
+            _CostlyGen(SupportType.FLASHCARDS_CONCEPTS, cost_usd=0.5),
+            _CostlyGen(SupportType.QCM, cost_usd=0.5),
+        ]
+    )
+    orchestrator, state, project_service = _build(tmp_path, registry)
+    project = project_service.create_project(
+        name="P",
+        workspace_folder=tmp_path / "ws",
+        generation=make_generation_settings(),
+        pedagogy=make_pedagogy_settings(
+            selected_supports=frozenset(
+                {SupportType.FLASHCARDS_CONCEPTS, SupportType.QCM}
+            ),
+            separate_correction=frozenset(),
+            languages=(Language.FR,),
+            cost_ceiling_usd=1.0,
+            llm_workers=1,
+        ),
+    )
+    _seed_completed_run_with_glossary(state, project, make_generation_settings())
+    pedagogy_dir = project.workspace_folder / "pedagogy"
+
+    # Cumul historique = 1.0 = plafond atteint dès le démarrage.
+    write_run_state(
+        FsArtifactStore(),
+        pedagogy_dir,
+        PedagogyRunState(
+            status=RunStatus.FAILED,
+            started_at=datetime(2026, 5, 28, tzinfo=UTC),
+            finished_at=datetime(2026, 5, 28, tzinfo=UTC),
+            total_cost_usd=1.0,
+        ),
+    )
+
+    bus: EventBus[PedagogyEvent] = EventBus()
+    events = _collect(bus)
+    status = orchestrator.generate(project, pause_token=PauseToken(), event_bus=bus)
+
+    # Plafond cumulé atteint dès le démarrage → aucune tâche payée, PAUSED.
+    assert status is RunStatus.PAUSED
+    succeeded = [
+        e
+        for e in events
+        if isinstance(e, SupportFinished) and e.status is PhaseStatus.SUCCEEDED
+    ]
+    assert succeeded == []  # aucun support généré dans ce passage
+    final = read_run_state(pedagogy_dir)
+    assert final is not None
+    assert final.total_cost_usd == pytest.approx(1.0)

@@ -45,6 +45,33 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   accepts your previous array-root version too, but you lose the
   provider-side escaping guarantee).
 
+### Fixed — Pedagogy: cumulative cost reset to zero on every resume
+
+- Symmetric to the engine fix below, but tracked through a different
+  mechanism (the pedagogy orchestrator does not use SQLite — cost is
+  persisted in `pedagogy/run_state.json`). At each `generate()` call
+  the orchestrator was unconditionally writing `total_cost_usd = 0.0`
+  to disk and reinitialising the in-memory accumulator to `0.0`, so a
+  resume after `FAILED` or `PAUSED` lost the historical total and the
+  cost ceiling was effectively reset to its full budget each time —
+  the user could re-run indefinitely past their declared cap.
+- Fix: at startup, `SupportsOrchestrator.generate` reads the previous
+  `PedagogyRunState`. If the previous status is in the resumable set
+  (`FAILED`, `PAUSED`, `RUNNING`-orphan from an app crash), the cost
+  accumulator is **rebased** on the historical total. Otherwise
+  (`CREATED`, `COMPLETED`, `CANCELLED`, or no previous state), the
+  accumulator starts at `0.0` — a new generation, not a resume.
+  Resumable statuses set kept in parity with the pipeline
+  (`_RESUMABLE_RUN_STATUSES` in `app/run_orchestrator`).
+- The cost ceiling check now operates against the cumulative total
+  (historical base + current pass). Consequence: if the user wants to
+  resume after `PAUSED` (cap reached) without the ceiling
+  short-circuiting the new pass immediately, **they must raise the
+  cap** in the settings before relaunching. This is the correct
+  behaviour: previously the cap was a per-run promise that hid the
+  real spend; now it is a project-level promise that holds across
+  resumes.
+
 ### Fixed — Engine: resumed runs lose `SUCCEEDED` state (and cumulative cost) after the first resume
 
 - Each resume of a failed run overwrote the persisted `SUCCEEDED` state

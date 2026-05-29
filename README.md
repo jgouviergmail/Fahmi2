@@ -186,10 +186,13 @@ Layered architecture inspired by hexagonal principles:
 
 ```
 src/fahmi2/
-├── core/         logging, errors, retry, config, migrations, retrieval, ids
+├── core/         logging, errors, retry, config, migrations, retrieval, ids, corpus
 ├── domain/       pure entities (Project, Run, PhaseExecution, Glossary, …)
-├── pipeline/     PipelineEngine + 8 phase handlers
-├── infra/        adapters (STT, LLM, ffmpeg, SQLite WAL, DPAPI, prompts)
+├── pipeline/     PipelineEngine + 8 phase handlers (+ generation_outputs readers)
+├── pedagogy/     revision-materials engine (SupportGenerator, SupportsOrchestrator)
+├── chat/         RAG Dialogue engine (corpus, retriever, citations, chat_service)
+├── visuals/      Visualizations engine (GraphRAG-lite: extractors, community)
+├── infra/        adapters (STT, LLM, ffmpeg, SQLite WAL, DPAPI, prompts, HTML export)
 ├── app/          use cases (ProjectService, RunOrchestrator, CostEstimator…)
 ├── i18n/         Qt translation stack (AppLanguage enum, install_translator,
 │                 .ts sources + .qm compiled files)
@@ -200,6 +203,18 @@ See [docs/02-presentation-technique.md](docs/02-presentation-technique.md) for
 the full breakdown.
 
 ## Status
+
+**[Unreleased]** — **Visualizations** feature (on branch
+`feat/visualisations-html-autonomes`, not yet merged): two **fully
+self-contained** interactive HTML deliverables per Latin-script language — an
+interactive **knowledge map** (typed concept/term/idea/example graph, network↔tree,
+fullscreen, draggable nodes) and a **generated-diagram gallery** (flowcharts,
+timelines, comparisons, hierarchies, cycles, decision trees; per-card fullscreen).
+GraphRAG-lite pipeline (glossary backbone + LLM layer + gleaning, embedding entity
+resolution, networkx Louvain), structure extracted once then labels translated per
+language, **zero CDN / zero rendering DSL** (vendored Cytoscape.js inlined). New
+**Visualizations** tab + parallelised structure extraction with a live progress
+column. **1362 passing tests**, ruff + mypy `--strict` clean.
 
 **v1.5.1** — **Quality round on cost tracking and reliability**:
 phase 6 translation hardened against unescaped quotes from DeepSeek

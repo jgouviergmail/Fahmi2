@@ -231,7 +231,11 @@ it is **on-demand** and configurable.
   each node, its definition and an **excerpt of the source** it comes from.
 - **Diagram gallery**: **generated** diagrams (not AI images) — flowcharts,
   timelines, comparisons, hierarchies, cycles, decision trees — chosen by the
-  AI to fit each part of the course.
+  AI to fit each part of the course. Each diagram card has an **« Enlarge »
+  (fullscreen)** button that opens the diagram in a full-window overlay (fit to
+  the viewport, wheel-zoom + drag-pan) so even a dense diagram stays legible; the
+  graph cards also size their canvas to the number of nodes, and **nodes can be
+  dragged** to rearrange the layout (with a *Reset layout* button).
 - **Latin-script languages only**: a page is produced for each generated
   language among **French, English, German, Spanish, Italian**. Chinese and
   Arabic are **not** supported for this feature (to keep the interactive

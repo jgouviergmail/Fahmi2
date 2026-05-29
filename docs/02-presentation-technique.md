@@ -195,7 +195,9 @@ External adapters (ports/adapters):
 - `infra/prompts/` — `PromptLoader` with `%APPDATA%/Fahmi2/prompts/`
   override + **bundled Jinja2 templates**: 8 generation phases + **3
   `phase_5_*` thematic-mode** + **`phase_6_glossary_localization`**
-  (glossary term localisation) + 8 `pedagogy_*` + 3 `chat_*`.
+  (glossary term localisation) + 8 `pedagogy_*` + 3 `chat_*` + **5 `visuals_*`**
+  (`visuals_graph_extraction`, `visuals_community_report`, `visuals_idea_chains`,
+  `visuals_diagram_authoring`, `visuals_label_translation`).
 - `infra/anki/genanki_exporter.py` — `.apkg` export (genanki: Basic/Cloze/
   MCQ, stable GUIDs, sub-decks per material, tags).
 - `infra/export/markdown_pdf.py` — Markdown → HTML
@@ -268,7 +270,7 @@ Application services:
   prompts/`, Jinja2 validation). Backend for the `PromptsEditorDialog`.
   Catalogue: generation prompts (8 phases + 3 thematic `phase_5_*` +
   `phase_6_glossary_localization`) + 8 `pedagogy_*` templates + 3
-  `chat_*`.
+  `chat_*` + 5 `visuals_*` templates.
 - `SecretsService` — `SecretsStore` wrapper with automatic log
   redaction.
 - `HardwareProbe` — CUDA/GPU detection at startup.
@@ -518,11 +520,17 @@ Pedagogy feature (lightweight orchestrator, no `PipelineEngine`).
   `run_state.json` model (pedagogy + visuals).
 - `app/` — `VisualsOrchestrator` (extract structure **once** in a structure
   language → per-Latin-language localise + render, freshness manifest +
-  `run_state`, best-effort cost cap, per-language `map_bounded`),
-  `VisualsCostEstimator` (pre-run estimate, reuses `_cost_common`).
+  `run_state`, best-effort cost cap). **Both phases are parallelised**: the
+  structure extraction parallelises its per-unit / per-community LLM calls via
+  `extractors/_base.map_units_with_progress` (bounded by `llm_workers`, honours the
+  `PauseToken`, **order preserved → deterministic**) emitting
+  `VisualsStructureProgress`; the per-language localise+render uses per-language
+  `map_bounded`. `VisualsCostEstimator` (pre-run estimate, reuses `_cost_common`).
 - `ui/` — `VisualsTab`, `VisualsController` (`QThread` worker +
   `VisualsQtEventBus`), `VisualsSettingsView` (deliverables / content / AI
-  generation), `VisualsProgressView` (status grid + tiles),
+  generation), `VisualsProgressView` (status grid + tiles), with a **Structure**
+  column **before** the per-language columns (per-deliverable extraction status +
+  `Graph N/total` tooltip + per-step logs),
   `VisualsProgressViewModel` / `VisualsStateViewModel` (Qt-free),
   `visuals_labels.py`. The sidebar gains a **third** status (Visualizations).
 - Prompts: 5 `visuals_*` templates (graph extraction, community report,
@@ -595,7 +603,9 @@ CREATE TABLE phase_executions (
   status TEXT NOT NULL,
   started_at TEXT, finished_at TEXT,
   artifact_path TEXT, retry_count INTEGER NOT NULL DEFAULT 0,
-  cost_usd REAL NOT NULL DEFAULT 0, error_json TEXT,
+  cost_usd REAL NOT NULL DEFAULT 0,
+  per_source_costs_json TEXT,  -- v1.5.1 (soft migration): {source_id: cost} for batch phases 5/6; NULL = no attribution
+  error_json TEXT,
   UNIQUE (run_id, phase_id, source_id),
   FOREIGN KEY (run_id) REFERENCES runs(id) ON DELETE CASCADE
 );
@@ -746,8 +756,8 @@ loss):
 
 ### 6.2 Current metrics
 
-- **1188 passing tests** × 3 consecutive runs
-- **ruff** + **mypy --strict** clean over 405 source files
+- **1362 passing tests** × 3 consecutive runs (on the `feat/visualisations-html-autonomes` branch)
+- **ruff** + **mypy --strict** clean over the whole `src` + `tests` tree
 
 ## 7. Packaging and distribution
 

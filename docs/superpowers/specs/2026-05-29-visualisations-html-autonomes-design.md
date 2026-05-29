@@ -184,12 +184,22 @@ phases canoniques de GraphRAG** (cf. §2). Toutes les sorties LLM sont du **JSON
      cluster fusionné, une mini-passe LLM (`visuals_entity_canonicalize.j2`) **fusionne
      les descriptions variantes en une seule** + nom canonique (étape « entity
      description summarization » de GraphRAG).
+     > **Écart livré (V1)** : la canonicalisation est **déterministe** (libellé le plus
+     > fréquent, 1ʳᵉ définition non vide, extraits unionnés) — la mini-passe LLM
+     > `visuals_entity_canonicalize.j2` n'est **pas** implémentée (template absent, pas
+     > d'appel LLM). Choix assumé : coût/latence évités pour un gain marginal ;
+     > réintroductible plus tard sans changement de schéma.
 6. **Liens inter-chapitres émergents** : les entités partagées (après résolution)
    **relient naturellement** les sections (un nœud unique référencé par plusieurs).
 7. **Communautés** (`visuals/community.py`, **déterministe, pur Python, zéro LLM**) :
    `networkx.louvain_partitions` → **dendrogramme** (hiérarchie multi-niveaux). Seed fixe
    (constante) pour la **reproductibilité**. Remplit `community_path` et construit les
    `Community`.
+   > **Écart livré (V1)** : partition **plate** (un seul niveau) via
+   > `networkx.louvain_communities` — toutes les `Community` ont `level=0` /
+   > `parent_id=None` et un `community_path` à un seul entier. La hiérarchie
+   > multi-niveaux est **volontairement non livrée** (rendu plus simple) ; les champs
+   > `level`/`parent_id` restent en place pour une introduction ultérieure.
 8. **Community reports — double usage** (`extractors/community_reporter.py`, LLM,
    **bottom-up**) : par communauté → un **rapport court** (label lisible + 1–2 phrases de
    synthèse + idée-clé). Sert **à la fois** l'étiquetage UI **et** d'unité de raisonnement
@@ -371,8 +381,10 @@ Miroir de Pédagogie/Dialogue, **logique testable sans Qt** :
   par défaut / révélant le dossier (réutilise le helper d'ouverture existant si
   présent).
 - **PromptsEditor** : ajout au catalogue éditable des templates
-  `visuals_graph_extraction`, `visuals_entity_canonicalize`, `visuals_community_report`,
-  `visuals_idea_chains`, `visuals_diagram_authoring`, `visuals_label_translation`.
+  `visuals_graph_extraction`, `visuals_community_report`, `visuals_idea_chains`,
+  `visuals_diagram_authoring`, `visuals_label_translation`.
+  > **Écart livré (V1)** : **5** templates (pas 6) — `visuals_entity_canonicalize`
+  > n'existe pas (canonicalisation déterministe, cf. §5).
 - **i18n** : chaînes via `self.tr()` / `QCoreApplication.translate("<Contexte>", ...)`,
   nouveau(x) contexte(s) Linguist, extraction/compilation `scripts/i18n_*`, +
   **tests garde-fou** paramétrés (≥ 1 chaîne par nouveau contexte).

@@ -50,11 +50,9 @@
   }
 
   var instances = [];
+  var lightboxCy = null;  // instance Cytoscape de l'overlay (détruite à la fermeture)
 
-  function initDiagram(container) {
-    if (container.__done) { return; }
-    container.__done = true;
-    var spec = JSON.parse(container.getAttribute("data-graph"));
+  function buildElements(spec) {
     var els = [];
     spec.nodes.forEach(function (n) {
       els.push({ data: { id: n.id, label: n.label, role: n.role || "" } });
@@ -62,24 +60,36 @@
     spec.links.forEach(function (l, i) {
       els.push({ data: { id: "l" + i, source: l.from, target: l.to, label: l.label || "" } });
     });
-    var layout = spec.cyclic
+    return els;
+  }
+
+  function layoutFor(spec) {
+    return spec.cyclic
       ? { name: "concentric", animate: false, minNodeSpacing: 40 }
       : (window.cytoscapeDagre
         ? { name: "dagre", animate: false, rankDir: "TB", nodeSep: 24, rankSep: 44 }
         : { name: "breadthfirst", animate: false, directed: true });
-    var cy = cytoscape({
-      container: container, elements: els, style: diagramStyles(),
-      layout: layout,
-      // Zoom (molette) + déplacement (glisser) activés : filet pour les graphes
-      // qui restent denses malgré la hauteur adaptative.
+  }
+
+  function makeCy(container, spec) {
+    return cytoscape({
+      container: container, elements: buildElements(spec), style: diagramStyles(),
+      layout: layoutFor(spec),
+      // Zoom (molette) + déplacement (glisser) activés.
       userZoomingEnabled: true, userPanningEnabled: true,
       autoungrabify: true, boxSelectionEnabled: false,
       minZoom: ZOOM_BOUND_MIN, maxZoom: ZOOM_BOUND_MAX
     });
+  }
+
+  function initDiagram(container) {
+    if (container.__done) { return; }
+    container.__done = true;
+    var cy = makeCy(container, JSON.parse(container.getAttribute("data-graph")));
     cy.fit(undefined, FIT_PADDING);
     // Plancher/plafond de lisibilité : si ``fit`` a trop réduit (graphe dense), on
-    // remonte au plancher et l'utilisateur pane ; on évite aussi de sur-grossir un
-    // tout petit graphe.
+    // remonte au plancher (l'utilisateur pane, ou agrandit en plein écran) ; on évite
+    // aussi de sur-grossir un tout petit graphe.
     cy.zoom(clamp(cy.zoom(), MIN_INITIAL_ZOOM, MAX_INITIAL_ZOOM));
     cy.center();
     instances.push(cy);
@@ -106,13 +116,59 @@
     chip.addEventListener("click", function () { chip.classList.toggle("off"); applyFilters(); });
   });
 
+  // ---- Plein écran (agrandir) ----
+  // Pour les diagrammes complexes qu'une carte ne peut afficher lisiblement : overlay
+  // pleine fenêtre. Les graphes y sont re-rendus dans une nouvelle instance Cytoscape
+  // (zoom/pan, fit à la grande surface) ; les diagrammes linéaires (timeline/comparaison)
+  // y sont clonés tels quels (HTML défilable). Fermeture : bouton ✕, Échap.
+  var lightbox = document.getElementById("lightbox");
+  var lightboxBody = document.getElementById("lightbox-body");
+  var lightboxTitle = document.getElementById("lightbox-title");
+
+  function closeLightbox() {
+    if (lightboxCy) { lightboxCy.destroy(); lightboxCy = null; }
+    lightboxBody.innerHTML = "";
+    lightbox.setAttribute("hidden", "");
+  }
+
+  function openLightbox(card) {
+    var h3 = card.querySelector("h3");
+    lightboxTitle.textContent = h3 ? h3.textContent : "";
+    lightboxBody.innerHTML = "";
+    lightbox.removeAttribute("hidden");  // visible AVANT init (Cytoscape mesure la taille)
+    var graph = card.querySelector(".cy-diagram[data-graph]");
+    if (graph) {
+      var full = document.createElement("div");
+      full.className = "cy-full";
+      lightboxBody.appendChild(full);
+      lightboxCy = makeCy(full, JSON.parse(graph.getAttribute("data-graph")));
+      lightboxCy.resize();
+      lightboxCy.fit(undefined, 48);
+    } else {
+      var linear = card.querySelector(".timeline, .cmp");
+      if (linear) { lightboxBody.appendChild(linear.cloneNode(true)); }
+    }
+  }
+
+  document.querySelectorAll(".expand").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var card = btn.closest(".card");
+      if (card) { openLightbox(card); }
+    });
+  });
+  document.getElementById("lightbox-close").addEventListener("click", closeLightbox);
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !lightbox.hasAttribute("hidden")) { closeLightbox(); }
+  });
+
   // ---- Thème ----
   document.getElementById("theme").addEventListener("click", function () {
     var root = document.documentElement;
     root.setAttribute("data-theme", root.getAttribute("data-theme") === "dark" ? "light" : "dark");
     instances.forEach(function (cy) { cy.style(diagramStyles()); });
+    if (lightboxCy) { lightboxCy.style(diagramStyles()); }
   });
 
   window.__boardReady = true;  // sentinelle de vérification (Playwright)
-  window.__board = { init: initDiagram, instances: instances };
+  window.__board = { init: initDiagram, instances: instances, open: openLightbox, close: closeLightbox };
 })();

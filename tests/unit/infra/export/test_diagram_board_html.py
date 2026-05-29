@@ -137,3 +137,23 @@ def test_comparison_sans_hauteur_inline() -> None:
     html = render_diagram_board_html(_board())
     assert '<div class="diagram"><div class="cmp">' in html
     assert '<div class="diagram"><div class="timeline">' in html
+
+
+def test_bouton_agrandir_et_overlay_plein_ecran() -> None:
+    # Chaque carte a un bouton « agrandir » ; l'overlay plein écran est présent et
+    # le libellé de fermeture est localisé (FR par défaut).
+    html = render_diagram_board_html(_board())
+    assert html.count('class="expand"') == 3  # un par carte
+    assert 'title="Agrandir"' in html
+    assert 'id="lightbox"' in html and 'id="lightbox-body"' in html
+    assert 'id="lightbox-close"' in html and 'title="Fermer"' in html
+    assert re.search(r"@@[A-Z_]+@@", html) is None  # token @@CLOSE@@ bien substitué
+
+
+def test_overlay_libelles_localises_en() -> None:
+    from fahmi2.domain.visuals import DiagramBoard  # noqa: PLC0415
+
+    html = render_diagram_board_html(
+        DiagramBoard(diagrams=_board().diagrams, language=Language.EN)
+    )
+    assert 'title="Enlarge"' in html and 'title="Close"' in html

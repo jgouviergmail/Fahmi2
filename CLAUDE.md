@@ -627,7 +627,12 @@ The barriers remain the batch phases 2 and 5 (the engine stays
   deterministically to HTML, **inlining** the vendored **Cytoscape.js** core +
   extensions (`fcose` network ↔ `dagre` tree on click, `expand-collapse`,
   `concentric` cycle) from `infra/export/_assets/visuals/` — **no CDN, no
-  network at view time**. **Embedded source excerpts** (`_excerpts.SectionIndex`,
+  network at view time**. **Diagram legibility**: graph cards use a
+  **server-computed adaptive canvas height** (by node count) + an initial-zoom
+  floor + wheel-zoom/drag-pan, and every diagram card has an **« Enlarge »
+  fullscreen overlay** (re-renders the graph fit to the full viewport) so
+  arbitrarily complex diagrams stay readable — no fixed card size can. **Embedded
+  source excerpts** (`_excerpts.SectionIndex`,
   bounded by `EXCERPT_MAX_CHARS`) make each page self-explanatory. Inputs read
   **from disk** like Pedagogy (consolidated doc parsed by
   `core/corpus.parse_sections` into language-invariant `section_path`; glossary

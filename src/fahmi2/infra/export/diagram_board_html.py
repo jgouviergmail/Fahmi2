@@ -65,6 +65,8 @@ class _BoardStrings:
         count_template: Gabarit du compteur (``{n}``).
         empty: Message affiché quand le filtre ne laisse aucune carte.
         excerpt_label: Libellé du dépliant d'extrait source.
+        expand_label: Infobulle du bouton « agrandir » (plein écran).
+        close_label: Infobulle/texte du bouton de fermeture du plein écran.
     """
 
     header: str
@@ -74,6 +76,8 @@ class _BoardStrings:
     count_template: str
     empty: str
     excerpt_label: str
+    expand_label: str
+    close_label: str
 
 
 _STRINGS: dict[Language, _BoardStrings] = {
@@ -85,6 +89,7 @@ _STRINGS: dict[Language, _BoardStrings] = {
                "cycle": "Cycle", "decision_tree": "Arbre de décision"},
         count_template="{n} schémas", empty="Aucun schéma pour ce filtre.",
         excerpt_label="Extrait source",
+        expand_label="Agrandir", close_label="Fermer",
     ),
     Language.EN: _BoardStrings(
         header="Diagrams & schematics", crumb_prefix="Visualizations",
@@ -94,6 +99,7 @@ _STRINGS: dict[Language, _BoardStrings] = {
                "cycle": "Cycle", "decision_tree": "Decision tree"},
         count_template="{n} diagrams", empty="No diagram for this filter.",
         excerpt_label="Source excerpt",
+        expand_label="Enlarge", close_label="Close",
     ),
     Language.DE: _BoardStrings(
         header="Schaubilder & Diagramme", crumb_prefix="Visualisierungen",
@@ -103,6 +109,7 @@ _STRINGS: dict[Language, _BoardStrings] = {
                "cycle": "Zyklus", "decision_tree": "Entscheidungsbaum"},
         count_template="{n} Diagramme", empty="Kein Diagramm für diesen Filter.",
         excerpt_label="Quellenauszug",
+        expand_label="Vergrößern", close_label="Schließen",
     ),
     Language.ES: _BoardStrings(
         header="Esquemas y diagramas", crumb_prefix="Visualizaciones",
@@ -112,6 +119,7 @@ _STRINGS: dict[Language, _BoardStrings] = {
                "cycle": "Ciclo", "decision_tree": "Árbol de decisión"},
         count_template="{n} esquemas", empty="Ningún esquema para este filtro.",
         excerpt_label="Extracto de origen",
+        expand_label="Ampliar", close_label="Cerrar",
     ),
     Language.IT: _BoardStrings(
         header="Schemi e diagrammi", crumb_prefix="Visualizzazioni",
@@ -121,6 +129,7 @@ _STRINGS: dict[Language, _BoardStrings] = {
                "cycle": "Ciclo", "decision_tree": "Albero decisionale"},
         count_template="{n} schemi", empty="Nessuno schema per questo filtro.",
         excerpt_label="Estratto della fonte",
+        expand_label="Ingrandisci", close_label="Chiudi",
     ),
 }
 
@@ -221,9 +230,13 @@ def _card(diagram: Diagram, strings: _BoardStrings) -> str:
     diagram_style = ""
     if diagram.diagram_type in GRAPH_DIAGRAM_TYPES:
         diagram_style = f' style="height:{_graph_diagram_height_px(len(diagram.nodes))}px"'
+    expand = escape(strings.expand_label, quote=True)
     parts = [
         f'<article class="card" data-type="{escape(diagram.diagram_type.value)}">',
-        f'<header><span class="kind">{kind}</span><h3>{escape(diagram.title)}</h3></header>',
+        f'<header><div class="head-text"><span class="kind">{kind}</span>'
+        f"<h3>{escape(diagram.title)}</h3></div>"
+        f'<button class="expand" type="button" title="{expand}" '
+        f'aria-label="{expand}">⤢</button></header>',
         f'<div class="diagram"{diagram_style}>{_diagram_body(diagram)}</div>',
     ]
     if diagram.caption:
@@ -284,6 +297,7 @@ def render_diagram_board_html(board: DiagramBoard) -> str:
         "@@CHIPS@@": _chips(board, strings),
         "@@COUNT@@": strings.count_template.format(n=len(board.diagrams)),
         "@@EMPTY@@": strings.empty,
+        "@@CLOSE@@": strings.close_label,
         "@@APP_CSS@@": f"{read_visuals_asset(_TOKENS_CSS)}\n{read_visuals_asset(_CSS)}",
         "@@APP_JS@@": read_visuals_asset(_JS),
         "@@VENDORED@@": vendored_scripts_html(_BOARD_SCRIPTS),

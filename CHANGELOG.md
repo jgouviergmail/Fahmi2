@@ -69,9 +69,14 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   labels became unreadable. The canvas height is now **adaptive to node count**
   (computed server-side, `clamp(210 + nodes×52, 300, 560)` px → no layout shift),
   fonts are slightly larger, and an **initial-zoom floor** (≥ 0.62) guarantees
-  legibility; **wheel-zoom and drag-pan are enabled** (grab cursor) as a safety net
-  for the densest graphs. Timelines/comparisons (HTML) keep the default scrollable
-  height.
+  legibility; **wheel-zoom and drag-pan are enabled** (grab cursor). Timelines/
+  comparisons (HTML) keep the default scrollable height.
+- **Robust for complex diagrams**: every card gains an **« Enlarge » (fullscreen)
+  button** opening a full-window overlay (localized close, Esc to dismiss) where a
+  graph is re-rendered in a fresh Cytoscape instance fit to the whole viewport
+  (zoom/pan) — a dense 17+-node hierarchy stays fully legible. Linear diagrams are
+  cloned into the overlay (scrollable). No card size can show an arbitrarily complex
+  graph legibly, so the fullscreen view is the durable answer.
 
 ## [1.5.2] — 2026-05-29
 

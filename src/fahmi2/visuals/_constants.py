@@ -29,6 +29,26 @@ MAX_SEMANTIC_NODES_PER_UNIT: dict[SupportDensity, int] = {
     SupportDensity.DENSE: 12,
 }
 
+#: Fraction des nœuds **connectés** conservés sur la carte de connaissances, par niveau
+#: de densité (les nœuds isolés sont d'abord retirés ; cf.
+#: ``_pruning.prune_knowledge_graph``). ``DENSE`` = tout le connexe.
+MAP_CONNECTED_NODE_RATIO_BY_DENSITY: dict[SupportDensity, float] = {
+    SupportDensity.LIGHT: 0.25,
+    SupportDensity.STANDARD: 0.50,
+    SupportDensity.DENSE: 1.0,
+}
+
+#: Plafond absolu de nœuds de la carte par niveau (``None`` = non plafonné). Garantit la
+#: lisibilité de « légère » / « standard » sur les corpus très riches.
+MAP_NODE_CAP_BY_DENSITY: dict[SupportDensity, int | None] = {
+    SupportDensity.LIGHT: 40,
+    SupportDensity.STANDARD: 90,
+    SupportDensity.DENSE: None,
+}
+
+#: Plancher de nœuds de la carte (évite une carte quasi vide sur un petit document).
+MAP_MIN_NODES = 12
+
 #: Seuil de similarité cosinus au-dessus duquel deux entités libres (non glossaire)
 #: sont considérées comme une même entité et fusionnées (résolution par embeddings).
 ENTITY_MERGE_COSINE_THRESHOLD = 0.82

@@ -15,7 +15,7 @@ Testable sans Qt.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -174,12 +174,15 @@ class VisualsProgressViewModel:
         overall_status: RunStatus | None = None,
         started_at: datetime | None = None,
         finished_at: datetime | None = None,
+        structure_costs: tuple[float, float] = (0.0, 0.0),
+        language_costs: Mapping[Language, tuple[float, float]] | None = None,
     ) -> None:
         """Charge l'état persisté (reconstruction à la sélection du projet).
 
         Réinitialise la grille puis marque ``SUCCEEDED`` les langues dont les livrables
         existent sur disque ; les autres restent en attente. Restaure aussi le statut /
-        horodatages / coût de la dernière exécution (depuis ``run_state.json``).
+        horodatages / coût (total **et ventilation par cellule**) de la dernière
+        exécution (depuis ``run_state.json`` + ``manifest.json``).
 
         Args:
             deliverables: Livrables activés (lignes).
@@ -190,6 +193,8 @@ class VisualsProgressViewModel:
             overall_status: Statut de la dernière exécution (``None`` si jamais).
             started_at: Démarrage de la dernière exécution.
             finished_at: Fin de la dernière exécution.
+            structure_costs: Coûts de structure ``(carte, diagrammes)`` persistés.
+            language_costs: Coûts de localisation ``(carte, diagrammes)`` par langue.
         """
         self.reset(
             deliverables=deliverables,
@@ -205,10 +210,18 @@ class VisualsProgressViewModel:
             if language in self._status:
                 self._status[language] = PhaseStatus.SUCCEEDED
         # Des livrables présents impliquent que la structure a été extraite : les
-        # cellules « Structure » sont donc à jour (SUCCEEDED).
+        # cellules « Structure » (statut + coût) sont donc à jour.
         if generated:
+            structure_cost = _cost_by_deliverable(*structure_costs)
             for deliverable in self._deliverables:
                 self._structure_status[deliverable] = PhaseStatus.SUCCEEDED
+                self._structure_cost[deliverable] = structure_cost[deliverable]
+        for language, (map_cost, diagrams_cost) in (language_costs or {}).items():
+            if language not in self._status:
+                continue
+            lang_cost = _cost_by_deliverable(map_cost, diagrams_cost)
+            for deliverable in self._deliverables:
+                self._language_cost[(deliverable, language)] = lang_cost[deliverable]
 
     def apply_event(self, event: VisualsEvent) -> None:
         """Met à jour l'état à partir d'un événement Visualisations.

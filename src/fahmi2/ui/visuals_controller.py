@@ -72,6 +72,7 @@ from fahmi2.visuals.events import (
     VisualsStructureProgress,
     VisualsStructureStarted,
 )
+from fahmi2.visuals.manifest import read_manifest
 from fahmi2.visuals.sources import (
     available_visuals_languages,
     load_text_units,
@@ -267,6 +268,7 @@ class VisualsController(QObject):
             if outputs_present(out_dir, language, visuals)
         ]
         run_state = read_run_state(visuals_dir)
+        manifest = read_manifest(visuals_dir)
         vm.load_persisted(
             deliverables=_enabled_deliverables(visuals),
             languages=tuple(languages),
@@ -276,6 +278,8 @@ class VisualsController(QObject):
             overall_status=run_state.status if run_state else None,
             started_at=run_state.started_at if run_state else None,
             finished_at=run_state.finished_at if run_state else None,
+            structure_costs=manifest.structure_costs(),
+            language_costs=manifest.language_costs(),
         )
 
     @property

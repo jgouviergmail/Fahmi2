@@ -163,6 +163,28 @@ def test_costs_populate_cells_structure_and_total() -> None:
     assert vm.stats_snapshot().total_cost_usd == pytest.approx(0.15)
 
 
+def test_load_persisted_peuple_les_couts_par_cellule() -> None:
+    vm = _vm()
+    vm.load_persisted(
+        deliverables=_DELIVERABLES,
+        languages=_LANGS,
+        generated_languages=[Language.FR],
+        total_cost_usd=0.12,
+        structure_costs=(0.08, 0.01),
+        language_costs={Language.FR: (0.02, 0.01)},
+    )
+    matrix = vm.cost_matrix_snapshot()
+    # Colonne Structure (carte / diagrammes).
+    assert matrix.cells[0][_COL_STRUCTURE].cost_usd == pytest.approx(0.08)
+    assert matrix.cells[1][_COL_STRUCTURE].cost_usd == pytest.approx(0.01)
+    # Colonne fr (carte / diagrammes).
+    assert matrix.cells[0][_COL_FR].cost_usd == pytest.approx(0.02)
+    assert matrix.cells[1][_COL_FR].cost_usd == pytest.approx(0.01)
+    # EN non produit → coût non rattaché.
+    assert matrix.cells[0][_COL_EN].cost_usd is None
+    assert vm.stats_snapshot().total_cost_usd == pytest.approx(0.12)
+
+
 def test_generation_finished_sets_authoritative_total() -> None:
     vm = _vm()
     vm.apply_event(VisualsGenerationStarted(timestamp=_ts()))

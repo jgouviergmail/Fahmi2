@@ -204,6 +204,15 @@ the full breakdown.
 
 ## Status
 
+**[Unreleased]** — **Visualizations refinements**: the content-**density** setting
+now noticeably drives the **knowledge-map size** (degree-based edge-first pruning —
+*light* keeps only the strong, structuring nodes; *dense* the full connected graph;
+388→40/90/355 nodes on a real corpus, isolated nodes dropped, connectivity guaranteed).
+Plus **cost traceability** in the progress matrix: structure and per-language costs are
+now attributed **per cell** (deliverable × {Structure, languages}), so the grid totals
+match the Cost tile (no more misleading `$0.0000`). **1374 passing tests**, ruff + mypy
+`--strict` clean.
+
 **v1.6.0** — **Visualizations** feature: two **fully self-contained**
 interactive HTML deliverables per Latin-script language — an interactive
 **knowledge map** (typed concept/term/idea/example graph, network↔tree,

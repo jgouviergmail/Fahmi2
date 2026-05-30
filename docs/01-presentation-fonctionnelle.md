@@ -229,8 +229,9 @@ it is **on-demand** and configurable.
   related). The graph reorganises from a **network** view to a **tree** when
   you click a node (and back), groups nodes into **themes**, and shows, for
   each node, its definition and an **excerpt of the source** it comes from. The layout is
-  optimized for legibility (spaced-out nodes; edge labels are shown for the **selected**
-  node rather than all at once); you can **drag nodes to rearrange**, your arrangement is
+  optimized for legibility (spaced-out nodes; relation labels are hidden in the
+  zoomed-out overview and shown **when you zoom in**, **on hover**, or for the
+  **selected** node — rather than all at once); you can **drag nodes to rearrange**, your arrangement is
   **saved and restored on reload** (per browser), and a **« Réinitialiser la disposition »**
   button reverts to the computed layout.
 - **Diagram gallery**: **generated** diagrams (not AI images) — flowcharts,

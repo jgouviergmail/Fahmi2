@@ -16,9 +16,10 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   explicitly disabled (its `cytoscape-layout-utilities` dependency is not vendored). No new
   vendored library. *(Diagrams use dagre/concentric — not fcose — so this targets the map
   only.)*
-- **Edge labels are decluttered**: hidden at rest (`text-opacity: 0` — not toggling the
-  `label` property, which would recompute bounds on ~400 edges) and revealed on the
-  **selected node's** connected edges (`show-label` class), shown horizontally.
+- **Edge labels are decluttered**: hidden in the **zoomed-out overview** (via
+  `min-zoomed-font-size` — not toggling the `label` property, which would recompute bounds
+  on ~400 edges) and revealed automatically **when you zoom in**, **on hover**, and on the
+  **selected node's** edges (`show-label` lifts the zoom gate), shown horizontally.
 
 ### Added — Visualizations: persist manual rearrangements (localStorage)
 

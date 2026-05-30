@@ -25,6 +25,7 @@
   var FCOSE_NODE_SEPARATION = 110;
   var FCOSE_GRAVITY = 0.2;
   var SAVE_DEBOUNCE_MS = 250;  // débounce de la sauvegarde des positions au déplacement
+  var EDGE_LABEL_MIN_ZOOM_FONT = 8;  // libellés d'arêtes révélés au zoom (police effective ≥ seuil)
 
   var DATA = JSON.parse(document.getElementById("km-data").textContent);
   var NODE_TYPES = ["concept", "glossary_term", "example", "idea"];
@@ -91,13 +92,16 @@
         width: 1.6, "line-color": cssVar("--edge"), "target-arrow-color": cssVar("--edge"),
         "target-arrow-shape": "triangle", "curve-style": "bezier", label: "data(label)",
         "font-size": 8, color: cssVar("--t3"),
-        // Libellés d'arêtes MASQUÉS au repos (text-opacity 0, pas la prop `label` : éviter
-        // les recalculs de bounds) — révélés sur le nœud sélectionné (classe show-label).
-        "text-opacity": 0,
+        // Libellés d'arêtes VISIBLES mais **gated au zoom** (`min-zoomed-font-size`) :
+        // cachés en vue d'ensemble (désencombrement), révélés dès qu'on zoome (police
+        // effective ≥ seuil). On ne bascule PAS la prop `label` (recalcul de bounds).
+        "min-zoomed-font-size": EDGE_LABEL_MIN_ZOOM_FONT,
         "text-background-color": cssVar("--canvas"), "text-background-opacity": 0.85,
         "text-background-padding": 2
       } },
-      { selector: "edge.show-label", style: { "text-opacity": 1 } },
+      // Survol / sélection d'un nœud : ses arêtes lèvent le seuil de zoom (label lisible
+      // à tout zoom) pour explorer ses relations sans zoomer.
+      { selector: "edge.show-label", style: { "min-zoomed-font-size": 0 } },
       { selector: ".selected", style: {
         "border-width": 4, "border-color": cssVar("--accent"), "border-opacity": 1
       } },
@@ -272,6 +276,16 @@
       cy.elements().removeClass("selected dim show-label");
       document.getElementById("panel").classList.add("hidden");
     }
+  });
+
+  // Survol d'un nœud : révèle les libellés de ses arêtes (à tout zoom, via show-label) ;
+  // au départ du survol, on les retire et on restaure ceux du nœud sélectionné.
+  cy.on("tapdragover", "node[kind != 'community']", function (evt) {
+    evt.target.connectedEdges().addClass("show-label");
+  });
+  cy.on("tapdragout", "node[kind != 'community']", function (evt) {
+    evt.target.connectedEdges().removeClass("show-label");
+    cy.nodes(".selected").connectedEdges().addClass("show-label");
   });
 
   // ---- Recherche ----

@@ -642,8 +642,9 @@ The barriers remain the batch phases 2 and 5 (the engine stays
   layout** (fcose, map only — diagrams use dagre/concentric):
   `nodeDimensionsIncludeLabels:true` + spacing (`nodeRepulsion`/`idealEdgeLength` passed
   **as functions** as fcose requires) + `packComponents:false`; **edge labels
-  decluttered** (`text-opacity:0` at rest — not toggling `label` — revealed on the
-  selected node via the `show-label` class). **Manual-rearrangement persistence** (map
+  decluttered** (hidden zoomed-out via `min-zoomed-font-size` — not toggling `label` —
+  revealed on zoom-in, on hover, and on the selected node via the `show-label` class which
+  lifts the zoom gate). **Manual-rearrangement persistence** (map
   **and** diagrams): dragged node positions are saved to `localStorage` (shared vendored
   helper `_assets/visuals/_layout_store.js`: availability probe + `try/catch` → graceful
   fallback; keys `fahmi2:visuals:<deliverable>:<lang>:<hash8>:v1`, content-hashed →

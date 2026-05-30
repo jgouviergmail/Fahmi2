@@ -27,6 +27,9 @@
 </div>
 @@VENDORED@@
 <script>
+@@LAYOUT_STORE@@
+</script>
+<script>
 @@APP_JS@@
 </script>
 </body>

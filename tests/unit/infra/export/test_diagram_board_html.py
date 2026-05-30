@@ -94,6 +94,17 @@ def test_timeline_et_comparison_rendus_en_html() -> None:
     assert "<th>Critère</th>" in html
 
 
+def test_persistance_cle_par_diagramme_et_module() -> None:
+    html = render_diagram_board_html(_board())
+    # Chaque diagramme « graphe » porte une clé namespacée (livrable + langue + hash 8
+    # hex + version) ; les diagrammes linéaires n'en ont pas.
+    keys = re.findall(r'data-storage-key="([^"]*)"', html)
+    assert keys
+    for key in keys:
+        assert re.fullmatch(r"fahmi2:visuals:diagram:fr:[0-9a-f]{8}:v1", key)
+    assert "__fahmi2LayoutStore" in html  # module de persistance inliné
+
+
 def test_autonomie_et_bundle_reduit() -> None:
     html = render_diagram_board_html(_board())
     assert 'src="http' not in html and 'href="http' not in html

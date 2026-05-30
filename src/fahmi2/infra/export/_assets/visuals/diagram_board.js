@@ -14,6 +14,8 @@
   var MAX_INITIAL_ZOOM = 1.4;   // ne pas sur-grossir un graphe minuscule
   var ZOOM_BOUND_MIN = 0.25;
   var ZOOM_BOUND_MAX = 3.0;
+  var SAVE_DEBOUNCE_MS = 250;  // débounce de la sauvegarde des positions au déplacement
+  var store = window.__fahmi2LayoutStore || null;  // persistance (peut être indisponible)
 
   function use(ext) { if (ext && window.cytoscape) { try { cytoscape.use(ext); } catch (e) { /* déjà */ } } }
   use(window.cytoscapeDagre);
@@ -22,6 +24,35 @@
 
   function cssVar(name) {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  // ---- Persistance des positions (localStorage via _layout_store.js, partagé) ----
+  function persistKey(el) {
+    return (store && store.available && el) ? el.getAttribute("data-storage-key") : null;
+  }
+  function applySaved(cy, key) {
+    if (!key) { return; }
+    var saved = store.read(key);
+    if (!saved) { return; }
+    cy.batch(function () {
+      cy.nodes().forEach(function (n) {
+        var p = saved[n.id()]; if (p) { n.position({ x: p.x, y: p.y }); }
+      });
+    });
+  }
+  function attachPersist(cy, key) {
+    if (!key) { return; }
+    var timer = null;
+    cy.on("dragfree", "node", function () {
+      if (timer) { clearTimeout(timer); }
+      timer = setTimeout(function () {
+        var map = {};
+        cy.nodes().forEach(function (n) {
+          var p = n.position(); map[n.id()] = { x: p.x, y: p.y };
+        });
+        store.write(key, map);
+      }, SAVE_DEBOUNCE_MS);
+    });
   }
 
   function diagramStyles() {
@@ -96,12 +127,15 @@
     if (container.__done) { return; }
     container.__done = true;
     var cy = makeCy(container, JSON.parse(container.getAttribute("data-graph")));
+    var key = persistKey(container);
+    applySaved(cy, key);  // positions sauvegardées si présentes (sinon layout calculé)
     cy.fit(undefined, FIT_PADDING);
     // Plancher/plafond de lisibilité : si ``fit`` a trop réduit (graphe dense), on
     // remonte au plancher (l'utilisateur pane, ou agrandit en plein écran) ; on évite
     // aussi de sur-grossir un tout petit graphe.
     cy.zoom(clamp(cy.zoom(), MIN_INITIAL_ZOOM, MAX_INITIAL_ZOOM));
     cy.center();
+    attachPersist(cy, key);
     instances.push(cy);
   }
 
@@ -138,10 +172,12 @@
   var lightboxReset = document.getElementById("lightbox-reset");
   var lastTrigger = null;  // bouton .expand ayant ouvert l'overlay (focus restitué à la fermeture)
   var lightboxSpec = null;  // spec du graphe ouvert (pour réinitialiser la disposition)
+  var lightboxKey = null;   // clé de persistance du graphe ouvert (partagée avec la carte)
 
   function closeLightbox() {
     if (lightboxCy) { lightboxCy.destroy(); lightboxCy = null; }
     lightboxSpec = null;
+    lightboxKey = null;
     lightboxBody.innerHTML = "";
     lightboxReset.setAttribute("hidden", "");
     lightbox.setAttribute("hidden", "");
@@ -150,6 +186,9 @@
 
   function relayoutLightbox() {
     if (lightboxCy && lightboxSpec) {
+      // Réinitialiser = oublier les positions persistées (dagre/concentric étant
+      // déterministes, le recalcul redonne la disposition d'origine).
+      if (lightboxKey && store) { store.remove(lightboxKey); }
       lightboxCy.layout(layoutFor(lightboxSpec)).run();
       lightboxCy.fit(undefined, 48);
     }
@@ -158,6 +197,7 @@
   function openLightbox(card, trigger) {
     if (lightboxCy) { lightboxCy.destroy(); lightboxCy = null; }  // ré-ouverture : pas de fuite
     lightboxSpec = null;
+    lightboxKey = null;
     lastTrigger = trigger || null;
     var h3 = card.querySelector("h3");
     lightboxTitle.textContent = h3 ? h3.textContent : "";
@@ -166,12 +206,15 @@
     var graph = card.querySelector(".cy-diagram[data-graph]");
     if (graph) {
       lightboxSpec = JSON.parse(graph.getAttribute("data-graph"));
+      lightboxKey = persistKey(graph);  // clé partagée avec la carte
       var full = document.createElement("div");
       full.className = "cy-full";
       lightboxBody.appendChild(full);
       lightboxCy = makeCy(full, lightboxSpec);
+      applySaved(lightboxCy, lightboxKey);  // restaure le réagencement persisté
       lightboxCy.resize();
       lightboxCy.fit(undefined, 48);
+      attachPersist(lightboxCy, lightboxKey);  // sauvegarde au déplacement
       lightboxReset.removeAttribute("hidden");  // « réinitialiser la disposition » (graphes)
     } else {
       var linear = card.querySelector(".timeline, .cmp");

@@ -5,6 +5,37 @@ All notable changes to the Fahmi2 project.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed — Visualizations: density now controls the knowledge-map size
+
+- The **content-quantity** setting (`SupportDensity`: light / standard / dense) now
+  **noticeably** drives the size of the **knowledge map**. Previously it only capped the
+  per-unit semantic-node count (4 / 7 / 12) while the **entire glossary** was dumped as
+  nodes (density-invariant) with **no pruning** — so on a rich corpus "light" was still a
+  huge, barely-distinguishable map.
+- New pure module `visuals/_pruning.py` (`prune_knowledge_graph`): **edge-first
+  selection** — edges are ranked by the sum of their endpoints' degrees and accumulated
+  until a per-density node budget, which **guarantees by construction** that no kept node
+  is isolated (never an empty map as long as an edge exists). Isolated nodes (glossary
+  terms never linked) are dropped at **all** levels. Budget = `ratio × connected`
+  (0.25 / 0.50 / 1.0) bounded by a cap (40 / 90 / none for dense) and a floor (12), all
+  centralised in `_constants.py`. Inserted between `resolve_graph` and `assemble_graph`
+  so communities / reports / idea-chains operate on the reduced graph.
+- Measured on a real 12-course corpus: **388 → 40 (light) / 90 (standard) / 355 (dense)**
+  nodes, 0 residual isolated, none empty. Note: "dense" is now slightly smaller than
+  before (unlinked glossary terms leave the map — they remain in the exported glossary).
+
+### Fixed — Visualizations: cost traceability in the progress matrix
+
+- The progress matrix showed **$0.0000** in every cost cell/total (cells carried no
+  cost) while the Cost tile showed the real total — misleading. Costs (already computed
+  per deliverable in the orchestrator) are now **attributed per cell**
+  (deliverable × {Structure, languages}) via two new fields on
+  `VisualsStructureFinished` / `VisualsLanguageFinished`, populated in
+  `VisualsProgressViewModel`. The grid totals now sum to the authoritative total; the
+  live tile also includes the structure cost.
+
 ## [1.6.0] — 2026-05-30
 
 ### Added — Visualizations: two standalone interactive HTML deliverables

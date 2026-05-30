@@ -240,7 +240,9 @@ it is **on-demand** and configurable.
   language among **French, English, German, Spanish, Italian**. Chinese and
   Arabic are **not** supported for this feature (to keep the interactive
   rendering uncompromised).
-- **Settings**: which deliverables to produce, content **density**, allowed
+- **Settings**: which deliverables to produce, content **density** (now noticeably
+  drives the **knowledge-map size** — *light* keeps only the strong, structuring
+  concepts; *dense* shows the full connected graph), allowed
   **diagram types**, model / reasoning, **budget cap** and parallelism.
   A **pre-run cost estimate** is available, and the **prompts are editable**
   like the rest.

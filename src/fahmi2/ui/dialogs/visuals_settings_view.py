@@ -196,8 +196,9 @@ class VisualsSettingsView(QDialog):
         self._density_combo = QComboBox(self)
         self._density_combo.setToolTip(
             self.tr(
-                "Volume des nœuds et diagrammes générés par section "
-                "(compact, équilibré, dense)."
+                "Quantité de contenu : pilote la taille de la carte de connaissances "
+                "(légère = éléments forts et structurants ; dense = graphe complet) et "
+                "le nombre de diagrammes par section."
             )
         )
         for density in SupportDensity:

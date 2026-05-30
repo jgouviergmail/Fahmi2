@@ -6,10 +6,10 @@ lancement (cellules en attente), puis ``apply_event`` à chaque événement ; la
 consomme ``cost_matrix_snapshot`` (grille livrables × langues, statut uniquement) et
 ``stats_snapshot`` (tuiles).
 
-L'orchestrateur émet un coût **par langue** (localisation) et un coût **total**
-faisant foi sur l'événement de fin (incluant l'extraction de structure, non rattachée à
-une langue). Les cellules de la matrice ne portent donc **pas** de coût ; le total est
-porté par les tuiles (somme live des coûts par langue, puis total faisant foi à la fin).
+L'orchestrateur émet les coûts **par livrable** (carte / diagrammes) sur l'événement de
+fin de structure et sur chaque événement de fin de langue, plus un coût **total** faisant
+foi à la fin. Chaque cellule ``livrable × {Structure, langue}`` porte donc son coût ; les
+tuiles affichent le total (somme live structure + langues, puis total faisant foi).
 Testable sans Qt.
 """
 
@@ -65,6 +65,24 @@ def _structure_column_label() -> str:
     return QCoreApplication.translate("VisualsProgress", "Structure")
 
 
+def _cost_by_deliverable(
+    map_cost_usd: float, diagrams_cost_usd: float
+) -> dict[VisualsDeliverable, float]:
+    """Associe les coûts carte / diagrammes d'un événement à leurs livrables.
+
+    Args:
+        map_cost_usd: Coût imputé à la carte de connaissances.
+        diagrams_cost_usd: Coût imputé aux diagrammes.
+
+    Returns:
+        Un mapping ``livrable -> coût``.
+    """
+    return {
+        VisualsDeliverable.KNOWLEDGE_MAP: map_cost_usd,
+        VisualsDeliverable.DIAGRAMS: diagrams_cost_usd,
+    }
+
+
 @dataclass(frozen=True)
 class VisualsStatsSnapshot:
     """Indicateurs agrégés pour la bande de tuiles Visualisations.
@@ -109,6 +127,10 @@ class VisualsProgressViewModel:
         # Phase de structure (commune, avant les langues) : statut + détail par livrable.
         self._structure_status: dict[VisualsDeliverable, PhaseStatus | None] = {}
         self._structure_detail: dict[VisualsDeliverable, str] = {}
+        self._structure_cost: dict[VisualsDeliverable, float | None] = {}
+        self._language_cost: dict[
+            tuple[VisualsDeliverable, Language], float | None
+        ] = {}
 
     def reset(
         self,
@@ -134,6 +156,12 @@ class VisualsProgressViewModel:
         self._finished_at = None
         self._structure_status = {deliverable: None for deliverable in deliverables}
         self._structure_detail = {}
+        self._structure_cost = {deliverable: None for deliverable in deliverables}
+        self._language_cost = {
+            (deliverable, language): None
+            for deliverable in deliverables
+            for language in languages
+        }
 
     def load_persisted(
         self,
@@ -198,11 +226,14 @@ class VisualsProgressViewModel:
             VisualsStructureStarted | VisualsStructureProgress | VisualsStructureFinished,
         ):
             self._apply_structure_event(event)
+            if isinstance(event, VisualsStructureFinished):
+                self._record_structure_cost(event)
         elif isinstance(event, VisualsLanguageStarted):
             self._status[event.language] = PhaseStatus.RUNNING
         elif isinstance(event, VisualsLanguageFinished):
             self._status[event.language] = event.status
             self._total_cost_usd += event.cost_usd
+            self._record_language_cost(event)
         elif isinstance(event, VisualsGenerationFinished):
             self._overall_status = event.status
             self._finished_at = event.timestamp
@@ -256,6 +287,27 @@ class VisualsProgressViewModel:
                 self._structure_status[deliverable] = PhaseStatus.SUCCEEDED
                 self._structure_detail.pop(deliverable, None)
 
+    def _record_structure_cost(self, event: VisualsStructureFinished) -> None:
+        """Impute le coût de structure aux cellules « Structure » + total live.
+
+        Args:
+            event: Événement de fin de structure (coûts par livrable).
+        """
+        cost = _cost_by_deliverable(event.map_cost_usd, event.diagrams_cost_usd)
+        for deliverable in self._deliverables:
+            self._structure_cost[deliverable] = cost[deliverable]
+        self._total_cost_usd += event.map_cost_usd + event.diagrams_cost_usd
+
+    def _record_language_cost(self, event: VisualsLanguageFinished) -> None:
+        """Impute le coût de localisation d'une langue à ses cellules par livrable.
+
+        Args:
+            event: Événement de fin de langue (coûts par livrable).
+        """
+        cost = _cost_by_deliverable(event.map_cost_usd, event.diagrams_cost_usd)
+        for deliverable in self._deliverables:
+            self._language_cost[(deliverable, event.language)] = cost[deliverable]
+
     def cost_matrix_snapshot(self) -> CostMatrixSnapshot:
         """Construit la matrice livrables × (Structure + langues), statut par cellule.
 
@@ -275,7 +327,7 @@ class VisualsProgressViewModel:
                 deliverable_label(deliverable),
                 (
                     self._structure_cell(deliverable),
-                    *(self._cell(lang) for lang in self._languages),
+                    *(self._cell(deliverable, lang) for lang in self._languages),
                 ),
             )
             for deliverable in self._deliverables
@@ -296,22 +348,27 @@ class VisualsProgressViewModel:
         status = self._structure_status.get(deliverable)
         return CostMatrixCell(
             status=status or PhaseStatus.PENDING,
-            cost_usd=None,
+            cost_usd=self._structure_cost.get(deliverable),
             tooltip=self._structure_detail.get(deliverable, ""),
         )
 
-    def _cell(self, language: Language) -> CostMatrixCell:
-        """Cellule de matrice pour une langue (statut uniquement, coût non rattaché).
+    def _cell(
+        self, deliverable: VisualsDeliverable, language: Language
+    ) -> CostMatrixCell:
+        """Cellule de matrice pour un livrable × langue (statut + coût de localisation).
 
         Args:
+            deliverable: Livrable (ligne).
             language: Langue (colonne).
 
         Returns:
-            ``CostMatrixCell`` (coût ``None`` : voir le total dans les tuiles).
+            ``CostMatrixCell`` (coût ``None`` tant que la langue n'est pas produite).
         """
         status = self._status.get(language)
         return CostMatrixCell(
-            status=status or PhaseStatus.PENDING, cost_usd=None, tooltip=""
+            status=status or PhaseStatus.PENDING,
+            cost_usd=self._language_cost.get((deliverable, language)),
+            tooltip="",
         )
 
     def stats_snapshot(self) -> VisualsStatsSnapshot:

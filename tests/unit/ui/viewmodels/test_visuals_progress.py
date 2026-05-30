@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+import pytest
+
 from fahmi2.domain.enums import Language, PhaseStatus, RunStatus
 from fahmi2.ui.viewmodels.visuals_progress import VisualsProgressViewModel
 from fahmi2.ui.visuals_labels import VisualsDeliverable, deliverable_label
@@ -111,18 +113,54 @@ def test_language_lifecycle_updates_status_and_cost() -> None:
             status=PhaseStatus.SUCCEEDED,
             cost_usd=0.4,
             error=None,
+            map_cost_usd=0.3,
+            diagrams_cost_usd=0.1,
         )
     )
     matrix = vm.cost_matrix_snapshot()
     # Les deux livrables de la langue partagent le même statut.
     assert matrix.cells[0][_COL_FR].status is PhaseStatus.SUCCEEDED
     assert matrix.cells[1][_COL_FR].status is PhaseStatus.SUCCEEDED
-    # Le coût n'est pas rattaché aux cellules (porté par les tuiles).
-    assert matrix.cells[0][_COL_FR].cost_usd is None
+    # Le coût est ventilé par livrable sur les cellules.
+    assert matrix.cells[0][_COL_FR].cost_usd == 0.3  # Carte
+    assert matrix.cells[1][_COL_FR].cost_usd == 0.1  # Diagrammes
     stats = vm.stats_snapshot()
     assert stats.languages_done == 1
     assert stats.total_cost_usd == 0.4
     assert stats.overall_status is RunStatus.RUNNING
+
+
+def test_costs_populate_cells_structure_and_total() -> None:
+    vm = _vm()
+    vm.apply_event(VisualsGenerationStarted(timestamp=_ts()))
+    vm.apply_event(VisualsStructureStarted(timestamp=_ts()))
+    vm.apply_event(
+        VisualsStructureFinished(
+            timestamp=_ts(), map_cost_usd=0.10, diagrams_cost_usd=0.02
+        )
+    )
+    vm.apply_event(VisualsLanguageStarted(timestamp=_ts(), language=Language.FR))
+    vm.apply_event(
+        VisualsLanguageFinished(
+            timestamp=_ts(),
+            language=Language.FR,
+            status=PhaseStatus.SUCCEEDED,
+            cost_usd=0.03,
+            error=None,
+            map_cost_usd=0.02,
+            diagrams_cost_usd=0.01,
+        )
+    )
+    matrix = vm.cost_matrix_snapshot()
+    # Colonne Structure : coût par livrable.
+    assert matrix.cells[0][_COL_STRUCTURE].cost_usd == pytest.approx(0.10)
+    assert matrix.cells[1][_COL_STRUCTURE].cost_usd == pytest.approx(0.02)
+    # Colonne fr : coût de localisation par livrable.
+    assert matrix.cells[0][_COL_FR].cost_usd == pytest.approx(0.02)
+    assert matrix.cells[1][_COL_FR].cost_usd == pytest.approx(0.01)
+    # Total de la matrice = structure + langue ; concorde avec la tuile.
+    assert matrix.grand_total == pytest.approx(0.15)
+    assert vm.stats_snapshot().total_cost_usd == pytest.approx(0.15)
 
 
 def test_generation_finished_sets_authoritative_total() -> None:

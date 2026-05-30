@@ -125,6 +125,16 @@ def test_deterministe() -> None:
     ]
 
 
+def test_petit_graphe_connexe_jamais_vide() -> None:
+    # 2 nœuds, 1 arête : connected = 2 → plancher 2 → les deux conservés (le budget
+    # ne peut pas tomber à 1 puisqu'une arête relie 2 nœuds distincts) ; jamais vide.
+    nodes, edges = _path_graph(2)
+    for density in SupportDensity:
+        kept_nodes, kept_edges = prune_knowledge_graph(nodes, edges, density=density)
+        assert len(kept_nodes) == 2
+        assert len(kept_edges) == 1
+
+
 def test_graphe_sans_arete_inchange() -> None:
     nodes = (_node("a"), _node("b"), _node("c"))
     kept_nodes, kept_edges = prune_knowledge_graph(

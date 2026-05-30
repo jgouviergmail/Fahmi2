@@ -10,6 +10,7 @@ Module pur (sans Qt / réseau / LLM), déterministe.
 from __future__ import annotations
 
 import math
+from collections import Counter
 
 from fahmi2.domain.enums import SupportDensity
 from fahmi2.domain.visuals import GraphEdge, GraphNode
@@ -20,24 +21,22 @@ from fahmi2.visuals._constants import (
 )
 
 
-def _node_degrees(
-    nodes: tuple[GraphNode, ...], edges: tuple[GraphEdge, ...]
-) -> dict[str, int]:
-    """Degré (nombre d'arêtes incidentes) de chaque nœud.
+def _node_degrees(edges: tuple[GraphEdge, ...]) -> Counter[str]:
+    """Degré (nombre d'arêtes incidentes) de chaque nœud **connecté**.
+
+    Les nœuds isolés (absents de toute arête) n'apparaissent pas dans le résultat ;
+    le nombre de nœuds connectés est donc ``len(...)``.
 
     Args:
-        nodes: Nœuds du graphe.
         edges: Arêtes du graphe.
 
     Returns:
-        Un mapping ``id de nœud -> degré`` (0 pour un nœud isolé).
+        Un ``Counter`` ``id de nœud -> degré`` restreint aux nœuds connectés.
     """
-    degree = {node.id: 0 for node in nodes}
+    degree: Counter[str] = Counter()
     for edge in edges:
-        if edge.source_id in degree:
-            degree[edge.source_id] += 1
-        if edge.target_id in degree:
-            degree[edge.target_id] += 1
+        degree[edge.source_id] += 1
+        degree[edge.target_id] += 1
     return degree
 
 
@@ -84,10 +83,8 @@ def prune_knowledge_graph(
     """
     if not edges:
         return nodes, edges
-    degree = _node_degrees(nodes, edges)
-    connected_count = sum(1 for value in degree.values() if value > 0)
-    if connected_count == 0:
-        return nodes, edges
+    degree = _node_degrees(edges)
+    connected_count = len(degree)
     target = _target_node_count(connected_count, density)
     ranked_edges = sorted(
         edges,

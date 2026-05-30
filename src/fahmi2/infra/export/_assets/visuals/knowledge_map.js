@@ -18,6 +18,12 @@
   var DAGRE_NODE_SEP = 30;
   var DAGRE_RANK_SEP = 60;
   var MAX_PANEL_RELATIONS = 12;  // relations affichées dans le panneau latéral
+  // Réglages fcose pour aérer le réseau (valeurs > défauts fcose 4500/50/75/0.25).
+  // nodeRepulsion/idealEdgeLength DOIVENT être des fonctions (sinon ignorés par fcose).
+  var FCOSE_NODE_REPULSION = 6500;
+  var FCOSE_IDEAL_EDGE_LENGTH = 95;
+  var FCOSE_NODE_SEPARATION = 110;
+  var FCOSE_GRAVITY = 0.2;
 
   var DATA = JSON.parse(document.getElementById("km-data").textContent);
   var NODE_TYPES = ["concept", "glossary_term", "example", "idea"];
@@ -78,10 +84,14 @@
       { selector: "edge", style: {
         width: 1.6, "line-color": cssVar("--edge"), "target-arrow-color": cssVar("--edge"),
         "target-arrow-shape": "triangle", "curve-style": "bezier", label: "data(label)",
-        "font-size": 8, color: cssVar("--t3"), "text-rotation": "autorotate",
+        "font-size": 8, color: cssVar("--t3"),
+        // Libellés d'arêtes MASQUÉS au repos (text-opacity 0, pas la prop `label` : éviter
+        // les recalculs de bounds) — révélés sur le nœud sélectionné (classe show-label).
+        "text-opacity": 0,
         "text-background-color": cssVar("--canvas"), "text-background-opacity": 0.85,
         "text-background-padding": 2
       } },
+      { selector: "edge.show-label", style: { "text-opacity": 1 } },
       { selector: ".selected", style: {
         "border-width": 4, "border-color": cssVar("--accent"), "border-opacity": 1
       } },
@@ -108,7 +118,17 @@
   function layoutNetwork() {
     if (ec) { try { ec.expandAll(); } catch (e) { /* noop */ } }
     var name = window.cytoscapeFcose ? "fcose" : "cose";
-    cy.layout({ name: name, animate: false, quality: "default", padding: NETWORK_PADDING }).run();
+    cy.layout({
+      name: name, animate: false, quality: "default", padding: NETWORK_PADDING,
+      // Réserve la place des LIBELLÉS pendant le calcul → bien moins de chevauchement.
+      nodeDimensionsIncludeLabels: true,
+      // packComponents exige l'extension layout-utilities (non vendorisée) → désactivé.
+      packComponents: false,
+      nodeRepulsion: function () { return FCOSE_NODE_REPULSION; },
+      idealEdgeLength: function () { return FCOSE_IDEAL_EDGE_LENGTH; },
+      nodeSeparation: FCOSE_NODE_SEPARATION,
+      gravity: FCOSE_GRAVITY
+    }).run();
   }
   function layoutTree() {
     // Un nœud focalisé recentre l'arbre sur lui : seul `breadthfirst` honore
@@ -204,19 +224,20 @@
   }
 
   function selectNode(id) {
-    cy.elements().removeClass("selected dim");
+    cy.elements().removeClass("selected dim show-label");
     var node = cy.getElementById(id);
     if (node.empty()) { return; }
     var neighborhood = node.closedNeighborhood();
     cy.elements().not(neighborhood).addClass("dim");
     node.addClass("selected");
+    node.connectedEdges().addClass("show-label");  // révèle les relations du nœud
     openPanel(id);
   }
 
   cy.on("tap", "node[kind != 'community']", function (evt) { selectNode(evt.target.id()); });
   cy.on("tap", function (evt) {
     if (evt.target === cy) {
-      cy.elements().removeClass("selected dim");
+      cy.elements().removeClass("selected dim show-label");
       document.getElementById("panel").classList.add("hidden");
     }
   });
@@ -224,7 +245,7 @@
   // ---- Recherche ----
   document.getElementById("search").addEventListener("input", function (e) {
     var q = e.target.value.trim().toLowerCase();
-    cy.elements().removeClass("dim selected");
+    cy.elements().removeClass("dim selected show-label");
     if (!q) { return; }
     var matches = cy.nodes("[kind != 'community']").filter(function (n) {
       return n.data("label").toLowerCase().indexOf(q) !== -1;

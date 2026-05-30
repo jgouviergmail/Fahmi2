@@ -762,7 +762,7 @@ loss):
 
 ### 6.2 Current metrics
 
-- **1379 passing tests** × 3 consecutive runs
+- **1381 passing tests** × 3 consecutive runs
 - **ruff** + **mypy --strict** clean over the whole `src` + `tests` tree
 
 ## 7. Packaging and distribution

@@ -24,6 +24,7 @@
   var FCOSE_IDEAL_EDGE_LENGTH = 95;
   var FCOSE_NODE_SEPARATION = 110;
   var FCOSE_GRAVITY = 0.2;
+  var SAVE_DEBOUNCE_MS = 250;  // débounce de la sauvegarde des positions au déplacement
 
   var DATA = JSON.parse(document.getElementById("km-data").textContent);
   var NODE_TYPES = ["concept", "glossary_term", "example", "idea"];
@@ -34,6 +35,11 @@
   var TYPE_VAR = {
     concept: "--concept", glossary_term: "--term", example: "--example", idea: "--idea"
   };
+  // Persistance des positions (localStorage via _layout_store.js). Désactivée
+  // silencieusement si indisponible (Safari/file://, navigation privée…).
+  var STORAGE_KEY = DATA.storageKey || null;
+  var store = window.__fahmi2LayoutStore || null;
+  var persistEnabled = !!(store && store.available && STORAGE_KEY);
 
   function cssVar(name) {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -115,10 +121,31 @@
 
   // ---- Layouts ----
   var focusedId = null;
+  var currentMode = "network";  // mode courant (persistance en mode réseau uniquement)
+
+  function applyPositions(saved) {
+    cy.batch(function () {
+      cy.nodes().forEach(function (n) {
+        var p = saved[n.id()];
+        if (p) { n.position({ x: p.x, y: p.y }); }
+      });
+    });
+    cy.fit(undefined, FIT_PADDING);
+  }
+  function savePositions() {
+    if (!persistEnabled || currentMode !== "network") { return; }
+    var map = {};
+    cy.nodes().forEach(function (n) {
+      var p = n.position(); map[n.id()] = { x: p.x, y: p.y };
+    });
+    store.write(STORAGE_KEY, map);
+  }
   function layoutNetwork() {
     if (ec) { try { ec.expandAll(); } catch (e) { /* noop */ } }
+    var saved = persistEnabled ? store.read(STORAGE_KEY) : null;
+    if (saved) { applyPositions(saved); return; }  // restauration : pas de recalcul
     var name = window.cytoscapeFcose ? "fcose" : "cose";
-    cy.layout({
+    var lay = cy.layout({
       name: name, animate: false, quality: "default", padding: NETWORK_PADDING,
       // Réserve la place des LIBELLÉS pendant le calcul → bien moins de chevauchement.
       nodeDimensionsIncludeLabels: true,
@@ -128,7 +155,11 @@
       idealEdgeLength: function () { return FCOSE_IDEAL_EDGE_LENGTH; },
       nodeSeparation: FCOSE_NODE_SEPARATION,
       gravity: FCOSE_GRAVITY
-    }).run();
+    });
+    // .run() n'est pas garanti synchrone → sauver sur layoutstop fige le 1er calcul
+    // pour un rendu STABLE aux rechargements (fcose étant non-déterministe).
+    if (persistEnabled) { lay.one("layoutstop", savePositions); }
+    lay.run();
   }
   function layoutTree() {
     // Un nœud focalisé recentre l'arbre sur lui : seul `breadthfirst` honore
@@ -146,6 +177,7 @@
     cy.fit(undefined, FIT_PADDING);
   }
   function setMode(mode) {
+    currentMode = mode;
     var btnNetwork = document.getElementById("btn-network");
     var btnTree = document.getElementById("btn-tree");
     btnNetwork.classList.toggle("on", mode === "network");
@@ -282,6 +314,21 @@
     root.setAttribute("data-theme", root.getAttribute("data-theme") === "dark" ? "light" : "dark");
     cy.style(styles());
   });
+
+  // ---- Persistance : sauvegarde au déplacement (débouncée) + réinitialisation ----
+  var saveTimer = null;
+  cy.on("dragfree", "node", function () {
+    if (saveTimer) { clearTimeout(saveTimer); }
+    saveTimer = setTimeout(savePositions, SAVE_DEBOUNCE_MS);
+  });
+  var resetBtn = document.getElementById("reset-layout");
+  if (resetBtn) {
+    if (!persistEnabled) { resetBtn.setAttribute("disabled", "disabled"); }
+    resetBtn.addEventListener("click", function () {
+      if (persistEnabled) { store.remove(STORAGE_KEY); }
+      focusedId = null; setMode("network");  // relance fcose (branche « sans sauvegarde »)
+    });
+  }
 
   // ---- Démarrage ----
   layoutNetwork();

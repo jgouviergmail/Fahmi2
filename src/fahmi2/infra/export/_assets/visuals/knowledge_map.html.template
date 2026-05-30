@@ -16,6 +16,7 @@
     <div class="spacer"></div>
     <div class="seg" role="group"><button type="button" id="btn-network" class="on" aria-pressed="true">@@NETWORK@@</button><button type="button" id="btn-tree" aria-pressed="false">@@TREE@@</button></div>
     <div class="seg"><button type="button" class="iconbtn" id="zoom-out" title="@@ZOOM_OUT@@" aria-label="@@ZOOM_OUT@@">−</button><button type="button" class="iconbtn" id="zoom-fit" title="@@ZOOM_FIT@@" aria-label="@@ZOOM_FIT@@">⌖</button><button type="button" class="iconbtn" id="zoom-in" title="@@ZOOM_IN@@" aria-label="@@ZOOM_IN@@">+</button></div>
+    <button type="button" class="iconbtn" id="reset-layout" title="@@RESET_LAYOUT@@" aria-label="@@RESET_LAYOUT@@">⟲</button>
     <button type="button" class="iconbtn" id="theme" title="@@THEME@@" aria-label="@@THEME@@">◐</button>
   </div>
   <div class="subbar">
@@ -32,6 +33,9 @@
 </div>
 <script id="km-data" type="application/json">@@DATA_JSON@@</script>
 @@VENDORED@@
+<script>
+@@LAYOUT_STORE@@
+</script>
 <script>
 @@APP_JS@@
 </script>

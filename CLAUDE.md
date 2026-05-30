@@ -198,7 +198,14 @@ Dependencies flow downwards (UI → app → pipeline/infra → domain/core).
   community reports], `diagram_author` [typed diagram payloads], `label_translator`
   [localise graph/board labels — structure extracted **once**, labels
   translated per language]), `community` (`detect_communities`: networkx
-  Louvain with fixed seed → deterministic; `assemble_graph`), `events`,
+  Louvain with fixed seed → deterministic; `assemble_graph`), `_pruning`
+  (`prune_knowledge_graph`: **density-driven knowledge-map pruning** by **edge-first
+  selection** — ranks edges by the sum of endpoint degrees, accumulates nodes up to a
+  per-density budget [`MAP_CONNECTED_NODE_RATIO_BY_DENSITY` 0.25/0.50/1.0 bounded by
+  `MAP_NODE_CAP_BY_DENSITY` 40/90/none and `MAP_MIN_NODES` floor 12], drops isolated
+  nodes at all levels, **connectivity guaranteed by construction** [no empty map];
+  inserted between `resolve_graph` and `assemble_graph` so communities/reports/idea-chains
+  run on the reduced graph), `events`,
   `manifest` (per-language freshness: settings hash + structure/glossary/content
   mtimes). The **structure is extracted once** in a structure language, then
   each Latin language is a label-translation + render pass. **Zero rendering
@@ -631,7 +638,26 @@ The barriers remain the batch phases 2 and 5 (the engine stays
   **server-computed adaptive canvas height** (by node count) + an initial-zoom
   floor + wheel-zoom/drag-pan, and every diagram card has an **« Enlarge »
   fullscreen overlay** (re-renders the graph fit to the full viewport) so
-  arbitrarily complex diagrams stay readable — no fixed card size can. **Embedded
+  arbitrarily complex diagrams stay readable — no fixed card size can. **Knowledge-map
+  layout** (fcose, map only — diagrams use dagre/concentric):
+  `nodeDimensionsIncludeLabels:true` + spacing (`nodeRepulsion`/`idealEdgeLength` passed
+  **as functions** as fcose requires) + `packComponents:false`; **edge labels
+  decluttered** (hidden zoomed-out via `min-zoomed-font-size` — not toggling `label` —
+  revealed on zoom-in, on hover, and on the selected node via the `show-label` class which
+  lifts the zoom gate). **Manual-rearrangement persistence** (map
+  **and** diagrams): dragged node positions are saved to `localStorage` (shared vendored
+  helper `_assets/visuals/_layout_store.js`: availability probe + `try/catch` → graceful
+  fallback; keys `fahmi2:visuals:<deliverable>:<lang>:<hash8>:v1`, content-hashed →
+  invalidated on regeneration) and restored on reload; a **« Réinitialiser la
+  disposition »** control reverts to the computed layout — **permanent in the map's
+  toolbar** (just `disabled` if `localStorage` is unavailable, e.g. Safari/`file://`),
+  whereas the **diagram gallery** exposes it only inside the per-card **« Enlarge »**
+  fullscreen overlay (the overlay is the **authoritative editor**: on close its positions
+  are propagated to the card instance, which shares the same `localStorage` key, so a
+  later card drag can't overwrite the fullscreen rearrangement). The map's first fcose
+  layout is saved on `layoutstop` (fcose is non-deterministic) → stable reloads; a
+  restored manual layout is **not** zoom-clamped (it would crop a deliberately spread-out
+  arrangement). **Embedded
   source excerpts** (`_excerpts.SectionIndex`,
   bounded by `EXCERPT_MAX_CHARS`) make each page self-explanatory. Inputs read
   **from disk** like Pedagogy (consolidated doc parsed by
@@ -646,10 +672,24 @@ The barriers remain the batch phases 2 and 5 (the engine stays
   `llm_workers`, honours the `PauseToken`, **order preserved → deterministic**) and
   emits `VisualsStructureProgress` events; the progress UI shows a **Structure**
   column **before** the per-language columns + per-step logs (the structure phase is
-  the long pole and runs once on the structure language). All magic
-  numbers (gleaning rounds, per-density node/diagram caps, cosine threshold,
-  Louvain seed, excerpt length) centralised in `visuals/_constants.py`. Spec:
-  `docs/superpowers/specs/2026-05-29-visualisations-html-autonomes-design.md`.
+  the long pole and runs once on the structure language). **Density controls the
+  knowledge-map size**: `SupportDensity` (light/standard/dense) now drives a
+  **degree-based pruning** of the map (`visuals/_pruning`, edge-first selection,
+  isolated nodes dropped at all levels) — light keeps only the strong/structuring nodes,
+  dense the full connected graph (measured 388→40/90/355 on a real corpus). **Cost
+  traceability**: the structure and per-language costs are attributed **per cell**
+  (deliverable × {Structure, languages}) via `map_cost_usd`/`diagrams_cost_usd` on
+  `VisualsStructureFinished`/`VisualsLanguageFinished`, populated in
+  `VisualsProgressViewModel` → the matrix totals sum to the authoritative total (no more
+  misleading `$0.0000`). The breakdown is **persisted in `visuals/manifest.json`**
+  (per-language localization costs + global structure costs, v2) and reconstructed by
+  `load_persisted` → the matrix stays correct **after re-opening a finished project**
+  (like Generation/SQLite and Pedagogy/per-artifact). All magic numbers (gleaning
+  rounds, per-density node/diagram
+  caps, map pruning ratios/cap/floor, cosine threshold, Louvain seed, excerpt length)
+  centralised in `visuals/_constants.py`. Specs:
+  `docs/superpowers/specs/2026-05-29-visualisations-html-autonomes-design.md` +
+  `2026-05-30-visualisations-density-carte-et-couts-design.md`.
 - **Errors → UI**: an exception raised by a handler **must** be a
   `Fahmi2Error` (code + user_message + technical_details). The engine
   converts it to an `ErrorInfo`, propagates it in `PhaseFinished.error`,

@@ -15,7 +15,9 @@ from fahmi2.domain.enums import Language
 from fahmi2.domain.languages import is_rtl
 from fahmi2.domain.visuals import KnowledgeGraph
 from fahmi2.infra.export._visuals_assets import (
+    LAYOUT_STORE_JS,
     VISUALS_TOKENS_CSS,
+    build_storage_key,
     read_visuals_asset,
     vendored_scripts_html,
 )
@@ -23,6 +25,24 @@ from fahmi2.infra.export._visuals_assets import (
 _TEMPLATE = "knowledge_map.html.template"
 _CSS = "knowledge_map.css"
 _JS = "knowledge_map.js"
+
+#: Préfixe namespacé de la clé localStorage de persistance des positions de la carte
+#: (le format complet — langue + hash + version — est assemblé par ``build_storage_key``).
+_STORAGE_KEY_PREFIX = "fahmi2:visuals:knowledge_map"
+
+
+def _storage_key(graph: KnowledgeGraph) -> str:
+    """Clé localStorage de la carte (namespace + langue + hash des ids de nœuds).
+
+    Args:
+        graph: Graphe rendu.
+
+    Returns:
+        ``fahmi2:visuals:knowledge_map:<langue>:<hash8>:v1`` — le hash change si
+        l'ensemble des nœuds change (régénération), invalidant les positions périmées.
+    """
+    hash_source = "\n".join(sorted(node.id for node in graph.nodes))
+    return build_storage_key(_STORAGE_KEY_PREFIX, graph.language.value, hash_source)
 
 
 @dataclass(frozen=True)
@@ -41,6 +61,7 @@ class _KmStrings:
         ui: Libellés du panneau (``definition``/``excerpt``/``relations``/``focus``).
         zoom: Libellés des boutons de zoom (``out``/``fit``/``in``, pour ``aria-label``).
         count_template: Gabarit du compteur (``{c}``/``{n}``/``{e}``).
+        reset_layout: Infobulle du bouton « Réinitialiser la disposition ».
     """
 
     header: str
@@ -54,6 +75,7 @@ class _KmStrings:
     ui: dict[str, str]
     zoom: dict[str, str]
     count_template: str
+    reset_layout: str
 
 
 _STRINGS: dict[Language, _KmStrings] = {
@@ -71,6 +93,7 @@ _STRINGS: dict[Language, _KmStrings] = {
             "relations": "Relations", "focus": "Recentrer (mode arbre) →"},
         zoom={"out": "Dézoomer", "fit": "Ajuster à l'écran", "in": "Zoomer"},
         count_template="{c} communautés · {n} nœuds · {e} liens",
+        reset_layout="Réinitialiser la disposition",
     ),
     Language.EN: _KmStrings(
         header="Knowledge map",
@@ -86,6 +109,7 @@ _STRINGS: dict[Language, _KmStrings] = {
             "relations": "Relations", "focus": "Focus (tree mode) →"},
         zoom={"out": "Zoom out", "fit": "Fit to screen", "in": "Zoom in"},
         count_template="{c} communities · {n} nodes · {e} links",
+        reset_layout="Reset layout",
     ),
     Language.DE: _KmStrings(
         header="Wissenslandkarte",
@@ -101,6 +125,7 @@ _STRINGS: dict[Language, _KmStrings] = {
             "relations": "Beziehungen", "focus": "Fokus (Baummodus) →"},
         zoom={"out": "Verkleinern", "fit": "An Bildschirm anpassen", "in": "Vergrößern"},
         count_template="{c} Gemeinschaften · {n} Knoten · {e} Kanten",
+        reset_layout="Layout zurücksetzen",
     ),
     Language.ES: _KmStrings(
         header="Mapa de conocimientos",
@@ -116,6 +141,7 @@ _STRINGS: dict[Language, _KmStrings] = {
             "relations": "Relaciones", "focus": "Centrar (modo árbol) →"},
         zoom={"out": "Alejar", "fit": "Ajustar a la pantalla", "in": "Acercar"},
         count_template="{c} comunidades · {n} nodos · {e} enlaces",
+        reset_layout="Restablecer disposición",
     ),
     Language.IT: _KmStrings(
         header="Mappa delle conoscenze",
@@ -131,6 +157,7 @@ _STRINGS: dict[Language, _KmStrings] = {
             "relations": "Relazioni", "focus": "Centra (modalità albero) →"},
         zoom={"out": "Rimpicciolisci", "fit": "Adatta allo schermo", "in": "Ingrandisci"},
         count_template="{c} comunità · {n} nodi · {e} collegamenti",
+        reset_layout="Reimposta disposizione",
     ),
 }
 
@@ -190,9 +217,9 @@ def render_knowledge_map_html(graph: KnowledgeGraph) -> str:
         Le document HTML complet (CSS + libs JS vendorisées + JS + données inlinés).
     """
     strings = _STRINGS[graph.language]
-    data_json = json.dumps(
-        _graph_to_json(graph, strings), ensure_ascii=False
-    ).replace("</", "<\\/")
+    payload = _graph_to_json(graph, strings)
+    payload["storageKey"] = _storage_key(graph)
+    data_json = json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")
     # Les petits libellés (UI) d'abord, puis les gros contenus inlinés (assets +
     # JSON LLM) EN DERNIER : aucune substitution de libellé ne s'applique ainsi sur
     # du contenu déjà inliné (un libellé/définition LLM contenant un littéral
@@ -217,7 +244,9 @@ def render_knowledge_map_html(graph: KnowledgeGraph) -> str:
         "@@COUNT@@": strings.count_template.format(
             c=len(graph.communities), n=len(graph.nodes), e=len(graph.edges)
         ),
+        "@@RESET_LAYOUT@@": strings.reset_layout,
         "@@APP_CSS@@": f"{read_visuals_asset(VISUALS_TOKENS_CSS)}\n{read_visuals_asset(_CSS)}",
+        "@@LAYOUT_STORE@@": read_visuals_asset(LAYOUT_STORE_JS),
         "@@APP_JS@@": read_visuals_asset(_JS),
         "@@VENDORED@@": vendored_scripts_html(),
         "@@DATA_JSON@@": data_json,

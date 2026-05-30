@@ -17,7 +17,9 @@ from fahmi2.domain.enums import DiagramType, Language
 from fahmi2.domain.languages import is_rtl
 from fahmi2.domain.visuals import GRAPH_DIAGRAM_TYPES, Diagram, DiagramBoard
 from fahmi2.infra.export._visuals_assets import (
+    LAYOUT_STORE_JS,
     VISUALS_TOKENS_CSS,
+    build_storage_key,
     read_visuals_asset,
     vendored_scripts_html,
 )
@@ -25,6 +27,11 @@ from fahmi2.infra.export._visuals_assets import (
 _TEMPLATE = "diagram_board.html.template"
 _CSS = "diagram_board.css"
 _JS = "diagram_board.js"
+
+#: Préfixe namespacé de la clé localStorage de persistance des positions, **par
+#: diagramme** (le format complet — langue + hash + version — est assemblé par
+#: ``build_storage_key``).
+_STORAGE_KEY_PREFIX = "fahmi2:visuals:diagram"
 
 #: Le board n'utilise que Cytoscape + dagre (pas fcose/expand-collapse) → bundle réduit.
 _BOARD_SCRIPTS: tuple[str, ...] = (
@@ -144,14 +151,33 @@ _STRINGS: dict[Language, _BoardStrings] = {
 }
 
 
-def _graph_body(diagram: Diagram) -> str:
-    """Rend le corps d'un diagramme « graphe » (conteneur Cytoscape + JSON).
+def _diagram_storage_key(diagram: Diagram, language: Language) -> str:
+    """Clé localStorage d'un diagramme « graphe » (namespace + langue + hash).
+
+    Args:
+        diagram: Diagramme.
+        language: Langue rendue.
+
+    Returns:
+        ``fahmi2:visuals:diagram:<langue>:<hash8>:v1`` — le hash (id du diagramme + ids
+        de nœuds) le rend unique et invalide les positions périmées si le contenu change.
+    """
+    hash_source = (
+        diagram.id + "\n" + "\n".join(sorted(node.id for node in diagram.nodes))
+    )
+    return build_storage_key(_STORAGE_KEY_PREFIX, language.value, hash_source)
+
+
+def _graph_body(diagram: Diagram, language: Language) -> str:
+    """Rend le corps d'un diagramme « graphe » (conteneur Cytoscape + JSON + clé).
 
     Args:
         diagram: Diagramme de type graphe.
+        language: Langue rendue (pour la clé de persistance des positions).
 
     Returns:
-        Le HTML du conteneur ``cy-diagram`` avec son modèle JSON en ``data-graph``.
+        Le HTML du conteneur ``cy-diagram`` (modèle JSON en ``data-graph`` + clé
+        localStorage en ``data-storage-key``).
     """
     spec = {
         "nodes": [
@@ -164,7 +190,8 @@ def _graph_body(diagram: Diagram) -> str:
         "cyclic": diagram.diagram_type is DiagramType.CYCLE,
     }
     payload = escape(json.dumps(spec, ensure_ascii=False), quote=True)
-    return f'<div class="cy-diagram" data-graph="{payload}"></div>'
+    key = escape(_diagram_storage_key(diagram, language), quote=True)
+    return f'<div class="cy-diagram" data-graph="{payload}" data-storage-key="{key}"></div>'
 
 
 def _timeline_body(diagram: Diagram) -> str:
@@ -208,28 +235,30 @@ def _comparison_body(diagram: Diagram) -> str:
     )
 
 
-def _diagram_body(diagram: Diagram) -> str:
+def _diagram_body(diagram: Diagram, language: Language) -> str:
     """Rend le corps d'un diagramme selon son type.
 
     Args:
         diagram: Diagramme.
+        language: Langue rendue (clé de persistance des graphes).
 
     Returns:
         Le HTML du corps (Cytoscape pour les graphes, HTML/CSS pour les linéaires).
     """
     if diagram.diagram_type in GRAPH_DIAGRAM_TYPES:
-        return _graph_body(diagram)
+        return _graph_body(diagram, language)
     if diagram.diagram_type is DiagramType.TIMELINE:
         return _timeline_body(diagram)
     return _comparison_body(diagram)
 
 
-def _card(diagram: Diagram, strings: _BoardStrings) -> str:
+def _card(diagram: Diagram, strings: _BoardStrings, language: Language) -> str:
     """Rend une carte de diagramme (en-tête + corps + légende + extrait).
 
     Args:
         diagram: Diagramme à présenter.
         strings: Libellés localisés.
+        language: Langue rendue (clé de persistance des graphes).
 
     Returns:
         Le HTML de la carte.
@@ -247,7 +276,7 @@ def _card(diagram: Diagram, strings: _BoardStrings) -> str:
         f"<h3>{escape(diagram.title)}</h3></div>"
         f'<button class="expand" type="button" title="{expand}" '
         f'aria-label="{expand}">⤢</button></header>',
-        f'<div class="diagram"{diagram_style}>{_diagram_body(diagram)}</div>',
+        f'<div class="diagram"{diagram_style}>{_diagram_body(diagram, language)}</div>',
     ]
     if diagram.caption:
         parts.append(f'<div class="caption">{escape(diagram.caption)}</div>')
@@ -292,7 +321,9 @@ def render_diagram_board_html(board: DiagramBoard) -> str:
         Le document HTML complet (CSS + libs vendorisées + JS + données inlinés).
     """
     strings = _STRINGS[board.language]
-    cards = "".join(_card(diagram, strings) for diagram in board.diagrams)
+    cards = "".join(
+        _card(diagram, strings, board.language) for diagram in board.diagrams
+    )
     # Petits libellés (UI) d'abord, puis gros contenus inlinés (assets + cartes
     # générées) EN DERNIER : aucune substitution de libellé ne s'applique ainsi sur
     # du contenu LLM déjà inliné (titre/légende/extrait contenant un littéral
@@ -310,6 +341,7 @@ def render_diagram_board_html(board: DiagramBoard) -> str:
         "@@CLOSE@@": escape(strings.close_label, quote=True),
         "@@RESET@@": escape(strings.reset_label, quote=True),
         "@@APP_CSS@@": f"{read_visuals_asset(VISUALS_TOKENS_CSS)}\n{read_visuals_asset(_CSS)}",
+        "@@LAYOUT_STORE@@": read_visuals_asset(LAYOUT_STORE_JS),
         "@@APP_JS@@": read_visuals_asset(_JS),
         "@@VENDORED@@": vendored_scripts_html(_BOARD_SCRIPTS),
         "@@CARDS@@": cards,

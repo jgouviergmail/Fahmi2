@@ -18,6 +18,14 @@
   var DAGRE_NODE_SEP = 30;
   var DAGRE_RANK_SEP = 60;
   var MAX_PANEL_RELATIONS = 12;  // relations affichées dans le panneau latéral
+  // Réglages fcose pour aérer le réseau (valeurs > défauts fcose 4500/50/75/0.25).
+  // nodeRepulsion/idealEdgeLength DOIVENT être des fonctions (sinon ignorés par fcose).
+  var FCOSE_NODE_REPULSION = 6500;
+  var FCOSE_IDEAL_EDGE_LENGTH = 95;
+  var FCOSE_NODE_SEPARATION = 110;
+  var FCOSE_GRAVITY = 0.2;
+  var SAVE_DEBOUNCE_MS = 250;  // débounce de la sauvegarde des positions au déplacement
+  var EDGE_LABEL_MIN_ZOOM_FONT = 8;  // libellés d'arêtes révélés au zoom (police effective ≥ seuil)
 
   var DATA = JSON.parse(document.getElementById("km-data").textContent);
   var NODE_TYPES = ["concept", "glossary_term", "example", "idea"];
@@ -28,6 +36,11 @@
   var TYPE_VAR = {
     concept: "--concept", glossary_term: "--term", example: "--example", idea: "--idea"
   };
+  // Persistance des positions (localStorage via _layout_store.js). Désactivée
+  // silencieusement si indisponible (Safari/file://, navigation privée…).
+  var STORAGE_KEY = DATA.storageKey || null;
+  var store = window.__fahmi2LayoutStore || null;
+  var persistEnabled = !!(store && store.available && STORAGE_KEY);
 
   function cssVar(name) {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -78,10 +91,17 @@
       { selector: "edge", style: {
         width: 1.6, "line-color": cssVar("--edge"), "target-arrow-color": cssVar("--edge"),
         "target-arrow-shape": "triangle", "curve-style": "bezier", label: "data(label)",
-        "font-size": 8, color: cssVar("--t3"), "text-rotation": "autorotate",
+        "font-size": 8, color: cssVar("--t3"),
+        // Libellés d'arêtes VISIBLES mais **gated au zoom** (`min-zoomed-font-size`) :
+        // cachés en vue d'ensemble (désencombrement), révélés dès qu'on zoome (police
+        // effective ≥ seuil). On ne bascule PAS la prop `label` (recalcul de bounds).
+        "min-zoomed-font-size": EDGE_LABEL_MIN_ZOOM_FONT,
         "text-background-color": cssVar("--canvas"), "text-background-opacity": 0.85,
         "text-background-padding": 2
       } },
+      // Survol / sélection d'un nœud : ses arêtes lèvent le seuil de zoom (label lisible
+      // à tout zoom) pour explorer ses relations sans zoomer.
+      { selector: "edge.show-label", style: { "min-zoomed-font-size": 0 } },
       { selector: ".selected", style: {
         "border-width": 4, "border-color": cssVar("--accent"), "border-opacity": 1
       } },
@@ -105,10 +125,45 @@
 
   // ---- Layouts ----
   var focusedId = null;
+  var currentMode = "network";  // mode courant (persistance en mode réseau uniquement)
+
+  function applyPositions(saved) {
+    cy.batch(function () {
+      cy.nodes().forEach(function (n) {
+        var p = saved[n.id()];
+        if (p) { n.position({ x: p.x, y: p.y }); }
+      });
+    });
+    cy.fit(undefined, FIT_PADDING);
+  }
+  function savePositions() {
+    if (!persistEnabled || currentMode !== "network") { return; }
+    var map = {};
+    cy.nodes().forEach(function (n) {
+      var p = n.position(); map[n.id()] = { x: p.x, y: p.y };
+    });
+    store.write(STORAGE_KEY, map);
+  }
   function layoutNetwork() {
     if (ec) { try { ec.expandAll(); } catch (e) { /* noop */ } }
+    var saved = persistEnabled ? store.read(STORAGE_KEY) : null;
+    if (saved) { applyPositions(saved); return; }  // restauration : pas de recalcul
     var name = window.cytoscapeFcose ? "fcose" : "cose";
-    cy.layout({ name: name, animate: false, quality: "default", padding: NETWORK_PADDING }).run();
+    var lay = cy.layout({
+      name: name, animate: false, quality: "default", padding: NETWORK_PADDING,
+      // Réserve la place des LIBELLÉS pendant le calcul → bien moins de chevauchement.
+      nodeDimensionsIncludeLabels: true,
+      // packComponents exige l'extension layout-utilities (non vendorisée) → désactivé.
+      packComponents: false,
+      nodeRepulsion: function () { return FCOSE_NODE_REPULSION; },
+      idealEdgeLength: function () { return FCOSE_IDEAL_EDGE_LENGTH; },
+      nodeSeparation: FCOSE_NODE_SEPARATION,
+      gravity: FCOSE_GRAVITY
+    });
+    // .run() n'est pas garanti synchrone → sauver sur layoutstop fige le 1er calcul
+    // pour un rendu STABLE aux rechargements (fcose étant non-déterministe).
+    if (persistEnabled) { lay.one("layoutstop", savePositions); }
+    lay.run();
   }
   function layoutTree() {
     // Un nœud focalisé recentre l'arbre sur lui : seul `breadthfirst` honore
@@ -126,6 +181,7 @@
     cy.fit(undefined, FIT_PADDING);
   }
   function setMode(mode) {
+    currentMode = mode;
     var btnNetwork = document.getElementById("btn-network");
     var btnTree = document.getElementById("btn-tree");
     btnNetwork.classList.toggle("on", mode === "network");
@@ -204,27 +260,38 @@
   }
 
   function selectNode(id) {
-    cy.elements().removeClass("selected dim");
+    cy.elements().removeClass("selected dim show-label");
     var node = cy.getElementById(id);
     if (node.empty()) { return; }
     var neighborhood = node.closedNeighborhood();
     cy.elements().not(neighborhood).addClass("dim");
     node.addClass("selected");
+    node.connectedEdges().addClass("show-label");  // révèle les relations du nœud
     openPanel(id);
   }
 
   cy.on("tap", "node[kind != 'community']", function (evt) { selectNode(evt.target.id()); });
   cy.on("tap", function (evt) {
     if (evt.target === cy) {
-      cy.elements().removeClass("selected dim");
+      cy.elements().removeClass("selected dim show-label");
       document.getElementById("panel").classList.add("hidden");
     }
+  });
+
+  // Survol d'un nœud : révèle les libellés de ses arêtes (à tout zoom, via show-label) ;
+  // au départ du survol, on les retire et on restaure ceux du nœud sélectionné.
+  cy.on("tapdragover", "node[kind != 'community']", function (evt) {
+    evt.target.connectedEdges().addClass("show-label");
+  });
+  cy.on("tapdragout", "node[kind != 'community']", function (evt) {
+    evt.target.connectedEdges().removeClass("show-label");
+    cy.nodes(".selected").connectedEdges().addClass("show-label");
   });
 
   // ---- Recherche ----
   document.getElementById("search").addEventListener("input", function (e) {
     var q = e.target.value.trim().toLowerCase();
-    cy.elements().removeClass("dim selected");
+    cy.elements().removeClass("dim selected show-label");
     if (!q) { return; }
     var matches = cy.nodes("[kind != 'community']").filter(function (n) {
       return n.data("label").toLowerCase().indexOf(q) !== -1;
@@ -261,6 +328,21 @@
     root.setAttribute("data-theme", root.getAttribute("data-theme") === "dark" ? "light" : "dark");
     cy.style(styles());
   });
+
+  // ---- Persistance : sauvegarde au déplacement (débouncée) + réinitialisation ----
+  var saveTimer = null;
+  cy.on("dragfree", "node", function () {
+    if (saveTimer) { clearTimeout(saveTimer); }
+    saveTimer = setTimeout(savePositions, SAVE_DEBOUNCE_MS);
+  });
+  var resetBtn = document.getElementById("reset-layout");
+  if (resetBtn) {
+    if (!persistEnabled) { resetBtn.setAttribute("disabled", "disabled"); }
+    resetBtn.addEventListener("click", function () {
+      if (persistEnabled) { store.remove(STORAGE_KEY); }
+      focusedId = null; setMode("network");  // relance fcose (branche « sans sauvegarde »)
+    });
+  }
 
   // ---- Démarrage ----
   layoutNetwork();

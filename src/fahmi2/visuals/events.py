@@ -80,7 +80,16 @@ class VisualsStructureProgress(VisualsEvent):
 
 @dataclass(frozen=True)
 class VisualsStructureFinished(VisualsEvent):
-    """Fin de l'extraction de structure (avant la production par langue)."""
+    """Fin de l'extraction de structure (avant la production par langue).
+
+    Attributes:
+        map_cost_usd: Coût LLM de la structure imputé à la **carte** (graphe +
+            résolution d'entités + rapports de communauté + idea-chains).
+        diagrams_cost_usd: Coût LLM de la structure imputé aux **diagrammes**.
+    """
+
+    map_cost_usd: float = 0.0
+    diagrams_cost_usd: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -101,14 +110,19 @@ class VisualsLanguageFinished(VisualsEvent):
     Attributes:
         language: Langue concernée.
         status: Statut (``SUCCEEDED`` / ``SKIPPED`` / ``FAILED``).
-        cost_usd: Coût LLM de la localisation de cette langue.
+        cost_usd: Coût LLM total de la localisation de cette langue (somme des deux
+            coûts par livrable ci-dessous).
         error: ``ErrorInfo`` si échec, sinon ``None``.
+        map_cost_usd: Coût LLM de la localisation de la **carte** pour cette langue.
+        diagrams_cost_usd: Coût LLM de la localisation des **diagrammes**.
     """
 
     language: Language
     status: PhaseStatus
     cost_usd: float
     error: ErrorInfo | None
+    map_cost_usd: float = 0.0
+    diagrams_cost_usd: float = 0.0
 
 
 @dataclass(frozen=True)

@@ -503,21 +503,32 @@ Pedagogy feature (lightweight orchestrator, no `PipelineEngine`).
 - `visuals/` (engine) — `sources.py` (consolidated doc → per-section
   `TextUnit`, fragmented past `MAX_UNIT_CHARS`; `available_visuals_languages`
   restricts to **Latin** `VISUALS_LANGUAGES`), `_constants.py` (all magic
-  numbers: gleaning rounds, per-density node/diagram caps, entity-merge cosine
-  threshold, Louvain seed, excerpt length), `_excerpts.py` (`SectionIndex` for
+  numbers: gleaning rounds, per-density node/diagram caps, **map-pruning
+  ratios / cap / floor**, entity-merge cosine threshold, Louvain seed, excerpt
+  length), `_excerpts.py` (`SectionIndex` for
   embedded source excerpts), `extractors/` (`graph_extractor` [glossary
   backbone + LLM semantic layer + **gleaning**], `entity_resolver` [embedding
   cosine merge + glossary spine + **AUTO** label-normalisation fallback],
   `community_reporter`, `idea_chains` [map-reduce over reports],
   `diagram_author` [typed diagrams], `label_translator`), `community.py`
   (`detect_communities`: networkx Louvain with fixed seed → deterministic),
-  `events.py`, `manifest.py` (per-language freshness).
+  `_pruning.py` (`prune_knowledge_graph`: **density-driven map pruning** by
+  edge-first selection — drops isolated nodes, keeps the most connected up to a
+  per-density node budget, connectivity guaranteed by construction),
+  `events.py`, `manifest.py` (per-language freshness **+ persisted per-livrable costs**:
+  per-language localization + global structure costs, reconstructed for the persisted
+  cost matrix).
 - `infra/export/` — `knowledge_map_html.py` / `diagram_board_html.py`
   (deterministic typed-JSON → self-contained HTML); `_visuals_assets.py` reads
   and **inlines** the vendored **Cytoscape.js** core + extensions from
   `_assets/visuals/` (**no CDN**); `_assets/visuals/*` (vendored MIT libs +
-  CSS + JS + HTML templates). `storage/feature_run_state.py` — shared
-  `run_state.json` model (pedagogy + visuals).
+  CSS + JS + HTML templates). The renderers embed a **per-deliverable storage key**
+  (`fahmi2:visuals:<deliverable>:<lang>:<hash8>:v1`, content-hashed) and inline the shared
+  **`_layout_store.js`** (localStorage wrapper with availability probe + `try/catch`); the
+  map's fcose layout is **legibility-tuned** (`nodeDimensionsIncludeLabels`, spacing) and
+  manual node positions **persist** (restored on reload, « Réinitialiser » reverts) on both
+  deliverables. `storage/feature_run_state.py` — shared `run_state.json` model
+  (pedagogy + visuals).
 - `app/` — `VisualsOrchestrator` (extract structure **once** in a structure
   language → per-Latin-language localise + render, freshness manifest +
   `run_state`, best-effort cost cap). **Both phases are parallelised**: the
@@ -756,7 +767,7 @@ loss):
 
 ### 6.2 Current metrics
 
-- **1362 passing tests** × 3 consecutive runs (on the `feat/visualisations-html-autonomes` branch)
+- **1384 passing tests** × 3 consecutive runs
 - **ruff** + **mypy --strict** clean over the whole `src` + `tests` tree
 
 ## 7. Packaging and distribution

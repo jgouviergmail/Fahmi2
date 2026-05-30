@@ -204,6 +204,22 @@ the full breakdown.
 
 ## Status
 
+**v1.6.1** — **Visualizations refinements**: the content-**density** setting
+now noticeably drives the **knowledge-map size** (degree-based edge-first pruning —
+*light* keeps only the strong, structuring nodes; *dense* the full connected graph;
+388→40/90/355 nodes on a real corpus, isolated nodes dropped, connectivity guaranteed).
+Plus **cost traceability** in the progress matrix: structure and per-language costs are
+now attributed **per cell** (deliverable × {Structure, languages}), so the grid totals
+match the Cost tile (no more misleading `$0.0000`) — and **persisted in the manifest** so
+the matrix stays correct after re-opening a finished project. The knowledge-map **layout**
+is tuned for legibility (fcose label-aware spacing + decluttered edge labels), and
+**manual node rearrangements persist** (localStorage) on both deliverables — the
+« Réinitialiser la disposition » control is permanent in the map's toolbar and lives in
+the diagram gallery's « Enlarge » overlay. Shipped after an **exhaustive code review**
+(8 confirmed findings fixed: silent loss of a fullscreen-rearranged diagram layout,
+manifest crash on a malformed payload, persisted-cost grid coherence, failed-language
+cost display, and more). **1392 passing tests**, ruff + mypy `--strict` clean.
+
 **v1.6.0** — **Visualizations** feature: two **fully self-contained**
 interactive HTML deliverables per Latin-script language — an interactive
 **knowledge map** (typed concept/term/idea/example graph, network↔tree,

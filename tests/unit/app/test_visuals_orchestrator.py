@@ -13,7 +13,7 @@ from fahmi2.app.visuals_orchestrator import VisualsOrchestrator
 from fahmi2.core.concurrency.pause_token import PauseToken
 from fahmi2.core.errors.exceptions import ConfigError
 from fahmi2.core.retry.policy import RetryPolicy
-from fahmi2.domain.enums import RunStatus
+from fahmi2.domain.enums import Language, RunStatus
 from fahmi2.domain.visuals import VisualsSettings
 from fahmi2.infra.embeddings._fakes import FakeEmbeddingProvider
 from fahmi2.infra.llm.interface import LLMResponse, LLMStreamChunk, Message
@@ -21,7 +21,12 @@ from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.infra.storage.feature_run_state import read_run_state
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.pipeline.event_bus import EventBus
-from fahmi2.visuals.events import VisualsEvent, VisualsGenerationFinished
+from fahmi2.visuals.events import (
+    VisualsEvent,
+    VisualsGenerationFinished,
+    VisualsLanguageFinished,
+)
+from fahmi2.visuals.manifest import read_manifest
 
 _CONSOLIDATED = """# Analyse financière
 
@@ -44,6 +49,27 @@ Le cas Enron illustre les conséquences dramatiques d'une fraude comptable massi
 sur la confiance des marchés et la pérennité de l'entreprise.
 """
 
+_CONSOLIDATED_EN = """# Financial analysis
+
+## Summary
+
+Reference document on financial analysis and its fundamental tools.
+
+# 1. Accounting documents
+
+## 1.1 The balance sheet
+
+The balance sheet captures the company's assets at a given date and contrasts the
+assets with the liabilities; reading it is essential to financial diagnosis.
+
+# 2. Information reliability
+
+## 2.1 Accounting fraud
+
+The Enron case illustrates the dramatic consequences of massive accounting fraud
+on market confidence and the company's survival.
+"""
+
 _GLOSSARY = {"terms": [{"term": "Bilan", "definition": "Photo du patrimoine.",
                         "aliases": [], "sources": []}]}
 
@@ -57,8 +83,13 @@ class _StageLLM:
     def chat(self, *, messages: list[Message], **_kw: Any) -> LLMResponse:
         self.calls += 1
         prompt = messages[-1].content
-        if "carte de connaissances" in prompt:
-            content: dict[str, Any] = {
+        content: dict[str, Any]
+        if "Textes à traduire" in prompt:
+            # Étape de localisation (label_translator) : repli sur les sources (table
+            # vide), mais l'appel est bien facturé (coût imputé par livrable).
+            content = {"translations": []}
+        elif "carte de connaissances" in prompt:
+            content = {
                 "entities": [
                     {"label": "Bilan", "type": "concept", "definition": "Patrimoine."},
                     {"label": "Cas Enron", "type": "example"},
@@ -144,6 +175,54 @@ def test_genere_les_deux_html_et_etat(make_project: Any, tmp_path: Path) -> None
         isinstance(e, VisualsGenerationFinished) and e.status is RunStatus.COMPLETED
         for e in events
     )
+    # Invariant de ventilation : le coût total d'une langue = carte + diagrammes.
+    finished = [e for e in events if isinstance(e, VisualsLanguageFinished)]
+    assert finished
+    for finished_event in finished:
+        assert finished_event.cost_usd == (
+            finished_event.map_cost_usd + finished_event.diagrams_cost_usd
+        )
+    # Les coûts par livrable sont persistés dans le manifeste (vue persistée).
+    manifest = read_manifest(tmp_path / "visuals")
+    structure_costs = manifest.structure_costs()
+    assert structure_costs is not None
+    struct_map, struct_diagrams = structure_costs
+    assert struct_map > 0
+    assert struct_diagrams > 0
+    assert manifest.language_costs()
+
+
+def test_localisation_impute_les_couts_par_livrable(
+    make_project: Any, tmp_path: Path
+) -> None:
+    # FR reste la langue de structure (coût imputé à « Structure ») ; EN passe par la
+    # localisation (appels LLM facturés) → coûts par livrable non nuls, imputés à la
+    # carte ET aux diagrammes, et persistés par langue dans le manifeste.
+    _setup_generation(tmp_path)
+    (tmp_path / "generation" / "output" / "consolidated.en.md").write_text(
+        _CONSOLIDATED_EN, encoding="utf-8"
+    )
+    project = make_project(
+        workspace_folder=tmp_path, generation=None, visuals=VisualsSettings()
+    )
+    status, events = _run(_orchestrator(_StageLLM()), project)
+    assert status is RunStatus.COMPLETED
+
+    finished = {
+        e.language: e for e in events if isinstance(e, VisualsLanguageFinished)
+    }
+    assert Language.EN in finished
+    en_event = finished[Language.EN]
+    # Localisation EN : carte ET diagrammes facturés, total = somme (cas non trivial).
+    assert en_event.map_cost_usd > 0
+    assert en_event.diagrams_cost_usd > 0
+    assert en_event.cost_usd == en_event.map_cost_usd + en_event.diagrams_cost_usd
+    # Persistance par langue dans le manifeste + coût de structure (FR) enregistré à part.
+    manifest = read_manifest(tmp_path / "visuals")
+    en_map_cost, en_diagrams_cost = manifest.language_costs()[Language.EN]
+    assert en_map_cost > 0
+    assert en_diagrams_cost > 0
+    assert manifest.structure_costs() is not None
 
 
 def test_non_configure_leve_config_error(make_project: Any, tmp_path: Path) -> None:

@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from fahmi2.domain.enums import EdgeType, Language, NodeType
 from fahmi2.domain.visuals import GraphEdge, GraphNode
-from fahmi2.visuals.community import assemble_graph, detect_communities
+from fahmi2.visuals.community import (
+    assemble_graph,
+    detect_communities,
+    node_degrees,
+)
 
 
 def _node(node_id: str) -> GraphNode:
@@ -72,3 +76,12 @@ def test_assemble_graph_produit_un_knowledge_graph_valide() -> None:
     assert len(graph.nodes) == 6
     assert len(graph.communities) == 2
     assert len(graph.edges) == 6
+
+
+def test_node_degrees_compte_les_aretes_incidentes() -> None:
+    edges = (_edge("a", "b"), _edge("b", "c"), _edge("b", "d"))
+    degrees = node_degrees(edges)
+    assert degrees["b"] == 3
+    assert degrees["a"] == 1
+    # Un nœud absent de toute arête n'apparaît pas dans le résultat.
+    assert "isole" not in degrees

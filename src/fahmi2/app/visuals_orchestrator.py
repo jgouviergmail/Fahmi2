@@ -48,6 +48,7 @@ from fahmi2.infra.storage.feature_run_state import (
 )
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.pipeline.event_bus import EventBus
+from fahmi2.visuals._pruning import prune_knowledge_graph
 from fahmi2.visuals.community import assemble_graph
 from fahmi2.visuals.events import (
     VisualsEvent,
@@ -229,8 +230,8 @@ class VisualsOrchestrator:
             )
         event_bus.publish(VisualsStructureStarted(timestamp=_now()))
         try:
-            graph_source, board_source, struct_cost = self._build_structure(
-                ctx, structure_lang, output_dir, glossary
+            graph_source, board_source, map_struct_cost, diagrams_struct_cost = (
+                self._build_structure(ctx, structure_lang, output_dir, glossary)
             )
         except PausedError:
             # Annulation pendant l'extraction de structure (hors map_bounded) :
@@ -243,7 +244,17 @@ class VisualsOrchestrator:
             return self._finalize(
                 event_bus, visuals_dir, RunStatus.FAILED, started_at, base_cost
             )
-        event_bus.publish(VisualsStructureFinished(timestamp=_now()))
+        event_bus.publish(
+            VisualsStructureFinished(
+                timestamp=_now(),
+                map_cost_usd=map_struct_cost,
+                diagrams_cost_usd=diagrams_struct_cost,
+            )
+        )
+        # Persiste le coût de structure (global) dès maintenant, pour la vue persistée
+        # de la matrice même si toutes les langues sont skippées/cappées ensuite.
+        manifest.record_structure_cost(map_struct_cost, diagrams_struct_cost)
+        write_manifest(self._artifacts, visuals_dir, manifest)
         return self._run_languages(
             ctx,
             languages,
@@ -259,7 +270,7 @@ class VisualsOrchestrator:
             glossary_mtime=glossary_mtime,
             regenerate=regenerate,
             started_at=started_at,
-            total_cost=base_cost + struct_cost,
+            total_cost=base_cost + map_struct_cost + diagrams_struct_cost,
         )
 
     def _run_languages(
@@ -384,7 +395,7 @@ class VisualsOrchestrator:
         structure_lang: Language,
         output_dir: Path,
         glossary: tuple[Term, ...],
-    ) -> tuple[KnowledgeGraph | None, DiagramBoard | None, float]:
+    ) -> tuple[KnowledgeGraph | None, DiagramBoard | None, float, float]:
         """Extrait la structure (graphe + diagrammes) une fois, en langue de structure.
 
         Args:
@@ -394,19 +405,22 @@ class VisualsOrchestrator:
             glossary: Termes du glossaire master.
 
         Returns:
-            ``(graphe | None, board | None, coût)`` — ``None`` si la production du
-            livrable correspondant est désactivée.
+            ``(graphe | None, board | None, coût carte, coût diagrammes)`` — graphe /
+            board à ``None`` si le livrable correspondant est désactivé ; les coûts sont
+            imputés par livrable (carte = graphe + résolution + rapports + idea-chains ;
+            diagrammes = extraction des diagrammes).
         """
         units = load_text_units(output_dir, structure_lang)
         glossary_struct = localize_glossary_terms(glossary, structure_lang)
         graph: KnowledgeGraph | None = None
         board: DiagramBoard | None = None
-        cost = 0.0
+        map_cost = 0.0
+        diagrams_cost = 0.0
         if ctx.settings.produce_knowledge_map:
             extraction = extract_graph(
                 ctx, language=structure_lang, units=units, glossary=glossary_struct
             )
-            cost += extraction.total_cost_usd
+            map_cost += extraction.total_cost_usd
             nodes, edges = resolve_graph(
                 extraction,
                 glossary=glossary_struct,
@@ -414,9 +428,15 @@ class VisualsOrchestrator:
                 embedding_provider=self._embedding_provider,
             )
             # Le coût des embeddings de résolution d'entités (appel unique par run)
-            # est porté par le provider : on l'agrège au total (cf. pattern Dialogue).
+            # est porté par le provider : on l'impute à la carte (cf. pattern Dialogue).
             if self._embedding_provider is not None:
-                cost += self._embedding_provider.consumed_cost_usd()
+                map_cost += self._embedding_provider.consumed_cost_usd()
+            # Élagage par densité : la carte ne garde que les nœuds les plus
+            # structurants (cf. _pruning) → communautés/rapports/idea-chains opèrent
+            # sur le graphe réduit.
+            nodes, edges = prune_knowledge_graph(
+                nodes, edges, density=ctx.settings.density
+            )
             graph = assemble_graph(nodes, edges, language=structure_lang)
             graph, report_cost = generate_community_reports(
                 ctx, graph, language=structure_lang
@@ -424,14 +444,14 @@ class VisualsOrchestrator:
             graph, chain_cost = generate_idea_chains(
                 ctx, graph, language=structure_lang
             )
-            cost += report_cost + chain_cost
+            map_cost += report_cost + chain_cost
         if ctx.settings.produce_diagrams:
             diagrams = extract_diagrams(ctx, language=structure_lang, units=units)
             board = DiagramBoard(
                 diagrams=diagrams.diagrams, language=structure_lang
             )
-            cost += diagrams.total_cost_usd
-        return graph, board, cost
+            diagrams_cost += diagrams.total_cost_usd
+        return graph, board, map_cost, diagrams_cost
 
     def _produce_language(
         self,
@@ -495,7 +515,7 @@ class VisualsOrchestrator:
             )
             return 0.0, False
         try:
-            cost = self._localize_and_write(
+            map_cost, board_cost = self._localize_and_write(
                 ctx, language, structure_lang=structure_lang,
                 graph_source=graph_source, board_source=board_source,
                 glossary=glossary, output_dir=output_dir, out_dir=out_dir,
@@ -505,15 +525,17 @@ class VisualsOrchestrator:
                     language, settings_hash=settings_hash,
                     structure_mtime_ns=structure_mtime,
                     glossary_mtime_ns=glossary_mtime, content_mtime_ns=content_mtime,
+                    map_cost_usd=map_cost, diagrams_cost_usd=board_cost,
                 )
                 write_manifest(self._artifacts, visuals_dir, manifest)
             ctx.event_bus.publish(
                 VisualsLanguageFinished(
                     timestamp=_now(), language=language,
-                    status=PhaseStatus.SUCCEEDED, cost_usd=cost, error=None,
+                    status=PhaseStatus.SUCCEEDED, cost_usd=map_cost + board_cost,
+                    error=None, map_cost_usd=map_cost, diagrams_cost_usd=board_cost,
                 )
             )
-            return cost, False
+            return map_cost + board_cost, False
         except Fahmi2Error as exc:
             ctx.event_bus.publish(
                 VisualsLanguageFinished(
@@ -534,7 +556,7 @@ class VisualsOrchestrator:
         glossary: tuple[Term, ...],
         output_dir: Path,
         out_dir: Path,
-    ) -> float:
+    ) -> tuple[float, float]:
         """Localise la structure dans une langue et écrit les HTML.
 
         Args:
@@ -548,23 +570,23 @@ class VisualsOrchestrator:
             out_dir: Dossier de sortie des HTML (``visuals/output``).
 
         Returns:
-            Le coût LLM cumulé (USD) de la localisation (0.0 si ``language`` est la
-            langue de structure : aucun appel de traduction).
+            Le couple ``(coût carte, coût diagrammes)`` en USD (``(0.0, 0.0)`` si
+            ``language`` est la langue de structure : aucun appel de traduction).
 
         Raises:
             Fahmi2Error: Si un appel LLM de localisation échoue après les retries.
         """
         units = load_text_units(output_dir, language)
-        cost = 0.0
+        map_cost = 0.0
+        board_cost = 0.0
         if graph_source is not None:
             if language == structure_lang:
                 graph = graph_source
             else:
-                graph, graph_cost = localize_graph(
+                graph, map_cost = localize_graph(
                     ctx, graph_source, target_language=language,
                     glossary=glossary, target_units=units,
                 )
-                cost += graph_cost
             self._artifacts.write_text_atomic(
                 out_dir / knowledge_map_filename(language),
                 render_knowledge_map_html(graph),
@@ -576,12 +598,11 @@ class VisualsOrchestrator:
                 board, board_cost = localize_board(
                     ctx, board_source, target_language=language, target_units=units
                 )
-                cost += board_cost
             self._artifacts.write_text_atomic(
                 out_dir / diagrams_filename(language),
                 render_diagram_board_html(board),
             )
-        return cost
+        return map_cost, board_cost
 
     def _is_complete(
         self,

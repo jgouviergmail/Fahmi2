@@ -14,6 +14,8 @@
   var MAX_INITIAL_ZOOM = 1.4;   // ne pas sur-grossir un graphe minuscule
   var ZOOM_BOUND_MIN = 0.25;
   var ZOOM_BOUND_MAX = 3.0;
+  var SAVE_DEBOUNCE_MS = 250;  // débounce de la sauvegarde des positions au déplacement
+  var store = window.__fahmi2LayoutStore || null;  // persistance (peut être indisponible)
 
   function use(ext) { if (ext && window.cytoscape) { try { cytoscape.use(ext); } catch (e) { /* déjà */ } } }
   use(window.cytoscapeDagre);
@@ -22,6 +24,36 @@
 
   function cssVar(name) {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  // ---- Persistance des positions (localStorage via _layout_store.js, partagé) ----
+  function persistKey(el) {
+    return (store && store.available && el) ? el.getAttribute("data-storage-key") : null;
+  }
+  function applySaved(cy, key) {
+    if (!key) { return false; }
+    var saved = store.read(key);
+    if (!saved) { return false; }
+    cy.batch(function () {
+      cy.nodes().forEach(function (n) {
+        var p = saved[n.id()]; if (p) { n.position({ x: p.x, y: p.y }); }
+      });
+    });
+    return true;  // disposition restaurée → l'appelant peut éviter le clamp de zoom
+  }
+  function attachPersist(cy, key) {
+    if (!key) { return; }
+    var timer = null;
+    cy.on("dragfree", "node", function () {
+      if (timer) { clearTimeout(timer); }
+      timer = setTimeout(function () {
+        var map = {};
+        cy.nodes().forEach(function (n) {
+          var p = n.position(); map[n.id()] = { x: p.x, y: p.y };
+        });
+        store.write(key, map);
+      }, SAVE_DEBOUNCE_MS);
+    });
   }
 
   function diagramStyles() {
@@ -96,12 +128,21 @@
     if (container.__done) { return; }
     container.__done = true;
     var cy = makeCy(container, JSON.parse(container.getAttribute("data-graph")));
+    container.__cy = cy;  // référencé par l'overlay pour lui propager ses positions à la fermeture
+    var key = persistKey(container);
+    var restored = applySaved(cy, key);  // positions sauvegardées si présentes (sinon layout calculé)
     cy.fit(undefined, FIT_PADDING);
-    // Plancher/plafond de lisibilité : si ``fit`` a trop réduit (graphe dense), on
-    // remonte au plancher (l'utilisateur pane, ou agrandit en plein écran) ; on évite
-    // aussi de sur-grossir un tout petit graphe.
-    cy.zoom(clamp(cy.zoom(), MIN_INITIAL_ZOOM, MAX_INITIAL_ZOOM));
+    // Plancher/plafond de lisibilité réservé aux layouts AUTO-calculés : si ``fit`` a
+    // trop réduit (graphe dense), on remonte au plancher (l'utilisateur pane, ou agrandit
+    // en plein écran) ; on évite aussi de sur-grossir un tout petit graphe. Une
+    // disposition MANUELLE restaurée (potentiellement étalée) n'est pas clampée — sinon
+    // elle serait rognée à chaque ouverture (cohérent avec knowledge_map.js, qui ne
+    // clampe pas non plus la restauration).
+    if (!restored) {
+      cy.zoom(clamp(cy.zoom(), MIN_INITIAL_ZOOM, MAX_INITIAL_ZOOM));
+    }
     cy.center();
+    attachPersist(cy, key);
     instances.push(cy);
   }
 
@@ -138,10 +179,21 @@
   var lightboxReset = document.getElementById("lightbox-reset");
   var lastTrigger = null;  // bouton .expand ayant ouvert l'overlay (focus restitué à la fermeture)
   var lightboxSpec = null;  // spec du graphe ouvert (pour réinitialiser la disposition)
+  // Clé localStorage du graphe ouvert, PARTAGÉE avec la carte d'origine : l'overlay est
+  // l'éditeur AUTORITAIRE (ses positions sont propagées vers la carte à la fermeture).
+  var lightboxKey = null;
+  var lightboxCardCy = null;  // instance Cytoscape de la carte d'origine (propagation à la fermeture)
 
   function closeLightbox() {
     if (lightboxCy) { lightboxCy.destroy(); lightboxCy = null; }
+    // Propager les positions persistées par l'overlay vers l'instance de la carte (même
+    // clé partagée). Sans cela, la carte garde ses positions PÉRIMÉES en mémoire et un
+    // futur ``dragfree`` y réécrirait la clé avec ce layout antérieur, écrasant
+    // silencieusement le réagencement fait en plein écran (last-writer-wins).
+    if (lightboxKey && lightboxCardCy) { applySaved(lightboxCardCy, lightboxKey); }
     lightboxSpec = null;
+    lightboxKey = null;
+    lightboxCardCy = null;
     lightboxBody.innerHTML = "";
     lightboxReset.setAttribute("hidden", "");
     lightbox.setAttribute("hidden", "");
@@ -150,6 +202,9 @@
 
   function relayoutLightbox() {
     if (lightboxCy && lightboxSpec) {
+      // Réinitialiser = oublier les positions persistées (dagre/concentric étant
+      // déterministes, le recalcul redonne la disposition d'origine).
+      if (lightboxKey && store) { store.remove(lightboxKey); }
       lightboxCy.layout(layoutFor(lightboxSpec)).run();
       lightboxCy.fit(undefined, 48);
     }
@@ -158,6 +213,8 @@
   function openLightbox(card, trigger) {
     if (lightboxCy) { lightboxCy.destroy(); lightboxCy = null; }  // ré-ouverture : pas de fuite
     lightboxSpec = null;
+    lightboxKey = null;
+    lightboxCardCy = null;
     lastTrigger = trigger || null;
     var h3 = card.querySelector("h3");
     lightboxTitle.textContent = h3 ? h3.textContent : "";
@@ -166,12 +223,16 @@
     var graph = card.querySelector(".cy-diagram[data-graph]");
     if (graph) {
       lightboxSpec = JSON.parse(graph.getAttribute("data-graph"));
+      lightboxKey = persistKey(graph);  // clé partagée avec la carte
+      lightboxCardCy = graph.__cy || null;  // instance de carte à resynchroniser à la fermeture
       var full = document.createElement("div");
       full.className = "cy-full";
       lightboxBody.appendChild(full);
       lightboxCy = makeCy(full, lightboxSpec);
+      applySaved(lightboxCy, lightboxKey);  // restaure le réagencement persisté
       lightboxCy.resize();
       lightboxCy.fit(undefined, 48);
+      attachPersist(lightboxCy, lightboxKey);  // sauvegarde au déplacement
       lightboxReset.removeAttribute("hidden");  // « réinitialiser la disposition » (graphes)
     } else {
       var linear = card.querySelector(".timeline, .cmp");

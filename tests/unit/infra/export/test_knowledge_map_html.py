@@ -72,6 +72,34 @@ def test_design_system_clair_et_sombre() -> None:
     assert "--concept" in html and "--idea" in html
 
 
+def test_persistance_cle_bouton_et_module() -> None:
+    html = render_knowledge_map_html(_graph())
+    data = _embedded_data(html)
+    # Clé namespacée : livrable + langue + hash 8 hex + version.
+    assert re.fullmatch(
+        r"fahmi2:visuals:knowledge_map:fr:[0-9a-f]{8}:v1", data["storageKey"]
+    )
+    # Bouton « Réinitialiser » + module de persistance inlinés.
+    assert 'id="reset-layout"' in html
+    assert "Réinitialiser la disposition" in html
+    assert "__fahmi2LayoutStore" in html
+
+
+def test_hash_de_stockage_depend_des_noeuds() -> None:
+    def _key(node_id: str) -> str:
+        graph = assemble_graph(
+            (GraphNode(id=node_id, label="X", node_type=NodeType.CONCEPT,
+                       definition=None, excerpts=(), chapter_anchor=None,
+                       community_path=()),),
+            (),
+            language=Language.FR,
+        )
+        return str(_embedded_data(render_knowledge_map_html(graph))["storageKey"])
+
+    assert _key("concept:a") != _key("concept:b")  # ids différents → hash différent
+    assert _key("concept:a") == _key("concept:a")  # même graphe → hash stable
+
+
 def test_langue_anglaise() -> None:
     graph = assemble_graph(
         (GraphNode(id="concept:x", label="X", node_type=NodeType.CONCEPT,

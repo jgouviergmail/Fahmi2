@@ -1,9 +1,12 @@
-"""Détection de communautés (Louvain) et assemblage du ``KnowledgeGraph``.
+"""Détection de communautés (Louvain), assemblage du ``KnowledgeGraph`` et métrique de
+degré partagée.
 
 Regroupe les nœuds en **communautés thématiques** par modularité (algorithme de
 Louvain, ``networkx``, **déterministe** via une graine fixe). Chaque nœud reçoit son
 ``community_path`` et l'on construit les ``Community`` (libellés/rapports remplis par
-l'étape suivante). Aucun appel LLM ici : le clustering est purement structurel.
+l'étape suivante). Aucun appel LLM ici : le clustering est purement structurel. Expose
+aussi ``node_degrees`` (degré par nœud connecté), réutilisé par l'élagage de la carte
+(``visuals/_pruning``) et le choix des représentants de communautés (``idea_chains``).
 """
 
 from __future__ import annotations

@@ -649,9 +649,15 @@ The barriers remain the batch phases 2 and 5 (the engine stays
   helper `_assets/visuals/_layout_store.js`: availability probe + `try/catch` → graceful
   fallback; keys `fahmi2:visuals:<deliverable>:<lang>:<hash8>:v1`, content-hashed →
   invalidated on regeneration) and restored on reload; a **« Réinitialiser la
-  disposition »** control reverts to the computed layout (neutralized if `localStorage`
-  unavailable — e.g. Safari/`file://`). The map's first fcose layout is saved on
-  `layoutstop` (fcose is non-deterministic) → stable reloads. **Embedded
+  disposition »** control reverts to the computed layout — **permanent in the map's
+  toolbar** (just `disabled` if `localStorage` is unavailable, e.g. Safari/`file://`),
+  whereas the **diagram gallery** exposes it only inside the per-card **« Enlarge »**
+  fullscreen overlay (the overlay is the **authoritative editor**: on close its positions
+  are propagated to the card instance, which shares the same `localStorage` key, so a
+  later card drag can't overwrite the fullscreen rearrangement). The map's first fcose
+  layout is saved on `layoutstop` (fcose is non-deterministic) → stable reloads; a
+  restored manual layout is **not** zoom-clamped (it would crop a deliberately spread-out
+  arrangement). **Embedded
   source excerpts** (`_excerpts.SectionIndex`,
   bounded by `EXCERPT_MAX_CHARS`) make each page self-explanatory. Inputs read
   **from disk** like Pedagogy (consolidated doc parsed by

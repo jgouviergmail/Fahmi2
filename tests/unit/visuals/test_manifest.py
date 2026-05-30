@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from fahmi2.domain.enums import Language
-from fahmi2.visuals.manifest import VisualsManifest
+from fahmi2.visuals.manifest import VisualsManifest, manifest_path, read_manifest
 
 
 def _record(
@@ -64,6 +67,70 @@ def test_is_fresh_insensible_aux_couts() -> None:
     manifest = VisualsManifest()
     _record(manifest, Language.FR, map_cost=0.99, diagrams_cost=0.99)
     assert manifest.is_fresh(
+        Language.FR,
+        settings_hash="h",
+        structure_mtime_ns=1,
+        glossary_mtime_ns=2,
+        content_mtime_ns=3,
+    )
+
+
+def test_read_manifest_payload_non_dict_renvoie_manifeste_vide(tmp_path: Path) -> None:
+    # JSON valide mais non-objet (liste) : manifeste vide, surtout pas de crash
+    # ``AttributeError`` dans ``from_dict``.
+    manifest_path(tmp_path).write_text(json.dumps([1, 2, 3]), encoding="utf-8")
+    manifest = read_manifest(tmp_path)
+    assert manifest.structure_costs() is None
+    assert manifest.language_costs() == {}
+
+
+def test_structure_costs_longueur_invalide_ignoree() -> None:
+    # Paire de coûts de structure mal formée (longueur != 2) → ignorée (inconnu).
+    manifest = VisualsManifest.from_dict({"version": 2, "structure_costs": [1.0]})
+    assert manifest.structure_costs() is None
+
+
+def test_structure_costs_non_castable_ignore() -> None:
+    # Valeurs non castables en float → ignorées (inconnu), pas de crash.
+    manifest = VisualsManifest.from_dict(
+        {"version": 2, "structure_costs": ["a", "b"]}
+    )
+    assert manifest.structure_costs() is None
+
+
+def test_cout_langue_non_castable_omis_sans_invalider_le_reste() -> None:
+    # Une valeur de coût non castable laisse le coût inconnu (langue omise de
+    # language_costs) sans invalider la fraîcheur ni faire échouer toute la lecture.
+    payload = {
+        "version": 2,
+        "entries": {
+            "fr": {
+                "settings_hash": "h",
+                "structure_mtime_ns": 1,
+                "glossary_mtime_ns": 2,
+                "content_mtime_ns": 3,
+                "map_cost_usd": "abc",
+            }
+        },
+    }
+    manifest = VisualsManifest.from_dict(payload)
+    assert manifest.language_costs() == {}
+    assert manifest.is_fresh(
+        Language.FR,
+        settings_hash="h",
+        structure_mtime_ns=1,
+        glossary_mtime_ns=2,
+        content_mtime_ns=3,
+    )
+
+
+def test_entry_non_dict_ignoree() -> None:
+    # Une entrée de langue non-dict est ignorée silencieusement (pas de crash).
+    manifest = VisualsManifest.from_dict(
+        {"version": 2, "entries": {"fr": "pas-un-dict"}}
+    )
+    assert manifest.language_costs() == {}
+    assert not manifest.is_fresh(
         Language.FR,
         settings_hash="h",
         structure_mtime_ns=1,

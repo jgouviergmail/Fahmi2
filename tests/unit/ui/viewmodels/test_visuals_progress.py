@@ -242,6 +242,58 @@ def test_failed_language_marks_both_deliverables() -> None:
     matrix = vm.cost_matrix_snapshot()
     assert matrix.cells[0][_COL_EN].status is PhaseStatus.FAILED
     assert matrix.cells[1][_COL_EN].status is PhaseStatus.FAILED
+    # Contrat statut/coût : une langue ÉCHOUÉE n'affiche aucun coût (« — »), pas
+    # « $0.0000 » — cohérent avec la vue persistée (absente du manifeste des coûts).
+    assert matrix.cells[0][_COL_EN].cost_usd is None
+    assert matrix.cells[1][_COL_EN].cost_usd is None
+
+
+def test_load_persisted_structure_seule_sans_langue_produite() -> None:
+    # Structure extraite (coût persisté) mais AUCUNE langue produite (toutes
+    # échouées/cappées après-coup) : les cellules « Structure » restent cohérentes
+    # avec la tuile total (le coût de structure n'est pas « perdu » dans la grille).
+    vm = _vm()
+    vm.load_persisted(
+        deliverables=_DELIVERABLES,
+        languages=_LANGS,
+        generated_languages=[],
+        total_cost_usd=0.09,
+        structure_costs=(0.08, 0.01),
+        language_costs=None,
+    )
+    matrix = vm.cost_matrix_snapshot()
+    assert matrix.cells[0][_COL_STRUCTURE].status is PhaseStatus.SUCCEEDED
+    assert matrix.cells[1][_COL_STRUCTURE].status is PhaseStatus.SUCCEEDED
+    assert matrix.cells[0][_COL_STRUCTURE].cost_usd == pytest.approx(0.08)
+    assert matrix.cells[1][_COL_STRUCTURE].cost_usd == pytest.approx(0.01)
+    # Aucune langue produite → cellules de langue en attente, sans coût.
+    assert matrix.cells[0][_COL_FR].status is PhaseStatus.PENDING
+    assert matrix.cells[0][_COL_FR].cost_usd is None
+    # La grille concorde avec la tuile total (somme des cellules = coût de structure).
+    assert matrix.grand_total == pytest.approx(0.09)
+    assert vm.stats_snapshot().total_cost_usd == pytest.approx(0.09)
+
+
+def test_load_persisted_langue_generee_absente_des_couts() -> None:
+    # Langue générée mais ABSENTE d'un dict de coûts non-None (manifeste partiel) :
+    # statut SUCCEEDED dissocié du coût (cellules sans coût, pas $0.00).
+    vm = _vm()
+    vm.load_persisted(
+        deliverables=_DELIVERABLES,
+        languages=_LANGS,
+        generated_languages=[Language.FR, Language.EN],
+        total_cost_usd=0.05,
+        structure_costs=(0.03, 0.01),
+        language_costs={Language.FR: (0.01, 0.0)},  # EN omis
+    )
+    matrix = vm.cost_matrix_snapshot()
+    # EN : produit (statut SUCCEEDED) mais coût inconnu (« — »).
+    assert matrix.cells[0][_COL_EN].status is PhaseStatus.SUCCEEDED
+    assert matrix.cells[1][_COL_EN].status is PhaseStatus.SUCCEEDED
+    assert matrix.cells[0][_COL_EN].cost_usd is None
+    assert matrix.cells[1][_COL_EN].cost_usd is None
+    # FR : coût connu.
+    assert matrix.cells[0][_COL_FR].cost_usd == pytest.approx(0.01)
 
 
 def test_load_persisted_marks_generated_languages_and_structure() -> None:

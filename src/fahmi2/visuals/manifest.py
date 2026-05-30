@@ -249,17 +249,26 @@ class VisualsManifest:
                 continue
             if not isinstance(entry, dict):
                 continue
-            has_cost = _KEY_MAP_COST in entry
+            # Cast défensif des coûts (symétrique du garde-fou de ``structure_costs``) :
+            # une valeur non castable laisse les coûts à ``None`` (inconnu) plutôt que de
+            # faire échouer toute la lecture du manifeste.
+            map_cost: float | None = None
+            diagrams_cost: float | None = None
+            if _KEY_MAP_COST in entry:
+                try:
+                    map_cost = float(entry[_KEY_MAP_COST])
+                    diagrams_cost = float(entry.get(_KEY_DIAGRAMS_COST, 0.0))
+                except (TypeError, ValueError):
+                    map_cost = None
+                    diagrams_cost = None
             manifest.record(
                 language,
                 settings_hash=str(entry.get(_KEY_SETTINGS, "")),
                 structure_mtime_ns=entry.get(_KEY_STRUCTURE),
                 glossary_mtime_ns=entry.get(_KEY_GLOSSARY),
                 content_mtime_ns=entry.get(_KEY_CONTENT),
-                map_cost_usd=float(entry[_KEY_MAP_COST]) if has_cost else None,
-                diagrams_cost_usd=(
-                    float(entry.get(_KEY_DIAGRAMS_COST, 0.0)) if has_cost else None
-                ),
+                map_cost_usd=map_cost,
+                diagrams_cost_usd=diagrams_cost,
             )
         return manifest
 
@@ -279,6 +288,10 @@ def read_manifest(visuals_dir: Path) -> VisualsManifest:
     try:
         payload = json.loads(path.read_text(encoding=_ENCODING_UTF8))
     except (OSError, json.JSONDecodeError, ValueError, TypeError):
+        return VisualsManifest()
+    if not isinstance(payload, dict):
+        # JSON valide mais non-objet (ex. liste) : manifeste vide plutôt qu'un crash
+        # ``AttributeError`` dans ``from_dict`` (alignement sur ``PedagogyManifest``).
         return VisualsManifest()
     return VisualsManifest.from_dict(payload)
 

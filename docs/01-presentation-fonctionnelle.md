@@ -240,8 +240,10 @@ it is **on-demand** and configurable.
   (fullscreen)** button that opens the diagram in a full-window overlay (fit to
   the viewport, wheel-zoom + drag-pan) so even a dense diagram stays legible; the
   graph cards also size their canvas to the number of nodes, and **nodes can be
-  dragged** to rearrange the layout — your arrangement is **saved and restored on reload**,
-  with a **« Réinitialiser la disposition »** button to revert.
+  dragged** to rearrange the layout — your arrangement is **saved and restored on
+  reload**. To revert a diagram, open it via **« Enlarge »** and use the
+  **« Réinitialiser la disposition »** button in the fullscreen overlay (the knowledge
+  map, by contrast, exposes that button permanently in its toolbar).
 - **Latin-script languages only**: a page is produced for each generated
   language among **French, English, German, Spanish, Italian**. Chinese and
   Arabic are **not** supported for this feature (to keep the interactive

@@ -211,14 +211,18 @@ class VisualsProgressViewModel:
         for language in generated:
             if language in self._status:
                 self._status[language] = PhaseStatus.SUCCEEDED
-        # Des livrables présents impliquent que la structure a été extraite : les
-        # cellules « Structure » (statut + coût) sont donc à jour.
-        if generated:
-            structure_cost = (
-                _cost_by_deliverable(*structure_costs)
-                if structure_costs is not None
-                else None
-            )
+        # La structure a été extraite si des livrables existent (les langues en
+        # dépendent) **ou** si son coût a été persisté (manifeste v2 : la structure est
+        # persistée AVANT les langues, donc un coût présent atteste l'extraction même si
+        # aucune langue n'a finalement abouti — toutes échouées/cappées après-coup). On
+        # découple ainsi le statut « Structure » de ``generated`` pour que la grille
+        # persistée reste cohérente avec la tuile total (qui inclut le coût de structure).
+        structure_cost = (
+            _cost_by_deliverable(*structure_costs)
+            if structure_costs is not None
+            else None
+        )
+        if generated or structure_cost is not None:
             for deliverable in self._deliverables:
                 self._structure_status[deliverable] = PhaseStatus.SUCCEEDED
                 if structure_cost is not None:
@@ -254,7 +258,12 @@ class VisualsProgressViewModel:
         elif isinstance(event, VisualsLanguageFinished):
             self._status[event.language] = event.status
             self._total_cost_usd += event.cost_usd
-            self._record_language_cost(event)
+            # Coût rattaché aux cellules uniquement pour une langue effectivement produite
+            # (statut terminal de succès) : une langue ÉCHOUÉE laisse ses cellules sans
+            # coût (« — »), cohérent avec la vue persistée (langue échouée absente du
+            # manifeste des coûts) — plutôt qu'un trompeur « $0.0000 ».
+            if event.status in _DONE_STATUSES:
+                self._record_language_cost(event)
         elif isinstance(event, VisualsGenerationFinished):
             self._overall_status = event.status
             self._finished_at = event.timestamp

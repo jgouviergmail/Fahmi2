@@ -5,7 +5,7 @@ All notable changes to the Fahmi2 project.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.6.1] — 2026-05-30
 
 ### Changed — Visualizations: readable knowledge-map layout
 
@@ -24,8 +24,10 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 ### Added — Visualizations: persist manual rearrangements (localStorage)
 
 - Node positions dragged by the user are now **persisted in `localStorage`** and restored
-  on reload, for both the **knowledge map** and the **diagram gallery** — with a
-  **« Réinitialiser la disposition »** control to revert to the computed layout. New shared
+  on reload, for both the **knowledge map** and the **diagram gallery**. The
+  **« Réinitialiser la disposition »** control (revert to the computed layout) is
+  **permanent in the map's toolbar**, whereas for the **diagram gallery** it lives inside
+  each card's **« Enlarge »** fullscreen overlay. New shared
   vendored helper `_layout_store.js` (availability probe + `try/catch` on every access →
   **graceful fallback**; under Safari/`file://`, private mode or blocked storage,
   persistence silently disables and the reset button is neutralized). Keys are
@@ -69,6 +71,37 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   reconstructed by `load_persisted`, so the matrix stays correct **after re-opening a
   finished project** — not only during a live run — mirroring how Generation (SQLite) and
   Pedagogy (per-artifact JSON) persist their per-cell costs.
+
+### Fixed — Visualizations: exhaustive code-review hardening
+
+- **Diagram fullscreen rearrangement no longer silently lost**: the card and its
+  « Enlarge » overlay share one `localStorage` key, and both kept a live `dragfree`
+  handler — so rearranging in the overlay, closing, then dragging on the card could
+  overwrite the overlay layout with the card's stale in-memory positions
+  (last-writer-wins). On close, the overlay (the **authoritative editor**) now propagates
+  its saved positions to the card instance.
+- **Restored manual diagram layouts are no longer zoom-clamped**: a deliberately
+  spread-out arrangement restored from `localStorage` was re-cropped to the legibility
+  zoom floor on every open. `applySaved` now reports whether it restored positions, and
+  the initial zoom floor is applied only to auto-computed layouts — matching the
+  knowledge map's behaviour.
+- **Persisted cost grid stays coherent when structure succeeds but every language
+  fails**: the persisted progress matrix populated the « Structure » cells only when at
+  least one language was produced, so a structure-only run showed `$0.00` in the grid
+  while the tile showed the (authoritative) structure cost. The structure cells are now
+  populated whenever the structure cost was persisted, independently of language output.
+- **Hardened the visuals manifest parsing** (aligned with `PedagogyManifest`):
+  `read_manifest` returns an empty manifest on a valid-but-non-object JSON payload
+  (was an `AttributeError` crash), and a non-castable per-language cost value falls back
+  to "unknown" instead of failing the whole read.
+- **Failed languages no longer show a misleading `$0.0000`** per cell: the per-cell cost
+  is recorded only for a terminal **success** status, so a failed language shows "—"
+  (consistent with the persisted view, which has no manifest cost for it).
+- Test coverage extended accordingly (orchestrator-level non-zero **localization cost
+  attribution** across a structure language + a localized language; manifest defensive
+  branches; cost/status contracts) and the spec/plan archives corrected to describe the
+  shipped `min-zoomed-font-size` edge-label mechanism (not the initially-designed
+  `text-opacity`).
 
 ## [1.6.0] — 2026-05-30
 

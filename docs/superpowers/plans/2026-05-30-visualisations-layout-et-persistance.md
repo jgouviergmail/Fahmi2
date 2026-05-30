@@ -7,7 +7,7 @@
 - **Phase 1 — Layout carte (Volet A + C)** : ✅ **FAIT** (commit `feat(visuals): carte
   de connaissances — layout fcose lisible + désencombrement des arêtes`). fcose
   `nodeDimensionsIncludeLabels` + espacement (fonctions) + `packComponents:false` ;
-  libellés d'arêtes masqués/révélés (`text-opacity`/`show-label`). Browser-vérifié.
+  libellés d'arêtes masqués/révélés (`min-zoomed-font-size`/`show-label`). Browser-vérifié.
   *(Correction : les diagrammes utilisent dagre/concentric, pas fcose → Volet A =
   carte uniquement.)*
 - **Phase 2 — Persistance carte (Volet B)** : *détaillée ci-dessous.*

@@ -95,18 +95,26 @@ fcose. Le **contenu/structure** du livrable reste déterministe (côté serveur)
 fcose n'a **aucune** option pour les libellés d'arêtes : c'est 100 % du **style
 Cytoscape**. Cible : `knowledge_map.js` (et diagrammes-graphes si pertinent).
 
-- **Masquer au repos** via `text-opacity` (PAS via la propriété `label` : la basculer
-  recalcule bounds + z-order à chaque survol → saccadé sur ~400 arêtes). Sélecteur
-  `edge` → `text-opacity: 0` ; sélecteur `edge.show-label` → `text-opacity: 1`.
+> **Implémentation retenue** : le levier **primaire** est `min-zoomed-font-size`
+> (gating au zoom), **pas** `text-opacity`. La conception initiale ci-dessous prévoyait
+> `text-opacity: 0/1` ; à l'implémentation, `min-zoomed-font-size` s'est avéré suffisant
+> et plus simple (un seul mécanisme, sans seconde propriété d'opacité à entretenir). La
+> description ci-dessous est conservée mais corrigée pour refléter le code livré.
+
+- **Masquer en vue d'ensemble** via `min-zoomed-font-size: EDGE_LABEL_MIN_ZOOM_FONT`
+  (ex. 8) sur le sélecteur `edge` : sous ce seuil de zoom effectif, Cytoscape n'affiche
+  pas le libellé (PAS de bascule de la propriété `label` : la basculer recalcule
+  bounds + z-order à chaque survol → saccadé sur ~400 arêtes). En zoomant assez, les
+  libellés réapparaissent **automatiquement** (zéro JS).
 - **Révéler au survol/sélection** : sur un nœud, `node.connectedEdges().addClass(
-  "show-label")` ; retrait au désurvol. Écouter **`tapdragover` / `tapdragout`**
-  (normalisés souris+tactile, plus robustes que `mouseover`/`mouseout`) + la mécanique
-  `tap`/classe **déjà en place** pour la sélection. Envelopper retrait global + ajout
-  local dans **`cy.batch(...)`** (un seul redraw).
-- **Bonus zoom (zéro JS)** : `min-zoomed-font-size: EDGE_LABEL_MIN_ZOOM_FONT` (ex. 8) sur
-  le sélecteur `edge` → les libellés réapparaissent automatiquement quand on zoome assez.
+  "show-label")` ; retrait au désurvol. Le sélecteur `edge.show-label` lève la grille de
+  zoom (`min-zoomed-font-size: 0`) → libellés visibles même dézoomé. Écouter
+  **`tapdragover` / `tapdragout`** (normalisés souris+tactile, plus robustes que
+  `mouseover`/`mouseout`) + la mécanique `tap`/classe **déjà en place** pour la
+  sélection. Envelopper retrait global + ajout local dans **`cy.batch(...)`** (un seul
+  redraw).
 - Aucune relance de layout dans les handlers de survol (repaint de style uniquement).
-- Constantes (opacités, seuil, nom de classe `show-label`) centralisées.
+- Constantes (seuil `EDGE_LABEL_MIN_ZOOM_FONT`, nom de classe `show-label`) centralisées.
 
 ## 6. Volet B — persistance des positions (localStorage)
 

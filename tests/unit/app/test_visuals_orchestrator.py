@@ -26,6 +26,7 @@ from fahmi2.visuals.events import (
     VisualsGenerationFinished,
     VisualsLanguageFinished,
 )
+from fahmi2.visuals.manifest import read_manifest
 
 _CONSOLIDATED = """# Analyse financière
 
@@ -155,6 +156,12 @@ def test_genere_les_deux_html_et_etat(make_project: Any, tmp_path: Path) -> None
         assert finished_event.cost_usd == (
             finished_event.map_cost_usd + finished_event.diagrams_cost_usd
         )
+    # Les coûts par livrable sont persistés dans le manifeste (vue persistée).
+    manifest = read_manifest(tmp_path / "visuals")
+    struct_map, struct_diagrams = manifest.structure_costs()
+    assert struct_map > 0
+    assert struct_diagrams > 0
+    assert manifest.language_costs()
 
 
 def test_non_configure_leve_config_error(make_project: Any, tmp_path: Path) -> None:

@@ -251,6 +251,10 @@ class VisualsOrchestrator:
                 diagrams_cost_usd=diagrams_struct_cost,
             )
         )
+        # Persiste le coût de structure (global) dès maintenant, pour la vue persistée
+        # de la matrice même si toutes les langues sont skippées/cappées ensuite.
+        manifest.record_structure_cost(map_struct_cost, diagrams_struct_cost)
+        write_manifest(self._artifacts, visuals_dir, manifest)
         return self._run_languages(
             ctx,
             languages,
@@ -521,6 +525,7 @@ class VisualsOrchestrator:
                     language, settings_hash=settings_hash,
                     structure_mtime_ns=structure_mtime,
                     glossary_mtime_ns=glossary_mtime, content_mtime_ns=content_mtime,
+                    map_cost_usd=map_cost, diagrams_cost_usd=board_cost,
                 )
                 write_manifest(self._artifacts, visuals_dir, manifest)
             ctx.event_bus.publish(

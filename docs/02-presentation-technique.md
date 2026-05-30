@@ -522,8 +522,13 @@ Pedagogy feature (lightweight orchestrator, no `PipelineEngine`).
   (deterministic typed-JSON → self-contained HTML); `_visuals_assets.py` reads
   and **inlines** the vendored **Cytoscape.js** core + extensions from
   `_assets/visuals/` (**no CDN**); `_assets/visuals/*` (vendored MIT libs +
-  CSS + JS + HTML templates). `storage/feature_run_state.py` — shared
-  `run_state.json` model (pedagogy + visuals).
+  CSS + JS + HTML templates). The renderers embed a **per-deliverable storage key**
+  (`fahmi2:visuals:<deliverable>:<lang>:<hash8>:v1`, content-hashed) and inline the shared
+  **`_layout_store.js`** (localStorage wrapper with availability probe + `try/catch`); the
+  map's fcose layout is **legibility-tuned** (`nodeDimensionsIncludeLabels`, spacing) and
+  manual node positions **persist** (restored on reload, « Réinitialiser » reverts) on both
+  deliverables. `storage/feature_run_state.py` — shared `run_state.json` model
+  (pedagogy + visuals).
 - `app/` — `VisualsOrchestrator` (extract structure **once** in a structure
   language → per-Latin-language localise + render, freshness manifest +
   `run_state`, best-effort cost cap). **Both phases are parallelised**: the
@@ -762,7 +767,7 @@ loss):
 
 ### 6.2 Current metrics
 
-- **1381 passing tests** × 3 consecutive runs
+- **1384 passing tests** × 3 consecutive runs
 - **ruff** + **mypy --strict** clean over the whole `src` + `tests` tree
 
 ## 7. Packaging and distribution

@@ -228,14 +228,19 @@ it is **on-demand** and configurable.
   relations** (leads to, prerequisite, illustrates, contrasts with, part of,
   related). The graph reorganises from a **network** view to a **tree** when
   you click a node (and back), groups nodes into **themes**, and shows, for
-  each node, its definition and an **excerpt of the source** it comes from.
+  each node, its definition and an **excerpt of the source** it comes from. The layout is
+  optimized for legibility (spaced-out nodes; edge labels are shown for the **selected**
+  node rather than all at once); you can **drag nodes to rearrange**, your arrangement is
+  **saved and restored on reload** (per browser), and a **« Réinitialiser la disposition »**
+  button reverts to the computed layout.
 - **Diagram gallery**: **generated** diagrams (not AI images) — flowcharts,
   timelines, comparisons, hierarchies, cycles, decision trees — chosen by the
   AI to fit each part of the course. Each diagram card has an **« Enlarge »
   (fullscreen)** button that opens the diagram in a full-window overlay (fit to
   the viewport, wheel-zoom + drag-pan) so even a dense diagram stays legible; the
   graph cards also size their canvas to the number of nodes, and **nodes can be
-  dragged** to rearrange the layout (with a *Reset layout* button).
+  dragged** to rearrange the layout — your arrangement is **saved and restored on reload**,
+  with a **« Réinitialiser la disposition »** button to revert.
 - **Latin-script languages only**: a page is produced for each generated
   language among **French, English, German, Spanish, Italian**. Chinese and
   Arabic are **not** supported for this feature (to keep the interactive

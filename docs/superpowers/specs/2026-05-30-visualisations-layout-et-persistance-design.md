@@ -44,7 +44,10 @@ ajustements ci-dessous.
 
 ## 4. Volet A — réglage fcose (libellés de **nœuds**)
 
-Cible : `knowledge_map.js` (réseau) et les diagrammes-**graphes** de `diagram_board.js`.
+Cible : **`knowledge_map.js` (réseau) uniquement**. *(Correction post-implémentation : la
+galerie de diagrammes utilise `dagre`/`concentric`/`breadthfirst` — pas fcose — et est
+déterministe ; le Volet A ne s'y applique donc pas. Sa lisibilité relève de la hauteur
+adaptative + plein écran déjà livrés.)*
 
 ### 4.1 `nodeDimensionsIncludeLabels`
 

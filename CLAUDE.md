@@ -638,7 +638,19 @@ The barriers remain the batch phases 2 and 5 (the engine stays
   **server-computed adaptive canvas height** (by node count) + an initial-zoom
   floor + wheel-zoom/drag-pan, and every diagram card has an **« Enlarge »
   fullscreen overlay** (re-renders the graph fit to the full viewport) so
-  arbitrarily complex diagrams stay readable — no fixed card size can. **Embedded
+  arbitrarily complex diagrams stay readable — no fixed card size can. **Knowledge-map
+  layout** (fcose, map only — diagrams use dagre/concentric):
+  `nodeDimensionsIncludeLabels:true` + spacing (`nodeRepulsion`/`idealEdgeLength` passed
+  **as functions** as fcose requires) + `packComponents:false`; **edge labels
+  decluttered** (`text-opacity:0` at rest — not toggling `label` — revealed on the
+  selected node via the `show-label` class). **Manual-rearrangement persistence** (map
+  **and** diagrams): dragged node positions are saved to `localStorage` (shared vendored
+  helper `_assets/visuals/_layout_store.js`: availability probe + `try/catch` → graceful
+  fallback; keys `fahmi2:visuals:<deliverable>:<lang>:<hash8>:v1`, content-hashed →
+  invalidated on regeneration) and restored on reload; a **« Réinitialiser la
+  disposition »** control reverts to the computed layout (neutralized if `localStorage`
+  unavailable — e.g. Safari/`file://`). The map's first fcose layout is saved on
+  `layoutstop` (fcose is non-deterministic) → stable reloads. **Embedded
   source excerpts** (`_excerpts.SectionIndex`,
   bounded by `EXCERPT_MAX_CHARS`) make each page self-explanatory. Inputs read
   **from disk** like Pedagogy (consolidated doc parsed by

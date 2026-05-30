@@ -7,6 +7,34 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Changed — Visualizations: readable knowledge-map layout
+
+- The knowledge-map network layout (fcose) is tuned for legibility:
+  **`nodeDimensionsIncludeLabels: true`** (fcose reserves the label footprint during the
+  layout → far less label overlap), stronger spacing (`nodeRepulsion` / `idealEdgeLength`
+  passed **as functions** as fcose requires, plus `nodeSeparation`), and `packComponents`
+  explicitly disabled (its `cytoscape-layout-utilities` dependency is not vendored). No new
+  vendored library. *(Diagrams use dagre/concentric — not fcose — so this targets the map
+  only.)*
+- **Edge labels are decluttered**: hidden at rest (`text-opacity: 0` — not toggling the
+  `label` property, which would recompute bounds on ~400 edges) and revealed on the
+  **selected node's** connected edges (`show-label` class), shown horizontally.
+
+### Added — Visualizations: persist manual rearrangements (localStorage)
+
+- Node positions dragged by the user are now **persisted in `localStorage`** and restored
+  on reload, for both the **knowledge map** and the **diagram gallery** — with a
+  **« Réinitialiser la disposition »** control to revert to the computed layout. New shared
+  vendored helper `_layout_store.js` (availability probe + `try/catch` on every access →
+  **graceful fallback**; under Safari/`file://`, private mode or blocked storage,
+  persistence silently disables and the reset button is neutralized). Keys are
+  **namespaced + per-language + content-hashed + versioned**
+  (`fahmi2:visuals:<deliverable>:<lang>:<hash8>:v1`) to avoid the shared `file://` bucket
+  and invalidate stale positions after regeneration. The map's first fcose layout is saved
+  on `layoutstop` so reloads are **stable** (fcose is non-deterministic). Known limit:
+  persistence does not work under Safari/`file://` (Windows browsers — Chrome/Edge/Firefox
+  — are fine); moving/renaming the HTML resets positions.
+
 ### Changed — Visualizations: density now controls the knowledge-map size
 
 - The **content-quantity** setting (`SupportDensity`: light / standard / dense) now

@@ -211,8 +211,11 @@ now noticeably drives the **knowledge-map size** (degree-based edge-first prunin
 Plus **cost traceability** in the progress matrix: structure and per-language costs are
 now attributed **per cell** (deliverable × {Structure, languages}), so the grid totals
 match the Cost tile (no more misleading `$0.0000`) — and **persisted in the manifest** so
-the matrix stays correct after re-opening a finished project. **1381 passing tests**,
-ruff + mypy `--strict` clean.
+the matrix stays correct after re-opening a finished project. The knowledge-map **layout**
+is tuned for legibility (fcose label-aware spacing + decluttered edge labels), and
+**manual node rearrangements persist** (localStorage) on both deliverables, with a
+« Réinitialiser la disposition » control. **1384 passing tests**, ruff + mypy `--strict`
+clean.
 
 **v1.6.0** — **Visualizations** feature: two **fully self-contained**
 interactive HTML deliverables per Latin-script language — an interactive

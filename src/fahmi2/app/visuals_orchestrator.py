@@ -48,6 +48,7 @@ from fahmi2.infra.storage.feature_run_state import (
 )
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.pipeline.event_bus import EventBus
+from fahmi2.visuals._pruning import prune_knowledge_graph
 from fahmi2.visuals.community import assemble_graph
 from fahmi2.visuals.events import (
     VisualsEvent,
@@ -417,6 +418,12 @@ class VisualsOrchestrator:
             # est porté par le provider : on l'agrège au total (cf. pattern Dialogue).
             if self._embedding_provider is not None:
                 cost += self._embedding_provider.consumed_cost_usd()
+            # Élagage par densité : la carte ne garde que les nœuds les plus
+            # structurants (cf. _pruning) → communautés/rapports/idea-chains opèrent
+            # sur le graphe réduit.
+            nodes, edges = prune_knowledge_graph(
+                nodes, edges, density=ctx.settings.density
+            )
             graph = assemble_graph(nodes, edges, language=structure_lang)
             graph, report_cost = generate_community_reports(
                 ctx, graph, language=structure_lang

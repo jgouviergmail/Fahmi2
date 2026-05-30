@@ -9,7 +9,6 @@ Libellés d'interface dans la **langue du board** (scripts latins : fr/en/de/es/
 
 from __future__ import annotations
 
-import hashlib
 import json
 from dataclasses import dataclass
 from html import escape
@@ -18,7 +17,9 @@ from fahmi2.domain.enums import DiagramType, Language
 from fahmi2.domain.languages import is_rtl
 from fahmi2.domain.visuals import GRAPH_DIAGRAM_TYPES, Diagram, DiagramBoard
 from fahmi2.infra.export._visuals_assets import (
+    LAYOUT_STORE_JS,
     VISUALS_TOKENS_CSS,
+    build_storage_key,
     read_visuals_asset,
     vendored_scripts_html,
 )
@@ -26,14 +27,11 @@ from fahmi2.infra.export._visuals_assets import (
 _TEMPLATE = "diagram_board.html.template"
 _CSS = "diagram_board.css"
 _JS = "diagram_board.js"
-_LAYOUT_STORE_JS = "_layout_store.js"
 
-#: Clé localStorage de persistance des positions, **par diagramme** : namespace +
-#: langue + hash (id du diagramme + ids de nœuds) → unique par diagramme et invalidée
-#: après régénération. Versionnée pour invalidation de schéma.
+#: Préfixe namespacé de la clé localStorage de persistance des positions, **par
+#: diagramme** (le format complet — langue + hash + version — est assemblé par
+#: ``build_storage_key``).
 _STORAGE_KEY_PREFIX = "fahmi2:visuals:diagram"
-_STORAGE_KEY_VERSION = "v1"
-_NODES_HASH_LEN = 8
 
 #: Le board n'utilise que Cytoscape + dagre (pas fcose/expand-collapse) → bundle réduit.
 _BOARD_SCRIPTS: tuple[str, ...] = (
@@ -164,9 +162,10 @@ def _diagram_storage_key(diagram: Diagram, language: Language) -> str:
         ``fahmi2:visuals:diagram:<langue>:<hash8>:v1`` — le hash (id du diagramme + ids
         de nœuds) le rend unique et invalide les positions périmées si le contenu change.
     """
-    joined = diagram.id + "\n" + "\n".join(sorted(node.id for node in diagram.nodes))
-    digest = hashlib.sha256(joined.encode("utf-8")).hexdigest()[:_NODES_HASH_LEN]
-    return f"{_STORAGE_KEY_PREFIX}:{language.value}:{digest}:{_STORAGE_KEY_VERSION}"
+    hash_source = (
+        diagram.id + "\n" + "\n".join(sorted(node.id for node in diagram.nodes))
+    )
+    return build_storage_key(_STORAGE_KEY_PREFIX, language.value, hash_source)
 
 
 def _graph_body(diagram: Diagram, language: Language) -> str:
@@ -342,7 +341,7 @@ def render_diagram_board_html(board: DiagramBoard) -> str:
         "@@CLOSE@@": escape(strings.close_label, quote=True),
         "@@RESET@@": escape(strings.reset_label, quote=True),
         "@@APP_CSS@@": f"{read_visuals_asset(VISUALS_TOKENS_CSS)}\n{read_visuals_asset(_CSS)}",
-        "@@LAYOUT_STORE@@": read_visuals_asset(_LAYOUT_STORE_JS),
+        "@@LAYOUT_STORE@@": read_visuals_asset(LAYOUT_STORE_JS),
         "@@APP_JS@@": read_visuals_asset(_JS),
         "@@VENDORED@@": vendored_scripts_html(_BOARD_SCRIPTS),
         "@@CARDS@@": cards,

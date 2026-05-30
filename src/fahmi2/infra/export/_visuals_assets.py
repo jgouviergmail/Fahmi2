@@ -9,6 +9,7 @@ d'inline respecte les dépendances d'enregistrement (les bibliothèques de layou
 
 from __future__ import annotations
 
+import hashlib
 from importlib.resources import files
 
 _ASSETS_PACKAGE = "fahmi2.infra.export"
@@ -17,6 +18,15 @@ _ASSETS_SUBDIR = "_assets/visuals"
 #: Feuille de tokens de design partagée par les deux livrables (source unique des
 #: couleurs clair/sombre), concaténée en tête de chaque CSS par les renderers.
 VISUALS_TOKENS_CSS = "visuals_tokens.css"
+
+#: Module JS partagé de **persistance des positions** (localStorage), inliné par les
+#: deux renderers avant leur JS applicatif.
+LAYOUT_STORE_JS = "_layout_store.js"
+
+#: Persistance des dispositions : version de schéma de la clé (invalidation propre si le
+#: format change) et longueur du hash de structure embarqué dans la clé.
+_STORAGE_KEY_VERSION = "v1"
+_STORAGE_KEY_HASH_LEN = 8
 
 #: Ordre d'inline (= ordre de chargement/enregistrement) des bibliothèques vendorisées.
 #: ``layout-base`` → ``cose-base`` → ``dagre`` → ``cytoscape`` (cœur) → extensions
@@ -32,6 +42,27 @@ VENDORED_SCRIPTS: tuple[str, ...] = (
 )
 
 _ENCODING_UTF8 = "utf-8"
+
+
+def build_storage_key(prefix: str, lang: str, hash_source: str) -> str:
+    """Construit une clé localStorage namespacée + hashée pour un livrable Visualisations.
+
+    Centralise le format de clé (partagé par la carte et la galerie) pour éviter la
+    duplication de la version/longueur de hash entre renderers.
+
+    Args:
+        prefix: Préfixe namespacé du livrable (ex. ``fahmi2:visuals:knowledge_map``).
+        lang: Code langue (ex. ``fr``).
+        hash_source: Texte identifiant le contenu (ids triés) ; son hash invalide les
+            positions périmées après régénération.
+
+    Returns:
+        ``<prefix>:<lang>:<hash8>:<version>``.
+    """
+    digest = hashlib.sha256(hash_source.encode(_ENCODING_UTF8)).hexdigest()[
+        :_STORAGE_KEY_HASH_LEN
+    ]
+    return f"{prefix}:{lang}:{digest}:{_STORAGE_KEY_VERSION}"
 
 
 def read_visuals_asset(name: str) -> str:

@@ -8,7 +8,6 @@ sont fournis dans la **langue du graphe** (scripts latins : fr/en/de/es/it).
 
 from __future__ import annotations
 
-import hashlib
 import json
 from dataclasses import dataclass
 
@@ -16,7 +15,9 @@ from fahmi2.domain.enums import Language
 from fahmi2.domain.languages import is_rtl
 from fahmi2.domain.visuals import KnowledgeGraph
 from fahmi2.infra.export._visuals_assets import (
+    LAYOUT_STORE_JS,
     VISUALS_TOKENS_CSS,
+    build_storage_key,
     read_visuals_asset,
     vendored_scripts_html,
 )
@@ -24,14 +25,10 @@ from fahmi2.infra.export._visuals_assets import (
 _TEMPLATE = "knowledge_map.html.template"
 _CSS = "knowledge_map.css"
 _JS = "knowledge_map.js"
-_LAYOUT_STORE_JS = "_layout_store.js"
 
-#: Clé localStorage de persistance des positions : namespacée (livrable + langue + hash
-#: de structure) pour éviter les collisions sous file:// (bucket partagé) et invalider
-#: les positions périmées après régénération. Versionnée pour invalidation de schéma.
+#: Préfixe namespacé de la clé localStorage de persistance des positions de la carte
+#: (le format complet — langue + hash + version — est assemblé par ``build_storage_key``).
 _STORAGE_KEY_PREFIX = "fahmi2:visuals:knowledge_map"
-_STORAGE_KEY_VERSION = "v1"
-_NODES_HASH_LEN = 8
 
 
 def _storage_key(graph: KnowledgeGraph) -> str:
@@ -44,9 +41,8 @@ def _storage_key(graph: KnowledgeGraph) -> str:
         ``fahmi2:visuals:knowledge_map:<langue>:<hash8>:v1`` — le hash change si
         l'ensemble des nœuds change (régénération), invalidant les positions périmées.
     """
-    joined = "\n".join(sorted(node.id for node in graph.nodes))
-    digest = hashlib.sha256(joined.encode("utf-8")).hexdigest()[:_NODES_HASH_LEN]
-    return f"{_STORAGE_KEY_PREFIX}:{graph.language.value}:{digest}:{_STORAGE_KEY_VERSION}"
+    hash_source = "\n".join(sorted(node.id for node in graph.nodes))
+    return build_storage_key(_STORAGE_KEY_PREFIX, graph.language.value, hash_source)
 
 
 @dataclass(frozen=True)
@@ -250,7 +246,7 @@ def render_knowledge_map_html(graph: KnowledgeGraph) -> str:
         ),
         "@@RESET_LAYOUT@@": strings.reset_layout,
         "@@APP_CSS@@": f"{read_visuals_asset(VISUALS_TOKENS_CSS)}\n{read_visuals_asset(_CSS)}",
-        "@@LAYOUT_STORE@@": read_visuals_asset(_LAYOUT_STORE_JS),
+        "@@LAYOUT_STORE@@": read_visuals_asset(LAYOUT_STORE_JS),
         "@@APP_JS@@": read_visuals_asset(_JS),
         "@@VENDORED@@": vendored_scripts_html(),
         "@@DATA_JSON@@": data_json,

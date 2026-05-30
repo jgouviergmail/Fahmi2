@@ -174,7 +174,7 @@ class VisualsProgressViewModel:
         overall_status: RunStatus | None = None,
         started_at: datetime | None = None,
         finished_at: datetime | None = None,
-        structure_costs: tuple[float, float] = (0.0, 0.0),
+        structure_costs: tuple[float, float] | None = None,
         language_costs: Mapping[Language, tuple[float, float]] | None = None,
     ) -> None:
         """Charge l'état persisté (reconstruction à la sélection du projet).
@@ -193,8 +193,10 @@ class VisualsProgressViewModel:
             overall_status: Statut de la dernière exécution (``None`` si jamais).
             started_at: Démarrage de la dernière exécution.
             finished_at: Fin de la dernière exécution.
-            structure_costs: Coûts de structure ``(carte, diagrammes)`` persistés.
-            language_costs: Coûts de localisation ``(carte, diagrammes)`` par langue.
+            structure_costs: Coûts de structure ``(carte, diagrammes)`` persistés, ou
+                ``None`` si inconnus (manifeste v1) → cellules sans coût.
+            language_costs: Coûts de localisation ``(carte, diagrammes)`` par langue
+                (langues sans coût connu omises → cellules sans coût).
         """
         self.reset(
             deliverables=deliverables,
@@ -212,10 +214,15 @@ class VisualsProgressViewModel:
         # Des livrables présents impliquent que la structure a été extraite : les
         # cellules « Structure » (statut + coût) sont donc à jour.
         if generated:
-            structure_cost = _cost_by_deliverable(*structure_costs)
+            structure_cost = (
+                _cost_by_deliverable(*structure_costs)
+                if structure_costs is not None
+                else None
+            )
             for deliverable in self._deliverables:
                 self._structure_status[deliverable] = PhaseStatus.SUCCEEDED
-                self._structure_cost[deliverable] = structure_cost[deliverable]
+                if structure_cost is not None:
+                    self._structure_cost[deliverable] = structure_cost[deliverable]
         for language, (map_cost, diagrams_cost) in (language_costs or {}).items():
             if language not in self._status:
                 continue

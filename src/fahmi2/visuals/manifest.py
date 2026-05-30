@@ -90,8 +90,9 @@ class VisualsManifest:
 
     def __init__(self) -> None:
         self._entries: dict[str, dict[str, Any]] = {}
-        #: Coûts LLM (USD) de l'extraction de structure ``(carte, diagrammes)``, globaux.
-        self._structure_costs: tuple[float, float] = (0.0, 0.0)
+        #: Coûts LLM (USD) de l'extraction de structure ``(carte, diagrammes)``, globaux ;
+        #: ``None`` tant que jamais enregistrés (manifeste v1) — distinct d'un coût nul.
+        self._structure_costs: tuple[float, float] | None = None
 
     def is_fresh(
         self,
@@ -133,8 +134,8 @@ class VisualsManifest:
         structure_mtime_ns: int | None,
         glossary_mtime_ns: int | None,
         content_mtime_ns: int | None,
-        map_cost_usd: float = 0.0,
-        diagrams_cost_usd: float = 0.0,
+        map_cost_usd: float | None = None,
+        diagrams_cost_usd: float | None = None,
     ) -> None:
         """Enregistre l'état de fraîcheur **et les coûts** d'une langue après production.
 
@@ -144,17 +145,20 @@ class VisualsManifest:
             structure_mtime_ns: mtime du doc de structure.
             glossary_mtime_ns: mtime du glossaire master.
             content_mtime_ns: mtime du doc de la langue cible.
-            map_cost_usd: Coût LLM de la localisation de la carte pour cette langue.
+            map_cost_usd: Coût LLM de la localisation de la carte (``None`` = non
+                enregistré, p. ex. à la relecture d'un manifeste v1).
             diagrams_cost_usd: Coût LLM de la localisation des diagrammes.
         """
-        self._entries[language.value] = {
+        entry: dict[str, Any] = {
             _KEY_SETTINGS: settings_hash,
             _KEY_STRUCTURE: structure_mtime_ns,
             _KEY_GLOSSARY: glossary_mtime_ns,
             _KEY_CONTENT: content_mtime_ns,
-            _KEY_MAP_COST: map_cost_usd,
-            _KEY_DIAGRAMS_COST: diagrams_cost_usd,
         }
+        if map_cost_usd is not None:
+            entry[_KEY_MAP_COST] = map_cost_usd
+            entry[_KEY_DIAGRAMS_COST] = diagrams_cost_usd or 0.0
+        self._entries[language.value] = entry
 
     def record_structure_cost(
         self, map_cost_usd: float, diagrams_cost_usd: float
@@ -168,28 +172,34 @@ class VisualsManifest:
         """
         self._structure_costs = (map_cost_usd, diagrams_cost_usd)
 
-    def structure_costs(self) -> tuple[float, float]:
+    def structure_costs(self) -> tuple[float, float] | None:
         """Coûts de structure persistés.
 
         Returns:
-            ``(coût carte, coût diagrammes)`` (``(0.0, 0.0)`` si jamais enregistrés).
+            ``(coût carte, coût diagrammes)``, ou ``None`` si jamais enregistrés
+            (ex. manifeste v1) — à distinguer d'un coût nul.
         """
         return self._structure_costs
 
     def language_costs(self) -> dict[Language, tuple[float, float]]:
-        """Coûts de localisation persistés, par langue enregistrée.
+        """Coûts de localisation persistés, par langue **dont le coût est connu**.
+
+        Les langues sans coût enregistré (ex. manifeste v1) sont **omises** (≠ coût
+        nul), à l'image de ``read_generated_costs`` côté Pédagogie.
 
         Returns:
             Un mapping ``langue -> (coût carte, coût diagrammes)``.
         """
         costs: dict[Language, tuple[float, float]] = {}
         for lang_str, entry in self._entries.items():
+            if _KEY_MAP_COST not in entry:
+                continue
             try:
                 language = Language(lang_str)
             except ValueError:
                 continue
             costs[language] = (
-                float(entry.get(_KEY_MAP_COST, 0.0)),
+                float(entry[_KEY_MAP_COST]),
                 float(entry.get(_KEY_DIAGRAMS_COST, 0.0)),
             )
         return costs
@@ -203,7 +213,11 @@ class VisualsManifest:
         return {
             "version": _MANIFEST_VERSION,
             "entries": dict(self._entries),
-            _KEY_STRUCTURE_COSTS: list(self._structure_costs),
+            _KEY_STRUCTURE_COSTS: (
+                list(self._structure_costs)
+                if self._structure_costs is not None
+                else None
+            ),
         }
 
     @classmethod
@@ -235,14 +249,17 @@ class VisualsManifest:
                 continue
             if not isinstance(entry, dict):
                 continue
+            has_cost = _KEY_MAP_COST in entry
             manifest.record(
                 language,
                 settings_hash=str(entry.get(_KEY_SETTINGS, "")),
                 structure_mtime_ns=entry.get(_KEY_STRUCTURE),
                 glossary_mtime_ns=entry.get(_KEY_GLOSSARY),
                 content_mtime_ns=entry.get(_KEY_CONTENT),
-                map_cost_usd=float(entry.get(_KEY_MAP_COST, 0.0)),
-                diagrams_cost_usd=float(entry.get(_KEY_DIAGRAMS_COST, 0.0)),
+                map_cost_usd=float(entry[_KEY_MAP_COST]) if has_cost else None,
+                diagrams_cost_usd=(
+                    float(entry.get(_KEY_DIAGRAMS_COST, 0.0)) if has_cost else None
+                ),
             )
         return manifest
 

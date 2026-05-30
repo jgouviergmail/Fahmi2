@@ -33,8 +33,9 @@ def test_roundtrip_preserve_couts_structure_et_langue() -> None:
     assert restored.language_costs() == {Language.FR: (0.01, 0.005)}
 
 
-def test_manifeste_v1_sans_couts_charge_a_zero() -> None:
-    # Format v1 : entrées sans clés de coût, pas de structure_costs.
+def test_manifeste_v1_couts_inconnus_omis() -> None:
+    # Format v1 : entrées sans clés de coût, pas de structure_costs → inconnus
+    # (None / omis), à distinguer d'un coût nul.
     payload = {
         "version": 1,
         "entries": {
@@ -47,8 +48,16 @@ def test_manifeste_v1_sans_couts_charge_a_zero() -> None:
         },
     }
     manifest = VisualsManifest.from_dict(payload)
-    assert manifest.structure_costs() == (0.0, 0.0)
-    assert manifest.language_costs() == {Language.FR: (0.0, 0.0)}
+    assert manifest.structure_costs() is None
+    assert manifest.language_costs() == {}
+
+
+def test_cout_nul_enregistre_distinct_de_inconnu() -> None:
+    # Un coût explicitement nul (ex. langue de structure) est conservé, pas omis.
+    manifest = VisualsManifest()
+    _record(manifest, Language.FR, map_cost=0.0, diagrams_cost=0.0)
+    restored = VisualsManifest.from_dict(manifest.to_dict())
+    assert restored.language_costs() == {Language.FR: (0.0, 0.0)}
 
 
 def test_is_fresh_insensible_aux_couts() -> None:

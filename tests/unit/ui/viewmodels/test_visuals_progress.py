@@ -185,6 +185,25 @@ def test_load_persisted_peuple_les_couts_par_cellule() -> None:
     assert vm.stats_snapshot().total_cost_usd == pytest.approx(0.12)
 
 
+def test_load_persisted_couts_inconnus_restent_vides() -> None:
+    # Manifeste v1 (coûts inconnus) → cellules sans coût (« — »), pas $0.00.
+    vm = _vm()
+    vm.load_persisted(
+        deliverables=_DELIVERABLES,
+        languages=_LANGS,
+        generated_languages=[Language.FR],
+        total_cost_usd=0.5,
+        structure_costs=None,
+        language_costs=None,
+    )
+    matrix = vm.cost_matrix_snapshot()
+    assert matrix.cells[0][_COL_STRUCTURE].cost_usd is None
+    assert matrix.cells[0][_COL_FR].cost_usd is None
+    # Le statut reste « terminé » et le total tuile reflète le run_state.
+    assert matrix.cells[0][_COL_FR].status is PhaseStatus.SUCCEEDED
+    assert vm.stats_snapshot().total_cost_usd == pytest.approx(0.5)
+
+
 def test_generation_finished_sets_authoritative_total() -> None:
     vm = _vm()
     vm.apply_event(VisualsGenerationStarted(timestamp=_ts()))

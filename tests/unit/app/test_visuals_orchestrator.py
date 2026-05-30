@@ -158,7 +158,9 @@ def test_genere_les_deux_html_et_etat(make_project: Any, tmp_path: Path) -> None
         )
     # Les coûts par livrable sont persistés dans le manifeste (vue persistée).
     manifest = read_manifest(tmp_path / "visuals")
-    struct_map, struct_diagrams = manifest.structure_costs()
+    structure_costs = manifest.structure_costs()
+    assert structure_costs is not None
+    struct_map, struct_diagrams = structure_costs
     assert struct_map > 0
     assert struct_diagrams > 0
     assert manifest.language_costs()

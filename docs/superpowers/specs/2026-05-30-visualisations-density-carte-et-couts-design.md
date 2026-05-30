@@ -112,16 +112,24 @@ def prune_knowledge_graph(
    if cap is not None: target = min(target, cap)
    target = min(target, N)
    ```
-5. **Sélection** : trier les nœuds connectés par `(-degré, id)` (départage
-   déterministe et invariant par langue, l'`id` étant `type:slug`) ; garder les
-   `target` premiers.
-6. **Sous-graphe induit** : ne garder que les arêtes dont **les deux** extrémités sont
-   conservées.
-7. **Passe de connectivité (point fixe)** : retirer itérativement tout nœud devenu
-   isolé dans le sous-graphe induit (un *hub* dont tous les voisins ont été élagués),
-   en retirant aussi ses arêtes, jusqu'à stabilité. **Invariant final garanti : tout
-   nœud conservé porte au moins une arête conservée.**
-8. Retourner `(nœuds conservés, arêtes conservées)`.
+5. **Sélection par arêtes (connectivité garantie par construction)** : trier les
+   arêtes par importance décroissante,
+   `key = (-(degré[u] + degré[v]), id_min, id_max)` (départage déterministe et
+   invariant par langue, `id` = `type:slug`). Les parcourir en accumulant un ensemble
+   de nœuds retenus : retenir une arête si ses extrémités tiennent dans le budget
+   (nœuds déjà retenus + nouveaux ≤ `target`). S'arrêter dès que `target` nœuds sont
+   atteints (ou les arêtes épuisées). Une arête entre deux nœuds « forts » est ainsi
+   privilégiée ; tout *hub* est admis dès sa meilleure arête.
+   **Pourquoi par arêtes et non « top-N nœuds par degré + induit »** : ce dernier peut
+   isoler tous les *hubs* sur une topologie en « forêt d'étoiles » (hubs reliés à des
+   feuilles élaguées mais pas entre eux) → carte vide. La sélection par arêtes l'évite
+   par construction.
+6. **Arêtes finales = sous-graphe induit** sur les nœuds retenus (toutes les arêtes
+   dont les deux extrémités sont retenues, pas seulement celles ayant servi à les
+   admettre → carte plus riche). **Invariant : tout nœud retenu porte au moins une
+   arête retenue (celle qui l'a admis) → aucun nœud isolé, jamais de carte vide tant
+   qu'il existe ≥ 1 arête.**
+7. Retourner `(nœuds retenus, arêtes induites)`.
 
 ### 4.3 Point d'insertion (`app/visuals_orchestrator._build_structure`)
 
@@ -178,6 +186,9 @@ Ils sont aujourd'hui **sommés dans un scalaire unique** puis perdus.
 - `VisualsLanguageFinished` : ajout de `map_cost_usd: float` et
   `diagrams_cost_usd: float` ; `cost_usd` reste le **total** de la langue
   (= somme des deux), pour la tuile.
+- Les nouveaux champs portent une **valeur par défaut `0.0`** (dataclasses gelées) pour
+  ne pas casser les sites de construction existants (tests inclus) tant qu'ils ne sont
+  pas mis à jour.
 
 **Orchestrateur (`app/visuals_orchestrator.py`)** :
 - `_build_structure` retourne les coûts de structure **par livrable** (au lieu d'un
@@ -232,8 +243,9 @@ langue), **total général concordant avec la tuile** (ex. \$0.17). Cellules SKI
 - ratio appliqué (`LIGHT` ≈ 25 %, `STANDARD` ≈ 50 %, `DENSE` = 100 % du connexe) ;
 - **plafond** : sur grand graphe, `LIGHT` ≤ 40 et `STANDARD` ≤ 90 ;
 - **plancher** : petit graphe → au moins `min(MAP_MIN_NODES, N)` ;
-- **passe de connectivité** : un *hub* dont les feuilles sont élaguées est lui-même
-  retiré (aucun nœud final isolé) ;
+- **connectivité garantie** : aucun nœud final isolé ; sur une topologie en
+  « forêt d'étoiles » (hubs non interconnectés, feuilles élaguées), la carte
+  **n'est pas vide** (elle conserve des étoiles entières dans le budget) ;
 - **arêtes induites** : aucune arête vers un nœud supprimé ;
 - **déterminisme** : deux exécutions identiques → sortie identique ;
 - **dégénéré** : graphe sans arête → inchangé (pas de carte vide).
@@ -263,9 +275,10 @@ packagé**).
 
 ## 9. Risques / points ouverts
 
-- **Cardinalité finale < cible** : la passe de connectivité peut retirer quelques
-  nœuds supplémentaires (hubs orphelins). Accepté : l'invariant « tout nœud affiché est
-  relié » prime sur l'atteinte exacte de la cible.
+- **Cardinalité finale ≤ cible** : on s'arrête au budget `target`. La sélection par
+  arêtes garantit la connectivité (aucune carte vide) **sans** retrait a posteriori ;
+  seul un graphe **sans aucune arête** donne une carte vide, traité par le garde-fou
+  dégénéré (graphe retourné inchangé).
 - **Corpus à très faible connectivité** : si le LLM a extrait peu de relations, la
   carte sera petite même en `dense`. C'est fidèle au contenu réel ; le garde-fou
   dégénéré évite seulement le cas pathologique « zéro arête ».

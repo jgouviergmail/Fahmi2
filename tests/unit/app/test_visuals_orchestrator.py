@@ -21,7 +21,11 @@ from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.infra.storage.feature_run_state import read_run_state
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.pipeline.event_bus import EventBus
-from fahmi2.visuals.events import VisualsEvent, VisualsGenerationFinished
+from fahmi2.visuals.events import (
+    VisualsEvent,
+    VisualsGenerationFinished,
+    VisualsLanguageFinished,
+)
 
 _CONSOLIDATED = """# Analyse financière
 
@@ -144,6 +148,13 @@ def test_genere_les_deux_html_et_etat(make_project: Any, tmp_path: Path) -> None
         isinstance(e, VisualsGenerationFinished) and e.status is RunStatus.COMPLETED
         for e in events
     )
+    # Invariant de ventilation : le coût total d'une langue = carte + diagrammes.
+    finished = [e for e in events if isinstance(e, VisualsLanguageFinished)]
+    assert finished
+    for finished_event in finished:
+        assert finished_event.cost_usd == (
+            finished_event.map_cost_usd + finished_event.diagrams_cost_usd
+        )
 
 
 def test_non_configure_leve_config_error(make_project: Any, tmp_path: Path) -> None:

@@ -227,6 +227,7 @@ class VisualsProgressViewModel:
         ):
             self._apply_structure_event(event)
             if isinstance(event, VisualsStructureFinished):
+                self._total_cost_usd += event.map_cost_usd + event.diagrams_cost_usd
                 self._record_structure_cost(event)
         elif isinstance(event, VisualsLanguageStarted):
             self._status[event.language] = PhaseStatus.RUNNING
@@ -288,7 +289,7 @@ class VisualsProgressViewModel:
                 self._structure_detail.pop(deliverable, None)
 
     def _record_structure_cost(self, event: VisualsStructureFinished) -> None:
-        """Impute le coût de structure aux cellules « Structure » + total live.
+        """Impute le coût de structure aux cellules « Structure » par livrable.
 
         Args:
             event: Événement de fin de structure (coûts par livrable).
@@ -296,7 +297,6 @@ class VisualsProgressViewModel:
         cost = _cost_by_deliverable(event.map_cost_usd, event.diagrams_cost_usd)
         for deliverable in self._deliverables:
             self._structure_cost[deliverable] = cost[deliverable]
-        self._total_cost_usd += event.map_cost_usd + event.diagrams_cost_usd
 
     def _record_language_cost(self, event: VisualsLanguageFinished) -> None:
         """Impute le coût de localisation d'une langue à ses cellules par livrable.

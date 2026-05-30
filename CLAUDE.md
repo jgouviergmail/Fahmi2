@@ -662,7 +662,11 @@ The barriers remain the batch phases 2 and 5 (the engine stays
   (deliverable × {Structure, languages}) via `map_cost_usd`/`diagrams_cost_usd` on
   `VisualsStructureFinished`/`VisualsLanguageFinished`, populated in
   `VisualsProgressViewModel` → the matrix totals sum to the authoritative total (no more
-  misleading `$0.0000`). All magic numbers (gleaning rounds, per-density node/diagram
+  misleading `$0.0000`). The breakdown is **persisted in `visuals/manifest.json`**
+  (per-language localization costs + global structure costs, v2) and reconstructed by
+  `load_persisted` → the matrix stays correct **after re-opening a finished project**
+  (like Generation/SQLite and Pedagogy/per-artifact). All magic numbers (gleaning
+  rounds, per-density node/diagram
   caps, map pruning ratios/cap/floor, cosine threshold, Louvain seed, excerpt length)
   centralised in `visuals/_constants.py`. Specs:
   `docs/superpowers/specs/2026-05-29-visualisations-html-autonomes-design.md` +

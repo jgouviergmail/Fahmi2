@@ -856,6 +856,81 @@ foi réécrit à la fin) ; cellules SKIPPED à 0 ; `load_persisted` laisse les c
 
 Checklist docs (cohérence, complétude, cross-cutting) + `pytest`/`ruff`/`mypy` verts.
 
+## Phase 4 — Persister la ventilation des coûts (vue persistée)
+
+**Problème** : la ventilation par cellule n'est correcte qu'en vue live ; à la
+ré-ouverture d'un projet terminé (`load_persisted`), les cellules retombent à `None`
+→ totaux `$0.0000`. **Pattern à suivre** (directive utilisateur) : comme Génération
+(coûts en SQLite) et Pédagogie (coûts dans l'artefact, relus par `read_generated_costs`
+→ `load_persisted(generated_costs=...)`). Analogue Visuals : stocker les coûts dans le
+**manifeste** (enregistrement de production, visuals-spécifique).
+
+### Task 4.1 : Manifeste porte les coûts
+
+**Fichiers :** `src/fahmi2/visuals/manifest.py`, `tests/unit/visuals/test_manifest.py`
+(ou le test existant du manifeste).
+
+- [ ] Constantes `_KEY_MAP_COST="map_cost_usd"`, `_KEY_DIAGRAMS_COST="diagrams_cost_usd"`,
+  `_KEY_STRUCTURE_COSTS="structure_costs"` ; bump `_MANIFEST_VERSION=2`.
+- [ ] `__init__` : `self._structure_costs: tuple[float, float] = (0.0, 0.0)`.
+- [ ] `record(...)` : 2 params `map_cost_usd=0.0, diagrams_cost_usd=0.0` stockés dans
+  l'entrée (n'affectent **pas** `is_fresh`).
+- [ ] `record_structure_cost(map_cost_usd, diagrams_cost_usd)` → set `_structure_costs`.
+- [ ] Accesseurs `structure_costs() -> tuple[float, float]` et
+  `language_costs() -> dict[Language, tuple[float, float]]` (depuis les entrées,
+  `float(entry.get(..., 0.0))`).
+- [ ] `to_dict` : ajoute `_KEY_STRUCTURE_COSTS: list(self._structure_costs)` ; `from_dict`
+  lenient (structure costs défaut `(0.0, 0.0)` ; `record(...)` lit les clés de coût des
+  entrées avec défaut `0.0` → **rétro-compatible v1**).
+- [ ] Test : round-trip `to_dict`/`from_dict` préserve structure + per-langue ; un
+  manifeste v1 (sans coûts) charge avec coûts `0.0` ; `is_fresh` insensible aux coûts.
+
+### Task 4.2 : Orchestrateur enregistre les coûts
+
+**Fichiers :** `src/fahmi2/app/visuals_orchestrator.py`
+
+- [ ] Dans `generate`, après l'émission de `VisualsStructureFinished` et **avant**
+  `_run_languages` : `manifest.record_structure_cost(map_struct_cost,
+  diagrams_struct_cost)` puis `write_manifest(self._artifacts, visuals_dir, manifest)`
+  (garantit la persistance même si toutes les langues cappent/skippent).
+- [ ] Dans `_produce_language` (branche succès) : `manifest.record(language, ...,
+  map_cost_usd=map_cost, diagrams_cost_usd=board_cost)`.
+- [ ] Tests d'orchestrateur : après un run, `read_manifest(...).structure_costs()` et
+  `.language_costs()` sont non nuls et cohérents.
+
+### Task 4.3 : Viewmodel + contrôleur reconstruisent les cellules
+
+**Fichiers :** `src/fahmi2/ui/viewmodels/visuals_progress.py`,
+`src/fahmi2/ui/visuals_controller.py`, tests associés.
+
+- [ ] `load_persisted(...)` gagne `structure_costs: tuple[float, float] = (0.0, 0.0)` et
+  `language_costs: Mapping[Language, tuple[float, float]] | None = None` ; après `reset`,
+  peuple `_structure_cost` et `_language_cost` via le helper **`_cost_by_deliverable`**
+  (DRY) :
+
+```python
+        smap, sdiag = structure_costs
+        scost = _cost_by_deliverable(smap, sdiag)
+        for deliverable in self._deliverables:
+            self._structure_cost[deliverable] = scost[deliverable]
+        for language, (lmap, ldiag) in (language_costs or {}).items():
+            lcost = _cost_by_deliverable(lmap, ldiag)
+            for deliverable in self._deliverables:
+                self._language_cost[(deliverable, language)] = lcost[deliverable]
+```
+
+- [ ] Contrôleur `_load_persisted_progress` : `manifest = read_manifest(visuals_dir)` →
+  `vm.load_persisted(..., structure_costs=manifest.structure_costs(),
+  language_costs=manifest.language_costs())`.
+- [ ] Test viewmodel : `load_persisted` avec coûts → cellules peuplées + `grand_total`
+  cohérent.
+
+### Fin de Phase 4 — Revue + vérification
+
+Checklist complète ; `pytest` ×3 / `ruff` / `mypy --strict` verts. Vérification offline :
+relire le manifeste réel après un run et confirmer que `load_persisted` reproduit la
+ventilation (ou test d'intégration équivalent).
+
 ## Final — Revue exhaustive de toute la branche
 
 Checklist complète × repasses jusqu'à conviction ; `pytest` ×3 / `ruff` / `mypy --strict`

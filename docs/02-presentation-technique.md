@@ -515,7 +515,9 @@ Pedagogy feature (lightweight orchestrator, no `PipelineEngine`).
   `_pruning.py` (`prune_knowledge_graph`: **density-driven map pruning** by
   edge-first selection — drops isolated nodes, keeps the most connected up to a
   per-density node budget, connectivity guaranteed by construction),
-  `events.py`, `manifest.py` (per-language freshness).
+  `events.py`, `manifest.py` (per-language freshness **+ persisted per-livrable costs**:
+  per-language localization + global structure costs, reconstructed for the persisted
+  cost matrix).
 - `infra/export/` — `knowledge_map_html.py` / `diagram_board_html.py`
   (deterministic typed-JSON → self-contained HTML); `_visuals_assets.py` reads
   and **inlines** the vendored **Cytoscape.js** core + extensions from
@@ -760,7 +762,7 @@ loss):
 
 ### 6.2 Current metrics
 
-- **1374 passing tests** × 3 consecutive runs
+- **1379 passing tests** × 3 consecutive runs
 - **ruff** + **mypy --strict** clean over the whole `src` + `tests` tree
 
 ## 7. Packaging and distribution

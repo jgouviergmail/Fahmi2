@@ -35,6 +35,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   `VisualsStructureFinished` / `VisualsLanguageFinished`, populated in
   `VisualsProgressViewModel`. The grid totals now sum to the authoritative total; the
   live tile also includes the structure cost.
+- The per-cell breakdown is also **persisted** in `visuals/manifest.json` (per-language
+  localization costs + global structure costs, v2 format, backward-compatible) and
+  reconstructed by `load_persisted`, so the matrix stays correct **after re-opening a
+  finished project** — not only during a live run — mirroring how Generation (SQLite) and
+  Pedagogy (per-artifact JSON) persist their per-cell costs.
 
 ## [1.6.0] — 2026-05-30
 

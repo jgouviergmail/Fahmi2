@@ -10,7 +10,6 @@ Module pur (sans Qt / réseau / LLM), déterministe.
 from __future__ import annotations
 
 import math
-from collections import Counter
 
 from fahmi2.domain.enums import SupportDensity
 from fahmi2.domain.visuals import GraphEdge, GraphNode
@@ -19,25 +18,7 @@ from fahmi2.visuals._constants import (
     MAP_MIN_NODES,
     MAP_NODE_CAP_BY_DENSITY,
 )
-
-
-def _node_degrees(edges: tuple[GraphEdge, ...]) -> Counter[str]:
-    """Degré (nombre d'arêtes incidentes) de chaque nœud **connecté**.
-
-    Les nœuds isolés (absents de toute arête) n'apparaissent pas dans le résultat ;
-    le nombre de nœuds connectés est donc ``len(...)``.
-
-    Args:
-        edges: Arêtes du graphe.
-
-    Returns:
-        Un ``Counter`` ``id de nœud -> degré`` restreint aux nœuds connectés.
-    """
-    degree: Counter[str] = Counter()
-    for edge in edges:
-        degree[edge.source_id] += 1
-        degree[edge.target_id] += 1
-    return degree
+from fahmi2.visuals.community import node_degrees
 
 
 def _target_node_count(connected_count: int, density: SupportDensity) -> int:
@@ -83,7 +64,7 @@ def prune_knowledge_graph(
     """
     if not edges:
         return nodes, edges
-    degree = _node_degrees(edges)
+    degree = node_degrees(edges)
     connected_count = len(degree)
     target = _target_node_count(connected_count, density)
     ranked_edges = sorted(

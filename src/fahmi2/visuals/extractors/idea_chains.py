@@ -9,7 +9,6 @@ elle capte les enchaînements transverses que l'extraction par unité ne voit pa
 
 from __future__ import annotations
 
-from collections import Counter
 from dataclasses import replace
 from typing import Any
 
@@ -24,6 +23,7 @@ from fahmi2.infra.llm.json_schema import (
     require_str,
 )
 from fahmi2.visuals._constants import MIN_COMMUNITIES_FOR_IDEA_CHAINS
+from fahmi2.visuals.community import node_degrees
 from fahmi2.visuals.extractors._base import VisualsContext, invoke_visuals_llm
 
 _STAGE = "idea_chains"
@@ -40,10 +40,7 @@ def _representatives(graph: KnowledgeGraph) -> dict[int, str]:
         Un mapping ``id de communauté -> id du nœud représentatif`` (degré max,
         départage par id).
     """
-    degree: Counter[str] = Counter()
-    for edge in graph.edges:
-        degree[edge.source_id] += 1
-        degree[edge.target_id] += 1
+    degree = node_degrees(graph.edges)
     representatives: dict[int, str] = {}
     for community in graph.communities:
         if not community.member_ids:

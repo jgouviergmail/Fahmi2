@@ -8,6 +8,7 @@ l'étape suivante). Aucun appel LLM ici : le clustering est purement structurel.
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import replace
 
 import networkx as nx
@@ -18,6 +19,26 @@ from fahmi2.domain.visuals import Community, GraphEdge, GraphNode, KnowledgeGrap
 from fahmi2.visuals._constants import LOUVAIN_SEED
 
 _WEIGHT = "weight"
+
+
+def node_degrees(edges: tuple[GraphEdge, ...]) -> Counter[str]:
+    """Degré (nombre d'arêtes incidentes) de chaque nœud **connecté**.
+
+    Les nœuds isolés (absents de toute arête) n'apparaissent pas dans le résultat.
+    Partagé par l'élagage de la carte (``visuals/_pruning``) et le choix des nœuds
+    représentatifs des communautés (``idea_chains``).
+
+    Args:
+        edges: Arêtes du graphe.
+
+    Returns:
+        Un ``Counter`` ``id de nœud -> degré`` restreint aux nœuds connectés.
+    """
+    degree: Counter[str] = Counter()
+    for edge in edges:
+        degree[edge.source_id] += 1
+        degree[edge.target_id] += 1
+    return degree
 
 
 def _build_nx_graph(

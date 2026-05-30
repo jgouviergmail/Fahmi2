@@ -166,6 +166,23 @@ sur le graphe **élagué** → cohérent (lighter = moins de tout) et **moins ch
   **conservatrice** (l'élagage rend « légère » un peu moins cher que l'estimation,
   jamais plus). Pas de modification requise.
 
+### 4.6 Validation empirique (prototype sur données réelles)
+
+Prototype de la sélection par arêtes exécuté sur le **vrai** graphe extrait du
+`knowledge_map.fr.html` du projet de test (12 cours, langue de structure) :
+
+| | nœuds | arêtes | isolés résiduels | carte vide |
+|---|------:|-------:|-----------------:|:----------:|
+| Carte actuelle | 388 | 407 | 33 isolés (9 %) | — |
+| légère | 40 | 79 | 0 | non |
+| standard | 90 | 136 | 0 | non |
+| dense | 355 | 407 | 0 | non |
+
+Différenciation nette (388 → 40 en légère, ÷ ~10), **aucun** nœud isolé résiduel,
+**aucune** carte vide. Sur ce corpus, **le plafond (40 / 90) — et non le ratio —
+pilote légère / standard** (25 % de 355 = 89, encore trop) : confirme empiriquement
+le choix hybride ratio + plafond.
+
 ## 5. Volet 2 — Attribution réelle des coûts par cellule
 
 ### 5.1 Constat : les coûts sont déjà séparables par livrable

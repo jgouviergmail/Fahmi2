@@ -17,6 +17,7 @@ from fahmi2.core.errors.exceptions import (
     StorageError,
     STTError,
     TransientError,
+    VisionError,
 )
 from fahmi2.core.retry.policy import RetryDecision
 
@@ -37,6 +38,12 @@ _RETRYABLE_LLM_CODES: frozenset[str] = frozenset(
     }
 )
 _RETRYABLE_STT_CODES: frozenset[str] = frozenset({"STT.RATE_LIMIT", "STT.API_ERROR"})
+#: Erreurs vision transitoires (analyse des slides) : on retente.
+#: ``INVALID_RESPONSE`` = réponse non-JSON du modèle, non déterministe — même
+#: logique que ``LLM.UNEXPECTED_JSON_SHAPE``. ``AUTH_INVALID`` ne retente pas.
+_RETRYABLE_VISION_CODES: frozenset[str] = frozenset(
+    {"VISION.RATE_LIMIT", "VISION.API_ERROR", "VISION.INVALID_RESPONSE"}
+)
 
 
 def default_classify(exc: BaseException) -> RetryDecision:  # noqa: PLR0911
@@ -59,6 +66,8 @@ def default_classify(exc: BaseException) -> RetryDecision:  # noqa: PLR0911
     if isinstance(exc, LLMError) and exc.code in _RETRYABLE_LLM_CODES:
         return RetryDecision.RETRY
     if isinstance(exc, STTError) and exc.code in _RETRYABLE_STT_CODES:
+        return RetryDecision.RETRY
+    if isinstance(exc, VisionError) and exc.code in _RETRYABLE_VISION_CODES:
         return RetryDecision.RETRY
     if isinstance(exc, StorageError):
         return RetryDecision.NO_RETRY

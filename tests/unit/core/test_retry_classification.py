@@ -10,6 +10,7 @@ from fahmi2.core.errors.exceptions import (
     PausedError,
     PermanentError,
     TransientError,
+    VisionError,
 )
 from fahmi2.core.errors.severity import Severity
 from fahmi2.core.retry.classification import default_classify
@@ -69,6 +70,36 @@ from fahmi2.core.retry.policy import RetryDecision
         (
             LLMError(
                 code="LLM.INVALID_JSON", user_message="x", severity=Severity.ERROR
+            ),
+            RetryDecision.NO_RETRY,
+        ),
+        # Vision (analyse des slides) : rate-limit et erreur API sont
+        # transitoires ; une réponse non-JSON est non déterministe (même
+        # logique que LLM.UNEXPECTED_JSON_SHAPE) ; une clé refusée ne se
+        # répare pas par retry.
+        (
+            VisionError(
+                code="VISION.RATE_LIMIT", user_message="x", severity=Severity.WARNING
+            ),
+            RetryDecision.RETRY,
+        ),
+        (
+            VisionError(
+                code="VISION.API_ERROR", user_message="x", severity=Severity.ERROR
+            ),
+            RetryDecision.RETRY,
+        ),
+        (
+            VisionError(
+                code="VISION.INVALID_RESPONSE",
+                user_message="x",
+                severity=Severity.ERROR,
+            ),
+            RetryDecision.RETRY,
+        ),
+        (
+            VisionError(
+                code="VISION.AUTH_INVALID", user_message="x", severity=Severity.ERROR
             ),
             RetryDecision.NO_RETRY,
         ),

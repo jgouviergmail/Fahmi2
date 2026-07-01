@@ -25,8 +25,8 @@ from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox, QWidget
 
 from fahmi2.app._cost_common import (
-    ESTIMATED_SLIDES_PER_MINUTE,
     TEXT_BYTES_PER_TOKEN,
+    estimated_slide_count,
 )
 from fahmi2.app.cost_estimator import CostEstimation, CostEstimator, SourceWeight
 from fahmi2.app.generation_export import export_generation_documents
@@ -245,12 +245,13 @@ def _estimated_slide_count(
         settings: Réglages (liste des sources flaggées).
 
     Returns:
-        ``durée × ESTIMATED_SLIDES_PER_MINUTE`` si la source est flaggée,
-        0 sinon (audio et documents ne sont jamais flaggés côté UI).
+        Le nombre estimé (cf. ``_cost_common.estimated_slide_count``) si la
+        source est flaggée, 0 sinon (audio et documents ne sont jamais
+        flaggés côté UI).
     """
     if source.source.order_key() not in settings.slides_sources:
         return 0.0
-    return audio_seconds / 60.0 * ESTIMATED_SLIDES_PER_MINUTE
+    return estimated_slide_count(audio_seconds)
 
 
 class _RunWorker(QObject):

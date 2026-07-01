@@ -46,7 +46,9 @@ def tile_dhashes(
             tile = gray.crop(box).resize(
                 (hash_size + 1, hash_size), Image.Resampling.LANCZOS
             )
-            pixels = list(tile.getdata())
+            # ``tobytes`` sur un mode « L » = pixels aplatis ligne par ligne
+            # (évite ``getdata``, déprécié par Pillow 12+).
+            pixels = tile.tobytes()
             bits = 0
             for y in range(hash_size):
                 for x in range(hash_size):

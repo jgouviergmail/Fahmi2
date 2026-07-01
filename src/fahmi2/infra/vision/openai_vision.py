@@ -153,6 +153,18 @@ class OpenAIVisionAdapter:
                     "raw": raw[:_RAW_EXCERPT_MAX_CHARS],
                 },
             ) from exc
+        if not isinstance(payload, dict):
+            # JSON valide mais non-objet (liste, chaîne…) : même traitement
+            # qu'une réponse illisible — retryable (non déterministe).
+            raise VisionError(
+                code="VISION.INVALID_RESPONSE",
+                user_message="Le modèle vision a renvoyé une réponse illisible.",
+                severity=Severity.ERROR,
+                technical_details={
+                    "provider": _PROVIDER_NAME,
+                    "raw": raw[:_RAW_EXCERPT_MAX_CHARS],
+                },
+            )
         content = SlideContent(
             text=str(payload.get(_TEXT_KEY, "")),
             visuals_description=str(payload.get(_VISUALS_KEY, "")),

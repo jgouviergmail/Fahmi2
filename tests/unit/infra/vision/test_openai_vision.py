@@ -77,3 +77,14 @@ def test_analyze_slide_invalid_json_raises_vision_error(image_file: Path) -> Non
     with pytest.raises(VisionError) as excinfo:
         adapter.analyze_slide(image_file, language=Language.FR)
     assert excinfo.value.code == "VISION.INVALID_RESPONSE"
+
+
+def test_analyze_slide_json_non_objet_raises_vision_error(image_file: Path) -> None:
+    """JSON valide mais non-objet (liste) : VisionError propre, pas d'AttributeError."""
+    client, _ = _fake_client(json.dumps(["texte", "visuels"]))
+    adapter = OpenAIVisionAdapter(
+        api_key="sk-test", prompts=PromptLoader(), client=client
+    )
+    with pytest.raises(VisionError) as excinfo:
+        adapter.analyze_slide(image_file, language=Language.FR)
+    assert excinfo.value.code == "VISION.INVALID_RESPONSE"

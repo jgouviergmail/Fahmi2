@@ -53,16 +53,27 @@ Nouveau module `infra/video/` :
      (~1 image / 2 s) en frames JPEG réduites (côté max ~1280 px, qualité
      ~80 — lisibilité des slides préservée, tokens image minimisés) dans
      `workspace/frames/<source_id>/`.
-  2. **Regroupement par hash perceptuel** (dHash via Pillow, déjà dépendance
-     du projet) avec **double seuil** de distance de Hamming :
-     - `d < T_bas` : image identique → ignorée ;
-     - `T_bas ≤ d < T_haut` : même slide en dévoilement progressif → la frame
-       représentative du groupe est **remplacée** par la plus récente (état
-       final) ;
-     - `d ≥ T_haut` : nouvelle slide → nouveau groupe.
-     Le double seuil gère nativement l'affichage progressif, les slides en
-     fenêtre partielle et les incrustations webcam (variations faibles
-     absorbées par `T_bas`).
+  2. **Regroupement par hachage perceptuel par tuiles** (dHash via Pillow,
+     déjà dépendance du projet). Un dHash *global* diluerait un changement de
+     slide **fenêtrée ou en demi-page** (distance faible → slides fusionnées à
+     tort) ; la détection travaille donc par régions :
+     - la frame est découpée en **grille de tuiles** (ex. 8×8), chacune avec
+       son dHash ;
+     - **masque de bruit temporel** : les tuiles qui changent à quasi chaque
+       échantillon (webcam incrustée, vidéo dans la slide, animation
+       permanente) sont **exclues** de la mesure ;
+     - la décision se prend sur la **fraction de tuiles actives changeant
+       simultanément**, avec **double seuil** :
+       - fraction < `F_bas` : image identique → ignorée ;
+       - `F_bas` ≤ fraction < `F_haut` : même slide en dévoilement progressif
+         (une puce ne touche que 1–2 tuiles) → la frame représentative du
+         groupe est **remplacée** par la plus récente (état final) ;
+       - fraction ≥ `F_haut` : nouvelle slide (la majorité des tuiles de la
+         zone de slide bascule d'un coup) → nouveau groupe.
+     La mesure étant **relative aux tuiles actives**, elle est insensible au
+     fenêtrage : slide plein écran, en moitié d'image ou en fenêtre sont
+     détectées de la même façon ; l'affichage progressif et les incrustations
+     animées sont discriminés par la localité du changement.
   3. Sortie : liste ordonnée de `SlideFrame(start_seconds, end_seconds,
      image_path)` (début = première frame du groupe, fin = dernière ; le
      dernier groupe se clôt à la fin de la vidéo).
@@ -77,8 +88,9 @@ Nouveau module `infra/video/` :
     quasi identique à celui de la slide N−1 (re-détection parasite), les
     groupes sont fusionnés (pas de ré-analyse vision).
 - **`_constants.py`** — tous les nombres magiques centralisés : intervalle
-  d'échantillonnage, dimension/qualité JPEG, seuils `T_bas`/`T_haut`,
-  plafonds slides/min et absolu (directive n° 1).
+  d'échantillonnage, dimension/qualité JPEG, taille de la grille de tuiles,
+  seuil de bruit temporel, seuils `F_bas`/`F_haut`, plafonds slides/min et
+  absolu (directive n° 1).
 - Les frames sont **supprimées après analyse** (best-effort, comme le WAV
   intermédiaire).
 
@@ -98,9 +110,13 @@ Pattern ports/adapters existant (miroir de `infra/embeddings/`) :
 - **Prompt** `infra/prompts/defaults/slide_analysis.j2` : transcription
   fidèle du texte de la slide + description synthétique des visuels, en
   **langue détectée par le STT** (le transcript fusionné reste monolingue ;
-  la traduction reste l'affaire de la phase 6). Ajouté au catalogue
-  `PromptsService` → éditable via `PromptsEditorDialog`, override
-  `%APPDATA%` comme les autres.
+  la traduction reste l'affaire de la phase 6). Le prompt précise que la
+  slide peut être **plein écran, en moitié d'image ou fenêtrée** : extraire
+  le contenu de la slide/illustration où qu'elle soit, **ignorer** le
+  présentateur, la webcam et le décor ; si **aucune slide n'est visible**,
+  renvoyer un contenu vide (→ aucun segment injecté, pas de bruit). Ajouté
+  au catalogue `PromptsService` → éditable via `PromptsEditorDialog`,
+  override `%APPDATA%` comme les autres.
 - **Parallélisation** : appels vision bornés par `map_bounded`
   (`parallelism.llm_workers`, ordre préservé → déterministe), **honore le
   `PauseToken`**. Une image par requête.
@@ -175,11 +191,12 @@ Pattern ports/adapters existant (miroir de `infra/embeddings/`) :
 
 ### 8. Tests
 
-- **Unités pures** : regroupement par hash (cas nominaux + dévoilement
-  progressif + nouvelle slide + webcam simulée + plafond + dédoublonnage
-  inter-slides), `merge_slides_into_transcription` (ordre temporel,
-  formats), réconciliation `slides_sources`, `_pricing` vision,
-  `CostEstimator` avec `slide_count`.
+- **Unités pures** : regroupement par tuiles (cas nominaux + dévoilement
+  progressif + nouvelle slide plein écran + **nouvelle slide fenêtrée /
+  demi-page** + webcam simulée exclue par le masque de bruit + plafond +
+  dédoublonnage inter-slides), `merge_slides_into_transcription` (ordre
+  temporel, formats, **slide vide non injectée**), réconciliation
+  `slides_sources`, `_pricing` vision, `CostEstimator` avec `slide_count`.
 - **Fakes** : `FakeVisionProvider` ; `MediaIngestor` testé avec fakes
   (slides activées/désactivées, source audio → jamais d'analyse).
 - **UI** : viewmodels sans Qt ; smoke pytest-qt `SourceOrderView` (case

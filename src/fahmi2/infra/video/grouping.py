@@ -5,8 +5,11 @@ vidéo → masque de bruit temporel (tuiles changeant en permanence : webcam,
 vidéo incrustée) et région dynamique (tuiles ayant changé au moins une fois,
 hors masque — de fait, la zone de slide). Passe 2 — regroupement : double
 seuil sur la **fraction de la région dynamique** changeant simultanément,
-insensible au fenêtrage de la slide. Garde-fous : absorption des groupes
-« flash » transitoires, fusion des re-détections parasites consécutives, et
+insensible au fenêtrage de la slide. Garde-fous : coalescence des micro-groupes
+de fondu (un changement étalé sur deux échantillons ne produit pas de slide
+« mi-transition »), absorption des groupes « flash » transitoires, fusion des
+re-détections parasites consécutives, suppression des slides **ré-affichées**
+(déjà analysées plus tôt : pas de ré-analyse ni de contenu dupliqué), et
 plafond de slides (coût borné).
 """
 
@@ -156,8 +159,11 @@ def group_slides(
         )
     )
 
-    deduped = _merge_parasitic_groups(groups, samples, dynamic, dynamic_count)
-    return _apply_caps(deduped, duration_seconds)
+    sampling_step = samples[1].time_seconds - samples[0].time_seconds
+    coalesced = _absorb_transition_slivers(groups, sampling_step)
+    deduped = _merge_parasitic_groups(coalesced, samples, dynamic, dynamic_count)
+    unique = _drop_redisplayed_groups(deduped, samples, dynamic, dynamic_count)
+    return _apply_caps(unique, duration_seconds)
 
 
 def _dynamic_diff_ratio(
@@ -187,6 +193,73 @@ def _dynamic_diff_ratio(
         1 for tile, changed in enumerate(diff) if changed and dynamic[tile]
     )
     return diff_dynamic / dynamic_count
+
+
+def _absorb_transition_slivers(
+    groups: list[SlideGroup], sampling_step: float
+) -> list[SlideGroup]:
+    """Fusionne les micro-groupes de fondu dans la slide **suivante**.
+
+    Un changement de slide étalé sur deux échantillons (fondu, animation de
+    transition) produit deux franchissements de seuil consécutifs, donc un
+    groupe d'un seul échantillon dont la représentative est une frame
+    « mi-transition » — inutile à analyser. Tout groupe ne couvrant qu'un
+    échantillon est absorbé par le groupe suivant (en cascade, de droite à
+    gauche) ; le dernier groupe n'est jamais absorbé (fin de vidéo).
+
+    Args:
+        groups: Groupes issus de la passe 2, ordonnés temporellement.
+        sampling_step: Intervalle entre deux échantillons (s).
+
+    Returns:
+        Les groupes coalescés.
+    """
+    merged: list[SlideGroup] = []
+    for group in reversed(groups):
+        if merged and (group.end_seconds - group.start_seconds) <= sampling_step:
+            following = merged[-1]
+            merged[-1] = SlideGroup(
+                start_seconds=group.start_seconds,
+                end_seconds=following.end_seconds,
+                representative_index=following.representative_index,
+            )
+        else:
+            merged.append(group)
+    return list(reversed(merged))
+
+
+def _drop_redisplayed_groups(
+    groups: list[SlideGroup],
+    samples: Sequence[FrameSample],
+    dynamic: list[bool],
+    dynamic_count: int,
+) -> list[SlideGroup]:
+    """Retire les slides ré-affichées (déjà analysées plus tôt dans la vidéo).
+
+    Un orateur qui revient sur une slide déjà montrée (A → B → A) ne doit pas
+    déclencher une seconde analyse vision ni dupliquer le contenu dans la
+    transcription : le contenu de A y figure déjà, adjacent à sa première
+    plage d'affichage.
+
+    Args:
+        groups: Groupes après fusion des parasites consécutifs.
+        samples: Échantillons (accès aux hashes des représentantes).
+        dynamic: Masque de la région dynamique.
+        dynamic_count: Taille de la région dynamique (> 0).
+
+    Returns:
+        Les groupes dont la représentative n'a pas déjà été retenue.
+    """
+    kept: list[SlideGroup] = []
+    for group in groups:
+        already_seen = any(
+            _dynamic_diff_ratio(previous, group, samples, dynamic, dynamic_count)
+            <= INTER_SLIDE_DEDUP_MAX_RATIO
+            for previous in kept
+        )
+        if not already_seen:
+            kept.append(group)
+    return kept
 
 
 def _merge_parasitic_groups(

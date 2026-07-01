@@ -46,11 +46,63 @@ def test_deux_slides_plein_ecran() -> None:
 
 
 def test_devoilement_progressif_reste_une_slide() -> None:
-    """Une puce (1 tuile) apparaît à chaque frame : 1 groupe, repr = dernière."""
-    samples = [_sample(2.0 * i, set(range(i))) for i in range(5)]
-    result = group_slides(samples, duration_seconds=10.0)
-    assert len(result.groups) == 1
-    assert result.groups[0].representative_index == 4
+    """Une puce (1 tuile) apparaît à chaque frame sur une slide dont la zone
+    dynamique est réaliste (20 tuiles) : 1 groupe, repr = dernière frame."""
+    # La zone dynamique est établie par une transition initiale large
+    # (slide de titre → slide de contenu), puis les puces 1..4 apparaissent.
+    zone = set(range(20))
+    samples = [_sample(2.0 * i, set()) for i in range(3)]  # titre (3 échant.)
+    samples.append(_sample(6.0, zone))
+    samples += [_sample(8.0 + 2.0 * i, zone | set(range(20, 21 + i))) for i in range(4)]
+    result = group_slides(samples, duration_seconds=16.0)
+    # 2 groupes : la slide de titre, puis la slide de contenu dévoilée
+    # progressivement (les puces ne créent pas de nouveaux groupes).
+    assert len(result.groups) == 2
+    assert result.groups[1].representative_index == len(samples) - 1
+
+
+def test_changement_de_slide_a_gabarit_partage_detecte() -> None:
+    """Deux slides partageant bandeau/pied (le changement ne bascule que ~40 %
+    de la zone dynamique) : détecté comme nouvelle slide (cas réel mesuré à
+    0.29–0.49 sur corpus, raté avec l'ancien seuil 0.55)."""
+    zone = set(range(30))  # zone dynamique établie
+    slide_a = zone
+    slide_b = set(range(12))  # 12/30 = 0.40 de la zone changent
+    samples = [_sample(2.0 * i, slide_a if i < 4 else slide_a ^ slide_b) for i in range(8)]
+    result = group_slides(samples, duration_seconds=16.0)
+    assert len(result.groups) == 2
+
+
+def test_fondu_de_transition_coalesce() -> None:
+    """Un changement de slide étalé sur 2 échantillons (frame de fondu
+    intermédiaire) ne crée pas de micro-groupe « mi-transition »."""
+    zone = set(range(30))
+    fade = set(range(15))  # état intermédiaire du fondu
+    samples = [_sample(2.0 * i, set()) for i in range(4)]
+    samples.append(_sample(8.0, fade))  # fondu (crossing 1)
+    samples += [_sample(10.0 + 2.0 * i, zone) for i in range(4)]  # slide B (crossing 2)
+    result = group_slides(samples, duration_seconds=18.0)
+    assert len(result.groups) == 2
+    first, second = result.groups
+    # Le micro-groupe du fondu (8.0 → 10.0) est absorbé par la slide suivante.
+    assert second.start_seconds == 8.0
+    assert second.representative_index == len(samples) - 1
+
+
+def test_slide_reaffichee_non_reanalysee() -> None:
+    """Une slide ré-affichée plus tard (A → B → A) n'est pas ré-analysée : le
+    groupe dupliqué est retiré (contenu déjà présent dans la transcription)."""
+    slide_a = set(range(30))
+    slide_b = set(range(30, 45))
+    samples = [_sample(2.0 * i, slide_a) for i in range(4)]
+    samples += [_sample(8.0 + 2.0 * i, slide_b) for i in range(4)]
+    samples += [_sample(16.0 + 2.0 * i, slide_a) for i in range(4)]
+    result = group_slides(samples, duration_seconds=24.0)
+    reprs = [g.representative_index for g in result.groups]
+    assert len(result.groups) == 2
+    # Les représentatives conservées : slide A (1re plage) et slide B.
+    assert reprs[0] <= 3
+    assert 4 <= reprs[1] <= 7
 
 
 def test_slide_fenetree_petite_fenetre_detectee() -> None:
@@ -80,16 +132,23 @@ def test_webcam_bruyante_exclue_du_masque() -> None:
 
 
 def test_plafond_de_slides() -> None:
-    """Détection instable (nouvelle slide toutes les 6 s) : plafond appliqué.
+    """Détection instable (slide distincte toutes les 6 s) : plafond appliqué.
 
-    La bascule toutes les 3 frames (1 changement sur 3 transitions par tuile)
-    reste sous le seuil de bruit — c'est bien la passe de plafonnement qui
-    borne le coût, pas le masque de bruit.
+    Chaque bloc de 3 frames porte un contenu **unique** (hash déterministe
+    pairwise distant → ni bruit, ni ré-affichage) sur une zone fixe — c'est
+    bien la passe de plafonnement qui borne le coût.
     """
-    all_tiles = set(range(_N_TILES))
-    samples = [
-        _sample(2.0 * i, all_tiles if (i // 3) % 2 else set()) for i in range(240)
-    ]
+    import hashlib  # noqa: PLC0415
+
+    zone = range(20)
+    samples = []
+    for i in range(240):
+        block = i // 3
+        value = int.from_bytes(
+            hashlib.sha256(str(block).encode()).digest()[:8], "big"
+        )
+        hashes = [value if t in zone else _A for t in range(_N_TILES)]
+        samples.append(FrameSample(time_seconds=2.0 * i, tile_hashes=tuple(hashes)))
     result = group_slides(samples, duration_seconds=480.0)  # 8 min → cap 32
     assert result.dropped_groups > 0
     assert len(result.groups) <= 32

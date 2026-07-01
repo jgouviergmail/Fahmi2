@@ -490,8 +490,20 @@ The barriers remain the batch phases 2 and 5 (the engine stays
   pass 1 maps per-tile change stats → temporal-noise mask (webcam,
   embedded video) + dynamic region (the slide zone); pass 2 splits on the
   **fraction of the dynamic region changing at once** (double threshold
-  `F_LOW`/`F_HIGH` — insensitive to windowed/half-page slides; progressive
-  reveals keep one group whose representative is the **final state**) →
+  `F_LOW`/`F_HIGH`; the fraction is **scale-free** — normalised by the
+  per-video dynamic region, hence layout-invariant across fullscreen /
+  half-page / windowed slides; `F_HIGH` is **recall-biased** [0.18,
+  calibrated on a real corpus: element-level changes 0.06–0.16 vs
+  slide-level 0.29–0.73] since a missed slide loses content while a false
+  split costs one cheap vision call; progressive reveals keep one group
+  whose representative is the **final state**) → structural post-passes
+  (**not magnitude-based**: transition-fade slivers [single-sample groups]
+  coalesced into the next slide, consecutive parasitic re-detections
+  merged, **re-displayed slides dropped by content** — a speaker returning
+  to a slide does not re-analyze nor duplicate it;
+  `scripts/diagnose_slide_detection.py` replays detection on a real video
+  without vision calls and prints per-transition fractions + the final
+  timeline — the tuning tool for atypical decks) →
   one vision call per slide (`OpenAIVisionAdapter`, `VisionModel`
   configurable, default `gpt-5-mini`, JSON mode `{texte, visuels}`, output
   in the STT-detected language; empty content → no segment injected). The

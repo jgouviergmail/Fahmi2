@@ -24,7 +24,18 @@ NOISY_TILE_CHANGE_RATIO = 0.5
 F_LOW = 0.05
 #: Au-delà de cette fraction de la région dynamique : nouvelle slide.
 #: Entre les deux : même slide en dévoilement progressif.
-F_HIGH = 0.55
+#:
+#: La fraction est **sans échelle** (normalisée par la zone dynamique apprise
+#: par vidéo en passe 1) : elle est donc invariante à la disposition des
+#: slides (plein écran, demi-page, fenêtrée). Deux populations physiques la
+#: peuplent : les changements **d'élément** (puce, annotation — petite
+#: fraction de toute zone de slide ; mesuré 0.06–0.16 sur corpus réel) et les
+#: changements **de slide** (mesuré 0.29–0.73, dilués par les tuiles
+#: semi-actives et les gabarits partagés). Le seuil est **biaisé rappel**
+#: (rater une slide = contenu perdu ; un faux franchissement ne coûte qu'un
+#: appel vision, largement absorbé par les garde-fous structurels :
+#: coalescence des fondus, dédoublonnage des ré-affichages, plafonds).
+F_HIGH = 0.18
 #: Plafond de slides analysées par minute de vidéo (garde-fou de coût).
 MAX_SLIDES_PER_MINUTE = 4.0
 #: Plancher du plafond proratisé : une vidéo courte peut quand même contenir

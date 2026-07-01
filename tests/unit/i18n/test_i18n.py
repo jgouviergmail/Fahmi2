@@ -74,6 +74,19 @@ _TRANSLATION_SMOKE_TESTS: tuple[tuple[str, str, str], ...] = (
     ("PhaseConfigsWidget", "Configuration des phases LLM", "LLM phase configuration"),
     ("SourceOrderView", "Sources exclues", "Excluded sources"),
     ("SourceOrderView", "▲ Monter", "▲ Move up"),
+    (
+        "SourceOrderView",
+        "Analyser les slides/illustrations de cette vidéo "
+        "(modèle vision OpenAI — clé OpenAI requise)",
+        "Analyze this video's slides/illustrations "
+        "(OpenAI vision model — OpenAI key required)",
+    ),
+    ("GenerationSettingsView", "Modèle vision (slides)", "Vision model (slides)"),
+    (
+        "ModelLabels",
+        "gpt-5-mini — recommandé (meilleur rapport qualité/prix)",
+        "gpt-5-mini — recommended (best quality/price ratio)",
+    ),
     ("ModelLabels", "Élevée", "High"),
     ("ModelLabels", "DeepSeek V4 Flash (économique)", "DeepSeek V4 Flash (economical)"),
     ("PedagogyLabels", "QCM", "MCQ"),

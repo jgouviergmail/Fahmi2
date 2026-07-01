@@ -36,6 +36,16 @@ and takes effect at the next launch.
 - **Source ordering & exclusion**: the processing order (hence the chapter
   order of the final document) is configurable via drag and drop; any source
   can be excluded and re-included.
+- **Slide analysis (per-video option)**: tick a video or YouTube source to
+  have its slides/illustrations read by an OpenAI vision model
+  (`gpt-5-mini` by default, configurable). Slide changes are detected
+  (full-screen, half-page or windowed slides; progressive reveals are
+  captured at their final state), each slide is transcribed + its visuals
+  described, and the content is **interleaved, timestamped, into the
+  transcript** — so the synthesis aligns the spoken explanation with the
+  matching slide. Cost is bounded (one vision call per slide, per-video
+  caps) and shown in the pre-run estimate. Requires an OpenAI key; with
+  the option on, YouTube downloads the ≤ 720p video instead of audio only.
 - **Consolidation mode**: **ordered** (1 source = 1 chapter, content copied
   in the chosen order) or **thematic rewrite** — the LLM aggregates and
   restructures the contents of all inputs cross-cuttingly by theme, like an

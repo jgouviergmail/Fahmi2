@@ -26,7 +26,10 @@ from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.infra.stt._fakes import FakeSTTProvider
 from fahmi2.infra.stt.interface import Transcription, TranscriptionSegment
+from fahmi2.infra.vision._fakes import FakeVisionProvider
+from fahmi2.infra.vision.slide_analyzer import SlideAnalyzer
 from fahmi2.pipeline.event_bus import EventBus
+from fahmi2.pipeline.events import SlideDetectionWarning
 from fahmi2.pipeline.handlers.phase_0_stt import Phase0SttHandler
 from fahmi2.pipeline.phase_handler import PhaseContext
 from tests.unit.pipeline.handlers._helpers import build_phase_context
@@ -310,7 +313,7 @@ def _slides_context(
     *,
     slides_sources: tuple[str, ...],
     dropped_groups: int = 0,
-) -> tuple[PhaseContext, SourceExecution, "FakeVisionProvider"]:
+) -> tuple[PhaseContext, SourceExecution, FakeVisionProvider]:
     """Contexte phase 0 avec un SlideAnalyzer réel (extracteur stub + fake vision)."""
     from PIL import Image  # noqa: PLC0415
 
@@ -319,8 +322,6 @@ def _slides_context(
         SlideFrame,
         SlideFrameExtractor,
     )
-    from fahmi2.infra.vision._fakes import FakeVisionProvider  # noqa: PLC0415
-    from fahmi2.infra.vision.slide_analyzer import SlideAnalyzer  # noqa: PLC0415
 
     class _OneSlideFrameExtractor(SlideFrameExtractor):
         def extract(
@@ -413,8 +414,6 @@ def test_phase0_publie_l_avertissement_detection_instable(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:
     """dropped_groups > 0 : un SlideDetectionWarning est publié sur le bus."""
-    from fahmi2.pipeline.events import SlideDetectionWarning  # noqa: PLC0415
-
     ctx, video, _ = _slides_context(
         tmp_path,
         make_generation_settings,

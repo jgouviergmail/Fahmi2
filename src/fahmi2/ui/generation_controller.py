@@ -1307,7 +1307,7 @@ class GenerationController(QObject):
         self._stats_strip.apply_snapshot(stats_vm.snapshot(run))
 
 
-def _to_log_event(event: PipelineEvent) -> LogEvent:
+def _to_log_event(event: PipelineEvent) -> LogEvent:  # noqa: PLR0911
     """Convertit un ``PipelineEvent`` en ``LogEvent`` pour le LogsDock.
 
     Args:

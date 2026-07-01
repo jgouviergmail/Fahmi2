@@ -94,7 +94,9 @@ class OpenAIVisionAdapter:
             client: Client OpenAI injectable (tests).
             model: Identifiant du modèle vision.
         """
-        self._client = client or OpenAI(api_key=api_key)
+        # ``Any`` explicite : le client est injectable (double de test) et les
+        # overloads stricts du SDK refusent les payloads dict génériques.
+        self._client: Any = client or OpenAI(api_key=api_key)
         self._prompts = prompts
         self._model = model
 

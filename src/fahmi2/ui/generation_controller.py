@@ -1203,7 +1203,7 @@ class GenerationController(QObject):
             return False
         needs_openai = (
             project.generation.stt_provider is SttProvider.OPENAI_CLOUD
-            or bool(project.generation.slides_sources)
+            or bool(project.generation.effective_slides_sources())
         )
         if needs_openai and not self._secrets_service.has_openai_key():
             QMessageBox.critical(
@@ -1236,7 +1236,7 @@ class GenerationController(QObject):
         )
 
         settings = project.generation
-        if settings is None or not settings.slides_sources:
+        if settings is None or not settings.effective_slides_sources():
             return None
         api_key = self._secrets_service.get_openai_api_key()
         if api_key is None:

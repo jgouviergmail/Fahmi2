@@ -1,50 +1,19 @@
-"""Tests de la façade SlideAnalyzer (extraction stub + vision fake)."""
+"""Tests de la façade SlideAnalyzer (extraction fake + vision fake)."""
 
 from pathlib import Path
 
-from PIL import Image
-
 from fahmi2.domain.enums import Language
-from fahmi2.infra.video.frame_extractor import (
-    SlideExtractionResult,
-    SlideFrame,
-    SlideFrameExtractor,
-)
+from fahmi2.infra.video._fakes import FakeSlideFrameExtractor
 from fahmi2.infra.vision._fakes import FakeVisionProvider
 from fahmi2.infra.vision.slide_analyzer import SlideAnalyzer
-
-
-class _StubFrameExtractor(SlideFrameExtractor):
-    """Renvoie des frames pré-écrites sans appeler ffmpeg."""
-
-    def __init__(self, dropped: int = 0) -> None:
-        super().__init__(ffmpeg_binary="inutilise")
-        self._dropped = dropped
-
-    def extract(
-        self, video_path: Path, frames_dir: Path, *, duration_seconds: float
-    ) -> SlideExtractionResult:
-        del video_path, duration_seconds
-        frames_dir.mkdir(parents=True, exist_ok=True)
-        paths = []
-        for i in range(3):
-            p = frames_dir / f"{i:06d}.jpg"
-            Image.new("RGB", (32, 32), (i * 40, 0, 0)).save(p)
-            paths.append(p)
-        return SlideExtractionResult(
-            frames=(
-                SlideFrame(0.0, 10.0, paths[0]),
-                SlideFrame(10.0, 20.0, paths[1]),
-                SlideFrame(20.0, 30.0, paths[2]),
-            ),
-            dropped_groups=self._dropped,
-        )
 
 
 def _analyzer(*, dropped: int = 0) -> tuple[SlideAnalyzer, FakeVisionProvider]:
     provider = FakeVisionProvider(cost_per_call_usd=0.002)
     analyzer = SlideAnalyzer(
-        frame_extractor=_StubFrameExtractor(dropped=dropped),
+        frame_extractor=FakeSlideFrameExtractor(
+            slide_count=3, dropped_groups=dropped
+        ),
         vision_provider=provider,
         llm_workers=2,
     )
@@ -79,6 +48,59 @@ def test_analyze_nettoie_les_frames(tmp_path: Path) -> None:
         duration_seconds=30.0,
     )
     assert not (tmp_path / "frames" / "src-1").exists()
+
+
+def test_analyses_paralleles_bornees_globalement(tmp_path: Path) -> None:
+    """Deux analyze() concurrents : la concurrence vision réelle reste bornée
+    par llm_workers (sémaphore global), pas par sources × llm_workers."""
+    import threading  # noqa: PLC0415
+
+    from fahmi2.infra.vision.interface import (  # noqa: PLC0415
+        SlideAnalysis,
+        SlideContent,
+    )
+
+    lock = threading.Lock()
+    state = {"current": 0, "max": 0}
+
+    class _CountingProvider:
+        def analyze_slide(self, image_path: Path, *, language: Language) -> SlideAnalysis:
+            del image_path, language
+            with lock:
+                state["current"] += 1
+                state["max"] = max(state["max"], state["current"])
+            # Laisse le temps aux appels concurrents de se chevaucher.
+            threading.Event().wait(0.02)
+            with lock:
+                state["current"] -= 1
+            return SlideAnalysis(
+                content=SlideContent(text="x", visuals_description=""),
+                cost_usd=0.0,
+            )
+
+    analyzer = SlideAnalyzer(
+        frame_extractor=FakeSlideFrameExtractor(slide_count=6),
+        vision_provider=_CountingProvider(),
+        llm_workers=2,
+    )
+
+    def _run(source_id: str) -> None:
+        analyzer.analyze(
+            tmp_path / f"{source_id}.mp4",
+            source_id,
+            workspace=tmp_path / source_id,
+            language=Language.FR,
+            duration_seconds=60.0,
+        )
+
+    threads = [
+        threading.Thread(target=_run, args=(f"src-{i}",)) for i in range(3)
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert state["max"] <= 2  # borné par llm_workers, pas 3 × 2
 
 
 def test_analyze_expose_les_groupes_ignores(tmp_path: Path) -> None:

@@ -78,30 +78,12 @@ def test_youtube_ingest_delegates_to_media(tmp_path: Path) -> None:
 def test_youtube_avec_slides_telecharge_la_video(tmp_path: Path) -> None:
     """analyze_slides=True : la vidéo est téléchargée (pas l'audio seul) et le
     contenu des slides est fusionné dans la transcription."""
-    from PIL import Image  # noqa: PLC0415
-
-    from fahmi2.infra.video.frame_extractor import (  # noqa: PLC0415
-        SlideExtractionResult,
-        SlideFrame,
-        SlideFrameExtractor,
-    )
+    from fahmi2.infra.video._fakes import FakeSlideFrameExtractor  # noqa: PLC0415
     from fahmi2.infra.vision._fakes import FakeVisionProvider  # noqa: PLC0415
     from fahmi2.infra.vision.slide_analyzer import SlideAnalyzer  # noqa: PLC0415
 
-    class _OneSlideFrameExtractor(SlideFrameExtractor):
-        def extract(
-            self, video_path: Path, frames_dir: Path, *, duration_seconds: float
-        ) -> SlideExtractionResult:
-            del video_path, duration_seconds
-            frames_dir.mkdir(parents=True, exist_ok=True)
-            frame = frames_dir / "000001.jpg"
-            Image.new("RGB", (32, 32)).save(frame)
-            return SlideExtractionResult(
-                frames=(SlideFrame(0.0, 1.0, frame),), dropped_groups=0
-            )
-
     analyzer = SlideAnalyzer(
-        frame_extractor=_OneSlideFrameExtractor(ffmpeg_binary="inutilise"),
+        frame_extractor=FakeSlideFrameExtractor(slide_count=1),
         vision_provider=FakeVisionProvider(),
         llm_workers=1,
     )

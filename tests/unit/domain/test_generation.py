@@ -182,3 +182,16 @@ def test_source_order_and_excluded_default_empty() -> None:
     s2 = _make(source_order=("b.mp4", "a.mp4"), excluded_sources=("c.mp4",))
     assert s2.source_order == ("b.mp4", "a.mp4")
     assert s2.excluded_sources == ("c.mp4",)
+
+
+def test_effective_slides_sources_exclut_les_sources_exclues() -> None:
+    s = _make(
+        slides_sources=("a.mp4", "b.mp4", "https://youtu.be/x"),
+        excluded_sources=("b.mp4",),
+    )
+    assert s.effective_slides_sources() == ("a.mp4", "https://youtu.be/x")
+
+
+def test_effective_slides_sources_vide_si_tout_exclu() -> None:
+    s = _make(slides_sources=("a.mp4",), excluded_sources=("a.mp4",))
+    assert s.effective_slides_sources() == ()

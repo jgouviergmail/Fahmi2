@@ -4,7 +4,6 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from PIL import Image
 
 from fahmi2.domain.enums import Language, SourceKind
 from fahmi2.domain.source import InputSource
@@ -13,11 +12,7 @@ from fahmi2.infra.ingestion.interface import IngestionDeps
 from fahmi2.infra.ingestion.media_ingestor import MediaIngestor
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.infra.stt._fakes import FakeSTTProvider
-from fahmi2.infra.video.frame_extractor import (
-    SlideExtractionResult,
-    SlideFrame,
-    SlideFrameExtractor,
-)
+from fahmi2.infra.video._fakes import FakeSlideFrameExtractor
 from fahmi2.infra.vision._fakes import FakeVisionProvider
 from fahmi2.infra.vision.slide_analyzer import SlideAnalyzer
 
@@ -38,25 +33,10 @@ def _make_wav(path: Path) -> None:
     )
 
 
-class _OneSlideFrameExtractor(SlideFrameExtractor):
-    """Extracteur stub : une seule frame synthétique, sans appel ffmpeg."""
-
-    def extract(
-        self, video_path: Path, frames_dir: Path, *, duration_seconds: float
-    ) -> SlideExtractionResult:
-        del video_path, duration_seconds
-        frames_dir.mkdir(parents=True, exist_ok=True)
-        frame = frames_dir / "000001.jpg"
-        Image.new("RGB", (32, 32)).save(frame)
-        return SlideExtractionResult(
-            frames=(SlideFrame(0.0, 1.0, frame),), dropped_groups=0
-        )
-
-
 def _slide_analyzer() -> tuple[SlideAnalyzer, FakeVisionProvider]:
     provider = FakeVisionProvider()
     analyzer = SlideAnalyzer(
-        frame_extractor=_OneSlideFrameExtractor(ffmpeg_binary="inutilise"),
+        frame_extractor=FakeSlideFrameExtractor(slide_count=1),
         vision_provider=provider,
         llm_workers=1,
     )

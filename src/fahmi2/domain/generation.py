@@ -195,3 +195,17 @@ class GenerationSettings:
                 f"export_formats must be a subset of {allowed}; "
                 f"got invalid: {invalid}"
             )
+
+    def effective_slides_sources(self) -> tuple[str, ...]:
+        """Clés « analyser les slides » réellement actives (hors exclues).
+
+        L'état coché d'une source **exclue** est conservé (pour une future
+        réinclusion) mais ne doit déclencher ni exigence de clé OpenAI ni
+        construction de l'analyseur.
+
+        Returns:
+            Les clés de ``slides_sources`` non présentes dans
+            ``excluded_sources``, dans l'ordre d'origine.
+        """
+        excluded = set(self.excluded_sources)
+        return tuple(key for key in self.slides_sources if key not in excluded)

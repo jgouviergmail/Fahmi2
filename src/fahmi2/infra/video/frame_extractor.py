@@ -32,6 +32,41 @@ _FRAME_PATTERN = "%06d.jpg"
 _FRAME_GLOB = "*.jpg"
 #: Délai maximal de l'échantillonnage (s) — généreux pour les longues vidéos.
 _SAMPLING_TIMEOUT_SECONDS = 1800.0
+#: Filtre d'échelle : borne le **plus grand côté** à ``MAX_FRAME_DIMENSION_PX``
+#: (les deux axes sont contraints + ``force_original_aspect_ratio`` préserve le
+#: ratio — sans quoi une vidéo portrait passerait en pleine hauteur).
+_SCALE_FILTER = (
+    f"scale='min({MAX_FRAME_DIMENSION_PX},iw)':'min({MAX_FRAME_DIMENSION_PX},ih)'"
+    ":force_original_aspect_ratio=decrease"
+)
+
+
+def build_sampling_command(
+    ffmpeg_binary: str, video_path: Path, frames_dir: Path
+) -> list[str]:
+    """Construit la commande ffmpeg d'échantillonnage des frames.
+
+    Args:
+        ffmpeg_binary: Binaire ffmpeg.
+        video_path: Vidéo source.
+        frames_dir: Dossier de sortie (``%06d.jpg``).
+
+    Returns:
+        La liste d'arguments ``subprocess``.
+    """
+    return [
+        ffmpeg_binary,
+        "-hide_banner",
+        "-loglevel",
+        FFMPEG_LOGLEVEL_ERROR,
+        "-i",
+        str(video_path),
+        "-vf",
+        f"fps=1/{SAMPLE_INTERVAL_SECONDS},{_SCALE_FILTER}",
+        "-q:v",
+        str(FFMPEG_JPEG_QUALITY),
+        str(frames_dir / _FRAME_PATTERN),
+    ]
 
 
 @dataclass(frozen=True)
@@ -106,10 +141,11 @@ class SlideFrameExtractor:
                     tile_hashes=hashes,
                 )
             )
-        effective_duration = (
-            duration_seconds
-            if duration_seconds > 0
-            else len(paths) * SAMPLE_INTERVAL_SECONDS
+        # La durée STT (piste audio) peut être plus courte que la piste vidéo
+        # (ou nulle) : on borne par la couverture réelle des échantillons pour
+        # garantir des plages de slides croissantes (end >= start).
+        effective_duration = max(
+            duration_seconds, len(paths) * SAMPLE_INTERVAL_SECONDS
         )
         grouping = group_slides(samples, duration_seconds=effective_duration)
         frames = tuple(
@@ -134,20 +170,7 @@ class SlideFrameExtractor:
         Raises:
             FFmpegError: ``FFMPEG.FRAME_EXTRACTION_FAILED`` en cas d'échec.
         """
-        scale = f"scale='min({MAX_FRAME_DIMENSION_PX},iw)':-2"
-        cmd = [
-            self._ffmpeg,
-            "-hide_banner",
-            "-loglevel",
-            FFMPEG_LOGLEVEL_ERROR,
-            "-i",
-            str(video_path),
-            "-vf",
-            f"fps=1/{SAMPLE_INTERVAL_SECONDS},{scale}",
-            "-q:v",
-            str(FFMPEG_JPEG_QUALITY),
-            str(frames_dir / _FRAME_PATTERN),
-        ]
+        cmd = build_sampling_command(self._ffmpeg, video_path, frames_dir)
         try:
             subprocess.run(  # noqa: S603
                 cmd,

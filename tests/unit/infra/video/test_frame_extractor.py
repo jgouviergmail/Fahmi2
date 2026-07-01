@@ -59,3 +59,30 @@ def test_extract_aucune_frame(tmp_path: Path) -> None:
     )
     assert result.frames == ()
     assert result.dropped_groups == 0
+
+
+def test_extract_duree_audio_plus_courte_que_la_video(tmp_path: Path) -> None:
+    """Piste audio (durée STT) plus courte que la vidéo : les plages restent
+    croissantes (bornées par la couverture réelle des échantillons)."""
+    frames = [_vertical_stripes()] * 5 + [_horizontal_stripes()] * 5
+    extractor = _StubExtractor(frames)
+    result = extractor.extract(
+        tmp_path / "video.mp4", tmp_path / "frames", duration_seconds=4.0
+    )
+    assert len(result.frames) == 2
+    for frame in result.frames:
+        assert frame.end_seconds >= frame.start_seconds
+    assert result.frames[-1].end_seconds == 10 * 2.0  # couverture des frames
+
+
+def test_commande_ffmpeg_borne_les_deux_axes(tmp_path: Path) -> None:
+    """Le filtre d'échelle borne largeur ET hauteur (vidéos portrait incluses)."""
+    from fahmi2.infra.video.frame_extractor import (  # noqa: PLC0415
+        build_sampling_command,
+    )
+
+    cmd = build_sampling_command("ffmpeg", tmp_path / "v.mp4", tmp_path / "frames")
+    vf = cmd[cmd.index("-vf") + 1]
+    assert "min(1280,iw)" in vf
+    assert "min(1280,ih)" in vf
+    assert "force_original_aspect_ratio=decrease" in vf

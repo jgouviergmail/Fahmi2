@@ -36,6 +36,26 @@ _VISUALS_KEY = "visuels"
 _RAW_EXCERPT_MAX_CHARS = 500
 
 
+def _invalid_response_error(raw: str) -> VisionError:
+    """``VisionError`` pour une réponse illisible (non-JSON ou non-objet).
+
+    Args:
+        raw: Réponse brute du modèle (tronquée dans les détails techniques).
+
+    Returns:
+        La ``VisionError`` (code retryable : sortie LLM non déterministe).
+    """
+    return VisionError(
+        code="VISION.INVALID_RESPONSE",
+        user_message="Le modèle vision a renvoyé une réponse illisible.",
+        severity=Severity.ERROR,
+        technical_details={
+            "provider": _PROVIDER_NAME,
+            "raw": raw[:_RAW_EXCERPT_MAX_CHARS],
+        },
+    )
+
+
 def _map_vision_error(
     exc: APIStatusError | RateLimitError | AuthenticationError | APIError,
 ) -> VisionError:
@@ -144,27 +164,11 @@ class OpenAIVisionAdapter:
         try:
             payload = json.loads(raw)
         except json.JSONDecodeError as exc:
-            raise VisionError(
-                code="VISION.INVALID_RESPONSE",
-                user_message="Le modèle vision a renvoyé une réponse illisible.",
-                severity=Severity.ERROR,
-                technical_details={
-                    "provider": _PROVIDER_NAME,
-                    "raw": raw[:_RAW_EXCERPT_MAX_CHARS],
-                },
-            ) from exc
+            raise _invalid_response_error(raw) from exc
         if not isinstance(payload, dict):
             # JSON valide mais non-objet (liste, chaîne…) : même traitement
             # qu'une réponse illisible — retryable (non déterministe).
-            raise VisionError(
-                code="VISION.INVALID_RESPONSE",
-                user_message="Le modèle vision a renvoyé une réponse illisible.",
-                severity=Severity.ERROR,
-                technical_details={
-                    "provider": _PROVIDER_NAME,
-                    "raw": raw[:_RAW_EXCERPT_MAX_CHARS],
-                },
-            )
+            raise _invalid_response_error(raw)
         content = SlideContent(
             text=str(payload.get(_TEXT_KEY, "")),
             visuals_description=str(payload.get(_VISUALS_KEY, "")),

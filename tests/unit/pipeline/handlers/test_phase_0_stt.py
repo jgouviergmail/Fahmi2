@@ -314,27 +314,8 @@ def _slides_context(
     slides_sources: tuple[str, ...],
     dropped_groups: int = 0,
 ) -> tuple[PhaseContext, SourceExecution, FakeVisionProvider]:
-    """Contexte phase 0 avec un SlideAnalyzer réel (extracteur stub + fake vision)."""
-    from PIL import Image  # noqa: PLC0415
-
-    from fahmi2.infra.video.frame_extractor import (  # noqa: PLC0415
-        SlideExtractionResult,
-        SlideFrame,
-        SlideFrameExtractor,
-    )
-
-    class _OneSlideFrameExtractor(SlideFrameExtractor):
-        def extract(
-            self, video_path: Path, frames_dir: Path, *, duration_seconds: float
-        ) -> SlideExtractionResult:
-            del video_path, duration_seconds
-            frames_dir.mkdir(parents=True, exist_ok=True)
-            frame = frames_dir / "000001.jpg"
-            Image.new("RGB", (32, 32)).save(frame)
-            return SlideExtractionResult(
-                frames=(SlideFrame(0.0, 1.0, frame),),
-                dropped_groups=dropped_groups,
-            )
+    """Contexte phase 0 avec un SlideAnalyzer réel (extracteur fake + fake vision)."""
+    from fahmi2.infra.video._fakes import FakeSlideFrameExtractor  # noqa: PLC0415
 
     settings = make_generation_settings(slides_sources=slides_sources)
     run = Run(
@@ -355,7 +336,9 @@ def _slides_context(
     )
     provider = FakeVisionProvider(cost_per_call_usd=0.001)
     analyzer = SlideAnalyzer(
-        frame_extractor=_OneSlideFrameExtractor(ffmpeg_binary="inutilise"),
+        frame_extractor=FakeSlideFrameExtractor(
+            slide_count=1, dropped_groups=dropped_groups
+        ),
         vision_provider=provider,
         llm_workers=1,
     )

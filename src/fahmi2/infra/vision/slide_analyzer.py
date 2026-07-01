@@ -6,6 +6,11 @@ borné par ``llm_workers``, ordre préservé, honore le ``PauseToken``), retry
 par appel (``core/retry``), nettoyage best-effort des frames. Les coûts et
 avertissements sont mémorisés **par source** (thread-safe) pour l'attribution
 per-source de la phase 0.
+
+La borne ``llm_workers`` est **globale à l'instance** (sémaphore partagé) :
+la phase 0 traite jusqu'à ``stt_cloud_workers`` sources en parallèle, chacune
+appelant ``analyze`` — sans ce garde-fou, la concurrence vision réelle serait
+``stt_cloud_workers × llm_workers``.
 """
 
 from __future__ import annotations
@@ -76,6 +81,9 @@ class SlideAnalyzer:
         self._lock = threading.Lock()
         self._costs_by_source: dict[str, float] = {}
         self._dropped_by_source: dict[str, int] = {}
+        # Borne globale des appels vision simultanés, toutes sources
+        # confondues (la phase 0 peut appeler ``analyze`` en parallèle).
+        self._vision_gate = threading.BoundedSemaphore(self._llm_workers)
 
     def analyze(
         self,
@@ -110,13 +118,14 @@ class SlideAnalyzer:
             )
 
             def _analyze_one(frame: SlideFrame) -> SlideAnalysis:
-                return with_retry(
-                    lambda: self._vision.analyze_slide(
-                        frame.image_path, language=language
-                    ),
-                    policy=self._retry_policy,
-                    classify=default_classify,
-                )
+                with self._vision_gate:
+                    return with_retry(
+                        lambda: self._vision.analyze_slide(
+                            frame.image_path, language=language
+                        ),
+                        policy=self._retry_policy,
+                        classify=default_classify,
+                    )
 
             analyses = map_bounded(
                 _analyze_one,

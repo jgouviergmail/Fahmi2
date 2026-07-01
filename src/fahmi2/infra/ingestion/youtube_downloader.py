@@ -29,6 +29,9 @@ _PARTIAL_DOWNLOAD_SUFFIXES = frozenset({".part", ".ytdl", ".temp"})
 #: cours peut produire un flux audio volumineux sur une connexion lente. Au-delà,
 #: le processus est tué pour éviter un blocage indéfini du worker.
 _DOWNLOAD_TIMEOUT_SECONDS = 1800.0
+#: Délai maximal du téléchargement **vidéo** ≤ 720p (s) : le fichier est bien
+#: plus volumineux que la piste audio (2 h ≈ 0,7–1,5 Go) — doublé.
+_VIDEO_DOWNLOAD_TIMEOUT_SECONDS = 3600.0
 #: Délai maximal de la sonde de durée (s). L'opération ne télécharge pas le
 #: média (``--skip-download``), donc reste rapide.
 _PROBE_TIMEOUT_SECONDS = 60.0
@@ -109,7 +112,9 @@ class YtDlpDownloader:
             IngestionError: ``INGESTION.YTDLP_NOT_FOUND`` si le binaire est
                 introuvable, ``INGESTION.YOUTUBE_DOWNLOAD_FAILED`` sinon.
         """
-        return self._download(url, dest_dir, stem, _BESTAUDIO_FORMAT)
+        return self._download(
+            url, dest_dir, stem, _BESTAUDIO_FORMAT, _DOWNLOAD_TIMEOUT_SECONDS
+        )
 
     def download_video(self, url: str, dest_dir: Path, stem: str) -> Path:
         """Télécharge la vidéo ≤ 720p (cf. ``YoutubeDownloader``).
@@ -126,9 +131,13 @@ class YtDlpDownloader:
             IngestionError: ``INGESTION.YTDLP_NOT_FOUND`` si le binaire est
                 introuvable, ``INGESTION.YOUTUBE_DOWNLOAD_FAILED`` sinon.
         """
-        return self._download(url, dest_dir, stem, _VIDEO_FORMAT_720P)
+        return self._download(
+            url, dest_dir, stem, _VIDEO_FORMAT_720P, _VIDEO_DOWNLOAD_TIMEOUT_SECONDS
+        )
 
-    def _download(self, url: str, dest_dir: Path, stem: str, fmt: str) -> Path:
+    def _download(
+        self, url: str, dest_dir: Path, stem: str, fmt: str, timeout_seconds: float
+    ) -> Path:
         """Télécharge ``url`` au format yt-dlp ``fmt`` (corps commun audio/vidéo).
 
         Args:
@@ -136,6 +145,7 @@ class YtDlpDownloader:
             dest_dir: Dossier de destination.
             stem: Nom de base du fichier produit.
             fmt: Sélecteur de format yt-dlp (``-f``).
+            timeout_seconds: Délai maximal du téléchargement.
 
         Returns:
             Le chemin du fichier téléchargé.
@@ -152,7 +162,7 @@ class YtDlpDownloader:
         ]
         try:
             subprocess.run(  # noqa: S603
-                cmd, check=True, capture_output=True, timeout=_DOWNLOAD_TIMEOUT_SECONDS
+                cmd, check=True, capture_output=True, timeout=timeout_seconds
             )
         except FileNotFoundError as exc:
             raise IngestionError(
@@ -174,7 +184,7 @@ class YtDlpDownloader:
                 severity=Severity.ERROR,
                 technical_details={
                     "url": url,
-                    "timeout_seconds": _DOWNLOAD_TIMEOUT_SECONDS,
+                    "timeout_seconds": timeout_seconds,
                 },
             ) from exc
         except subprocess.CalledProcessError as exc:

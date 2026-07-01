@@ -40,7 +40,8 @@ dupliqué (chaque état intermédiaire répète les puces précédentes).
     slides est activée. Réconciliation au scan comme `excluded_sources`
     (clés obsolètes ignorées, via la fonction pure partagée) ; migration
     *lenient* du blob v2 (champ absent = tuple vide).
-  - `vision_model: VisionModel = VisionModel.GPT_5_MINI`.
+  - `vision_model: VisionModel = VisionModel.GPT_5_MINI` (migration
+    *lenient* : champ absent = défaut).
 - Nouvel enum `VisionModel { GPT_5_NANO, GPT_5_MINI, GPT_5_4_MINI }` dans
   `domain/enums.py` (valeurs = identifiants API OpenAI).
 
@@ -153,7 +154,8 @@ Pattern ports/adapters existant (miroir de `infra/embeddings/`) :
   slides) -> Transcription` (`infra/ingestion/slide_merge.py`) : intercale
   des `TranscriptionSegment` aux timestamps d'affichage, texte au format
   `[Slide affichée de mm:ss à mm:ss] <texte> — Visuels : <description>`
-  (libellés FR, cohérents avec les prompts FR gelés). L'ordre temporel des
+  (`h:mm:ss` au-delà d'une heure ; libellés FR, cohérents avec les prompts
+  FR gelés ; slide au contenu vide **non injectée**). L'ordre temporel des
   segments est préservé ; `full_text()` expose naturellement le contenu
   entrelacé aux phases aval.
 - **YouTube** : si l'option est activée pour l'URL,

@@ -137,6 +137,20 @@ class EmbeddingModel(StrEnum):
     TEXT_EMBEDDING_ADA_002 = "text-embedding-ada-002"  # génération précédente
 
 
+class VisionModel(StrEnum):
+    """Modèles vision OpenAI supportés (analyse des slides des vidéos).
+
+    Utilisés quand l'option « analyser les slides » est activée sur une
+    source vidéo/YouTube (phase 0) : lecture fidèle du texte des slides +
+    description des éléments visuels. Le défaut privilégie le rapport
+    qualité/prix (tarifs vérifiés 2026-07).
+    """
+
+    GPT_5_MINI = "gpt-5-mini"      # défaut : meilleur rapport qualité/prix
+    GPT_5_NANO = "gpt-5-nano"      # économique (slides textuelles simples)
+    GPT_5_4_MINI = "gpt-5.4-mini"  # qualité supérieure (slides très denses)
+
+
 class ReasoningEffort(StrEnum):
     """Niveau d'effort de raisonnement (DeepSeek ``reasoning_effort``).
 

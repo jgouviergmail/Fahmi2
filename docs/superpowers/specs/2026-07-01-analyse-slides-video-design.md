@@ -58,22 +58,34 @@ Nouveau module `infra/video/` :
      slide **fenêtrée ou en demi-page** (distance faible → slides fusionnées à
      tort) ; la détection travaille donc par régions :
      - la frame est découpée en **grille de tuiles** (ex. 8×8), chacune avec
-       son dHash ;
-     - **masque de bruit temporel** : les tuiles qui changent à quasi chaque
-       échantillon (webcam incrustée, vidéo dans la slide, animation
-       permanente) sont **exclues** de la mesure ;
-     - la décision se prend sur la **fraction de tuiles actives changeant
-       simultanément**, avec **double seuil** :
+       son dHash ; le regroupement opère en **deux passes** sur les hashes
+       (calculés une seule fois) :
+     - **passe 1 — cartographie** : statistiques de changement par tuile sur
+       toute la vidéo → **masque de bruit temporel** (tuiles changeant à
+       quasi chaque échantillon : webcam incrustée, vidéo dans la slide,
+       animation permanente → **exclues**) et **région dynamique** (tuiles
+       ayant changé au moins une fois, hors masque — de fait, la zone de
+       slide) ;
+     - **passe 2 — regroupement** : la décision se prend sur la **fraction
+       de la région dynamique changeant simultanément**, avec **double
+       seuil** :
        - fraction < `F_bas` : image identique → ignorée ;
        - `F_bas` ≤ fraction < `F_haut` : même slide en dévoilement progressif
-         (une puce ne touche que 1–2 tuiles) → la frame représentative du
-         groupe est **remplacée** par la plus récente (état final) ;
-       - fraction ≥ `F_haut` : nouvelle slide (la majorité des tuiles de la
-         zone de slide bascule d'un coup) → nouveau groupe.
-     La mesure étant **relative aux tuiles actives**, elle est insensible au
-     fenêtrage : slide plein écran, en moitié d'image ou en fenêtre sont
-     détectées de la même façon ; l'affichage progressif et les incrustations
-     animées sont discriminés par la localité du changement.
+         (une puce ne touche que ~10 % de la région) → la frame
+         représentative du groupe est **remplacée** par la plus récente
+         (état final) ;
+       - fraction ≥ `F_haut` : nouvelle slide (~100 % de la région bascule
+         d'un coup) → nouveau groupe.
+     Le dénominateur étant la **région dynamique** (et non la frame entière
+     ni les seules tuiles non masquées — un fond statique n'est pas bruyant,
+     juste immobile), la mesure est insensible au fenêtrage : slide plein
+     écran, en moitié d'image ou en petite fenêtre sont détectées à
+     l'identique ; l'affichage progressif et les incrustations animées sont
+     discriminés par la localité du changement.
+     *Résidu assumé* : une révélation massive (grand schéma apparaissant
+     d'un coup) peut franchir `F_haut` → la même slide analysée deux fois
+     (état partiel + final). Coût marginal, redondance textuelle absorbée
+     par la reformulation, borné par le plafond de slides.
   3. Sortie : liste ordonnée de `SlideFrame(start_seconds, end_seconds,
      image_path)` (début = première frame du groupe, fin = dernière ; le
      dernier groupe se clôt à la fin de la vidéo).

@@ -62,6 +62,9 @@ from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.infra.stt.faster_whisper_adapter import FasterWhisperAdapter
 from fahmi2.infra.stt.interface import STTProvider
 from fahmi2.infra.stt.openai_whisper_adapter import OpenAIWhisperAdapter
+from fahmi2.infra.video.frame_extractor import SlideFrameExtractor
+from fahmi2.infra.vision.openai_vision import OpenAIVisionAdapter
+from fahmi2.infra.vision.slide_analyzer import SlideAnalyzer
 from fahmi2.pipeline.engine import PipelineEngine
 from fahmi2.pipeline.events import (
     PhaseFinished,
@@ -70,6 +73,7 @@ from fahmi2.pipeline.events import (
     RetryAttempt,
     RunFinished,
     RunStarted,
+    SlideDetectionWarning,
 )
 from fahmi2.pipeline.handlers.phase_0_stt import Phase0SttHandler
 from fahmi2.pipeline.handlers.phase_1_term_extraction import (
@@ -598,6 +602,7 @@ class GenerationController(QObject):
             prompts=PromptLoader(override_dir=self._app_paths.prompts_override_dir),
             pause_token=self._current_pause_token,
             event_bus=event_bus,
+            slide_analyzer=self._build_slide_analyzer(self._current_project),
         )
 
         self._header_bar.set_running()
@@ -1168,7 +1173,10 @@ class GenerationController(QObject):
                 ),
             )
             return False
-        needs_openai = project.generation.stt_provider is SttProvider.OPENAI_CLOUD
+        needs_openai = (
+            project.generation.stt_provider is SttProvider.OPENAI_CLOUD
+            or bool(project.generation.slides_sources)
+        )
         if needs_openai and not self._secrets_service.has_openai_key():
             QMessageBox.critical(
                 self._window,
@@ -1177,12 +1185,47 @@ class GenerationController(QObject):
                 ),
                 QCoreApplication.translate(
                     "GenerationController",
-                    "Le provider STT cloud nécessite une clé OpenAI. "
-                    "Renseigne-la dans « Édition → Paramètres globaux ».",
+                    "Le STT cloud et l'analyse des slides nécessitent une clé "
+                    "OpenAI. Renseigne-la dans « Édition → Paramètres globaux ».",
                 ),
             )
             return False
         return True
+
+    def _build_slide_analyzer(self, project: Project) -> SlideAnalyzer | None:
+        """Construit l'analyseur de slides si l'option est activée.
+
+        Args:
+            project: Projet en cours (settings génération non ``None``).
+
+        Returns:
+            La façade configurée, ou ``None`` si aucune source n'a l'option
+            (ou si la clé OpenAI est absente — cas déjà bloqué par
+            ``_validate_keys``).
+        """
+        from fahmi2.core.config.paths import (  # noqa: PLC0415 — éviter cycle
+            resolve_ffmpeg_binary_or_none,
+        )
+
+        settings = project.generation
+        if settings is None or not settings.slides_sources:
+            return None
+        api_key = self._secrets_service.get_openai_api_key()
+        if api_key is None:
+            return None
+        vision = OpenAIVisionAdapter(
+            api_key=api_key,
+            prompts=PromptLoader(override_dir=self._app_paths.prompts_override_dir),
+            model=str(settings.vision_model),
+        )
+        return SlideAnalyzer(
+            frame_extractor=SlideFrameExtractor(
+                ffmpeg_binary=resolve_ffmpeg_binary_or_none()
+            ),
+            vision_provider=vision,
+            llm_workers=settings.parallelism.llm_workers,
+            pause_token=self._current_pause_token,
+        )
 
     # ------------------------------------------------------------- event bus
 
@@ -1314,6 +1357,21 @@ def _to_log_event(event: PipelineEvent) -> LogEvent:
             phase_id=str(event.phase_id),
             source_id=event.source_id.value if event.source_id else None,
             extra=extra,
+        )
+    if isinstance(event, SlideDetectionWarning):
+        return LogEvent(
+            timestamp=event.timestamp,
+            severity=Severity.WARNING,
+            code="SLIDES_DETECTION_UNSTABLE",
+            message=(
+                f"Détection de slides instable pour la source "
+                f"{event.source_id.value[:8]}… : {event.dropped_groups} "
+                f"image(s) ignorée(s) par les plafonds (coût borné ; contenu "
+                f"de slides potentiellement incomplet)."
+            ),
+            run_id=event.run_id.value,
+            source_id=event.source_id.value,
+            extra={"dropped_groups": event.dropped_groups},
         )
     if isinstance(event, RetryAttempt):
         return LogEvent(

@@ -304,6 +304,134 @@ def test_mocked_full_path(tmp_path: Path, make_generation_settings: Any) -> None
     assert result.cost_usd == 0.0
 
 
+def _slides_context(
+    tmp_path: Path,
+    make_generation_settings: Any,
+    *,
+    slides_sources: tuple[str, ...],
+    dropped_groups: int = 0,
+) -> tuple[PhaseContext, SourceExecution, "FakeVisionProvider"]:
+    """Contexte phase 0 avec un SlideAnalyzer réel (extracteur stub + fake vision)."""
+    from PIL import Image  # noqa: PLC0415
+
+    from fahmi2.infra.video.frame_extractor import (  # noqa: PLC0415
+        SlideExtractionResult,
+        SlideFrame,
+        SlideFrameExtractor,
+    )
+    from fahmi2.infra.vision._fakes import FakeVisionProvider  # noqa: PLC0415
+    from fahmi2.infra.vision.slide_analyzer import SlideAnalyzer  # noqa: PLC0415
+
+    class _OneSlideFrameExtractor(SlideFrameExtractor):
+        def extract(
+            self, video_path: Path, frames_dir: Path, *, duration_seconds: float
+        ) -> SlideExtractionResult:
+            del video_path, duration_seconds
+            frames_dir.mkdir(parents=True, exist_ok=True)
+            frame = frames_dir / "000001.jpg"
+            Image.new("RGB", (32, 32)).save(frame)
+            return SlideExtractionResult(
+                frames=(SlideFrame(0.0, 1.0, frame),),
+                dropped_groups=dropped_groups,
+            )
+
+    settings = make_generation_settings(slides_sources=slides_sources)
+    run = Run(
+        id=RunId.new(),
+        project_id=ProjectId.new(),
+        started_at=datetime.now(tz=UTC),
+        status=RunStatus.RUNNING,
+        settings_snapshot=settings,
+    )
+    state = SqliteState(tmp_path / "state.db")
+    video = SourceExecution(
+        source_id=SourceId.new(),
+        source=InputSource(kind=SourceKind.VIDEO, location=str(tmp_path / "v.mp4")),
+    )
+    fake_ffmpeg = MagicMock()
+    fake_ffmpeg.extract.return_value = AudioInfo(
+        sample_rate_hz=16_000, channels=1, duration_seconds=10.0
+    )
+    provider = FakeVisionProvider(cost_per_call_usd=0.001)
+    analyzer = SlideAnalyzer(
+        frame_extractor=_OneSlideFrameExtractor(ffmpeg_binary="inutilise"),
+        vision_provider=provider,
+        llm_workers=1,
+    )
+    ctx = PhaseContext(
+        run=run,
+        settings=settings,
+        workspace=tmp_path / "workspace",
+        output_dir=tmp_path / "output",
+        state=state,
+        artifacts=FsArtifactStore(),
+        stt_provider=FakeSTTProvider(default_transcription=_scripted_transcription()),
+        llm_provider=FakeLLMProvider(),
+        ffmpeg=fake_ffmpeg,
+        ingestion=build_default_ingestion_dispatcher(),
+        retriever=PassthroughRetriever(),
+        prompts=PromptLoader(),
+        pause_token=PauseToken(),
+        event_bus=EventBus(),
+        slide_analyzer=analyzer,
+    )
+    return ctx, video, provider
+
+
+def test_phase0_active_les_slides_pour_la_source_flaggee(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    """order_key ∈ slides_sources : slides fusionnées + coût vision attribué."""
+    ctx, video, provider = _slides_context(
+        tmp_path, make_generation_settings, slides_sources=("v.mp4",)
+    )
+    result = Phase0SttHandler().execute(ctx, source=video)
+
+    assert result.status is PhaseStatus.SUCCEEDED
+    assert len(provider.calls) == 1
+    assert result.cost_usd == pytest.approx(0.001)
+    assert result.artifact_path is not None
+    payload = json.loads(result.artifact_path.read_text(encoding="utf-8"))
+    assert any(s["text"].startswith("[Slide") for s in payload["segments"])
+
+
+def test_phase0_sans_flag_pas_d_analyse(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    """order_key ∉ slides_sources : aucun appel vision, coût STT seul."""
+    ctx, video, provider = _slides_context(
+        tmp_path, make_generation_settings, slides_sources=("autre.mp4",)
+    )
+    result = Phase0SttHandler().execute(ctx, source=video)
+
+    assert result.status is PhaseStatus.SUCCEEDED
+    assert provider.calls == []
+    assert result.cost_usd == 0.0
+
+
+def test_phase0_publie_l_avertissement_detection_instable(
+    tmp_path: Path, make_generation_settings: Any
+) -> None:
+    """dropped_groups > 0 : un SlideDetectionWarning est publié sur le bus."""
+    from fahmi2.pipeline.events import SlideDetectionWarning  # noqa: PLC0415
+
+    ctx, video, _ = _slides_context(
+        tmp_path,
+        make_generation_settings,
+        slides_sources=("v.mp4",),
+        dropped_groups=7,
+    )
+    received: list[SlideDetectionWarning] = []
+    ctx.event_bus.subscribe(
+        lambda e: received.append(e) if isinstance(e, SlideDetectionWarning) else None
+    )
+    Phase0SttHandler().execute(ctx, source=video)
+
+    assert len(received) == 1
+    assert received[0].dropped_groups == 7
+    assert received[0].source_id == video.source_id
+
+
 def test_phase0_workers_cloud_uses_pool(
     tmp_path: Path, make_generation_settings: Any
 ) -> None:

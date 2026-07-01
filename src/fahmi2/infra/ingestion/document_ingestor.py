@@ -49,6 +49,7 @@ class DocumentIngestor:
         *,
         language_hint: Language | None,
         delete_audio_after: bool,
+        analyze_slides: bool = False,
     ) -> Transcription:
         """Extrait le texte de ``source`` en une ``Transcription`` à segment unique.
 
@@ -58,6 +59,7 @@ class DocumentIngestor:
             deps: Dépendances injectées (non utilisées : pas de ffmpeg/STT).
             language_hint: Langue du document (= langue source du projet).
             delete_audio_after: Sans effet (pas d'audio).
+            analyze_slides: Sans effet (un document n'a pas de slides).
 
         Returns:
             La ``Transcription`` à segment unique (texte intégral).
@@ -66,7 +68,8 @@ class DocumentIngestor:
             IngestionError: ``INGESTION.EMPTY_DOCUMENT`` si aucun texte exploitable ;
                 ``INGESTION.TEXT_EXTRACTION_FAILED`` (via l'extracteur) si illisible.
         """
-        del source_id, deps, delete_audio_after  # non pertinents pour un document
+        # analyze_slides : non pertinent pour un document (ignoré).
+        del source_id, deps, delete_audio_after, analyze_slides
         text = self._text_extractor.extract(source.as_path)
         if not text.strip():
             raise IngestionError(

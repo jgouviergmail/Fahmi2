@@ -48,8 +48,14 @@ class YoutubeIngestor:
         *,
         language_hint: Language | None,
         delete_audio_after: bool,
+        analyze_slides: bool = False,
     ) -> Transcription:
-        """Télécharge l'audio de ``source`` (URL) puis l'ingère via le média.
+        """Télécharge l'audio (ou la vidéo) de ``source`` puis l'ingère.
+
+        Sans analyse de slides, seule la piste audio est téléchargée
+        (comportement historique). Avec l'option activée, la **vidéo** ≤ 720p
+        est téléchargée : la piste vidéo est nécessaire pour extraire les
+        frames de slides.
 
         Args:
             source: Source YouTube (``location`` = URL).
@@ -57,6 +63,8 @@ class YoutubeIngestor:
             deps: Dépendances injectées (workspace, ffmpeg, STT).
             language_hint: Indice de langue pour le STT.
             delete_audio_after: Transmis au ``MediaIngestor`` (WAV extrait).
+            analyze_slides: Analyse les slides de la vidéo (requiert
+                ``deps.slide_analyzer``).
 
         Returns:
             La ``Transcription`` produite.
@@ -65,19 +73,26 @@ class YoutubeIngestor:
             IngestionError: Échec de téléchargement (propagé du downloader).
         """
         downloads_dir = deps.workspace / _DOWNLOADS_SUBDIR
-        downloaded = self._downloader.download_audio(
-            source.location, downloads_dir, source_id
-        )
-        try:
-            media_source = InputSource(
-                kind=SourceKind.AUDIO, location=str(downloaded)
+        with_slides = analyze_slides and deps.slide_analyzer is not None
+        if with_slides:
+            downloaded = self._downloader.download_video(
+                source.location, downloads_dir, source_id
             )
+            media_kind = SourceKind.VIDEO
+        else:
+            downloaded = self._downloader.download_audio(
+                source.location, downloads_dir, source_id
+            )
+            media_kind = SourceKind.AUDIO
+        try:
+            media_source = InputSource(kind=media_kind, location=str(downloaded))
             return self._media_ingestor.ingest(
                 media_source,
                 source_id,
                 deps,
                 language_hint=language_hint,
                 delete_audio_after=delete_audio_after,
+                analyze_slides=with_slides,
             )
         finally:
             safe_delete(downloaded)

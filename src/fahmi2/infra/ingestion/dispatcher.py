@@ -52,6 +52,7 @@ class IngestionDispatcher:
         *,
         language_hint: Language | None,
         delete_audio_after: bool,
+        analyze_slides: bool = False,
     ) -> Transcription:
         """Aiguille vers l'ingesteur du ``kind`` de ``source``.
 
@@ -61,6 +62,8 @@ class IngestionDispatcher:
             deps: Dépendances injectées.
             language_hint: Indice de langue pour le STT (``None`` = auto).
             delete_audio_after: Supprime l'audio intermédiaire après usage.
+            analyze_slides: Analyse les slides (vidéo/YouTube ; ignoré par les
+                autres ingesteurs).
 
         Returns:
             La ``Transcription`` produite par l'ingesteur adapté.
@@ -88,6 +91,7 @@ class IngestionDispatcher:
             deps,
             language_hint=language_hint,
             delete_audio_after=delete_audio_after,
+            analyze_slides=analyze_slides,
         )
 
 

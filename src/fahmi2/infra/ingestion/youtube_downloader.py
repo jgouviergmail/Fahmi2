@@ -17,6 +17,10 @@ from fahmi2.core.errors.severity import Severity
 
 _YTDLP_BINARY = "yt-dlp"
 _BESTAUDIO_FORMAT = "bestaudio/best"
+#: Format vidéo pour l'analyse des slides : flux **progressif** ≤ 720p (un
+#: seul fichier, pas de fusion vidéo+audio nécessitant ffmpeg côté yt-dlp) —
+#: suffisant pour lire des slides, minimise le téléchargement.
+_VIDEO_FORMAT_720P = "best[height<=720][ext=mp4]/best[height<=720]/best"
 _NO_PLAYLIST = "--no-playlist"
 #: Suffixes des artefacts de téléchargement partiel/temporaire de yt-dlp, à
 #: ignorer lors de la sélection du fichier audio produit.
@@ -43,6 +47,25 @@ class YoutubeDownloader(Protocol):
 
         Returns:
             Le chemin du fichier audio téléchargé.
+
+        Raises:
+            IngestionError: ``INGESTION.YTDLP_NOT_FOUND`` ou
+                ``INGESTION.YOUTUBE_DOWNLOAD_FAILED``.
+        """
+
+    def download_video(self, url: str, dest_dir: Path, stem: str) -> Path:
+        """Télécharge la vidéo (≤ 720p, flux progressif) de ``url``.
+
+        Utilisé quand l'option « analyser les slides » est activée : la piste
+        vidéo est nécessaire pour extraire les frames de slides.
+
+        Args:
+            url: URL de la vidéo YouTube (unitaire).
+            dest_dir: Dossier de destination (créé si absent).
+            stem: Nom de base du fichier produit (sans extension).
+
+        Returns:
+            Le chemin du fichier vidéo téléchargé.
 
         Raises:
             IngestionError: ``INGESTION.YTDLP_NOT_FOUND`` ou
@@ -86,10 +109,45 @@ class YtDlpDownloader:
             IngestionError: ``INGESTION.YTDLP_NOT_FOUND`` si le binaire est
                 introuvable, ``INGESTION.YOUTUBE_DOWNLOAD_FAILED`` sinon.
         """
+        return self._download(url, dest_dir, stem, _BESTAUDIO_FORMAT)
+
+    def download_video(self, url: str, dest_dir: Path, stem: str) -> Path:
+        """Télécharge la vidéo ≤ 720p (cf. ``YoutubeDownloader``).
+
+        Args:
+            url: URL de la vidéo YouTube.
+            dest_dir: Dossier de destination.
+            stem: Nom de base du fichier produit.
+
+        Returns:
+            Le chemin du fichier vidéo téléchargé.
+
+        Raises:
+            IngestionError: ``INGESTION.YTDLP_NOT_FOUND`` si le binaire est
+                introuvable, ``INGESTION.YOUTUBE_DOWNLOAD_FAILED`` sinon.
+        """
+        return self._download(url, dest_dir, stem, _VIDEO_FORMAT_720P)
+
+    def _download(self, url: str, dest_dir: Path, stem: str, fmt: str) -> Path:
+        """Télécharge ``url`` au format yt-dlp ``fmt`` (corps commun audio/vidéo).
+
+        Args:
+            url: URL de la vidéo YouTube.
+            dest_dir: Dossier de destination.
+            stem: Nom de base du fichier produit.
+            fmt: Sélecteur de format yt-dlp (``-f``).
+
+        Returns:
+            Le chemin du fichier téléchargé.
+
+        Raises:
+            IngestionError: ``INGESTION.YTDLP_NOT_FOUND`` si le binaire est
+                introuvable, ``INGESTION.YOUTUBE_DOWNLOAD_FAILED`` sinon.
+        """
         dest_dir.mkdir(parents=True, exist_ok=True)
         output_template = str(dest_dir / f"{stem}.%(ext)s")
         cmd = [
-            self._ytdlp, _NO_PLAYLIST, "-f", _BESTAUDIO_FORMAT,
+            self._ytdlp, _NO_PLAYLIST, "-f", fmt,
             "-o", output_template, url,
         ]
         try:

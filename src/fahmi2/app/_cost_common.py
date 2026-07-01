@@ -20,6 +20,13 @@ TOKENS_PER_WORD = 1.3
 #: ~4 octets par token (un caractère accenté pèse 2 octets, ce qui surévalue
 #: légèrement le compte de tokens — acceptable pour une estimation indicative).
 TEXT_BYTES_PER_TOKEN = 4.0
+#: Slides estimées par minute de vidéo (estimation pré-run, cours typique) —
+#: pour l'option « analyser les slides ».
+ESTIMATED_SLIDES_PER_MINUTE = 1.0
+#: Tokens de texte injectés dans la transcription par slide analysée (texte
+#: transcrit + description des visuels) : grossit le volume d'entrée des
+#: phases LLM aval.
+SLIDE_TEXT_TOKENS_PER_SLIDE = 250.0
 
 # Multiplicateurs empiriques appliqués aux tokens de sortie quand le mode
 # thinking est activé.

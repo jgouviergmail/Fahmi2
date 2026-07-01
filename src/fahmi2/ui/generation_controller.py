@@ -24,7 +24,10 @@ from PySide6.QtCore import QCoreApplication, QObject, Qt, QThread, Signal
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox, QWidget
 
-from fahmi2.app._cost_common import TEXT_BYTES_PER_TOKEN
+from fahmi2.app._cost_common import (
+    ESTIMATED_SLIDES_PER_MINUTE,
+    TEXT_BYTES_PER_TOKEN,
+)
 from fahmi2.app.cost_estimator import CostEstimation, CostEstimator, SourceWeight
 from fahmi2.app.generation_export import export_generation_documents
 from fahmi2.app.hardware_probe import HardwareInfo
@@ -210,9 +213,11 @@ def _source_weight(
     """
     kind = source.source.kind
     if kind is SourceKind.YOUTUBE:
+        duration = youtube_downloader.probe_duration(source.source.location)
         return SourceWeight(
-            audio_seconds=youtube_downloader.probe_duration(source.source.location),
+            audio_seconds=duration,
             text_tokens=0.0,
+            slide_count=_estimated_slide_count(source, duration, settings),
         )
     if kind is SourceKind.DOCUMENT:
         size_bytes = source.source.as_path.stat().st_size
@@ -221,10 +226,31 @@ def _source_weight(
             text_tokens=size_bytes / TEXT_BYTES_PER_TOKEN,
             reformulated=settings.reformulate_documents,
         )
+    duration = ffmpeg.probe_duration_seconds(source.source.as_path)
     return SourceWeight(
-        audio_seconds=ffmpeg.probe_duration_seconds(source.source.as_path),
+        audio_seconds=duration,
         text_tokens=0.0,
+        slide_count=_estimated_slide_count(source, duration, settings),
     )
+
+
+def _estimated_slide_count(
+    source: SourceExecution, audio_seconds: float, settings: GenerationSettings
+) -> float:
+    """Nombre de slides estimé pour l'option « analyser les slides ».
+
+    Args:
+        source: Source évaluée.
+        audio_seconds: Durée audio estimée de la source.
+        settings: Réglages (liste des sources flaggées).
+
+    Returns:
+        ``durée × ESTIMATED_SLIDES_PER_MINUTE`` si la source est flaggée,
+        0 sinon (audio et documents ne sont jamais flaggés côté UI).
+    """
+    if source.source.order_key() not in settings.slides_sources:
+        return 0.0
+    return audio_seconds / 60.0 * ESTIMATED_SLIDES_PER_MINUTE
 
 
 class _RunWorker(QObject):
@@ -813,6 +839,7 @@ class GenerationController(QObject):
             translation_languages_count=translation_langs,
             phases_config=settings.phases_config,
             consolidation_mode=settings.consolidation_mode,
+            vision_model=settings.vision_model,
         )
         _show_cost_estimation_dialog(
             self._window,

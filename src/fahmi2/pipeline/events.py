@@ -125,6 +125,24 @@ class RetryAttempt:
     error: ErrorInfo
 
 
+@dataclass(frozen=True)
+class SlideDetectionWarning:
+    """Avertit d'une détection de slides instable pour une source (phase 0).
+
+    Attributes:
+        timestamp: Horodatage de l'événement.
+        run_id: Run concerné.
+        source_id: Source dont la détection a atteint les plafonds.
+        dropped_groups: Nombre de slides ignorées (coût borné ; contenu de
+            slides potentiellement incomplet).
+    """
+
+    timestamp: datetime
+    run_id: RunId
+    source_id: SourceId
+    dropped_groups: int
+
+
 PipelineEvent = (
     RunStarted
     | RunFinished
@@ -132,4 +150,5 @@ PipelineEvent = (
     | PhaseProgress
     | PhaseFinished
     | RetryAttempt
+    | SlideDetectionWarning
 )

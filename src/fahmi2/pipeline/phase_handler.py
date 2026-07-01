@@ -26,6 +26,7 @@ from fahmi2.infra.prompts.loader import PromptLoader
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.infra.stt.interface import STTProvider
+from fahmi2.infra.vision.slide_analyzer import SlideAnalyzer
 from fahmi2.pipeline.event_bus import EventBus
 from fahmi2.pipeline.events import PipelineEvent
 
@@ -49,6 +50,8 @@ class PhaseContext:
         prompts: Loader de templates de prompts (défauts bundlés + override).
         pause_token: Jeton coopératif pause/cancel.
         event_bus: Bus d'événements (peut être ``None`` pour les tests).
+        slide_analyzer: Analyseur de slides pour la phase 0 (``None`` = option
+            « analyser les slides » inactive ou indisponible).
     """
 
     run: Run
@@ -65,6 +68,7 @@ class PhaseContext:
     prompts: PromptLoader
     pause_token: PauseToken
     event_bus: EventBus[PipelineEvent]
+    slide_analyzer: SlideAnalyzer | None = None
 
 
 class PhaseHandler(ABC):

@@ -124,7 +124,8 @@ Dependencies flow downwards (UI → app → pipeline/infra → domain/core).
   `Flashcard`, `QcmItem`, `TrueFalseItem`, `ClozeItem`, `OpenQuestion`,
   `RevisionSheet`, `KeyPoints`, `MockExam`, `SupportArtifact`), enums
   (generation + pedagogy: `SupportType`×8, `TargetAudience`,
-  `BloomObjective`, `SupportDensity`, `ExportFormat`, `ReasoningEffort`),
+  `BloomObjective`, `SupportDensity`, `ExportFormat`, `ReasoningEffort`,
+  `VisionModel` [OpenAI vision models for slide analysis]),
   typed ULID ids, and **state machines** (`state_machine.py`) that
   validate Run and Phase transitions.
 - `pipeline/` — pure execution engine for **generation**: `PipelineEngine`
@@ -222,11 +223,21 @@ Dependencies flow downwards (UI → app → pipeline/infra → domain/core).
   crosses OpenAI Whisper's 25 MB limit, injected into the cloud STT
   adapter), `ingestion/` (dispatcher `source → transcription` injected in
   phase 0: `classify` [video/audio/document extensions] +
-  `SourceIngestor` port + `MediaIngestor` [video+audio via ffmpeg+STT] +
+  `SourceIngestor` port + `MediaIngestor` [video+audio via ffmpeg+STT ;
+  merges analyzed slides into the transcription when the per-source
+  option is on, via `slide_merge`] +
   `DocumentIngestor` [pdf/docx/md/txt → transcription with a **single
   segment**, via `TextExtractor` pypdf/python-docx] + `YoutubeIngestor`
   [URL → `YtDlpDownloader` downloads the audio (resolved/replaceable
-  yt-dlp binary) → delegates to `MediaIngestor`]),
+  yt-dlp binary) — or the **≤ 720p progressive video** when slide
+  analysis is enabled → delegates to `MediaIngestor`]),
+  `video/` (**slide detection**: `SlideFrameExtractor` [ffmpeg sampling →
+  JPEG frames] + `tiles`/`grouping` [pure tile-dHash two-pass grouping,
+  cf. « Slide analysis » below] + `_constants`),
+  `vision/` (port `SlideVisionProvider` + `OpenAIVisionAdapter` [JSON
+  mode, per-call cost] + `_pricing` + `SlideAnalyzer` façade
+  [`map_bounded` parallel vision calls, per-source cost/warnings,
+  frames cleanup] + fakes),
   `anki/genanki_exporter` (`.apkg`), `export/markdown_pdf` (Markdown +
   HTML + PDF) + `export/markdown_docx` (DOCX via htmldocx, reuses
   `render_markdown_body`), `export/knowledge_map_html` + `export/diagram_board_html`
@@ -235,8 +246,8 @@ Dependencies flow downwards (UI → app → pipeline/infra → domain/core).
   `_assets/visuals/`, **no CDN**), `storage/sqlite_state` (WAL) + `fs_artifacts`
   (atomic writes) + `feature_run_state` (shared pedagogy/visuals `run_state.json`),
   `secrets/` (Windows DPAPI), `prompts/loader` +
-  `defaults/*.j2` (8 phases + 3 thematic `phase_5_*` + 8 `pedagogy_*` +
-  3 `chat_*` + 5 `visuals_*`).
+  `defaults/*.j2` (8 phases + 1 `phase_0_slide_analysis` + 3 thematic
+  `phase_5_*` + 8 `pedagogy_*` + 3 `chat_*` + 5 `visuals_*`).
 - `app/` — use-cases: `ProjectService` (+ `get_last_completed_run`;
   deleting a project also wipes its **workspace folder** on disk,
   best-effort, leaving the input folder and the global database alone),
@@ -465,6 +476,57 @@ The barriers remain the batch phases 2 and 5 (the engine stays
   `SourceOrderView` dual list); stable keys =
   `InputSource.order_key()` (file name / URL); obsolete keys are
   ignored, new ones added at the end.
+- **Slide analysis (per-source option)**: video/YouTube sources can opt in
+  (checkbox per row in `SourceOrderView`, persisted as
+  `GenerationSettings.slides_sources`, same stable-key pattern as
+  `excluded_sources`; requires an OpenAI key — enforced by
+  `_validate_keys`). Phase 0 then extracts the slide content and
+  **interleaves it, timestamped, into the `Transcription`** (segments
+  `[Slide affichée de mm:ss à mm:ss] …` via
+  `ingestion/slide_merge.merge_slides_into_transcription`) — all
+  downstream phases (1–7) benefit without modification, and the
+  oral ↔ slide alignment is structural. Chain: ffmpeg samples 1 frame/2 s
+  (≤ 1280 px JPEG) → **tile-dHash two-pass grouping** (`infra/video/`):
+  pass 1 maps per-tile change stats → temporal-noise mask (webcam,
+  embedded video) + dynamic region (the slide zone); pass 2 splits on the
+  **fraction of the dynamic region changing at once** (double threshold
+  `F_LOW`/`F_HIGH`; the fraction is **scale-free** — normalised by the
+  per-video dynamic region, hence layout-invariant across fullscreen /
+  half-page / windowed slides; `F_HIGH` is **recall-biased** [0.18,
+  calibrated on a real corpus: element-level changes 0.06–0.16 vs
+  slide-level 0.29–0.73] since a missed slide loses content while a false
+  split costs one cheap vision call; progressive reveals keep one group
+  whose representative is the **final state**) → structural post-passes
+  (**not magnitude-based**: transition-fade slivers [single-sample groups]
+  coalesced into the next slide, consecutive parasitic re-detections
+  merged, **re-displayed slides dropped by content** — a speaker returning
+  to a slide does not re-analyze nor duplicate it;
+  `scripts/diagnose_slide_detection.py` replays detection on a real video
+  without vision calls and prints per-transition fractions + the final
+  timeline — the tuning tool for atypical decks) →
+  one vision call per slide (`OpenAIVisionAdapter`, `VisionModel`
+  configurable, default `gpt-5-mini`, JSON mode `{texte, visuels}`, output
+  in the STT-detected language; empty content → no segment injected). The
+  vision prompt is **content-focused by design**: it extracts knowledge,
+  data and meaning (chart trends + key values, diagram relations) and
+  explicitly ignores layout/colours/positions, headers/footers/page
+  numbers, article credits, and the presenter/webcam — layout chatter
+  polluted the synthesis and inflated output-token costs. Frames are
+  deleted after analysis (and the empty `frames/` parent removed) unless
+  `GenerationSettings.delete_frames_after_analysis` is `False` (UI
+  checkbox mirroring « Conserver les fichiers audio ») — then one
+  representative image per slide is kept as `frames/<source>/slide_NNN.jpg`
+  (intermediate samples always purged).
+  Guard-rails: per-minute + absolute slide caps and flash-group
+  absorption (all constants in `infra/video/_constants.py`); capped-out
+  groups raise a `SlideDetectionWarning` pipeline event (Logs panel).
+  Costs: pre-run estimate via `SourceWeight.slide_count` +
+  `CostEstimation.vision_usd` (folded into phase 0), real per-source cost
+  via `SlideAnalyzer.consumed_cost_usd_for` added to the phase 0
+  `PhaseExecution.cost_usd`. YouTube downloads the **progressive ≤ 720p**
+  stream (single file, no yt-dlp/ffmpeg merge). The vision prompt
+  (`phase_0_slide_analysis.j2`) is user-editable like every other prompt.
+  Spec: `docs/superpowers/specs/2026-07-01-analyse-slides-video-design.md`.
 - **Checkpoint / resume after error**: a Run keeps the same `RunId` from
   start to end. `RunOrchestrator.resume_or_create_run(project)` resumes
   the last Run if it is `FAILED`/`PAUSED`/`RUNNING`-orphan (`SUCCEEDED`

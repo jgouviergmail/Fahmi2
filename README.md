@@ -36,6 +36,19 @@ and takes effect at the next launch.
 - **Source ordering & exclusion**: the processing order (hence the chapter
   order of the final document) is configurable via drag and drop; any source
   can be excluded and re-included.
+- **Slide analysis (per-video option)**: tick a video or YouTube source to
+  have its slides/illustrations read by an OpenAI vision model
+  (`gpt-5-mini` by default, configurable). Slide changes are detected
+  (full-screen, half-page or windowed slides; progressive reveals are
+  captured at their final state), each slide is transcribed + its visuals
+  described, and the content is **interleaved, timestamped, into the
+  transcript** — so the synthesis aligns the spoken explanation with the
+  matching slide. The analysis focuses on knowledge and data (not layout or
+  presenter chatter). Cost is bounded (one vision call per slide, per-video
+  caps) and shown in the pre-run estimate. Requires an OpenAI key; with
+  the option on, YouTube downloads the ≤ 720p video instead of audio only.
+  Optionally keep one image per detected slide (`slide_001.jpg`…) for
+  viewing/troubleshooting.
 - **Consolidation mode**: **ordered** (1 source = 1 chapter, content copied
   in the chosen order) or **thematic rewrite** — the LLM aggregates and
   restructures the contents of all inputs cross-cuttingly by theme, like an
@@ -203,6 +216,24 @@ See [docs/02-presentation-technique.md](docs/02-presentation-technique.md) for
 the full breakdown.
 
 ## Status
+
+**v1.7.0** — **Slide analysis for videos**: tick any video/YouTube source to
+have its slides read by an **OpenAI vision model** (`gpt-5-mini` by default,
+configurable) and **interleaved, timestamped, into the transcript** — the
+whole pipeline (glossary, rephrasing, structuring, consolidation,
+translations) then aligns the spoken explanation with the matching slide.
+**Layout-invariant detection** (fullscreen, half-page or windowed slides;
+progressive reveals captured at their final state; webcam/embedded video
+absorbed by a temporal-noise mask; recall-biased threshold calibrated on a
+real corpus), **structural guards** (transition-fade coalescing,
+re-displayed slides deduped by content, per-video caps with a Logs warning),
+**content-focused vision prompt** (knowledge, data and meaning — no layout
+chatter; editable like every prompt), optional **keep slide images**
+(`slide_001.jpg`…), vision costs in the pre-run estimate **and** attributed
+per source in the cost matrix, ≤ 720p video download for YouTube sources
+with the option on, and a no-cost diagnostic tool
+(`scripts/diagnose_slide_detection.py`). **1450 passing tests**, ruff +
+mypy `--strict` clean.
 
 **v1.6.1** — **Visualizations refinements**: the content-**density** setting
 now noticeably drives the **knowledge-map size** (degree-based edge-first pruning —

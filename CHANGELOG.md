@@ -5,6 +5,70 @@ All notable changes to the Fahmi2 project.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] — 2026-07-02
+
+### Added — Slide analysis for videos (per-source option)
+
+- **Per-source option**: each video/YouTube source in the source list carries an
+  « Analyser les slides » checkbox (persisted as
+  `GenerationSettings.slides_sources`, stable-key pattern shared with
+  `excluded_sources`; requires an OpenAI key — enforced before the run, and only
+  for sources that are actually included).
+- **Vision reading, merged into the transcript**: each detected slide is read by
+  an **OpenAI vision model** (new `VisionModel` enum — `gpt-5-mini` default,
+  `gpt-5-nano` budget, `gpt-5.4-mini` higher quality — selectable in the
+  Generation settings) and injected as **timestamped segments**
+  (`[Slide affichée de mm:ss à mm:ss] …`) interleaved with the audio segments.
+  All downstream phases benefit without modification: term extraction/glossary,
+  rephrasing, structuring, consolidation, translations — the synthesis aligns
+  the spoken explanation with the matching slide structurally.
+- **Layout-invariant slide detection** (`infra/video/`): ffmpeg sampling
+  (1 frame / 2 s, longest side ≤ 1280 px) → **tile-dHash two-pass grouping** —
+  pass 1 learns a per-video **temporal-noise mask** (webcam, embedded video) and
+  the **dynamic region** (the slide zone, whatever its layout: fullscreen,
+  half-page or windowed); pass 2 splits on the **scale-free fraction** of the
+  dynamic region changing at once, with a **recall-biased threshold** calibrated
+  on a real corpus (element-level changes 0.06–0.16 vs slide-level 0.29–0.73).
+  Progressive reveals are captured at their **final state** (one vision call per
+  slide).
+- **Structural guards** (independent of any layout): transition-fade
+  micro-groups coalesced into the next slide; **re-displayed slides recognised
+  by content and not re-analysed** (no duplicated content when the speaker
+  returns to a previous slide); per-minute + absolute **caps** bound the cost on
+  pathological videos, with an explicit warning in the Logs panel
+  (`SlideDetectionWarning`).
+- **Content-focused vision prompt** (`phase_0_slide_analysis`, editable like
+  every prompt): extracts knowledge, data and meaning — faithful text, chart
+  trends and key values, diagram relations — and ignores layout, colours,
+  positions, headers/footers, page numbers, article credits, the presenter and
+  the webcam. Empty result when a frame carries no teaching content (no segment
+  injected).
+- **Keep slide images** option (mirror of « keep audio »): one representative
+  image per slide kept as `frames/<source>/slide_NNN.jpg` for viewing /
+  troubleshooting; otherwise everything is cleaned (including the previously
+  confusing empty `frames/` folder).
+- **Costs**: the pre-run estimate gains a vision line (`SourceWeight.slide_count`,
+  per-slide token estimate, downstream volume uplift) and the **real** vision
+  cost is attributed **per source** on phase 0 in the cost matrix. Vision API
+  concurrency is bounded **globally** by `llm_workers` across parallel sources;
+  vision errors get a typed retry classification (rate-limit / API / invalid
+  response retryable; invalid key not).
+- **YouTube**: with the option on, the ≤ 720p **progressive video** is
+  downloaded (single file, dedicated timeout) instead of the audio-only track.
+- **Diagnostic tool** `scripts/diagnose_slide_detection.py`: replays the
+  detection on any video (no vision calls, no cost) and prints per-transition
+  fractions + the final slide timeline — the tuning companion for atypical
+  decks (all detection knobs centralised in `infra/video/_constants.py`).
+
+### Notes
+
+- New `infra/vision/` (port `SlideVisionProvider` + OpenAI adapter + pricing +
+  fakes) and `infra/video/` (frame extraction + tile hashing + grouping)
+  subsystems, mirroring the existing ports/adapters patterns.
+- Pillow promoted to a direct dependency (it was only transitive via xhtml2pdf).
+- English translations for all new UI strings (i18n guard tests extended).
+- **1450 passing tests** (×3), ruff + mypy `--strict` clean.
+
 ## [1.6.1] — 2026-05-30
 
 ### Changed — Visualizations: readable knowledge-map layout

@@ -24,7 +24,10 @@ from PySide6.QtCore import QCoreApplication, QObject, Qt, QThread, Signal
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox, QWidget
 
-from fahmi2.app._cost_common import TEXT_BYTES_PER_TOKEN
+from fahmi2.app._cost_common import (
+    TEXT_BYTES_PER_TOKEN,
+    estimated_slide_count,
+)
 from fahmi2.app.cost_estimator import CostEstimation, CostEstimator, SourceWeight
 from fahmi2.app.generation_export import export_generation_documents
 from fahmi2.app.hardware_probe import HardwareInfo
@@ -62,6 +65,9 @@ from fahmi2.infra.storage.sqlite_state import SqliteState
 from fahmi2.infra.stt.faster_whisper_adapter import FasterWhisperAdapter
 from fahmi2.infra.stt.interface import STTProvider
 from fahmi2.infra.stt.openai_whisper_adapter import OpenAIWhisperAdapter
+from fahmi2.infra.video.frame_extractor import SlideFrameExtractor
+from fahmi2.infra.vision.openai_vision import OpenAIVisionAdapter
+from fahmi2.infra.vision.slide_analyzer import SlideAnalyzer
 from fahmi2.pipeline.engine import PipelineEngine
 from fahmi2.pipeline.events import (
     PhaseFinished,
@@ -70,6 +76,7 @@ from fahmi2.pipeline.events import (
     RetryAttempt,
     RunFinished,
     RunStarted,
+    SlideDetectionWarning,
 )
 from fahmi2.pipeline.handlers.phase_0_stt import Phase0SttHandler
 from fahmi2.pipeline.handlers.phase_1_term_extraction import (
@@ -206,9 +213,11 @@ def _source_weight(
     """
     kind = source.source.kind
     if kind is SourceKind.YOUTUBE:
+        duration = youtube_downloader.probe_duration(source.source.location)
         return SourceWeight(
-            audio_seconds=youtube_downloader.probe_duration(source.source.location),
+            audio_seconds=duration,
             text_tokens=0.0,
+            slide_count=_estimated_slide_count(source, duration, settings),
         )
     if kind is SourceKind.DOCUMENT:
         size_bytes = source.source.as_path.stat().st_size
@@ -217,10 +226,32 @@ def _source_weight(
             text_tokens=size_bytes / TEXT_BYTES_PER_TOKEN,
             reformulated=settings.reformulate_documents,
         )
+    duration = ffmpeg.probe_duration_seconds(source.source.as_path)
     return SourceWeight(
-        audio_seconds=ffmpeg.probe_duration_seconds(source.source.as_path),
+        audio_seconds=duration,
         text_tokens=0.0,
+        slide_count=_estimated_slide_count(source, duration, settings),
     )
+
+
+def _estimated_slide_count(
+    source: SourceExecution, audio_seconds: float, settings: GenerationSettings
+) -> float:
+    """Nombre de slides estimé pour l'option « analyser les slides ».
+
+    Args:
+        source: Source évaluée.
+        audio_seconds: Durée audio estimée de la source.
+        settings: Réglages (liste des sources flaggées).
+
+    Returns:
+        Le nombre estimé (cf. ``_cost_common.estimated_slide_count``) si la
+        source est flaggée, 0 sinon (audio et documents ne sont jamais
+        flaggés côté UI).
+    """
+    if source.source.order_key() not in settings.slides_sources:
+        return 0.0
+    return estimated_slide_count(audio_seconds)
 
 
 class _RunWorker(QObject):
@@ -598,6 +629,7 @@ class GenerationController(QObject):
             prompts=PromptLoader(override_dir=self._app_paths.prompts_override_dir),
             pause_token=self._current_pause_token,
             event_bus=event_bus,
+            slide_analyzer=self._build_slide_analyzer(self._current_project),
         )
 
         self._header_bar.set_running()
@@ -808,6 +840,7 @@ class GenerationController(QObject):
             translation_languages_count=translation_langs,
             phases_config=settings.phases_config,
             consolidation_mode=settings.consolidation_mode,
+            vision_model=settings.vision_model,
         )
         _show_cost_estimation_dialog(
             self._window,
@@ -1168,7 +1201,10 @@ class GenerationController(QObject):
                 ),
             )
             return False
-        needs_openai = project.generation.stt_provider is SttProvider.OPENAI_CLOUD
+        needs_openai = (
+            project.generation.stt_provider is SttProvider.OPENAI_CLOUD
+            or bool(project.generation.effective_slides_sources())
+        )
         if needs_openai and not self._secrets_service.has_openai_key():
             QMessageBox.critical(
                 self._window,
@@ -1177,12 +1213,48 @@ class GenerationController(QObject):
                 ),
                 QCoreApplication.translate(
                     "GenerationController",
-                    "Le provider STT cloud nécessite une clé OpenAI. "
-                    "Renseigne-la dans « Édition → Paramètres globaux ».",
+                    "Le STT cloud et l'analyse des slides nécessitent une clé "
+                    "OpenAI. Renseigne-la dans « Édition → Paramètres globaux ».",
                 ),
             )
             return False
         return True
+
+    def _build_slide_analyzer(self, project: Project) -> SlideAnalyzer | None:
+        """Construit l'analyseur de slides si l'option est activée.
+
+        Args:
+            project: Projet en cours (settings génération non ``None``).
+
+        Returns:
+            La façade configurée, ou ``None`` si aucune source n'a l'option
+            (ou si la clé OpenAI est absente — cas déjà bloqué par
+            ``_validate_keys``).
+        """
+        from fahmi2.core.config.paths import (  # noqa: PLC0415 — éviter cycle
+            resolve_ffmpeg_binary_or_none,
+        )
+
+        settings = project.generation
+        if settings is None or not settings.effective_slides_sources():
+            return None
+        api_key = self._secrets_service.get_openai_api_key()
+        if api_key is None:
+            return None
+        vision = OpenAIVisionAdapter(
+            api_key=api_key,
+            prompts=PromptLoader(override_dir=self._app_paths.prompts_override_dir),
+            model=str(settings.vision_model),
+        )
+        return SlideAnalyzer(
+            frame_extractor=SlideFrameExtractor(
+                ffmpeg_binary=resolve_ffmpeg_binary_or_none()
+            ),
+            vision_provider=vision,
+            llm_workers=settings.parallelism.llm_workers,
+            pause_token=self._current_pause_token,
+            delete_frames_after=settings.delete_frames_after_analysis,
+        )
 
     # ------------------------------------------------------------- event bus
 
@@ -1237,7 +1309,7 @@ class GenerationController(QObject):
         self._stats_strip.apply_snapshot(stats_vm.snapshot(run))
 
 
-def _to_log_event(event: PipelineEvent) -> LogEvent:
+def _to_log_event(event: PipelineEvent) -> LogEvent:  # noqa: PLR0911
     """Convertit un ``PipelineEvent`` en ``LogEvent`` pour le LogsDock.
 
     Args:
@@ -1314,6 +1386,21 @@ def _to_log_event(event: PipelineEvent) -> LogEvent:
             phase_id=str(event.phase_id),
             source_id=event.source_id.value if event.source_id else None,
             extra=extra,
+        )
+    if isinstance(event, SlideDetectionWarning):
+        return LogEvent(
+            timestamp=event.timestamp,
+            severity=Severity.WARNING,
+            code="SLIDES_DETECTION_UNSTABLE",
+            message=(
+                f"Détection de slides instable pour la source "
+                f"{event.source_id.value[:8]}… : {event.dropped_groups} "
+                f"image(s) ignorée(s) par les plafonds (coût borné ; contenu "
+                f"de slides potentiellement incomplet)."
+            ),
+            run_id=event.run_id.value,
+            source_id=event.source_id.value,
+            extra={"dropped_groups": event.dropped_groups},
         )
     if isinstance(event, RetryAttempt):
         return LogEvent(

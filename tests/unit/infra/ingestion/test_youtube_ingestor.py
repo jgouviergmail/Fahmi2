@@ -24,8 +24,12 @@ pytestmark = pytest.mark.skipif(not has_ffmpeg_in_path(), reason="ffmpeg requis"
 class _RealAudioDownloader(FakeYoutubeDownloader):
     """Downloader fake produisant un vrai WAV (pour l'extraction ffmpeg)."""
 
-    def download_audio(self, url: str, dest_dir: Path, stem: str) -> Path:
-        del url
+    def __init__(self) -> None:
+        super().__init__()
+        self.audio_calls: list[str] = []
+        self.video_calls: list[str] = []
+
+    def _make_media(self, dest_dir: Path, stem: str) -> Path:
         dest_dir.mkdir(parents=True, exist_ok=True)
         out = dest_dir / f"{stem}.wav"
         subprocess.run(
@@ -38,6 +42,14 @@ class _RealAudioDownloader(FakeYoutubeDownloader):
             capture_output=True,
         )
         return out
+
+    def download_audio(self, url: str, dest_dir: Path, stem: str) -> Path:
+        self.audio_calls.append(url)
+        return self._make_media(dest_dir, stem)
+
+    def download_video(self, url: str, dest_dir: Path, stem: str) -> Path:
+        self.video_calls.append(url)
+        return self._make_media(dest_dir, stem)
 
 
 def _deps(tmp_path: Path) -> IngestionDeps:
@@ -61,6 +73,60 @@ def test_youtube_ingest_delegates_to_media(tmp_path: Path) -> None:
     assert transcription.segments
     # Le fichier téléchargé intermédiaire est nettoyé.
     assert not (tmp_path / "ws" / "downloads" / f"{_SOURCE_ID}.wav").exists()
+
+
+def test_youtube_avec_slides_telecharge_la_video(tmp_path: Path) -> None:
+    """analyze_slides=True : la vidéo est téléchargée (pas l'audio seul) et le
+    contenu des slides est fusionné dans la transcription."""
+    from fahmi2.infra.video._fakes import FakeSlideFrameExtractor  # noqa: PLC0415
+    from fahmi2.infra.vision._fakes import FakeVisionProvider  # noqa: PLC0415
+    from fahmi2.infra.vision.slide_analyzer import SlideAnalyzer  # noqa: PLC0415
+
+    analyzer = SlideAnalyzer(
+        frame_extractor=FakeSlideFrameExtractor(slide_count=1),
+        vision_provider=FakeVisionProvider(),
+        llm_workers=1,
+    )
+    downloader = _RealAudioDownloader()
+    ingestor = YoutubeIngestor(downloader, MediaIngestor())
+    deps = _deps(tmp_path)
+    deps = IngestionDeps(
+        workspace=deps.workspace,
+        artifacts=deps.artifacts,
+        stt_provider=deps.stt_provider,
+        ffmpeg=deps.ffmpeg,
+        slide_analyzer=analyzer,
+    )
+
+    transcription = ingestor.ingest(
+        InputSource(kind=SourceKind.YOUTUBE, location="https://youtu.be/abc"),
+        _SOURCE_ID,
+        deps,
+        language_hint=Language.FR,
+        delete_audio_after=True,
+        analyze_slides=True,
+    )
+
+    assert downloader.video_calls == ["https://youtu.be/abc"]
+    assert downloader.audio_calls == []
+    assert any(s.text.startswith("[Slide") for s in transcription.segments)
+
+
+def test_youtube_sans_slides_telecharge_l_audio(tmp_path: Path) -> None:
+    """Comportement historique préservé : audio seul, pas de vidéo."""
+    downloader = _RealAudioDownloader()
+    ingestor = YoutubeIngestor(downloader, MediaIngestor())
+
+    ingestor.ingest(
+        InputSource(kind=SourceKind.YOUTUBE, location="https://youtu.be/abc"),
+        _SOURCE_ID,
+        _deps(tmp_path),
+        language_hint=Language.FR,
+        delete_audio_after=True,
+    )
+
+    assert downloader.audio_calls == ["https://youtu.be/abc"]
+    assert downloader.video_calls == []
 
 
 def test_youtube_ingest_propagates_download_error(tmp_path: Path) -> None:

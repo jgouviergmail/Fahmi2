@@ -21,6 +21,7 @@ from fahmi2.domain.phase import PhaseExecution
 from fahmi2.domain.source import SourceExecution
 from fahmi2.infra.ingestion.interface import IngestionDeps
 from fahmi2.infra.stt.interface import Transcription
+from fahmi2.pipeline.events import SlideDetectionWarning
 from fahmi2.pipeline.phase_handler import PhaseContext, PhaseHandler
 from fahmi2.pipeline.workspace_layout import transcript_path
 
@@ -70,11 +71,13 @@ class Phase0SttHandler(PhaseHandler):
 
         started = datetime.now(tz=UTC)
         out_path = transcript_path(ctx.workspace, source.source_id.value)
+        analyze_slides = source.source.order_key() in ctx.settings.slides_sources
         deps = IngestionDeps(
             workspace=ctx.workspace,
             artifacts=ctx.artifacts,
             stt_provider=ctx.stt_provider,
             ffmpeg=ctx.ffmpeg,
+            slide_analyzer=ctx.slide_analyzer,
         )
         transcription = ctx.ingestion.ingest(
             source.source,
@@ -82,8 +85,22 @@ class Phase0SttHandler(PhaseHandler):
             deps,
             language_hint=ctx.settings.source_language,
             delete_audio_after=ctx.settings.delete_audio_after_stt,
+            analyze_slides=analyze_slides,
         )
         cost = ctx.stt_provider.estimate_cost(transcription.duration_seconds)
+        if analyze_slides and ctx.slide_analyzer is not None:
+            # Coût vision attribué à la source (pattern per-source v1.5.1).
+            cost += ctx.slide_analyzer.consumed_cost_usd_for(source.source_id.value)
+            dropped = ctx.slide_analyzer.dropped_groups_for(source.source_id.value)
+            if dropped > 0:
+                ctx.event_bus.publish(
+                    SlideDetectionWarning(
+                        timestamp=datetime.now(tz=UTC),
+                        run_id=ctx.run.id,
+                        source_id=source.source_id,
+                        dropped_groups=dropped,
+                    )
+                )
         ctx.artifacts.write_json_atomic(
             out_path,
             _serialize_transcription(transcription),

@@ -51,6 +51,16 @@ class PromptTemplateMeta:
 # Ordre d'affichage dans l'UI : suit l'ordre logique du pipeline.
 _TEMPLATE_METADATA: tuple[PromptTemplateMeta, ...] = (
     PromptTemplateMeta(
+        name="phase_0_slide_analysis",
+        display_name="Phase 0 — Analyse des slides (vision)",
+        description=(
+            "Analyse vision d'une image de slide : transcription fidèle du "
+            "texte + description des éléments visuels. Utilisé quand "
+            "l'option « analyser les slides » est activée sur une source "
+            "vidéo/YouTube."
+        ),
+    ),
+    PromptTemplateMeta(
         name="phase_1_term_extraction",
         display_name="Phase 1 — Extraction des termes",
         description=(

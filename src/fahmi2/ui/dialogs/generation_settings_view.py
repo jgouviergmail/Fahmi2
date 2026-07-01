@@ -56,6 +56,7 @@ from fahmi2.domain.enums import (
     LocalSttModel,
     SttProvider,
     StylePreset,
+    VisionModel,
 )
 from fahmi2.domain.generation import (
     GENERATION_EXPORT_FORMATS,
@@ -79,6 +80,7 @@ from fahmi2.ui._model_labels import (
     labeled_enum_combo,
     llm_model_labels,
     local_stt_model_labels,
+    vision_model_labels,
 )
 from fahmi2.ui.pedagogy_labels import export_labels
 from fahmi2.ui.widgets.language_selection_view import LanguageSelectionView
@@ -295,14 +297,25 @@ class GenerationSettingsView(QDialog):
 
         self._stt_local_model_combo = labeled_enum_combo(self, local_stt_model_labels())
         self._stt_cloud_model_combo = labeled_enum_combo(self, cloud_stt_model_labels())
+        self._vision_model_combo = labeled_enum_combo(self, vision_model_labels())
 
         self._keep_audio_checkbox = QCheckBox(
             self.tr("Conserver les fichiers audio (réécoute / dépannage)"), self
+        )
+        self._keep_frames_checkbox = QCheckBox(
+            self.tr("Conserver les images de slides (visualisation / dépannage)"),
+            self,
         )
         self._keep_audio_checkbox.setToolTip(
             self.tr(
                 "Si coché, les fichiers .wav extraits des médias (vidéo/audio/YouTube) ne sont "
                 "pas supprimés après la transcription."
+            )
+        )
+        self._keep_frames_checkbox.setToolTip(
+            self.tr(
+                "Si coché, une image par slide détectée (slide_001.jpg…) est "
+                "conservée dans frames/<source>/ après l'analyse vision."
             )
         )
 
@@ -508,6 +521,7 @@ class GenerationSettingsView(QDialog):
         model_form = settings_form()
         model_form.addRow(self.tr("Modèle hors ligne (GPU)"), self._stt_local_model_combo)
         model_form.addRow(self.tr("Modèle en ligne (OpenAI)"), self._stt_cloud_model_combo)
+        model_form.addRow(self.tr("Modèle vision (slides)"), self._vision_model_combo)
         model_layout.addLayout(model_form)
         layout.addWidget(model_card)
 
@@ -522,6 +536,7 @@ class GenerationSettingsView(QDialog):
         perf_form.addRow(self.tr("Transcriptions simultanées"), self._stt_workers_input)
         perf_layout.addLayout(perf_form)
         perf_layout.addWidget(self._keep_audio_checkbox)
+        perf_layout.addWidget(self._keep_frames_checkbox)
         layout.addWidget(perf_card)
 
         layout.addStretch(1)
@@ -651,6 +666,7 @@ class GenerationSettingsView(QDialog):
         self,
         source_order: tuple[str, ...] | None = None,
         excluded: tuple[str, ...] | None = None,
+        slides: tuple[str, ...] | None = None,
     ) -> None:
         """Re-scanne les sources, réconcilie l'ordre/exclusion et repeuple la liste."""
         order = (
@@ -663,6 +679,11 @@ class GenerationSettingsView(QDialog):
             if excluded is not None
             else self._source_order_view.excluded_sources()
         )
+        slides_keys = (
+            slides
+            if slides is not None
+            else self._source_order_view.slides_sources()
+        )
         available = self._scan_available()
         available_keys = [source.order_key() for source in available]
         included, excluded_keys = reconcile_source_order(available_keys, order, excl)
@@ -671,6 +692,7 @@ class GenerationSettingsView(QDialog):
             included=included,
             excluded=excluded_keys,
             known=set(order) | set(excl),
+            slides=slides_keys,
         )
 
     def _on_stt_changed(self, index: int) -> None:
@@ -734,7 +756,13 @@ class GenerationSettingsView(QDialog):
         cloud_model_idx = self._stt_cloud_model_combo.findData(generation.stt_cloud_model)
         if cloud_model_idx >= 0:
             self._stt_cloud_model_combo.setCurrentIndex(cloud_model_idx)
+        vision_idx = self._vision_model_combo.findData(generation.vision_model)
+        if vision_idx >= 0:
+            self._vision_model_combo.setCurrentIndex(vision_idx)
         self._keep_audio_checkbox.setChecked(not generation.delete_audio_after_stt)
+        self._keep_frames_checkbox.setChecked(
+            not generation.delete_frames_after_analysis
+        )
         llm_idx = self._llm_combo.findData(generation.llm_model)
         if llm_idx >= 0:
             self._llm_combo.setCurrentIndex(llm_idx)
@@ -745,7 +773,9 @@ class GenerationSettingsView(QDialog):
         for fmt, cb in self._export_checks.items():
             cb.setChecked(fmt in generation.export_formats)
         self._refresh_source_order(
-            generation.source_order, generation.excluded_sources
+            generation.source_order,
+            generation.excluded_sources,
+            generation.slides_sources,
         )
 
     def _on_accept(self) -> None:
@@ -783,6 +813,7 @@ class GenerationSettingsView(QDialog):
             stt_provider=SttProvider(self._stt_combo.currentData()),
             stt_local_model=LocalSttModel(self._stt_local_model_combo.currentData()),
             stt_cloud_model=CloudSttModel(self._stt_cloud_model_combo.currentData()),
+            vision_model=VisionModel(self._vision_model_combo.currentData()),
             llm_model=LLMModel(self._llm_combo.currentData()),
             phases_config=self._phase_configs_widget.get_phase_configs(),
             cost_ceiling_usd=cost_ceiling,
@@ -791,10 +822,12 @@ class GenerationSettingsView(QDialog):
                 llm_workers=self._llm_workers_input.value(),
             ),
             delete_audio_after_stt=not self._keep_audio_checkbox.isChecked(),
+            delete_frames_after_analysis=not self._keep_frames_checkbox.isChecked(),
             export_formats=export_formats,
             reformulate_documents=self._reformulate_documents_checkbox.isChecked(),
             youtube_urls=youtube_urls,
             source_order=self._source_order_view.source_order(),
             excluded_sources=self._source_order_view.excluded_sources(),
+            slides_sources=self._source_order_view.slides_sources(),
         )
         self.accept()

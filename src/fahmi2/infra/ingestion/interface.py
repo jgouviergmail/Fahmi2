@@ -17,6 +17,7 @@ from fahmi2.domain.source import InputSource
 from fahmi2.infra.audio.ffmpeg_extractor import FFmpegExtractor
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.infra.stt.interface import STTProvider, Transcription
+from fahmi2.infra.vision.slide_analyzer import SlideAnalyzer
 
 
 @dataclass(frozen=True)
@@ -28,12 +29,15 @@ class IngestionDeps:
         artifacts: Helper d'écriture atomique d'artefacts.
         stt_provider: Provider STT (vidéo/audio/YouTube).
         ffmpeg: Extracteur ffmpeg.
+        slide_analyzer: Analyseur de slides (``None`` = option indisponible —
+            pas de clé OpenAI ou aucune source flaggée).
     """
 
     workspace: Path
     artifacts: FsArtifactStore
     stt_provider: STTProvider
     ffmpeg: FFmpegExtractor
+    slide_analyzer: SlideAnalyzer | None = None
 
 
 class SourceIngestor(Protocol):
@@ -51,6 +55,7 @@ class SourceIngestor(Protocol):
         *,
         language_hint: Language | None,
         delete_audio_after: bool,
+        analyze_slides: bool = False,
     ) -> Transcription:
         """Transcrit ou extrait le contenu de ``source`` en une ``Transcription``.
 
@@ -60,6 +65,9 @@ class SourceIngestor(Protocol):
             deps: Dépendances injectées (ffmpeg, STT, workspace, artefacts).
             language_hint: Indice de langue pour le STT (``None`` = auto).
             delete_audio_after: Supprime l'audio intermédiaire après usage si ``True``.
+            analyze_slides: Analyse les slides de la vidéo et fusionne leur
+                contenu dans la transcription (vidéo/YouTube uniquement ;
+                requiert ``deps.slide_analyzer``).
 
         Returns:
             La ``Transcription`` produite.

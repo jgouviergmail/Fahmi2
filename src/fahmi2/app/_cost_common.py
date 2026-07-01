@@ -20,6 +20,14 @@ TOKENS_PER_WORD = 1.3
 #: ~4 octets par token (un caractère accenté pèse 2 octets, ce qui surévalue
 #: légèrement le compte de tokens — acceptable pour une estimation indicative).
 TEXT_BYTES_PER_TOKEN = 4.0
+#: Slides estimées par minute de vidéo (estimation pré-run, cours typique) —
+#: pour l'option « analyser les slides ».
+ESTIMATED_SLIDES_PER_MINUTE = 1.0
+_SECONDS_PER_MINUTE = 60.0
+#: Tokens de texte injectés dans la transcription par slide analysée (texte
+#: transcrit + description des visuels) : grossit le volume d'entrée des
+#: phases LLM aval.
+SLIDE_TEXT_TOKENS_PER_SLIDE = 250.0
 
 # Multiplicateurs empiriques appliqués aux tokens de sortie quand le mode
 # thinking est activé.
@@ -31,6 +39,18 @@ _THINKING_OUTPUT_MULTIPLIER_MAX = 6.0
 #: Demi-largeur de la fourchette d'incertitude de l'estimation (±33 %).
 #: Heuristique communiquée (« estimation indicative »), pas un intervalle statistique.
 ESTIMATE_UNCERTAINTY_RATIO = 0.33
+
+
+def estimated_slide_count(audio_seconds: float) -> float:
+    """Nombre de slides estimé pour une durée audio (option « slides »).
+
+    Args:
+        audio_seconds: Durée audio de la source (secondes).
+
+    Returns:
+        ``durée en minutes × ESTIMATED_SLIDES_PER_MINUTE``.
+    """
+    return audio_seconds / _SECONDS_PER_MINUTE * ESTIMATED_SLIDES_PER_MINUTE
 
 
 def cost_range(total_usd: float) -> tuple[float, float]:

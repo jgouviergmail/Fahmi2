@@ -22,6 +22,7 @@ from fahmi2.domain.enums import (
     PhaseStatus,
     RunStatus,
     SupportDensity,
+    VisionModel,
 )
 from fahmi2.domain.ids import ProjectId, RunId, SourceId
 from fahmi2.domain.pedagogy import DEFAULT_PEDAGOGY_LLM_WORKERS
@@ -188,6 +189,42 @@ def test_generation_deserialize_lenient_without_consolidation_mode(
     del payload["consolidation_mode"]
     gen = _deserialize_generation_settings(payload)
     assert gen.consolidation_mode is ConsolidationMode.ORDERED
+
+
+def test_settings_roundtrip_slides_fields(make_generation_settings: Any) -> None:
+    # slides_sources et vision_model survivent à l'aller-retour JSON.
+    settings = make_generation_settings(
+        slides_sources=("cours1.mp4", "https://youtu.be/xyz"),
+        vision_model=VisionModel.GPT_5_NANO,
+    )
+    payload = _serialize_generation_settings(settings)
+    restored = _deserialize_generation_settings(payload)
+    assert restored.slides_sources == ("cours1.mp4", "https://youtu.be/xyz")
+    assert restored.vision_model is VisionModel.GPT_5_NANO
+
+
+def test_settings_lenient_defaults_slides_fields(
+    make_generation_settings: Any,
+) -> None:
+    # Un blob v2 antérieur (champs absents) retombe sur les défauts.
+    payload = _serialize_generation_settings(make_generation_settings())
+    payload.pop("slides_sources")
+    payload.pop("vision_model")
+    payload.pop("delete_frames_after_analysis")
+    restored = _deserialize_generation_settings(payload)
+    assert restored.slides_sources == ()
+    assert restored.vision_model is VisionModel.GPT_5_MINI
+    assert restored.delete_frames_after_analysis is True
+
+
+def test_settings_roundtrip_delete_frames_flag(
+    make_generation_settings: Any,
+) -> None:
+    payload = _serialize_generation_settings(
+        make_generation_settings(delete_frames_after_analysis=False)
+    )
+    restored = _deserialize_generation_settings(payload)
+    assert restored.delete_frames_after_analysis is False
 
 
 def test_get_unknown_project_returns_none(tmp_path: Path) -> None:

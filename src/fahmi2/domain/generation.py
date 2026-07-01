@@ -20,6 +20,7 @@ from fahmi2.domain.enums import (
     PhaseId,
     SttProvider,
     StylePreset,
+    VisionModel,
 )
 from fahmi2.domain.phase import PhaseConfig
 
@@ -130,6 +131,16 @@ class GenerationSettings:
             ou URL) des sources **incluses**, dans l'ordre de traitement souhaité.
         excluded_sources: Clés stables des sources **exclues** (présentes mais
             non traitées).
+        slides_sources: Clés stables (``InputSource.order_key()``) des sources
+            vidéo/YouTube dont l'analyse des slides est activée (contenu des
+            slides intercalé dans la transcription, phase 0). Réconciliées au
+            scan comme ``excluded_sources`` (clés obsolètes ignorées).
+        vision_model: Modèle vision OpenAI utilisé pour lire les slides.
+        delete_frames_after_analysis: Si ``True`` (défaut), les images de
+            slides extraites sont supprimées après analyse ; sinon les images
+            **représentatives** (une par slide) sont conservées dans
+            ``frames/<source>/`` (visualisation / dépannage, miroir de
+            ``delete_audio_after_stt``).
         consolidation_mode: Mode d'assemblage du consolidé (phase 5).
             ``ORDERED`` (défaut) : 1 source = 1 chapitre dans l'ordre choisi.
             ``THEMATIC`` : refonte thématique transversale par le LLM (en ce mode,
@@ -155,6 +166,9 @@ class GenerationSettings:
     youtube_urls: tuple[str, ...] = ()
     source_order: tuple[str, ...] = ()
     excluded_sources: tuple[str, ...] = ()
+    slides_sources: tuple[str, ...] = ()
+    vision_model: VisionModel = VisionModel.GPT_5_MINI
+    delete_frames_after_analysis: bool = True
     consolidation_mode: ConsolidationMode = ConsolidationMode.ORDERED
 
     def __post_init__(self) -> None:
@@ -187,3 +201,17 @@ class GenerationSettings:
                 f"export_formats must be a subset of {allowed}; "
                 f"got invalid: {invalid}"
             )
+
+    def effective_slides_sources(self) -> tuple[str, ...]:
+        """Clés « analyser les slides » réellement actives (hors exclues).
+
+        L'état coché d'une source **exclue** est conservé (pour une future
+        réinclusion) mais ne doit déclencher ni exigence de clé OpenAI ni
+        construction de l'analyseur.
+
+        Returns:
+            Les clés de ``slides_sources`` non présentes dans
+            ``excluded_sources``, dans l'ordre d'origine.
+        """
+        excluded = set(self.excluded_sources)
+        return tuple(key for key in self.slides_sources if key not in excluded)

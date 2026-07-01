@@ -17,6 +17,10 @@ from fahmi2.core.errors.severity import Severity
 
 _YTDLP_BINARY = "yt-dlp"
 _BESTAUDIO_FORMAT = "bestaudio/best"
+#: Format vidéo pour l'analyse des slides : flux **progressif** ≤ 720p (un
+#: seul fichier, pas de fusion vidéo+audio nécessitant ffmpeg côté yt-dlp) —
+#: suffisant pour lire des slides, minimise le téléchargement.
+_VIDEO_FORMAT_720P = "best[height<=720][ext=mp4]/best[height<=720]/best"
 _NO_PLAYLIST = "--no-playlist"
 #: Suffixes des artefacts de téléchargement partiel/temporaire de yt-dlp, à
 #: ignorer lors de la sélection du fichier audio produit.
@@ -25,6 +29,9 @@ _PARTIAL_DOWNLOAD_SUFFIXES = frozenset({".part", ".ytdl", ".temp"})
 #: cours peut produire un flux audio volumineux sur une connexion lente. Au-delà,
 #: le processus est tué pour éviter un blocage indéfini du worker.
 _DOWNLOAD_TIMEOUT_SECONDS = 1800.0
+#: Délai maximal du téléchargement **vidéo** ≤ 720p (s) : le fichier est bien
+#: plus volumineux que la piste audio (2 h ≈ 0,7–1,5 Go) — doublé.
+_VIDEO_DOWNLOAD_TIMEOUT_SECONDS = 3600.0
 #: Délai maximal de la sonde de durée (s). L'opération ne télécharge pas le
 #: média (``--skip-download``), donc reste rapide.
 _PROBE_TIMEOUT_SECONDS = 60.0
@@ -43,6 +50,25 @@ class YoutubeDownloader(Protocol):
 
         Returns:
             Le chemin du fichier audio téléchargé.
+
+        Raises:
+            IngestionError: ``INGESTION.YTDLP_NOT_FOUND`` ou
+                ``INGESTION.YOUTUBE_DOWNLOAD_FAILED``.
+        """
+
+    def download_video(self, url: str, dest_dir: Path, stem: str) -> Path:
+        """Télécharge la vidéo (≤ 720p, flux progressif) de ``url``.
+
+        Utilisé quand l'option « analyser les slides » est activée : la piste
+        vidéo est nécessaire pour extraire les frames de slides.
+
+        Args:
+            url: URL de la vidéo YouTube (unitaire).
+            dest_dir: Dossier de destination (créé si absent).
+            stem: Nom de base du fichier produit (sans extension).
+
+        Returns:
+            Le chemin du fichier vidéo téléchargé.
 
         Raises:
             IngestionError: ``INGESTION.YTDLP_NOT_FOUND`` ou
@@ -86,15 +112,57 @@ class YtDlpDownloader:
             IngestionError: ``INGESTION.YTDLP_NOT_FOUND`` si le binaire est
                 introuvable, ``INGESTION.YOUTUBE_DOWNLOAD_FAILED`` sinon.
         """
+        return self._download(
+            url, dest_dir, stem, _BESTAUDIO_FORMAT, _DOWNLOAD_TIMEOUT_SECONDS
+        )
+
+    def download_video(self, url: str, dest_dir: Path, stem: str) -> Path:
+        """Télécharge la vidéo ≤ 720p (cf. ``YoutubeDownloader``).
+
+        Args:
+            url: URL de la vidéo YouTube.
+            dest_dir: Dossier de destination.
+            stem: Nom de base du fichier produit.
+
+        Returns:
+            Le chemin du fichier vidéo téléchargé.
+
+        Raises:
+            IngestionError: ``INGESTION.YTDLP_NOT_FOUND`` si le binaire est
+                introuvable, ``INGESTION.YOUTUBE_DOWNLOAD_FAILED`` sinon.
+        """
+        return self._download(
+            url, dest_dir, stem, _VIDEO_FORMAT_720P, _VIDEO_DOWNLOAD_TIMEOUT_SECONDS
+        )
+
+    def _download(
+        self, url: str, dest_dir: Path, stem: str, fmt: str, timeout_seconds: float
+    ) -> Path:
+        """Télécharge ``url`` au format yt-dlp ``fmt`` (corps commun audio/vidéo).
+
+        Args:
+            url: URL de la vidéo YouTube.
+            dest_dir: Dossier de destination.
+            stem: Nom de base du fichier produit.
+            fmt: Sélecteur de format yt-dlp (``-f``).
+            timeout_seconds: Délai maximal du téléchargement.
+
+        Returns:
+            Le chemin du fichier téléchargé.
+
+        Raises:
+            IngestionError: ``INGESTION.YTDLP_NOT_FOUND`` si le binaire est
+                introuvable, ``INGESTION.YOUTUBE_DOWNLOAD_FAILED`` sinon.
+        """
         dest_dir.mkdir(parents=True, exist_ok=True)
         output_template = str(dest_dir / f"{stem}.%(ext)s")
         cmd = [
-            self._ytdlp, _NO_PLAYLIST, "-f", _BESTAUDIO_FORMAT,
+            self._ytdlp, _NO_PLAYLIST, "-f", fmt,
             "-o", output_template, url,
         ]
         try:
             subprocess.run(  # noqa: S603
-                cmd, check=True, capture_output=True, timeout=_DOWNLOAD_TIMEOUT_SECONDS
+                cmd, check=True, capture_output=True, timeout=timeout_seconds
             )
         except FileNotFoundError as exc:
             raise IngestionError(
@@ -116,7 +184,7 @@ class YtDlpDownloader:
                 severity=Severity.ERROR,
                 technical_details={
                     "url": url,
-                    "timeout_seconds": _DOWNLOAD_TIMEOUT_SECONDS,
+                    "timeout_seconds": timeout_seconds,
                 },
             ) from exc
         except subprocess.CalledProcessError as exc:

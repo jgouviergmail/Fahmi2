@@ -73,6 +73,10 @@ class EmbeddingError(Fahmi2Error):
     """Erreur du sous-système d'embeddings (retrieval sémantique du Dialogue)."""
 
 
+class VisionError(Fahmi2Error):
+    """Erreur du sous-système vision (analyse des slides des vidéos)."""
+
+
 class FFmpegError(Fahmi2Error):
     """Erreur d'extraction audio via ffmpeg."""
 

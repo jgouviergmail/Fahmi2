@@ -103,7 +103,7 @@ dist/Fahmi2/
 ├── _internal/
 │   ├── fahmi2/
 │   │   ├── core/errors/messages.fr.json
-│   │   ├── infra/prompts/defaults/*.j2   ← 8 phases + 3 phase_5_* thematic + phase_6_glossary_localization + 8 pedagogy_* + 3 chat_*
+│   │   ├── infra/prompts/defaults/*.j2   ← 8 phases + phase_0_slide_analysis (vision) + 3 phase_5_* thematic + phase_6_glossary_localization + 8 pedagogy_* + 3 chat_* + 5 visuals_* (bundled by glob — new .j2 files need no spec change)
 │   │   ├── infra/storage/_schema.sql
 │   │   ├── infra/export/_assets/visuals/*   ← Visualizations: vendored JS (Cytoscape + extensions) + CSS + JS + HTML templates
 │   │   └── i18n/compiled/*.qm            ← UI translations (FR source + EN)

@@ -443,52 +443,52 @@ This action is irreversible.</translation>
 <context>
     <name>GenerationController</name>
     <message>
-        <location filename="../../ui/generation_controller.py" line="501"/>
-        <location filename="../../ui/generation_controller.py" line="680"/>
-        <location filename="../../ui/generation_controller.py" line="752"/>
-        <location filename="../../ui/generation_controller.py" line="830"/>
-        <location filename="../../ui/generation_controller.py" line="969"/>
+        <location filename="../../ui/generation_controller.py" line="532"/>
+        <location filename="../../ui/generation_controller.py" line="712"/>
+        <location filename="../../ui/generation_controller.py" line="784"/>
+        <location filename="../../ui/generation_controller.py" line="863"/>
+        <location filename="../../ui/generation_controller.py" line="1002"/>
         <source>Aucun projet sélectionné</source>
         <extracomment>Émis quand le statut du run change (démarrage / fin / échec / réinit.), pour rafraîchir les icônes de la sidebar.</extracomment>
         <translation>No project selected</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="504"/>
+        <location filename="../../ui/generation_controller.py" line="535"/>
         <source>Sélectionne un projet dans la sidebar avant de lancer.</source>
         <translation>Select a project in the sidebar before launching.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="513"/>
+        <location filename="../../ui/generation_controller.py" line="544"/>
         <source>Run déjà en cours</source>
         <translation>Run already in progress</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="516"/>
+        <location filename="../../ui/generation_controller.py" line="547"/>
         <source>Un run est déjà en cours pour ce projet.</source>
         <translation>A run is already in progress for this project.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="533"/>
+        <location filename="../../ui/generation_controller.py" line="564"/>
         <source>Création du run impossible</source>
         <translation>Cannot create the run</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="542"/>
+        <location filename="../../ui/generation_controller.py" line="573"/>
         <source>Erreur inattendue</source>
         <translation>Unexpected error</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="575"/>
+        <location filename="../../ui/generation_controller.py" line="606"/>
         <source>Configuration des providers invalide</source>
         <translation>Invalid provider configuration</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="649"/>
+        <location filename="../../ui/generation_controller.py" line="681"/>
         <source>Annuler le run ?</source>
         <translation>Cancel the run?</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="650"/>
+        <location filename="../../ui/generation_controller.py" line="682"/>
         <source>Annuler le run en cours ?
 
 Le pipeline s&apos;arrêtera à la prochaine frontière sûre. Le dossier de sortie sera ensuite **supprimé** (livrables Markdown générés jusqu&apos;ici) et le cockpit réinitialisé.
@@ -501,75 +501,75 @@ The pipeline will stop at the next safe boundary. The output folder will then be
 This action does not delete the original source files or the intermediate “workspace” artefacts.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="683"/>
+        <location filename="../../ui/generation_controller.py" line="715"/>
         <source>Sélectionne un projet dans la sidebar avant d&apos;exporter.</source>
         <translation>Select a project in the sidebar before exporting.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="692"/>
-        <location filename="../../ui/generation_controller.py" line="764"/>
-        <location filename="../../ui/generation_controller.py" line="1162"/>
+        <location filename="../../ui/generation_controller.py" line="724"/>
+        <location filename="../../ui/generation_controller.py" line="796"/>
+        <location filename="../../ui/generation_controller.py" line="1195"/>
         <source>Génération non configurée</source>
         <translation>Generation not configured</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="695"/>
+        <location filename="../../ui/generation_controller.py" line="727"/>
         <source>Configurez d&apos;abord la génération (⚙ Réglages).</source>
         <translation>Configure the generation first (⚙ Settings).</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="729"/>
+        <location filename="../../ui/generation_controller.py" line="761"/>
         <source>Aucun dossier de sortie</source>
         <translation>No output folder</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="732"/>
+        <location filename="../../ui/generation_controller.py" line="764"/>
         <source>Le dossier de sortie n&apos;existe pas encore. Lancez d&apos;abord un run pour ce projet.</source>
         <translation>The output folder does not exist yet. Run a generation first for this project.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="755"/>
+        <location filename="../../ui/generation_controller.py" line="787"/>
         <source>Sélectionne un projet dans la sidebar avant d&apos;estimer.</source>
         <translation>Select a project in the sidebar before estimating.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="767"/>
-        <location filename="../../ui/generation_controller.py" line="1165"/>
+        <location filename="../../ui/generation_controller.py" line="799"/>
+        <location filename="../../ui/generation_controller.py" line="1198"/>
         <source>Configurez d&apos;abord les réglages de génération de ce projet.</source>
         <translation>Configure this project&apos;s generation settings first.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="779"/>
+        <location filename="../../ui/generation_controller.py" line="811"/>
         <source>Dossier d&apos;entrée invalide</source>
         <translation>Invalid input folder</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="833"/>
+        <location filename="../../ui/generation_controller.py" line="866"/>
         <source>Sélectionne un projet dans la sidebar avant de configurer la génération.</source>
         <translation>Select a project in the sidebar before configuring the generation.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="972"/>
+        <location filename="../../ui/generation_controller.py" line="1005"/>
         <source>Sélectionne un projet dans la sidebar avant de réinitialiser.</source>
         <translation>Select a project in the sidebar before resetting.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="981"/>
+        <location filename="../../ui/generation_controller.py" line="1014"/>
         <source>Run en cours</source>
         <translation>Run in progress</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="982"/>
+        <location filename="../../ui/generation_controller.py" line="1015"/>
         <source>Impossible de réinitialiser pendant un run. Annule-le d&apos;abord.</source>
         <translation>Cannot reset while a run is in progress. Cancel it first.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="990"/>
+        <location filename="../../ui/generation_controller.py" line="1023"/>
         <source>Réinitialiser la génération ?</source>
         <translation>Reset the generation?</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="993"/>
+        <location filename="../../ui/generation_controller.py" line="1026"/>
         <source>Réinitialiser la génération de « {name} » ?
 
 Tous les livrables produits (transcriptions, glossaire, documents) et l&apos;historique des runs en base seront supprimés. Le dossier d&apos;entrée n&apos;est pas touché. Cette action est irréversible.</source>
@@ -578,429 +578,444 @@ Tous les livrables produits (transcriptions, glossaire, documents) et l&apos;his
 All produced deliverables (transcripts, glossary, documents) and the run history in the database will be deleted. The input folder is not touched. This action is irreversible.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="1047"/>
+        <location filename="../../ui/generation_controller.py" line="1080"/>
         <source>Le run s&apos;est terminé sur une erreur inattendue</source>
         <translation>The run ended with an unexpected error</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="1149"/>
+        <location filename="../../ui/generation_controller.py" line="1182"/>
         <source>Clé DeepSeek manquante</source>
         <translation>DeepSeek key missing</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="1152"/>
+        <location filename="../../ui/generation_controller.py" line="1185"/>
         <source>Renseigne la clé DeepSeek dans « Édition → Paramètres globaux ».</source>
         <translation>Enter the DeepSeek key under “Edit → Global settings”.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="1175"/>
+        <location filename="../../ui/generation_controller.py" line="1211"/>
         <source>Clé OpenAI manquante</source>
         <translation>OpenAI key missing</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="1178"/>
-        <source>Le provider STT cloud nécessite une clé OpenAI. Renseigne-la dans « Édition → Paramètres globaux ».</source>
-        <translation>The cloud STT provider requires an OpenAI key. Enter it under “Edit → Global settings”.</translation>
+        <location filename="../../ui/generation_controller.py" line="1214"/>
+        <source>Le STT cloud et l&apos;analyse des slides nécessitent une clé OpenAI. Renseigne-la dans « Édition → Paramètres globaux ».</source>
+        <translation>Cloud STT and slide analysis require an OpenAI key. Set it in &quot;Edit → Global settings&quot;.</translation>
     </message>
 </context>
 <context>
     <name>GenerationSettingsView</name>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="118"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="120"/>
         <source>Réglages de la génération</source>
         <translation>Generation settings</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="119"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="121"/>
         <source>Configurer la génération</source>
         <translation>Configure generation</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="127"/>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="362"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="129"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="375"/>
         <source>Style</source>
         <translation>Style</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="128"/>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="421"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="130"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="434"/>
         <source>Sources</source>
         <translation>Sources</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="129"/>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="481"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="131"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="494"/>
         <source>Transcription</source>
         <translation>Transcription</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="130"/>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="536"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="132"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="551"/>
         <source>Génération IA</source>
         <translation>AI generation</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="131"/>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="588"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="133"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="603"/>
         <source>Phases IA</source>
         <translation>AI phases</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="132"/>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="605"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="134"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="620"/>
         <source>Export</source>
         <translation>Export</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="171"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="173"/>
         <source>Décontracté</source>
         <translation>Casual</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="172"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="174"/>
         <source>Standard</source>
         <translation>Standard</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="173"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="175"/>
         <source>Professionnel</source>
         <translation>Professional</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="174"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="176"/>
         <source>Académique</source>
         <translation>Academic</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="181"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="183"/>
         <source>Conserver l&apos;ordre — 1 source = 1 chapitre</source>
         <translation>Preserve order — 1 source = 1 chapter</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="184"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="186"/>
         <source>Synthèse thématique — refonte transversale</source>
         <translation>Thematic synthesis — cross-cutting rewrite</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="192"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="194"/>
         <source>Hors ligne (GPU local, gratuit)</source>
         <translation>Offline (local GPU, free)</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="194"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="196"/>
         <source>En ligne (OpenAI, payant)</source>
         <translation>Online (OpenAI, paid)</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="211"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="213"/>
         <source>Dossier scanné en mode automatique : tous les fichiers vidéo, audio et documents (PDF, Word, Markdown, texte) y sont ramassés.</source>
         <translation>Folder scanned automatically: all video, audio, and document files (PDF, Word, Markdown, text) are picked up from it.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="215"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="217"/>
         <source>Choisir…</source>
         <translation>Choose…</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="217"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="219"/>
         <source>Choisir le dossier contenant les sources à traiter.</source>
         <translation>Choose the folder containing the sources to process.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="224"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="226"/>
         <source>Une vidéo YouTube par ligne (liens unitaires).
 Ex. : https://youtu.be/XXXXXXXXXXX</source>
         <translation>One YouTube video per line (single links).
 Ex. : https://youtu.be/XXXXXXXXXXX</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="240"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="242"/>
         <source>Détermine le ton et le registre du document final (décontracté, standard, professionnel ou académique).</source>
         <translation>Sets the tone and register of the final document (casual, standard, professional, or academic).</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="252"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="254"/>
         <source>Conserver l&apos;ordre : assemble les sources dans l&apos;ordre choisi (contenu recopié tel quel). Synthèse thématique : l&apos;IA refond tout par thème (l&apos;ordre n&apos;a alors plus d&apos;effet).</source>
         <translation>Preserve order: assembles the sources in the chosen order (content copied as-is). Thematic synthesis: the AI rewrites everything by theme (order then has no effect).</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="264"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="266"/>
         <source>Consignes libres pour orienter la reformulation. Ex. : « ton chaleureux mais rigoureux, exemples concrets, éviter le jargon inutile ».</source>
         <translation>Free guidance to steer the rephrasing. Ex.: “warm but rigorous tone, concrete examples, avoid unnecessary jargon”.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="272"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="274"/>
         <source>Reformuler les documents (PDF, Word, Markdown, texte)</source>
         <translation>Rephrase documents (PDF, Word, Markdown, text)</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="276"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="278"/>
         <source>Si coché (défaut), les documents texte passent par la reformulation comme une transcription orale. Décoché : le texte est inséré tel quel (cours déjà bien rédigé).</source>
         <translation>If checked (default), text documents go through rephrasing like a transcript. Unchecked: the text is inserted as-is (course already well written).</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="288"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="290"/>
         <source>Mode hors ligne : GPU NVIDIA requis, sans coût. Mode en ligne : OpenAI, facturé à la minute, recommandé pour les longues durées.</source>
         <translation>Offline mode: NVIDIA GPU required, no cost. Online mode: OpenAI, billed per minute, recommended for long content.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="300"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="303"/>
         <source>Conserver les fichiers audio (réécoute / dépannage)</source>
         <translation>Keep audio files (replay / troubleshooting)</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="304"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="306"/>
+        <source>Conserver les images de slides (visualisation / dépannage)</source>
+        <translation>Keep slide images (viewing / troubleshooting)</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="311"/>
         <source>Si coché, les fichiers .wav extraits des médias (vidéo/audio/YouTube) ne sont pas supprimés après la transcription.</source>
         <translation>If checked, the .wav files extracted from media (video/audio/YouTube) are not deleted after transcription.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="315"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="317"/>
+        <source>Si coché, une image par slide détectée (slide_001.jpg…) est conservée dans frames/&lt;source&gt;/ après l&apos;analyse vision.</source>
+        <translation>If checked, one image per detected slide (slide_001.jpg…) is kept in frames/&lt;source&gt;/ after the vision analysis.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="328"/>
         <source>Transcriptions cloud simultanées (sans effet en STT local : 1 GPU).</source>
         <translation>Simultaneous cloud transcriptions (no effect on local STT: 1 GPU).</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="328"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="341"/>
         <source>Pas de plafond</source>
         <translation>No cap</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="331"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="344"/>
         <source>Coût maximal en USD. La génération s&apos;arrête si elle s&apos;en approche. Mettez 0 pour désactiver le plafond.</source>
         <translation>Maximum cost in USD. Generation stops as it approaches it. Set 0 to disable the cap.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="344"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="357"/>
         <source>Appels IA simultanés (le compte concurrence DeepSeek est élevé).</source>
         <translation>Simultaneous AI calls (DeepSeek concurrency limits are high).</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="364"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="377"/>
         <source>Ton, mise en forme et mode d&apos;assemblage du document consolidé.</source>
         <translation>Tone, formatting, and assembly mode of the consolidated document.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="371"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="384"/>
         <source>Mise en forme</source>
         <translation>Formatting</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="373"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="386"/>
         <source>Préréglage de style, mode d&apos;assemblage des sources et consignes libres pour orienter l&apos;écriture.</source>
         <translation>Style preset, source assembly mode, and free guidance to steer the writing.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="378"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="391"/>
         <source>Préréglage de style</source>
         <translation>Style preset</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="379"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="392"/>
         <source>Mode d&apos;assemblage</source>
         <translation>Assembly mode</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="381"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="394"/>
         <source>Consignes de style</source>
         <translation>Style guidance</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="388"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="401"/>
         <source>Optionnel — laissez vide pour le comportement par défaut.</source>
         <translation>Optional — leave blank for the default behaviour.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="396"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="409"/>
         <source>Documents texte</source>
         <translation>Text documents</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="398"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="411"/>
         <source>Comportement appliqué aux fichiers PDF, Word, Markdown et texte.</source>
         <translation>Behaviour applied to PDF, Word, Markdown, and text files.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="406"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="419"/>
         <source>Décochez pour les cours déjà rédigés (insertion telle quelle, coût nul).</source>
         <translation>Uncheck for courses already written out (inserted as-is, zero cost).</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="423"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="436"/>
         <source>Dossier des fichiers à traiter, vidéos YouTube, langues à produire et ordre d&apos;apparition des sources dans le document.</source>
         <translation>Folder of files to process, YouTube videos, languages to produce, and order of sources in the document.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="431"/>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="628"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="444"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="643"/>
         <source>Dossier des sources</source>
         <translation>Source folder</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="433"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="446"/>
         <source>Dossier scanné pour les vidéos, audios et documents à traiter.</source>
         <translation>Folder scanned for the videos, audio, and documents to process.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="444"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="457"/>
         <source>Vidéos YouTube</source>
         <translation>YouTube videos</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="446"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="459"/>
         <source>Liens YouTube unitaires (une URL par ligne). La vidéo est téléchargée puis transcrite comme une vidéo locale.</source>
         <translation>Single YouTube links (one URL per line). The video is downloaded and then transcribed like a local video.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="455"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="468"/>
         <source>Langues du document</source>
         <translation>Document languages</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="457"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="470"/>
         <source>Langues à produire pour le document consolidé. La langue « principale » est l&apos;originale ; les autres en sont des traductions automatiques.</source>
         <translation>Languages to produce for the consolidated document. The “primary” language is the original; the others are automatic translations.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="466"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="479"/>
         <source>Ordre et exclusions</source>
         <translation>Order and exclusions</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="468"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="481"/>
         <source>Ordre d&apos;apparition des sources dans le document, et exclusions éventuelles.</source>
         <translation>Order of sources in the document, and optional exclusions.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="483"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="496"/>
         <source>Moteur et modèle utilisés pour transcrire les vidéos et fichiers audio.</source>
         <translation>Engine and model used to transcribe the videos and audio files.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="490"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="503"/>
         <source>Moteur de transcription</source>
         <translation>Transcription engine</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="492"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="505"/>
         <source>Mode hors ligne (GPU local, sans coût) ou en ligne (OpenAI, plus précis sur les longues durées).</source>
         <translation>Offline mode (local GPU, no cost) or online (OpenAI, more accurate on long content).</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="497"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="510"/>
         <source>Moteur</source>
         <translation>Engine</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="503"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="516"/>
         <source>Modèle de transcription</source>
         <translation>Transcription model</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="505"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="518"/>
         <source>Choix du modèle ; un seul est actif à la fois, selon le moteur choisi.</source>
         <translation>Model choice; only one is active at a time, depending on the chosen engine.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="509"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="522"/>
         <source>Modèle hors ligne (GPU)</source>
         <translation>Offline model (GPU)</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="510"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="523"/>
         <source>Modèle en ligne (OpenAI)</source>
         <translation>Online model (OpenAI)</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="516"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="524"/>
+        <source>Modèle vision (slides)</source>
+        <translation>Vision model (slides)</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="530"/>
         <source>Performance et conservation</source>
         <translation>Performance and retention</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="518"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="532"/>
         <source>Parallélisme des transcriptions en ligne et gestion des fichiers audio extraits.</source>
         <translation>Parallelism of online transcriptions and management of extracted audio files.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="522"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="536"/>
         <source>Transcriptions simultanées</source>
         <translation>Simultaneous transcriptions</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="538"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="553"/>
         <source>Modèle de génération, plafond de budget et nombre de traitements en parallèle.</source>
         <translation>Generation model, budget cap, and number of parallel jobs.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="544"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="559"/>
         <source>Modèle de génération</source>
         <translation>Generation model</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="546"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="561"/>
         <source>Modèle DeepSeek utilisé pour les phases de reformulation, structuration, consolidation, traduction et cohérence.</source>
         <translation>DeepSeek model used for the rephrasing, structuring, consolidation, translation, and coherence phases.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="551"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="566"/>
         <source>Modèle</source>
         <translation>Model</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="557"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="572"/>
         <source>Budget</source>
         <translation>Budget</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="559"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="574"/>
         <source>Plafond de dépense — la génération s&apos;arrête si le coût l&apos;atteint.</source>
         <translation>Spending cap — generation stops if the cost reaches it.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="563"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="578"/>
         <source>Budget maximal</source>
         <translation>Maximum budget</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="569"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="584"/>
         <source>Performance</source>
         <translation>Performance</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="571"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="586"/>
         <source>Nombre d&apos;appels IA simultanés. Plus rapide, n&apos;augmente pas le coût.</source>
         <translation>Number of simultaneous AI calls. Faster, does not raise the cost.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="575"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="590"/>
         <source>Traitements IA simultanés</source>
         <translation>Simultaneous AI jobs</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="590"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="605"/>
         <source>Réglages fins pour chacune des 7 phases IA du pipeline (thinking, intensité, température, retries). Laissez les valeurs par défaut sauf cas particulier.</source>
         <translation>Fine-grained settings for each of the 7 AI pipeline phases (thinking, intensity, temperature, retries). Leave defaults unless required.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="607"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="622"/>
         <source>Formats proposés lors de l&apos;export du document consolidé et du glossaire.</source>
         <translation>Formats offered when exporting the consolidated document and the glossary.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="611"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="626"/>
         <source>Formats à exporter</source>
         <translation>Formats to export</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="619"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="634"/>
         <source>Sans sélection, l&apos;export laissera le choix au moment de l&apos;action.</source>
         <translation>Without a selection, the export will offer a choice at action time.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="685"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="707"/>
         <source>GPU NVIDIA introuvable</source>
         <translation>NVIDIA GPU not found</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="687"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="709"/>
         <source>Le mode de transcription locale nécessite un GPU NVIDIA compatible CUDA.
 
 Veuillez utiliser le mode OpenAI en ligne.</source>
@@ -1009,12 +1024,12 @@ Veuillez utiliser le mode OpenAI en ligne.</source>
 Please use the OpenAI online mode.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="757"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="787"/>
         <source>Dossier des sources manquant</source>
         <translation>Source folder missing</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="759"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="789"/>
         <source>Veuillez sélectionner le dossier des sources (vidéos, audios, documents).</source>
         <translation>Please select the source folder (videos, audio, documents).</translation>
     </message>
@@ -1251,78 +1266,93 @@ Please use the OpenAI online mode.</translation>
 <context>
     <name>ModelLabels</name>
     <message>
-        <location filename="../../ui/_model_labels.py" line="41"/>
+        <location filename="../../ui/_model_labels.py" line="42"/>
         <source>DeepSeek V4 Flash (économique)</source>
         <extracomment>Chaînes sources des libellés de modèles LLM. ``cast(str, …)`` corrige l&apos;annotation ``object`` des stubs PySide6 ; le contexte ``&quot;ModelLabels&quot;`` est passé en littéral car ``pyside6-lupdate`` n&apos;extrait pas les chaînes quand l&apos;argument context est une variable.</extracomment>
         <translation>DeepSeek V4 Flash (economical)</translation>
     </message>
     <message>
-        <location filename="../../ui/_model_labels.py" line="45"/>
+        <location filename="../../ui/_model_labels.py" line="46"/>
         <source>DeepSeek V4 Pro (capacité supérieure)</source>
         <translation>DeepSeek V4 Pro (higher capacity)</translation>
     </message>
     <message>
-        <location filename="../../ui/_model_labels.py" line="52"/>
+        <location filename="../../ui/_model_labels.py" line="53"/>
         <source>text-embedding-3-small (économique)</source>
         <translation>text-embedding-3-small (economical)</translation>
     </message>
     <message>
-        <location filename="../../ui/_model_labels.py" line="56"/>
+        <location filename="../../ui/_model_labels.py" line="57"/>
         <source>text-embedding-3-large (précision supérieure)</source>
         <translation>text-embedding-3-large (higher precision)</translation>
     </message>
     <message>
-        <location filename="../../ui/_model_labels.py" line="62"/>
+        <location filename="../../ui/_model_labels.py" line="63"/>
         <source>text-embedding-ada-002 (génération précédente)</source>
         <translation>text-embedding-ada-002 (previous generation)</translation>
     </message>
     <message>
-        <location filename="../../ui/_model_labels.py" line="70"/>
+        <location filename="../../ui/_model_labels.py" line="71"/>
         <source>large-v3-turbo (équilibré)</source>
         <translation>large-v3-turbo (balanced)</translation>
     </message>
     <message>
-        <location filename="../../ui/_model_labels.py" line="73"/>
+        <location filename="../../ui/_model_labels.py" line="74"/>
         <source>large-v3 (précision maximale)</source>
         <translation>large-v3 (maximum precision)</translation>
     </message>
     <message>
-        <location filename="../../ui/_model_labels.py" line="76"/>
+        <location filename="../../ui/_model_labels.py" line="77"/>
         <source>medium (plus léger / rapide)</source>
         <translation>medium (lighter / faster)</translation>
     </message>
     <message>
-        <location filename="../../ui/_model_labels.py" line="79"/>
+        <location filename="../../ui/_model_labels.py" line="80"/>
         <source>small (rapide, faible VRAM)</source>
         <translation>small (fast, low VRAM)</translation>
     </message>
     <message>
-        <location filename="../../ui/_model_labels.py" line="85"/>
+        <location filename="../../ui/_model_labels.py" line="86"/>
         <source>whisper-1 (timestamps fins)</source>
         <translation>whisper-1 (fine-grained timestamps)</translation>
     </message>
     <message>
-        <location filename="../../ui/_model_labels.py" line="89"/>
+        <location filename="../../ui/_model_labels.py" line="90"/>
         <source>gpt-4o-transcribe (précision supérieure)</source>
         <translation>gpt-4o-transcribe (higher precision)</translation>
     </message>
     <message>
-        <location filename="../../ui/_model_labels.py" line="93"/>
+        <location filename="../../ui/_model_labels.py" line="94"/>
         <source>gpt-4o-mini-transcribe (2× moins cher)</source>
         <translation>gpt-4o-mini-transcribe (2× cheaper)</translation>
     </message>
     <message>
-        <location filename="../../ui/_model_labels.py" line="98"/>
+        <location filename="../../ui/_model_labels.py" line="101"/>
+        <source>gpt-5-mini — recommandé (meilleur rapport qualité/prix)</source>
+        <translation>gpt-5-mini — recommended (best quality/price ratio)</translation>
+    </message>
+    <message>
+        <location filename="../../ui/_model_labels.py" line="107"/>
+        <source>gpt-5-nano — économique (slides simples)</source>
+        <translation>gpt-5-nano — budget (simple slides)</translation>
+    </message>
+    <message>
+        <location filename="../../ui/_model_labels.py" line="111"/>
+        <source>gpt-5.4-mini — qualité supérieure (slides denses)</source>
+        <translation>gpt-5.4-mini — higher quality (dense slides)</translation>
+    </message>
+    <message>
+        <location filename="../../ui/_model_labels.py" line="118"/>
         <source>Automatique (serveur)</source>
         <translation>Automatic (server)</translation>
     </message>
     <message>
-        <location filename="../../ui/_model_labels.py" line="102"/>
+        <location filename="../../ui/_model_labels.py" line="122"/>
         <source>Élevée</source>
         <translation>High</translation>
     </message>
     <message>
-        <location filename="../../ui/_model_labels.py" line="103"/>
+        <location filename="../../ui/_model_labels.py" line="123"/>
         <source>Maximale</source>
         <translation>Maximum</translation>
     </message>
@@ -1689,51 +1719,50 @@ All generated materials, their intermediate exports, and the execution state wil
 <context>
     <name>PedagogyProgress</name>
     <message>
-        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="39"/>
+        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="45"/>
         <source>Support</source>
-        <extracomment>Snapshot vide. ``row_header`` est résolu à l&apos;usage par :func:`empty_matrix` ci-dessous pour suivre la langue active.</extracomment>
         <translation>Material</translation>
     </message>
 </context>
 <context>
     <name>PedagogyProgressView</name>
     <message>
-        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="88"/>
+        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="79"/>
         <source>Statut</source>
         <translation>Status</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="90"/>
+        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="81"/>
         <source>Supports</source>
         <translation>Materials</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="93"/>
+        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="84"/>
         <source>Langues</source>
         <translation>Languages</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="96"/>
+        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="87"/>
         <source>Durée</source>
         <translation>Duration</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="98"/>
+        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="89"/>
         <source>Coût</source>
         <translation>Cost</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="151"/>
+        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="142"/>
         <source>tâches</source>
         <translation>tasks</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="158"/>
+        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="151"/>
         <source>plafond ${ceiling:.2f}</source>
         <translation>cap ${ceiling:.2f}</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="162"/>
+        <location filename="../../ui/widgets/pedagogy_progress_view.py" line="155"/>
         <source>sans plafond</source>
         <translation>no cap</translation>
     </message>
@@ -2403,83 +2432,93 @@ Visuals: {vis}</translation>
 <context>
     <name>SourceOrderView</name>
     <message>
-        <location filename="../../ui/widgets/source_order_view.py" line="94"/>
+        <location filename="../../ui/widgets/source_order_view.py" line="101"/>
         <source>ⓘ Mode refonte thématique : l&apos;ordre des sources est sans effet (seule l&apos;inclusion / exclusion compte).</source>
-        <extracomment>Codes courts de type de source affichés en préfixe — universels (pas traduits ; restent stables d&apos;une langue à l&apos;autre).</extracomment>
+        <extracomment>Codes courts de type de source affichés en préfixe — universels (pas traduits ; restent stables d&apos;une langue à l&apos;autre). Types de source éligibles à l&apos;analyse des slides (piste vidéo requise).</extracomment>
         <translation>ⓘ Thematic synthesis mode: the source order has no effect (only inclusion / exclusion matters).</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/source_order_view.py" line="193"/>
+        <location filename="../../ui/widgets/source_order_view.py" line="220"/>
         <source>  • nouveau</source>
         <translation>  • new</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/source_order_view.py" line="249"/>
+        <location filename="../../ui/widgets/source_order_view.py" line="232"/>
+        <source>Analyser les slides/illustrations de cette vidéo (modèle vision OpenAI — clé OpenAI requise)</source>
+        <translation>Analyze this video&apos;s slides/illustrations (OpenAI vision model — OpenAI key required)</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/source_order_view.py" line="294"/>
         <source>Sources à traiter — ordre des chapitres</source>
         <translation>Sources to process — chapter order</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/source_order_view.py" line="255"/>
+        <location filename="../../ui/widgets/source_order_view.py" line="299"/>
+        <source>☑ sur une vidéo/YouTube = analyser ses slides (contenu intégré à la synthèse ; clé OpenAI requise)</source>
+        <translation>☑ on a video/YouTube source = analyze its slides (content merged into the synthesis; OpenAI key required)</translation>
+    </message>
+    <message>
+        <location filename="../../ui/widgets/source_order_view.py" line="309"/>
         <source>Sources exclues</source>
         <translation>Excluded sources</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/source_order_view.py" line="287"/>
+        <location filename="../../ui/widgets/source_order_view.py" line="341"/>
         <source>▲ Monter</source>
         <translation>▲ Move up</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/source_order_view.py" line="288"/>
+        <location filename="../../ui/widgets/source_order_view.py" line="342"/>
         <source>Monter la source sélectionnée d&apos;une position</source>
         <translation>Move the selected source up by one position</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/source_order_view.py" line="290"/>
+        <location filename="../../ui/widgets/source_order_view.py" line="344"/>
         <source>▼ Descendre</source>
         <translation>▼ Move down</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/source_order_view.py" line="292"/>
+        <location filename="../../ui/widgets/source_order_view.py" line="346"/>
         <source>Descendre la source sélectionnée d&apos;une position</source>
         <translation>Move the selected source down by one position</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/source_order_view.py" line="295"/>
+        <location filename="../../ui/widgets/source_order_view.py" line="349"/>
         <source>Exclure</source>
         <translation>Exclude</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/source_order_view.py" line="296"/>
+        <location filename="../../ui/widgets/source_order_view.py" line="350"/>
         <source>Exclure la source sélectionnée du traitement</source>
         <translation>Exclude the selected source from processing</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/source_order_view.py" line="317"/>
+        <location filename="../../ui/widgets/source_order_view.py" line="371"/>
         <source>Réinclure</source>
         <translation>Re-include</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/source_order_view.py" line="318"/>
+        <location filename="../../ui/widgets/source_order_view.py" line="372"/>
         <source>Réintégrer la source sélectionnée</source>
         <translation>Re-include the selected source</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/source_order_view.py" line="337"/>
+        <location filename="../../ui/widgets/source_order_view.py" line="391"/>
         <source>↻ Rafraîchir</source>
         <translation>↻ Refresh</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/source_order_view.py" line="340"/>
+        <location filename="../../ui/widgets/source_order_view.py" line="394"/>
         <source>Re-scanner le dossier d&apos;entrée pour détecter les nouvelles sources</source>
         <translation>Re-scan the input folder for newly added sources</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/source_order_view.py" line="344"/>
+        <location filename="../../ui/widgets/source_order_view.py" line="398"/>
         <source>Tout réinclure</source>
         <translation>Re-include all</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/source_order_view.py" line="345"/>
+        <location filename="../../ui/widgets/source_order_view.py" line="399"/>
         <source>Réintégrer toutes les sources exclues</source>
         <translation>Re-include all excluded sources</translation>
     </message>
@@ -2541,62 +2580,62 @@ Visuals: {vis}</translation>
 <context>
     <name>StatsStripWidget</name>
     <message>
-        <location filename="../../ui/widgets/stats_strip.py" line="54"/>
+        <location filename="../../ui/widgets/stats_strip.py" line="61"/>
         <source>Statut</source>
         <translation>Status</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/stats_strip.py" line="55"/>
+        <location filename="../../ui/widgets/stats_strip.py" line="62"/>
         <source>Sources</source>
         <translation>Sources</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/stats_strip.py" line="56"/>
+        <location filename="../../ui/widgets/stats_strip.py" line="63"/>
         <source>Phases</source>
         <translation>Phases</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/stats_strip.py" line="57"/>
+        <location filename="../../ui/widgets/stats_strip.py" line="64"/>
         <source>Langues</source>
         <translation>Languages</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/stats_strip.py" line="58"/>
+        <location filename="../../ui/widgets/stats_strip.py" line="65"/>
         <source>Durée</source>
         <translation>Duration</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/stats_strip.py" line="59"/>
+        <location filename="../../ui/widgets/stats_strip.py" line="66"/>
         <source>Coût</source>
         <translation>Cost</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/stats_strip.py" line="187"/>
+        <location filename="../../ui/widgets/stats_strip.py" line="194"/>
         <source>sources terminées</source>
         <translation>sources completed</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/stats_strip.py" line="193"/>
+        <location filename="../../ui/widgets/stats_strip.py" line="200"/>
         <source>phases terminées</source>
         <translation>phases completed</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/stats_strip.py" line="204"/>
+        <location filename="../../ui/widgets/stats_strip.py" line="211"/>
         <source>terminé</source>
         <translation>completed</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/stats_strip.py" line="206"/>
+        <location filename="../../ui/widgets/stats_strip.py" line="213"/>
         <source>en pause (figée)</source>
         <translation>paused (frozen)</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/stats_strip.py" line="216"/>
+        <location filename="../../ui/widgets/stats_strip.py" line="223"/>
         <source>plafond ${ceiling:.2f}</source>
         <translation>cap ${ceiling:.2f}</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/stats_strip.py" line="220"/>
+        <location filename="../../ui/widgets/stats_strip.py" line="227"/>
         <source>sans plafond</source>
         <translation>no cap</translation>
     </message>
@@ -2638,70 +2677,70 @@ Visuals: {vis}</translation>
 <context>
     <name>VisualsController</name>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="328"/>
+        <location filename="../../ui/visuals_controller.py" line="332"/>
         <source>Sélectionne un projet dans la sidebar avant de configurer.</source>
         <extracomment>Plafond de coût atteint : note ajoutée au log de fin (statut ``PAUSED``). Émis quand le statut de la génération change (démarrage / fin / échec / réinitialisation), pour rafraîchir les icônes de la sidebar.</extracomment>
         <translation>Select a project in the sidebar before configuring.</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="352"/>
-        <location filename="../../ui/visuals_controller.py" line="689"/>
+        <location filename="../../ui/visuals_controller.py" line="356"/>
+        <location filename="../../ui/visuals_controller.py" line="693"/>
         <source>Visualisations non configurées</source>
         <translation>Visualizations not configured</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="355"/>
-        <location filename="../../ui/visuals_controller.py" line="692"/>
+        <location filename="../../ui/visuals_controller.py" line="359"/>
+        <location filename="../../ui/visuals_controller.py" line="696"/>
         <source>Configurez d&apos;abord les visualisations (⚙ Réglages).</source>
         <translation>Configure the visualizations first (⚙ Settings).</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="396"/>
+        <location filename="../../ui/visuals_controller.py" line="400"/>
         <source>Sélectionne un projet dans la sidebar avant de générer.</source>
         <translation>Select a project in the sidebar before generating.</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="405"/>
+        <location filename="../../ui/visuals_controller.py" line="409"/>
         <source>Génération déjà en cours</source>
         <translation>Generation already in progress</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="408"/>
+        <location filename="../../ui/visuals_controller.py" line="412"/>
         <source>Une génération de visualisations est déjà en cours.</source>
         <translation>A visualization generation is already in progress.</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="506"/>
+        <location filename="../../ui/visuals_controller.py" line="510"/>
         <source>Aucun dossier de visualisations</source>
         <translation>No visualizations folder</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="509"/>
+        <location filename="../../ui/visuals_controller.py" line="513"/>
         <source>Aucune visualisation n&apos;a encore été produite pour ce projet.</source>
         <translation>No visualization has been produced for this project yet.</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="527"/>
+        <location filename="../../ui/visuals_controller.py" line="531"/>
         <source>Sélectionne un projet dans la sidebar avant de réinitialiser.</source>
         <translation>Select a project in the sidebar before resetting.</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="536"/>
+        <location filename="../../ui/visuals_controller.py" line="540"/>
         <source>Génération en cours</source>
         <translation>Generation in progress</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="537"/>
+        <location filename="../../ui/visuals_controller.py" line="541"/>
         <source>Impossible de réinitialiser pendant une génération. Annule-la d&apos;abord.</source>
         <translation>Cannot reset while generation is in progress. Cancel it first.</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="546"/>
+        <location filename="../../ui/visuals_controller.py" line="550"/>
         <source>Réinitialiser les visualisations ?</source>
         <translation>Reset the visualizations?</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="549"/>
+        <location filename="../../ui/visuals_controller.py" line="553"/>
         <source>Réinitialiser les visualisations de « {name} » ?
 
 Toutes les pages produites et l&apos;état d&apos;exécution seront supprimés. Cette action est irréversible.</source>
@@ -2710,67 +2749,67 @@ Toutes les pages produites et l&apos;état d&apos;exécution seront supprimés. 
 All produced pages and the execution state will be deleted. This action is irreversible.</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="631"/>
+        <location filename="../../ui/visuals_controller.py" line="635"/>
         <source>La génération s&apos;est terminée sur une erreur inattendue</source>
         <translation>Generation ended with an unexpected error</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="659"/>
+        <location filename="../../ui/visuals_controller.py" line="663"/>
         <source>Aucun projet sélectionné</source>
         <translation>No project selected</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="677"/>
+        <location filename="../../ui/visuals_controller.py" line="681"/>
         <source>Clé DeepSeek manquante</source>
         <translation>DeepSeek key missing</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="680"/>
+        <location filename="../../ui/visuals_controller.py" line="684"/>
         <source>Renseigne la clé DeepSeek dans « Édition → Paramètres globaux ».</source>
         <translation>Enter the DeepSeek key under “Edit → Global settings”.</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="702"/>
+        <location filename="../../ui/visuals_controller.py" line="706"/>
         <source>Génération impossible</source>
         <translation>Generation not possible</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="897"/>
+        <location filename="../../ui/visuals_controller.py" line="901"/>
         <source>&lt;b&gt;Projet :&lt;/b&gt; {name}</source>
         <translation>&lt;b&gt;Project:&lt;/b&gt; {name}</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="900"/>
+        <location filename="../../ui/visuals_controller.py" line="904"/>
         <source>&lt;b&gt;Langue de structure :&lt;/b&gt; {lang}</source>
         <translation>&lt;b&gt;Structure language:&lt;/b&gt; {lang}</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="903"/>
+        <location filename="../../ui/visuals_controller.py" line="907"/>
         <source>&lt;b&gt;Langues latines :&lt;/b&gt; {count}</source>
         <translation>&lt;b&gt;Latin languages:&lt;/b&gt; {count}</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="906"/>
+        <location filename="../../ui/visuals_controller.py" line="910"/>
         <source>&lt;b&gt;Unités de texte :&lt;/b&gt; {count}</source>
         <translation>&lt;b&gt;Text units:&lt;/b&gt; {count}</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="912"/>
+        <location filename="../../ui/visuals_controller.py" line="916"/>
         <source>Carte des connaissances</source>
         <translation>Knowledge map</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="916"/>
+        <location filename="../../ui/visuals_controller.py" line="920"/>
         <source>Diagrammes</source>
         <translation>Diagrams</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="920"/>
+        <location filename="../../ui/visuals_controller.py" line="924"/>
         <source>Traduction des libellés</source>
         <translation>Label translation</translation>
     </message>
     <message>
-        <location filename="../../ui/visuals_controller.py" line="929"/>
+        <location filename="../../ui/visuals_controller.py" line="933"/>
         <source>Estimation du coût des visualisations</source>
         <translation>Visualizations cost estimate</translation>
     </message>
@@ -2863,7 +2902,7 @@ All produced pages and the execution state will be deleted. This action is irrev
     <name>VisualsProgress</name>
     <message>
         <location filename="../../ui/viewmodels/visuals_progress.py" line="52"/>
-        <location filename="../../ui/widgets/visuals_progress_view.py" line="39"/>
+        <location filename="../../ui/widgets/visuals_progress_view.py" line="46"/>
         <source>Livrable</source>
         <extracomment>Statuts considérés comme « langue terminée » pour le compteur de tuiles.</extracomment>
         <translation>Deliverable</translation>
@@ -2878,42 +2917,42 @@ All produced pages and the execution state will be deleted. This action is irrev
 <context>
     <name>VisualsProgressView</name>
     <message>
-        <location filename="../../ui/widgets/visuals_progress_view.py" line="88"/>
+        <location filename="../../ui/widgets/visuals_progress_view.py" line="80"/>
         <source>Statut</source>
         <translation>Status</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/visuals_progress_view.py" line="90"/>
+        <location filename="../../ui/widgets/visuals_progress_view.py" line="82"/>
         <source>Avancement</source>
         <translation>Progress</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/visuals_progress_view.py" line="93"/>
+        <location filename="../../ui/widgets/visuals_progress_view.py" line="85"/>
         <source>Langues</source>
         <translation>Languages</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/visuals_progress_view.py" line="96"/>
+        <location filename="../../ui/widgets/visuals_progress_view.py" line="88"/>
         <source>Durée</source>
         <translation>Duration</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/visuals_progress_view.py" line="98"/>
+        <location filename="../../ui/widgets/visuals_progress_view.py" line="90"/>
         <source>Coût</source>
         <translation>Cost</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/visuals_progress_view.py" line="151"/>
+        <location filename="../../ui/widgets/visuals_progress_view.py" line="143"/>
         <source>langues</source>
         <translation>languages</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/visuals_progress_view.py" line="158"/>
+        <location filename="../../ui/widgets/visuals_progress_view.py" line="152"/>
         <source>plafond ${ceiling:.2f}</source>
         <translation>cap ${ceiling:.2f}</translation>
     </message>
     <message>
-        <location filename="../../ui/widgets/visuals_progress_view.py" line="162"/>
+        <location filename="../../ui/widgets/visuals_progress_view.py" line="156"/>
         <source>sans plafond</source>
         <translation>no cap</translation>
     </message>
@@ -2932,19 +2971,19 @@ All produced pages and the execution state will be deleted. This action is irrev
     </message>
     <message>
         <location filename="../../ui/dialogs/visuals_settings_view.py" line="94"/>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="265"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="266"/>
         <source>Livrables</source>
         <translation>Deliverables</translation>
     </message>
     <message>
         <location filename="../../ui/dialogs/visuals_settings_view.py" line="95"/>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="295"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="296"/>
         <source>Contenu</source>
         <translation>Content</translation>
     </message>
     <message>
         <location filename="../../ui/dialogs/visuals_settings_view.py" line="96"/>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="334"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="335"/>
         <source>Génération IA</source>
         <translation>AI generation</translation>
     </message>
@@ -2970,141 +3009,141 @@ All produced pages and the execution state will be deleted. This action is irrev
     </message>
     <message>
         <location filename="../../ui/dialogs/visuals_settings_view.py" line="199"/>
-        <source>Volume des nœuds et diagrammes générés par section (compact, équilibré, dense).</source>
-        <translation>Volume of nodes and diagrams generated per section (compact, balanced, dense).</translation>
+        <source>Quantité de contenu : pilote la taille de la carte de connaissances (légère = éléments forts et structurants ; dense = graphe complet) et le nombre de diagrammes par section.</source>
+        <translation>Amount of content: drives the knowledge-map size (light = strong, structuring elements; dense = full graph) and the number of diagrams per section.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="215"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="216"/>
         <source>Activer la réflexion approfondie</source>
         <translation>Enable deep reasoning</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="233"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="234"/>
         <source>Pas de plafond</source>
         <translation>No cap</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="236"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="237"/>
         <source>Coût maximal en USD. La génération s&apos;arrête si elle s&apos;en approche. Mettez 0 pour désactiver le plafond.</source>
         <translation>Maximum cost in USD. Generation stops as it approaches it. Set 0 to disable the cap.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="245"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="246"/>
         <source>Nombre de langues traitées en parallèle. Augmenter accélère sans changer le coût (DeepSeek facture au token, pas au temps).</source>
         <translation>Number of languages processed in parallel. Increasing it speeds things up without changing the cost (DeepSeek bills per token, not per time).</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="267"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="268"/>
         <source>Choisissez les pages HTML autonomes à produire. Chaque page est complète et hors-ligne (aucune dépendance externe).</source>
         <translation>Choose the standalone HTML pages to produce. Each page is complete and offline (no external dependency).</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="272"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="273"/>
         <source>Pages à produire</source>
         <translation>Pages to produce</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="280"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="281"/>
         <source>Les visualisations sont produites pour chaque langue latine générée (français, anglais, allemand, espagnol, italien). Le chinois et l&apos;arabe ne sont pas pris en charge.</source>
         <translation>Visualizations are produced for each generated Latin-script language (French, English, German, Spanish, Italian). Chinese and Arabic are not supported.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="297"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="298"/>
         <source>Densité du contenu extrait et types de diagrammes autorisés.</source>
         <translation>Density of the extracted content and allowed diagram types.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="303"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="304"/>
         <source>Densité</source>
         <translation>Density</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="305"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="306"/>
         <source>Volume des nœuds et diagrammes : compact pour l&apos;essentiel, dense pour creuser.</source>
         <translation>Volume of nodes and diagrams: compact for the essentials, dense to dig deeper.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="310"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="311"/>
         <source>Quantité de contenu</source>
         <translation>Content amount</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="316"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="317"/>
         <source>Types de diagrammes</source>
         <translation>Diagram types</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="318"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="319"/>
         <source>Types autorisés dans la galerie. L&apos;IA choisit le type adapté à chaque contenu parmi ceux cochés.</source>
         <translation>Types allowed in the gallery. The AI picks the type suited to each content among those checked.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="336"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="337"/>
         <source>Modèle de génération, intensité de réflexion, budget et performance.</source>
         <translation>Generation model, reasoning intensity, budget, and performance.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="342"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="343"/>
         <source>Modèle de génération</source>
         <translation>Generation model</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="344"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="345"/>
         <source>Modèle DeepSeek utilisé pour extraire la structure et traduire les libellés.</source>
         <translation>DeepSeek model used to extract the structure and translate the labels.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="349"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="350"/>
         <source>Modèle</source>
         <translation>Model</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="350"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="351"/>
         <source>Température</source>
         <translation>Temperature</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="356"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="357"/>
         <source>Réflexion approfondie</source>
         <translation>Deep reasoning</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="358"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="359"/>
         <source>Active un raisonnement étendu avant l&apos;extraction — meilleure qualité, coût plus élevé.</source>
         <translation>Enables extended reasoning before extraction — better quality, higher cost.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="364"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="365"/>
         <source>Intensité de réflexion</source>
         <translation>Reasoning intensity</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="370"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="371"/>
         <source>Budget et performance</source>
         <translation>Budget and performance</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="372"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="373"/>
         <source>Plafond de dépense (la génération s&apos;arrête si le coût l&apos;atteint) et nombre de langues traitées en parallèle (plus rapide, n&apos;augmente pas le coût).</source>
         <translation>Spending cap (generation stops if the cost reaches it) and number of languages processed in parallel (faster, does not increase the cost).</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="378"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="379"/>
         <source>Budget maximal</source>
         <translation>Maximum budget</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="379"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="380"/>
         <source>Traitements simultanés</source>
         <translation>Simultaneous jobs</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="413"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="414"/>
         <source>Réglages incomplets</source>
         <translation>Incomplete settings</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/visuals_settings_view.py" line="415"/>
+        <location filename="../../ui/dialogs/visuals_settings_view.py" line="416"/>
         <source>Sélectionnez au moins un livrable. Si les diagrammes sont activés, cochez au moins un type de diagramme.</source>
         <translation>Select at least one deliverable. If diagrams are enabled, check at least one diagram type.</translation>
     </message>

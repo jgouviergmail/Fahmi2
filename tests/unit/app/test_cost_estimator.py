@@ -36,6 +36,47 @@ def _all_phases_thinking(effort: ReasoningEffort | None) -> dict[PhaseId, PhaseC
     }
 
 
+def test_estimate_ajoute_le_poste_vision() -> None:
+    """slide_count > 0 : vision_usd > 0, inclus dans le total et la phase 0."""
+    estimator = CostEstimator()
+    with_slides = estimator.estimate(
+        source_weights=[
+            SourceWeight(audio_seconds=600.0, text_tokens=0.0, slide_count=10.0)
+        ],
+        stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
+        llm_model=LLMModel.DEEPSEEK_V4_PRO,
+    )
+    without = estimator.estimate(
+        source_weights=_audio_weights(600.0),
+        stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
+        llm_model=LLMModel.DEEPSEEK_V4_PRO,
+    )
+    assert with_slides.vision_usd > 0.0
+    assert without.vision_usd == 0.0
+    assert with_slides.total_usd > without.total_usd
+    assert (
+        with_slides.per_phase_usd[PhaseId.STT] > without.per_phase_usd[PhaseId.STT]
+    )
+
+
+def test_estimate_slides_grossissent_le_volume_aval() -> None:
+    """Le texte des slides augmente le coût LLM (phases 1/3/4/5)."""
+    estimator = CostEstimator()
+    with_slides = estimator.estimate(
+        source_weights=[
+            SourceWeight(audio_seconds=600.0, text_tokens=0.0, slide_count=10.0)
+        ],
+        stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
+        llm_model=LLMModel.DEEPSEEK_V4_PRO,
+    )
+    without = estimator.estimate(
+        source_weights=_audio_weights(600.0),
+        stt_provider=SttProvider.FASTER_WHISPER_LOCAL,
+        llm_model=LLMModel.DEEPSEEK_V4_PRO,
+    )
+    assert with_slides.llm_usd > without.llm_usd
+
+
 def test_thematic_consolidation_costs_more_than_ordered() -> None:
     estimator = CostEstimator()
     weights = _audio_weights(600.0, 600.0, 600.0)

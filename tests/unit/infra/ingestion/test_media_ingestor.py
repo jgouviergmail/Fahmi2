@@ -12,6 +12,9 @@ from fahmi2.infra.ingestion.interface import IngestionDeps
 from fahmi2.infra.ingestion.media_ingestor import MediaIngestor
 from fahmi2.infra.storage.fs_artifacts import FsArtifactStore
 from fahmi2.infra.stt._fakes import FakeSTTProvider
+from fahmi2.infra.video._fakes import FakeSlideFrameExtractor
+from fahmi2.infra.vision._fakes import FakeVisionProvider
+from fahmi2.infra.vision.slide_analyzer import SlideAnalyzer
 
 pytestmark = pytest.mark.skipif(not has_ffmpeg_in_path(), reason="ffmpeg requis")
 
@@ -30,12 +33,25 @@ def _make_wav(path: Path) -> None:
     )
 
 
-def _deps(workspace: Path) -> IngestionDeps:
+def _slide_analyzer() -> tuple[SlideAnalyzer, FakeVisionProvider]:
+    provider = FakeVisionProvider()
+    analyzer = SlideAnalyzer(
+        frame_extractor=FakeSlideFrameExtractor(slide_count=1),
+        vision_provider=provider,
+        llm_workers=1,
+    )
+    return analyzer, provider
+
+
+def _deps(
+    workspace: Path, slide_analyzer: SlideAnalyzer | None = None
+) -> IngestionDeps:
     return IngestionDeps(
         workspace=workspace,
         artifacts=FsArtifactStore(),
         stt_provider=FakeSTTProvider(),
         ffmpeg=FFmpegExtractor(),
+        slide_analyzer=slide_analyzer,
     )
 
 
@@ -75,3 +91,77 @@ def test_ingest_keeps_wav_when_requested(tmp_path: Path) -> None:
     )
 
     assert (workspace / "audio" / f"{_SOURCE_ID}.wav").exists()
+
+
+def test_video_avec_slides_fusionne_le_contenu(tmp_path: Path) -> None:
+    """analyze_slides=True + vidéo : les segments slides sont intercalés."""
+    src_file = tmp_path / "cours.wav"
+    _make_wav(src_file)
+    analyzer, provider = _slide_analyzer()
+
+    transcription = MediaIngestor().ingest(
+        InputSource(kind=SourceKind.VIDEO, location=str(src_file)),
+        _SOURCE_ID,
+        _deps(tmp_path / "ws", analyzer),
+        language_hint=Language.FR,
+        delete_audio_after=True,
+        analyze_slides=True,
+    )
+
+    assert any(s.text.startswith("[Slide") for s in transcription.segments)
+    assert len(provider.calls) == 1
+    assert analyzer.consumed_cost_usd_for(_SOURCE_ID) > 0.0
+
+
+def test_video_sans_option_ignore_les_slides(tmp_path: Path) -> None:
+    """analyze_slides=False : le slide_analyzer n'est jamais appelé."""
+    src_file = tmp_path / "cours.wav"
+    _make_wav(src_file)
+    analyzer, provider = _slide_analyzer()
+
+    transcription = MediaIngestor().ingest(
+        InputSource(kind=SourceKind.VIDEO, location=str(src_file)),
+        _SOURCE_ID,
+        _deps(tmp_path / "ws", analyzer),
+        language_hint=Language.FR,
+        delete_audio_after=True,
+        analyze_slides=False,
+    )
+
+    assert not any(s.text.startswith("[Slide") for s in transcription.segments)
+    assert provider.calls == []
+
+
+def test_audio_avec_option_ignore_les_slides(tmp_path: Path) -> None:
+    """Une source AUDIO n'est jamais analysée même avec analyze_slides=True."""
+    src_file = tmp_path / "cours.wav"
+    _make_wav(src_file)
+    analyzer, provider = _slide_analyzer()
+
+    MediaIngestor().ingest(
+        InputSource(kind=SourceKind.AUDIO, location=str(src_file)),
+        _SOURCE_ID,
+        _deps(tmp_path / "ws", analyzer),
+        language_hint=Language.FR,
+        delete_audio_after=True,
+        analyze_slides=True,
+    )
+
+    assert provider.calls == []
+
+
+def test_option_sans_analyzer_disponible(tmp_path: Path) -> None:
+    """slide_analyzer=None (pas de clé OpenAI) : transcription inchangée."""
+    src_file = tmp_path / "cours.wav"
+    _make_wav(src_file)
+
+    transcription = MediaIngestor().ingest(
+        InputSource(kind=SourceKind.VIDEO, location=str(src_file)),
+        _SOURCE_ID,
+        _deps(tmp_path / "ws", None),
+        language_hint=Language.FR,
+        delete_audio_after=True,
+        analyze_slides=True,
+    )
+
+    assert not any(s.text.startswith("[Slide") for s in transcription.segments)

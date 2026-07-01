@@ -74,6 +74,27 @@ class FakeYoutubeDownloader:
         out.write_bytes(b"fake-audio")
         return out
 
+    def download_video(self, url: str, dest_dir: Path, stem: str) -> Path:
+        """Crée un fichier vidéo factice (ou lève le scénario d'échec).
+
+        Args:
+            url: URL (ignorée).
+            dest_dir: Dossier de destination (créé si absent).
+            stem: Nom de base du fichier.
+
+        Returns:
+            Le chemin du fichier factice créé.
+
+        Raises:
+            Exception: Le ``fail_with`` configuré, le cas échéant.
+        """
+        if self._fail_with is not None:
+            raise self._fail_with
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        out = dest_dir / f"{stem}.mp4"
+        out.write_bytes(b"fake-video")
+        return out
+
     def probe_duration(self, url: str) -> float:
         """Retourne la durée factice configurée.
 

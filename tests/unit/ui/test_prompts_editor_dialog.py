@@ -16,9 +16,10 @@ def test_prompts_editor_loads_first_template(qtbot: QtBot, tmp_path: Path) -> No
     qtbot.addWidget(dialog)
     # Le premier item de la liste doit être sélectionné automatiquement.
     assert dialog._list_widget.currentRow() == 0  # noqa: SLF001
-    # L'éditeur doit contenir le source du premier template.
+    # L'éditeur doit contenir le source du premier template du catalogue
+    # (phase 0 — analyse des slides).
     text = dialog._editor.toPlainText()  # noqa: SLF001
-    assert "glossaire" in text.lower()
+    assert "slide" in text.lower()
 
 
 def test_prompts_editor_save_creates_override_file(

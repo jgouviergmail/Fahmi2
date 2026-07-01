@@ -30,6 +30,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from fahmi2.app._cost_common import (
+    SLIDE_TEXT_TOKENS_PER_SLIDE,
     TOKENS_PER_WORD,
     WORDS_PER_MINUTE_ORAL,
     cost_range,
@@ -41,10 +42,12 @@ from fahmi2.domain.enums import (
     LLMModel,
     PhaseId,
     SttProvider,
+    VisionModel,
 )
 from fahmi2.domain.phase import PhaseConfig
 from fahmi2.infra.llm._pricing import get_pricing
 from fahmi2.infra.stt._pricing import stt_cost_usd
+from fahmi2.infra.vision._pricing import estimated_cost_per_slide_usd
 
 _SECONDS_PER_MINUTE = 60.0
 
@@ -58,11 +61,14 @@ class SourceWeight:
         text_tokens: Tokens texte estimés (document ; 0 sinon).
         reformulated: ``False`` si la source saute la reformulation (document
             en pass-through).
+        slide_count: Nombre estimé de slides à analyser (option « analyser les
+            slides » ; 0 si inactive).
     """
 
     audio_seconds: float
     text_tokens: float
     reformulated: bool = True
+    slide_count: float = 0.0
 
 
 def _base_tokens(weight: SourceWeight) -> float:
@@ -73,14 +79,19 @@ def _base_tokens(weight: SourceWeight) -> float:
 
     Returns:
         Le volume de tokens estimé (durée audio → mots → tokens, plus les
-        tokens texte d'un document).
+        tokens texte d'un document, plus le texte injecté par les slides
+        analysées).
     """
     audio_tokens = (
         (weight.audio_seconds / _SECONDS_PER_MINUTE)
         * WORDS_PER_MINUTE_ORAL
         * TOKENS_PER_WORD
     )
-    return audio_tokens + weight.text_tokens
+    return (
+        audio_tokens
+        + weight.text_tokens
+        + weight.slide_count * SLIDE_TEXT_TOKENS_PER_SLIDE
+    )
 
 
 @dataclass(frozen=True)
@@ -178,9 +189,11 @@ class CostEstimation:
     Attributes:
         stt_usd: Coût USD du STT.
         llm_usd: Coût USD cumulé des phases LLM.
+        vision_usd: Coût USD de l'analyse vision des slides (0 si l'option
+            est inactive) — compté dans la phase 0 de ``per_phase_usd``.
         total_usd: Somme (estimation ponctuelle).
         total_audio_seconds: Durée totale audio estimée (entrée).
-        per_phase_usd: Coût estimé par phase (STT inclus).
+        per_phase_usd: Coût estimé par phase (STT + vision inclus en phase 0).
         low_usd: Bas de fourchette d'incertitude (±33 %).
         high_usd: Haut de fourchette d'incertitude (±33 %).
     """
@@ -192,6 +205,7 @@ class CostEstimation:
     per_phase_usd: dict[PhaseId, float]
     low_usd: float
     high_usd: float
+    vision_usd: float = 0.0
 
 
 class CostEstimator:
@@ -208,12 +222,13 @@ class CostEstimator:
         translation_languages_count: int = 0,
         phases_config: dict[PhaseId, PhaseConfig] | None = None,
         consolidation_mode: ConsolidationMode = ConsolidationMode.ORDERED,
+        vision_model: VisionModel = VisionModel.GPT_5_MINI,
     ) -> CostEstimation:
         """Estime le coût total.
 
         Args:
             source_weights: Charge par source (durée audio **ou** tokens texte,
-                + drapeau ``reformulated``).
+                + drapeau ``reformulated`` + ``slide_count``).
             stt_provider: Provider STT choisi.
             llm_model: Modèle LLM choisi.
             stt_cloud_model: Modèle de transcription cloud (tarif appliqué en
@@ -228,9 +243,11 @@ class CostEstimator:
                 raisonnement étendu.
             consolidation_mode: Mode de consolidation (phase 5). En ``THEMATIC``,
                 un jeu de facteurs dédié (plus élevé) est appliqué à la phase 5.
+            vision_model: Modèle vision (tarif du poste « analyse des slides »
+                quand des ``slide_count`` sont non nuls).
 
         Returns:
-            ``CostEstimation`` avec détails STT/LLM/total.
+            ``CostEstimation`` avec détails STT/LLM/vision/total.
         """
         total_audio_seconds = sum(w.audio_seconds for w in source_weights)
         total_base_tokens = sum(_base_tokens(w) for w in source_weights)
@@ -248,14 +265,17 @@ class CostEstimator:
             consolidation_mode=consolidation_mode,
         )
         llm_cost = sum(llm_per_phase.values())
-        total = stt_cost + llm_cost
+        total_slides = sum(w.slide_count for w in source_weights)
+        vision_cost = total_slides * estimated_cost_per_slide_usd(str(vision_model))
+        total = stt_cost + llm_cost + vision_cost
         low, high = cost_range(total)
         return CostEstimation(
             stt_usd=stt_cost,
             llm_usd=llm_cost,
+            vision_usd=vision_cost,
             total_usd=total,
             total_audio_seconds=total_audio_seconds,
-            per_phase_usd={PhaseId.STT: stt_cost, **llm_per_phase},
+            per_phase_usd={PhaseId.STT: stt_cost + vision_cost, **llm_per_phase},
             low_usd=low,
             high_usd=high,
         )

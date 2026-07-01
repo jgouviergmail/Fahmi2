@@ -28,6 +28,7 @@ from fahmi2.domain.enums import (
     LLMModel,
     LocalSttModel,
     ReasoningEffort,
+    VisionModel,
 )
 
 _EnumT = TypeVar("_EnumT", bound=StrEnum)
@@ -94,6 +95,25 @@ _CLOUD_STT_MODEL_SOURCES: dict[CloudSttModel, str] = {
     ),
 }
 
+_VISION_MODEL_SOURCES: dict[VisionModel, str] = {
+    VisionModel.GPT_5_MINI: cast(
+        str,
+        QT_TRANSLATE_NOOP(
+            "ModelLabels", "gpt-5-mini — recommandé (meilleur rapport qualité/prix)"
+        ),
+    ),
+    VisionModel.GPT_5_NANO: cast(
+        str,
+        QT_TRANSLATE_NOOP("ModelLabels", "gpt-5-nano — économique (slides simples)"),
+    ),
+    VisionModel.GPT_5_4_MINI: cast(
+        str,
+        QT_TRANSLATE_NOOP(
+            "ModelLabels", "gpt-5.4-mini — qualité supérieure (slides denses)"
+        ),
+    ),
+}
+
 _NO_REASONING_SOURCE: str = cast(
     str, QT_TRANSLATE_NOOP("ModelLabels", "Automatique (serveur)")
 )
@@ -127,6 +147,11 @@ def local_stt_model_labels() -> dict[LocalSttModel, str]:
 def cloud_stt_model_labels() -> dict[CloudSttModel, str]:
     """Libellés traduits des modèles STT cloud (OpenAI)."""
     return {model: _tr(source) for model, source in _CLOUD_STT_MODEL_SOURCES.items()}
+
+
+def vision_model_labels() -> dict[VisionModel, str]:
+    """Libellés traduits des modèles vision (analyse des slides)."""
+    return {model: _tr(source) for model, source in _VISION_MODEL_SOURCES.items()}
 
 
 def no_reasoning_label() -> str:

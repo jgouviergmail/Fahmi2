@@ -7,10 +7,12 @@ Présentation :
 - *Sources exclues* (non traitées) avec une barre d'actions **sous** la liste
   (Réinclure).
 - En bas, deux boutons globaux : « ↻ Rafraîchir » et « Tout réinclure ».
+- Chaque ligne **vidéo/YouTube** porte une case à cocher « analyser les
+  slides » (grisée/absente pour audio et documents).
 
-Expose ``source_order()`` et ``excluded_sources()`` (clés stables) consommés
-par ``GenerationSettingsView``. Composant de **présentation pur** : la
-réconciliation ordre/exclusion (fonction pure
+Expose ``source_order()``, ``excluded_sources()`` et ``slides_sources()``
+(clés stables) consommés par ``GenerationSettingsView``. Composant de
+**présentation pur** : la réconciliation ordre/exclusion (fonction pure
 ``app.input_sources.reconcile_source_order``) est appliquée par l'appelant,
 qui transmet les listes déjà réconciliées à ``populate``.
 """
@@ -45,6 +47,10 @@ _KIND_LABELS: Final[dict[SourceKind, str]] = {
     SourceKind.DOCUMENT: "DOC",
     SourceKind.YOUTUBE: "YT",
 }
+#: Types de source éligibles à l'analyse des slides (piste vidéo requise).
+_SLIDES_KINDS: Final[frozenset[SourceKind]] = frozenset(
+    {SourceKind.VIDEO, SourceKind.YOUTUBE}
+)
 
 # Hauteurs des listes (px) — bornées pour éviter l'étirement infini dans une
 # carte qui aurait du ``stretch=1`` côté layout parent.
@@ -77,6 +83,7 @@ class SourceOrderView(QWidget):
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         self._known: set[str] = set()
         self._kinds: dict[str, SourceKind] = {}
+        self._slides: set[str] = set()
 
         self._included = QListWidget(self)
         self._included.setObjectName("sourceOrderList")
@@ -110,6 +117,7 @@ class SourceOrderView(QWidget):
         included: Sequence[str],
         excluded: Sequence[str],
         known: set[str],
+        slides: Sequence[str] = (),
     ) -> None:
         """Peuple les deux listes à partir de clés déjà réconciliées.
 
@@ -120,9 +128,12 @@ class SourceOrderView(QWidget):
             excluded: Clés des sources exclues, déjà réconciliées.
             known: Clés présentes dans l'état persisté/courant ; les sources
                 absentes de cet ensemble reçoivent le badge « nouveau ».
+            slides: Clés des sources vidéo/YouTube dont la case « analyser les
+                slides » est cochée.
         """
         self._kinds = {s.order_key(): s.kind for s in available}
         self._known = set(known)
+        self._slides = set(slides)
         self._included.clear()
         self._excluded.clear()
         for key in included:
@@ -137,6 +148,21 @@ class SourceOrderView(QWidget):
     def excluded_sources(self) -> tuple[str, ...]:
         """Clés des sources exclues."""
         return self._keys(self._excluded)
+
+    def slides_sources(self) -> tuple[str, ...]:
+        """Clés des sources dont la case « analyser les slides » est cochée.
+
+        Returns:
+            Les clés cochées (listes incluses puis exclues — l'état de la case
+            d'une source exclue est conservé pour une future réinclusion).
+        """
+        keys: list[str] = []
+        for widget in (self._included, self._excluded):
+            for i in range(widget.count()):
+                item = widget.item(i)
+                if item is not None and item.checkState() is Qt.CheckState.Checked:
+                    keys.append(str(item.data(_KEY_ROLE)))
+        return tuple(keys)
 
     def exclude_key(self, key: str) -> None:
         """Déplace la source ``key`` des incluses vers les exclues."""
@@ -187,12 +213,31 @@ class SourceOrderView(QWidget):
 
         Returns:
             L'item libellé ``[TYPE] clé`` avec un badge « nouveau » si la clé
-            est absente de l'ensemble ``_known``.
+            est absente de l'ensemble ``_known`` ; les vidéos/YouTube portent
+            la case à cocher « analyser les slides ».
         """
         kind = self._kinds.get(key, SourceKind.VIDEO)
         badge = "" if key in self._known else self.tr("  • nouveau")
         item = QListWidgetItem(f"[{_KIND_LABELS[kind]}] {key}{badge}")
         item.setData(_KEY_ROLE, key)
+        if kind in _SLIDES_KINDS:
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(
+                Qt.CheckState.Checked
+                if key in self._slides
+                else Qt.CheckState.Unchecked
+            )
+            item.setToolTip(
+                self.tr(
+                    "Analyser les slides/illustrations de cette vidéo "
+                    "(modèle vision OpenAI — clé OpenAI requise)"
+                )
+            )
+        else:
+            # ``ItemIsUserCheckable`` fait partie des flags **par défaut** de
+            # Qt (la case n'apparaît que si un état est posé) : on le retire
+            # explicitement pour les types sans piste vidéo.
+            item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
         return item
 
     @staticmethod
@@ -249,6 +294,15 @@ class SourceOrderView(QWidget):
                 self.tr("Sources à traiter — ordre des chapitres")
             )
         )
+        slides_hint = QLabel(
+            self.tr(
+                "☑ sur une vidéo/YouTube = analyser ses slides (contenu "
+                "intégré à la synthèse ; clé OpenAI requise)"
+            ),
+            self,
+        )
+        slides_hint.setWordWrap(True)
+        outer.addWidget(slides_hint)
         outer.addWidget(self._included)
         outer.addWidget(self._build_included_actions())
         outer.addSpacing(_SECTION_TOP_SPACING)

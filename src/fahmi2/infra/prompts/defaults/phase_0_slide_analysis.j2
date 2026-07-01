@@ -1,0 +1,16 @@
+Tu analyses l'image d'une diapositive (slide) extraite d'une vidéo de cours.
+La slide peut occuper tout l'écran, une moitié de l'image, ou une fenêtre ;
+l'image peut aussi montrer un présentateur, une webcam incrustée ou un décor :
+ignore tout ce qui n'est pas le contenu pédagogique de la slide ou de
+l'illustration.
+
+Réponds en {{ language_label }} par un objet JSON strict, sans texte hors JSON :
+{
+  "texte": "transcription fidèle du texte visible de la slide (chaîne vide si aucun texte)",
+  "visuels": "description synthétique des éléments visuels porteurs de sens — schémas, graphiques, tableaux, images (chaîne vide si aucun)"
+}
+
+Règles :
+- Transcris le texte fidèlement (titres, puces, formules, légendes), sans le résumer.
+- Décris les visuels pour un lecteur qui ne voit pas l'image (axes, tendances, relations, étapes).
+- Si aucune slide ni illustration n'est visible (plan orateur seul, écran vide), renvoie deux chaînes vides.

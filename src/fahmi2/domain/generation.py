@@ -136,6 +136,11 @@ class GenerationSettings:
             slides intercalé dans la transcription, phase 0). Réconciliées au
             scan comme ``excluded_sources`` (clés obsolètes ignorées).
         vision_model: Modèle vision OpenAI utilisé pour lire les slides.
+        delete_frames_after_analysis: Si ``True`` (défaut), les images de
+            slides extraites sont supprimées après analyse ; sinon les images
+            **représentatives** (une par slide) sont conservées dans
+            ``frames/<source>/`` (visualisation / dépannage, miroir de
+            ``delete_audio_after_stt``).
         consolidation_mode: Mode d'assemblage du consolidé (phase 5).
             ``ORDERED`` (défaut) : 1 source = 1 chapitre dans l'ordre choisi.
             ``THEMATIC`` : refonte thématique transversale par le LLM (en ce mode,
@@ -163,6 +168,7 @@ class GenerationSettings:
     excluded_sources: tuple[str, ...] = ()
     slides_sources: tuple[str, ...] = ()
     vision_model: VisionModel = VisionModel.GPT_5_MINI
+    delete_frames_after_analysis: bool = True
     consolidation_mode: ConsolidationMode = ConsolidationMode.ORDERED
 
     def __post_init__(self) -> None:

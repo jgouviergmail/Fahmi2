@@ -1253,6 +1253,7 @@ class GenerationController(QObject):
             vision_provider=vision,
             llm_workers=settings.parallelism.llm_workers,
             pause_token=self._current_pause_token,
+            delete_frames_after=settings.delete_frames_after_analysis,
         )
 
     # ------------------------------------------------------------- event bus

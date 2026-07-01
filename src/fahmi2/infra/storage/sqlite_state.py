@@ -206,6 +206,7 @@ def _serialize_generation_settings(gen: GenerationSettings) -> dict[str, Any]:
         "excluded_sources": list(gen.excluded_sources),
         "slides_sources": list(gen.slides_sources),
         "vision_model": str(gen.vision_model),
+        "delete_frames_after_analysis": gen.delete_frames_after_analysis,
         "consolidation_mode": str(gen.consolidation_mode),
     }
 
@@ -272,6 +273,9 @@ def _deserialize_generation_settings(payload: dict[str, Any]) -> GenerationSetti
         slides_sources=tuple(payload.get("slides_sources", [])),
         vision_model=VisionModel(
             payload.get("vision_model", VisionModel.GPT_5_MINI)
+        ),
+        delete_frames_after_analysis=bool(
+            payload.get("delete_frames_after_analysis", True)
         ),
         consolidation_mode=ConsolidationMode(
             payload.get("consolidation_mode", ConsolidationMode.ORDERED)

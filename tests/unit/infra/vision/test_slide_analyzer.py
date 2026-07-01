@@ -48,6 +48,29 @@ def test_analyze_nettoie_les_frames(tmp_path: Path) -> None:
         duration_seconds=30.0,
     )
     assert not (tmp_path / "frames" / "src-1").exists()
+    # Le dossier parent ``frames/`` vide est retiré (pas de résidu trompeur).
+    assert not (tmp_path / "frames").exists()
+
+
+def test_analyze_conserve_les_representatives_si_demande(tmp_path: Path) -> None:
+    """delete_frames_after=False : une image par slide (slide_NNN.jpg), les
+    échantillons intermédiaires sont purgés."""
+    provider = FakeVisionProvider()
+    analyzer = SlideAnalyzer(
+        frame_extractor=FakeSlideFrameExtractor(slide_count=3),
+        vision_provider=provider,
+        llm_workers=1,
+        delete_frames_after=False,
+    )
+    analyzer.analyze(
+        tmp_path / "v.mp4",
+        "src-1",
+        workspace=tmp_path,
+        language=Language.FR,
+        duration_seconds=30.0,
+    )
+    kept = sorted(p.name for p in (tmp_path / "frames" / "src-1").glob("*.jpg"))
+    assert kept == ["slide_001.jpg", "slide_002.jpg", "slide_003.jpg"]
 
 
 def test_analyses_paralleles_bornees_globalement(tmp_path: Path) -> None:

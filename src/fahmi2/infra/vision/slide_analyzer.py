@@ -15,6 +15,7 @@ appelant ``analyze`` — sans ce garde-fou, la concurrence vision réelle serait
 
 from __future__ import annotations
 
+import contextlib
 import shutil
 import threading
 from dataclasses import dataclass
@@ -34,6 +35,8 @@ from fahmi2.infra.vision.interface import (
 )
 
 _FRAMES_SUBDIR = "frames"
+#: Nom des images représentatives conservées (une par slide, ordre chronologique).
+_KEPT_SLIDE_PATTERN = "slide_{index:03d}.jpg"
 
 
 @dataclass(frozen=True)
@@ -62,6 +65,7 @@ class SlideAnalyzer:
         llm_workers: int,
         pause_token: PauseToken | None = None,
         retry_policy: RetryPolicy | None = None,
+        delete_frames_after: bool = True,
     ) -> None:
         """Construit la façade.
 
@@ -72,12 +76,18 @@ class SlideAnalyzer:
             pause_token: Jeton coopératif pause/annulation du run.
             retry_policy: Politique de retry des appels vision (défaut :
                 ``RetryPolicy()``).
+            delete_frames_after: Si ``True`` (défaut), supprime toutes les
+                frames après analyse ; sinon conserve les **représentatives**
+                (``slide_NNN.jpg``, une par slide) et purge les échantillons
+                intermédiaires. En cas d'échec, le dossier est laissé en
+                l'état (dépannage).
         """
         self._frame_extractor = frame_extractor
         self._vision = vision_provider
         self._llm_workers = max(1, llm_workers)
         self._pause_token = pause_token
         self._retry_policy = retry_policy or RetryPolicy()
+        self._delete_frames_after = delete_frames_after
         self._lock = threading.Lock()
         self._costs_by_source: dict[str, float] = {}
         self._dropped_by_source: dict[str, int] = {}
@@ -145,13 +155,23 @@ class SlideAnalyzer:
             with self._lock:
                 self._costs_by_source[source_id] = cost
                 self._dropped_by_source[source_id] = extraction.dropped_groups
+            if not self._delete_frames_after:
+                # Conservation : seules les représentatives (une par slide,
+                # ordre chronologique) sont gardées ; les échantillons
+                # intermédiaires sont purgés.
+                _keep_only_representatives(frames_dir, extraction.frames)
             return SlideAnalysisReport(
                 slides=slides,
                 cost_usd=cost,
                 dropped_groups=extraction.dropped_groups,
             )
         finally:
-            shutil.rmtree(frames_dir, ignore_errors=True)
+            if self._delete_frames_after:
+                shutil.rmtree(frames_dir, ignore_errors=True)
+                # Retire le dossier parent ``frames/`` s'il est vide (un
+                # dossier vide résiduel laisse croire que rien n'a tourné).
+                with contextlib.suppress(OSError):
+                    frames_dir.parent.rmdir()
 
     def consumed_cost_usd_for(self, source_id: str) -> float:
         """Coût vision consommé pour une source (0 si non analysée).
@@ -176,3 +196,27 @@ class SlideAnalyzer:
         """
         with self._lock:
             return self._dropped_by_source.get(source_id, 0)
+
+
+def _keep_only_representatives(
+    frames_dir: Path, frames: tuple[SlideFrame, ...]
+) -> None:
+    """Renomme les représentatives en ``slide_NNN.jpg`` et purge le reste.
+
+    Best-effort : une erreur de fichier n'échoue pas l'analyse (les images
+    conservées sont un confort de visualisation, pas un artefact du pipeline).
+
+    Args:
+        frames_dir: Dossier des frames échantillonnées.
+        frames: Slides détectées (leurs ``image_path`` sont conservées).
+    """
+    kept: set[Path] = set()
+    for index, frame in enumerate(frames, start=1):
+        target = frames_dir / _KEPT_SLIDE_PATTERN.format(index=index)
+        with contextlib.suppress(OSError):
+            frame.image_path.replace(target)
+        kept.add(target)
+    for leftover in frames_dir.glob("*.jpg"):
+        if leftover not in kept:
+            with contextlib.suppress(OSError):
+                leftover.unlink()

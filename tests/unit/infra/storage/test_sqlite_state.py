@@ -210,9 +210,21 @@ def test_settings_lenient_defaults_slides_fields(
     payload = _serialize_generation_settings(make_generation_settings())
     payload.pop("slides_sources")
     payload.pop("vision_model")
+    payload.pop("delete_frames_after_analysis")
     restored = _deserialize_generation_settings(payload)
     assert restored.slides_sources == ()
     assert restored.vision_model is VisionModel.GPT_5_MINI
+    assert restored.delete_frames_after_analysis is True
+
+
+def test_settings_roundtrip_delete_frames_flag(
+    make_generation_settings: Any,
+) -> None:
+    payload = _serialize_generation_settings(
+        make_generation_settings(delete_frames_after_analysis=False)
+    )
+    restored = _deserialize_generation_settings(payload)
+    assert restored.delete_frames_after_analysis is False
 
 
 def test_get_unknown_project_returns_none(tmp_path: Path) -> None:

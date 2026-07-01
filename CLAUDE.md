@@ -494,7 +494,17 @@ The barriers remain the batch phases 2 and 5 (the engine stays
   reveals keep one group whose representative is the **final state**) →
   one vision call per slide (`OpenAIVisionAdapter`, `VisionModel`
   configurable, default `gpt-5-mini`, JSON mode `{texte, visuels}`, output
-  in the STT-detected language; empty content → no segment injected).
+  in the STT-detected language; empty content → no segment injected). The
+  vision prompt is **content-focused by design**: it extracts knowledge,
+  data and meaning (chart trends + key values, diagram relations) and
+  explicitly ignores layout/colours/positions, headers/footers/page
+  numbers, article credits, and the presenter/webcam — layout chatter
+  polluted the synthesis and inflated output-token costs. Frames are
+  deleted after analysis (and the empty `frames/` parent removed) unless
+  `GenerationSettings.delete_frames_after_analysis` is `False` (UI
+  checkbox mirroring « Conserver les fichiers audio ») — then one
+  representative image per slide is kept as `frames/<source>/slide_NNN.jpg`
+  (intermediate samples always purged).
   Guard-rails: per-minute + absolute slide caps and flash-group
   absorption (all constants in `infra/video/_constants.py`); capped-out
   groups raise a `SlideDetectionWarning` pipeline event (Logs panel).

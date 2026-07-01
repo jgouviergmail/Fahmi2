@@ -43,9 +43,12 @@ and takes effect at the next launch.
   captured at their final state), each slide is transcribed + its visuals
   described, and the content is **interleaved, timestamped, into the
   transcript** — so the synthesis aligns the spoken explanation with the
-  matching slide. Cost is bounded (one vision call per slide, per-video
+  matching slide. The analysis focuses on knowledge and data (not layout or
+  presenter chatter). Cost is bounded (one vision call per slide, per-video
   caps) and shown in the pre-run estimate. Requires an OpenAI key; with
   the option on, YouTube downloads the ≤ 720p video instead of audio only.
+  Optionally keep one image per detected slide (`slide_001.jpg`…) for
+  viewing/troubleshooting.
 - **Consolidation mode**: **ordered** (1 source = 1 chapter, content copied
   in the chosen order) or **thematic rewrite** — the LLM aggregates and
   restructures the contents of all inputs cross-cuttingly by theme, like an

@@ -302,10 +302,20 @@ class GenerationSettingsView(QDialog):
         self._keep_audio_checkbox = QCheckBox(
             self.tr("Conserver les fichiers audio (réécoute / dépannage)"), self
         )
+        self._keep_frames_checkbox = QCheckBox(
+            self.tr("Conserver les images de slides (visualisation / dépannage)"),
+            self,
+        )
         self._keep_audio_checkbox.setToolTip(
             self.tr(
                 "Si coché, les fichiers .wav extraits des médias (vidéo/audio/YouTube) ne sont "
                 "pas supprimés après la transcription."
+            )
+        )
+        self._keep_frames_checkbox.setToolTip(
+            self.tr(
+                "Si coché, une image par slide détectée (slide_001.jpg…) est "
+                "conservée dans frames/<source>/ après l'analyse vision."
             )
         )
 
@@ -526,6 +536,7 @@ class GenerationSettingsView(QDialog):
         perf_form.addRow(self.tr("Transcriptions simultanées"), self._stt_workers_input)
         perf_layout.addLayout(perf_form)
         perf_layout.addWidget(self._keep_audio_checkbox)
+        perf_layout.addWidget(self._keep_frames_checkbox)
         layout.addWidget(perf_card)
 
         layout.addStretch(1)
@@ -749,6 +760,9 @@ class GenerationSettingsView(QDialog):
         if vision_idx >= 0:
             self._vision_model_combo.setCurrentIndex(vision_idx)
         self._keep_audio_checkbox.setChecked(not generation.delete_audio_after_stt)
+        self._keep_frames_checkbox.setChecked(
+            not generation.delete_frames_after_analysis
+        )
         llm_idx = self._llm_combo.findData(generation.llm_model)
         if llm_idx >= 0:
             self._llm_combo.setCurrentIndex(llm_idx)
@@ -808,6 +822,7 @@ class GenerationSettingsView(QDialog):
                 llm_workers=self._llm_workers_input.value(),
             ),
             delete_audio_after_stt=not self._keep_audio_checkbox.isChecked(),
+            delete_frames_after_analysis=not self._keep_frames_checkbox.isChecked(),
             export_formats=export_formats,
             reformulate_documents=self._reformulate_documents_checkbox.isChecked(),
             youtube_urls=youtube_urls,

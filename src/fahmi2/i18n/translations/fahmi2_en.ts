@@ -443,52 +443,52 @@ This action is irreversible.</translation>
 <context>
     <name>GenerationController</name>
     <message>
-        <location filename="../../ui/generation_controller.py" line="531"/>
-        <location filename="../../ui/generation_controller.py" line="711"/>
-        <location filename="../../ui/generation_controller.py" line="783"/>
-        <location filename="../../ui/generation_controller.py" line="862"/>
-        <location filename="../../ui/generation_controller.py" line="1001"/>
+        <location filename="../../ui/generation_controller.py" line="532"/>
+        <location filename="../../ui/generation_controller.py" line="712"/>
+        <location filename="../../ui/generation_controller.py" line="784"/>
+        <location filename="../../ui/generation_controller.py" line="863"/>
+        <location filename="../../ui/generation_controller.py" line="1002"/>
         <source>Aucun projet sélectionné</source>
         <extracomment>Émis quand le statut du run change (démarrage / fin / échec / réinit.), pour rafraîchir les icônes de la sidebar.</extracomment>
         <translation>No project selected</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="534"/>
+        <location filename="../../ui/generation_controller.py" line="535"/>
         <source>Sélectionne un projet dans la sidebar avant de lancer.</source>
         <translation>Select a project in the sidebar before launching.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="543"/>
+        <location filename="../../ui/generation_controller.py" line="544"/>
         <source>Run déjà en cours</source>
         <translation>Run already in progress</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="546"/>
+        <location filename="../../ui/generation_controller.py" line="547"/>
         <source>Un run est déjà en cours pour ce projet.</source>
         <translation>A run is already in progress for this project.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="563"/>
+        <location filename="../../ui/generation_controller.py" line="564"/>
         <source>Création du run impossible</source>
         <translation>Cannot create the run</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="572"/>
+        <location filename="../../ui/generation_controller.py" line="573"/>
         <source>Erreur inattendue</source>
         <translation>Unexpected error</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="605"/>
+        <location filename="../../ui/generation_controller.py" line="606"/>
         <source>Configuration des providers invalide</source>
         <translation>Invalid provider configuration</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="680"/>
+        <location filename="../../ui/generation_controller.py" line="681"/>
         <source>Annuler le run ?</source>
         <translation>Cancel the run?</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="681"/>
+        <location filename="../../ui/generation_controller.py" line="682"/>
         <source>Annuler le run en cours ?
 
 Le pipeline s&apos;arrêtera à la prochaine frontière sûre. Le dossier de sortie sera ensuite **supprimé** (livrables Markdown générés jusqu&apos;ici) et le cockpit réinitialisé.
@@ -501,75 +501,75 @@ The pipeline will stop at the next safe boundary. The output folder will then be
 This action does not delete the original source files or the intermediate “workspace” artefacts.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="714"/>
+        <location filename="../../ui/generation_controller.py" line="715"/>
         <source>Sélectionne un projet dans la sidebar avant d&apos;exporter.</source>
         <translation>Select a project in the sidebar before exporting.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="723"/>
-        <location filename="../../ui/generation_controller.py" line="795"/>
-        <location filename="../../ui/generation_controller.py" line="1194"/>
+        <location filename="../../ui/generation_controller.py" line="724"/>
+        <location filename="../../ui/generation_controller.py" line="796"/>
+        <location filename="../../ui/generation_controller.py" line="1195"/>
         <source>Génération non configurée</source>
         <translation>Generation not configured</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="726"/>
+        <location filename="../../ui/generation_controller.py" line="727"/>
         <source>Configurez d&apos;abord la génération (⚙ Réglages).</source>
         <translation>Configure the generation first (⚙ Settings).</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="760"/>
+        <location filename="../../ui/generation_controller.py" line="761"/>
         <source>Aucun dossier de sortie</source>
         <translation>No output folder</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="763"/>
+        <location filename="../../ui/generation_controller.py" line="764"/>
         <source>Le dossier de sortie n&apos;existe pas encore. Lancez d&apos;abord un run pour ce projet.</source>
         <translation>The output folder does not exist yet. Run a generation first for this project.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="786"/>
+        <location filename="../../ui/generation_controller.py" line="787"/>
         <source>Sélectionne un projet dans la sidebar avant d&apos;estimer.</source>
         <translation>Select a project in the sidebar before estimating.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="798"/>
-        <location filename="../../ui/generation_controller.py" line="1197"/>
+        <location filename="../../ui/generation_controller.py" line="799"/>
+        <location filename="../../ui/generation_controller.py" line="1198"/>
         <source>Configurez d&apos;abord les réglages de génération de ce projet.</source>
         <translation>Configure this project&apos;s generation settings first.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="810"/>
+        <location filename="../../ui/generation_controller.py" line="811"/>
         <source>Dossier d&apos;entrée invalide</source>
         <translation>Invalid input folder</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="865"/>
+        <location filename="../../ui/generation_controller.py" line="866"/>
         <source>Sélectionne un projet dans la sidebar avant de configurer la génération.</source>
         <translation>Select a project in the sidebar before configuring the generation.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="1004"/>
+        <location filename="../../ui/generation_controller.py" line="1005"/>
         <source>Sélectionne un projet dans la sidebar avant de réinitialiser.</source>
         <translation>Select a project in the sidebar before resetting.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="1013"/>
+        <location filename="../../ui/generation_controller.py" line="1014"/>
         <source>Run en cours</source>
         <translation>Run in progress</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="1014"/>
+        <location filename="../../ui/generation_controller.py" line="1015"/>
         <source>Impossible de réinitialiser pendant un run. Annule-le d&apos;abord.</source>
         <translation>Cannot reset while a run is in progress. Cancel it first.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="1022"/>
+        <location filename="../../ui/generation_controller.py" line="1023"/>
         <source>Réinitialiser la génération ?</source>
         <translation>Reset the generation?</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="1025"/>
+        <location filename="../../ui/generation_controller.py" line="1026"/>
         <source>Réinitialiser la génération de « {name} » ?
 
 Tous les livrables produits (transcriptions, glossaire, documents) et l&apos;historique des runs en base seront supprimés. Le dossier d&apos;entrée n&apos;est pas touché. Cette action est irréversible.</source>
@@ -578,27 +578,27 @@ Tous les livrables produits (transcriptions, glossaire, documents) et l&apos;his
 All produced deliverables (transcripts, glossary, documents) and the run history in the database will be deleted. The input folder is not touched. This action is irreversible.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="1079"/>
+        <location filename="../../ui/generation_controller.py" line="1080"/>
         <source>Le run s&apos;est terminé sur une erreur inattendue</source>
         <translation>The run ended with an unexpected error</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="1181"/>
+        <location filename="../../ui/generation_controller.py" line="1182"/>
         <source>Clé DeepSeek manquante</source>
         <translation>DeepSeek key missing</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="1184"/>
+        <location filename="../../ui/generation_controller.py" line="1185"/>
         <source>Renseigne la clé DeepSeek dans « Édition → Paramètres globaux ».</source>
         <translation>Enter the DeepSeek key under “Edit → Global settings”.</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="1210"/>
+        <location filename="../../ui/generation_controller.py" line="1211"/>
         <source>Clé OpenAI manquante</source>
         <translation>OpenAI key missing</translation>
     </message>
     <message>
-        <location filename="../../ui/generation_controller.py" line="1213"/>
+        <location filename="../../ui/generation_controller.py" line="1214"/>
         <source>Le STT cloud et l&apos;analyse des slides nécessitent une clé OpenAI. Renseigne-la dans « Édition → Paramètres globaux ».</source>
         <translation>Cloud STT and slide analysis require an OpenAI key. Set it in &quot;Edit → Global settings&quot;.</translation>
     </message>
@@ -617,37 +617,37 @@ All produced deliverables (transcripts, glossary, documents) and the run history
     </message>
     <message>
         <location filename="../../ui/dialogs/generation_settings_view.py" line="129"/>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="365"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="375"/>
         <source>Style</source>
         <translation>Style</translation>
     </message>
     <message>
         <location filename="../../ui/dialogs/generation_settings_view.py" line="130"/>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="424"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="434"/>
         <source>Sources</source>
         <translation>Sources</translation>
     </message>
     <message>
         <location filename="../../ui/dialogs/generation_settings_view.py" line="131"/>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="484"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="494"/>
         <source>Transcription</source>
         <translation>Transcription</translation>
     </message>
     <message>
         <location filename="../../ui/dialogs/generation_settings_view.py" line="132"/>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="540"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="551"/>
         <source>Génération IA</source>
         <translation>AI generation</translation>
     </message>
     <message>
         <location filename="../../ui/dialogs/generation_settings_view.py" line="133"/>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="592"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="603"/>
         <source>Phases IA</source>
         <translation>AI phases</translation>
     </message>
     <message>
         <location filename="../../ui/dialogs/generation_settings_view.py" line="134"/>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="609"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="620"/>
         <source>Export</source>
         <translation>Export</translation>
     </message>
@@ -749,263 +749,273 @@ Ex. : https://youtu.be/XXXXXXXXXXX</translation>
         <translation>Keep audio files (replay / troubleshooting)</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="307"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="306"/>
+        <source>Conserver les images de slides (visualisation / dépannage)</source>
+        <translation>Keep slide images (viewing / troubleshooting)</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="311"/>
         <source>Si coché, les fichiers .wav extraits des médias (vidéo/audio/YouTube) ne sont pas supprimés après la transcription.</source>
         <translation>If checked, the .wav files extracted from media (video/audio/YouTube) are not deleted after transcription.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="318"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="317"/>
+        <source>Si coché, une image par slide détectée (slide_001.jpg…) est conservée dans frames/&lt;source&gt;/ après l&apos;analyse vision.</source>
+        <translation>If checked, one image per detected slide (slide_001.jpg…) is kept in frames/&lt;source&gt;/ after the vision analysis.</translation>
+    </message>
+    <message>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="328"/>
         <source>Transcriptions cloud simultanées (sans effet en STT local : 1 GPU).</source>
         <translation>Simultaneous cloud transcriptions (no effect on local STT: 1 GPU).</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="331"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="341"/>
         <source>Pas de plafond</source>
         <translation>No cap</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="334"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="344"/>
         <source>Coût maximal en USD. La génération s&apos;arrête si elle s&apos;en approche. Mettez 0 pour désactiver le plafond.</source>
         <translation>Maximum cost in USD. Generation stops as it approaches it. Set 0 to disable the cap.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="347"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="357"/>
         <source>Appels IA simultanés (le compte concurrence DeepSeek est élevé).</source>
         <translation>Simultaneous AI calls (DeepSeek concurrency limits are high).</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="367"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="377"/>
         <source>Ton, mise en forme et mode d&apos;assemblage du document consolidé.</source>
         <translation>Tone, formatting, and assembly mode of the consolidated document.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="374"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="384"/>
         <source>Mise en forme</source>
         <translation>Formatting</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="376"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="386"/>
         <source>Préréglage de style, mode d&apos;assemblage des sources et consignes libres pour orienter l&apos;écriture.</source>
         <translation>Style preset, source assembly mode, and free guidance to steer the writing.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="381"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="391"/>
         <source>Préréglage de style</source>
         <translation>Style preset</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="382"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="392"/>
         <source>Mode d&apos;assemblage</source>
         <translation>Assembly mode</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="384"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="394"/>
         <source>Consignes de style</source>
         <translation>Style guidance</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="391"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="401"/>
         <source>Optionnel — laissez vide pour le comportement par défaut.</source>
         <translation>Optional — leave blank for the default behaviour.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="399"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="409"/>
         <source>Documents texte</source>
         <translation>Text documents</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="401"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="411"/>
         <source>Comportement appliqué aux fichiers PDF, Word, Markdown et texte.</source>
         <translation>Behaviour applied to PDF, Word, Markdown, and text files.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="409"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="419"/>
         <source>Décochez pour les cours déjà rédigés (insertion telle quelle, coût nul).</source>
         <translation>Uncheck for courses already written out (inserted as-is, zero cost).</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="426"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="436"/>
         <source>Dossier des fichiers à traiter, vidéos YouTube, langues à produire et ordre d&apos;apparition des sources dans le document.</source>
         <translation>Folder of files to process, YouTube videos, languages to produce, and order of sources in the document.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="434"/>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="632"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="444"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="643"/>
         <source>Dossier des sources</source>
         <translation>Source folder</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="436"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="446"/>
         <source>Dossier scanné pour les vidéos, audios et documents à traiter.</source>
         <translation>Folder scanned for the videos, audio, and documents to process.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="447"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="457"/>
         <source>Vidéos YouTube</source>
         <translation>YouTube videos</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="449"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="459"/>
         <source>Liens YouTube unitaires (une URL par ligne). La vidéo est téléchargée puis transcrite comme une vidéo locale.</source>
         <translation>Single YouTube links (one URL per line). The video is downloaded and then transcribed like a local video.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="458"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="468"/>
         <source>Langues du document</source>
         <translation>Document languages</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="460"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="470"/>
         <source>Langues à produire pour le document consolidé. La langue « principale » est l&apos;originale ; les autres en sont des traductions automatiques.</source>
         <translation>Languages to produce for the consolidated document. The “primary” language is the original; the others are automatic translations.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="469"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="479"/>
         <source>Ordre et exclusions</source>
         <translation>Order and exclusions</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="471"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="481"/>
         <source>Ordre d&apos;apparition des sources dans le document, et exclusions éventuelles.</source>
         <translation>Order of sources in the document, and optional exclusions.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="486"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="496"/>
         <source>Moteur et modèle utilisés pour transcrire les vidéos et fichiers audio.</source>
         <translation>Engine and model used to transcribe the videos and audio files.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="493"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="503"/>
         <source>Moteur de transcription</source>
         <translation>Transcription engine</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="495"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="505"/>
         <source>Mode hors ligne (GPU local, sans coût) ou en ligne (OpenAI, plus précis sur les longues durées).</source>
         <translation>Offline mode (local GPU, no cost) or online (OpenAI, more accurate on long content).</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="500"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="510"/>
         <source>Moteur</source>
         <translation>Engine</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="506"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="516"/>
         <source>Modèle de transcription</source>
         <translation>Transcription model</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="508"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="518"/>
         <source>Choix du modèle ; un seul est actif à la fois, selon le moteur choisi.</source>
         <translation>Model choice; only one is active at a time, depending on the chosen engine.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="512"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="522"/>
         <source>Modèle hors ligne (GPU)</source>
         <translation>Offline model (GPU)</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="513"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="523"/>
         <source>Modèle en ligne (OpenAI)</source>
         <translation>Online model (OpenAI)</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="514"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="524"/>
         <source>Modèle vision (slides)</source>
         <translation>Vision model (slides)</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="520"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="530"/>
         <source>Performance et conservation</source>
         <translation>Performance and retention</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="522"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="532"/>
         <source>Parallélisme des transcriptions en ligne et gestion des fichiers audio extraits.</source>
         <translation>Parallelism of online transcriptions and management of extracted audio files.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="526"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="536"/>
         <source>Transcriptions simultanées</source>
         <translation>Simultaneous transcriptions</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="542"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="553"/>
         <source>Modèle de génération, plafond de budget et nombre de traitements en parallèle.</source>
         <translation>Generation model, budget cap, and number of parallel jobs.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="548"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="559"/>
         <source>Modèle de génération</source>
         <translation>Generation model</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="550"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="561"/>
         <source>Modèle DeepSeek utilisé pour les phases de reformulation, structuration, consolidation, traduction et cohérence.</source>
         <translation>DeepSeek model used for the rephrasing, structuring, consolidation, translation, and coherence phases.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="555"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="566"/>
         <source>Modèle</source>
         <translation>Model</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="561"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="572"/>
         <source>Budget</source>
         <translation>Budget</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="563"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="574"/>
         <source>Plafond de dépense — la génération s&apos;arrête si le coût l&apos;atteint.</source>
         <translation>Spending cap — generation stops if the cost reaches it.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="567"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="578"/>
         <source>Budget maximal</source>
         <translation>Maximum budget</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="573"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="584"/>
         <source>Performance</source>
         <translation>Performance</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="575"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="586"/>
         <source>Nombre d&apos;appels IA simultanés. Plus rapide, n&apos;augmente pas le coût.</source>
         <translation>Number of simultaneous AI calls. Faster, does not raise the cost.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="579"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="590"/>
         <source>Traitements IA simultanés</source>
         <translation>Simultaneous AI jobs</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="594"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="605"/>
         <source>Réglages fins pour chacune des 7 phases IA du pipeline (thinking, intensité, température, retries). Laissez les valeurs par défaut sauf cas particulier.</source>
         <translation>Fine-grained settings for each of the 7 AI pipeline phases (thinking, intensity, temperature, retries). Leave defaults unless required.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="611"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="622"/>
         <source>Formats proposés lors de l&apos;export du document consolidé et du glossaire.</source>
         <translation>Formats offered when exporting the consolidated document and the glossary.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="615"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="626"/>
         <source>Formats à exporter</source>
         <translation>Formats to export</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="623"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="634"/>
         <source>Sans sélection, l&apos;export laissera le choix au moment de l&apos;action.</source>
         <translation>Without a selection, the export will offer a choice at action time.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="696"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="707"/>
         <source>GPU NVIDIA introuvable</source>
         <translation>NVIDIA GPU not found</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="698"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="709"/>
         <source>Le mode de transcription locale nécessite un GPU NVIDIA compatible CUDA.
 
 Veuillez utiliser le mode OpenAI en ligne.</source>
@@ -1014,12 +1024,12 @@ Veuillez utiliser le mode OpenAI en ligne.</source>
 Please use the OpenAI online mode.</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="773"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="787"/>
         <source>Dossier des sources manquant</source>
         <translation>Source folder missing</translation>
     </message>
     <message>
-        <location filename="../../ui/dialogs/generation_settings_view.py" line="775"/>
+        <location filename="../../ui/dialogs/generation_settings_view.py" line="789"/>
         <source>Veuillez sélectionner le dossier des sources (vidéos, audios, documents).</source>
         <translation>Please select the source folder (videos, audio, documents).</translation>
     </message>

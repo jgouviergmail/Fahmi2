@@ -459,7 +459,7 @@ python -m memory_profiler script.py
    it; see `tests/unit/ui/test_model_labels.py`).
 5. Write tests (with SDK mocking or `responses`).
 
-## 14. Adding an embedding model (Dialogue) or a transcription model (STT)
+## 14. Adding an embedding model (Dialogue), a transcription model (STT) or a vision model (slides)
 
 Same recipe as for LLM models — the app follows the **enum + pricing
 grid + label** triptych everywhere:
@@ -474,6 +474,28 @@ grid + label** triptych everywhere:
   / `_CLOUD_STT_MODEL_SOURCES`. A cloud model without timestamps
   (`gpt-4o-*`) switches the adapter to `json` (single segment per chunk)
   — see `OpenAIWhisperAdapter._VERBOSE_JSON_MODELS`.
+- **Vision** (slide analysis): `VisionModel` enum (`domain/enums.py`) +
+  input/output pricing and per-slide estimate in
+  `infra/vision/_pricing.py` (unknown model → default rate, no crash) +
+  label in `_VISION_MODEL_SOURCES` (returned by `vision_model_labels()`).
+
+### 14bis. Tuning / diagnosing slide detection
+
+Slide detection is deterministic and heuristic-driven; every knob lives in
+`src/fahmi2/infra/video/_constants.py` (sampling interval, tile grid,
+noise-mask ratio, `F_LOW`/`F_HIGH` change fractions, caps…). Before
+touching any threshold, **measure** on a real video:
+
+```powershell
+.venv\Scripts\python.exe scripts\diagnose_slide_detection.py "D:\chemin\video.mp4"
+```
+
+No vision call, no cost: the script replays sampling + hashing + grouping
+and prints (1) the noise mask / dynamic region sizes, (2) every transition
+with its **dynamic-region change fraction** (the raw material of `F_HIGH`),
+and (3) the final slide timeline after all passes (fade coalescing,
+re-display dedup, caps). Pass a second argument to reuse a frames folder
+across runs while iterating on constants.
 
 ## 15. Adding a content language
 

@@ -78,7 +78,7 @@ For each project, the **8-phase pipeline** turns sources into documents:
 
 | Phase | Description |
 |-------|-------------|
-| 0. STT | Audio → text transcription (local or cloud Whisper; text documents are extracted without STT) |
+| 0. STT | Audio → text transcription (local or cloud Whisper; text documents are extracted without STT). For video/YouTube sources with **slide analysis** ticked, the slides are detected, read by an OpenAI **vision model**, and their content is **interleaved, timestamped, into the transcript** |
 | 1. Terms | Per-source extraction of candidate technical terms |
 | 2. Glossary | Cross-source reconciliation producing a master glossary |
 | 3. Rephrasing | Faithful written rephrasing, per source, in the source language |
@@ -92,10 +92,18 @@ For each project, the **8-phase pipeline** turns sources into documents:
 The user configures **through the interface** (and **only** through the
 interface):
 
-- **API keys**: OpenAI (for cloud Whisper), DeepSeek (for the LLM phases).
+- **API keys**: OpenAI (for cloud Whisper and slide analysis), DeepSeek
+  (for the LLM phases).
 - **STT provider**: local Whisper (NVIDIA GPU required) or OpenAI cloud
   (handles long videos via automatic Opus compression + chunking,
   transparent).
+- **Slide analysis, per video** (video/YouTube sources): a checkbox on each
+  source has its slides/illustrations read by an OpenAI **vision model**
+  (`gpt-5-mini` by default, configurable) — the synthesis then aligns the
+  spoken explanation with the matching slide. Works whatever the layout
+  (fullscreen, half-page or windowed slides); progressive reveals are
+  captured at their final state; an option keeps one image per detected
+  slide for viewing.
 - **LLM model**: DeepSeek v4 Flash or Pro.
 - **Reasoning mode** (`thinking` on / off), **reasoning effort**
   (`HIGH` / `MAX`) and **temperature**, configurable

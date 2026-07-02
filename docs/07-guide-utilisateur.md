@@ -37,8 +37,9 @@ the providers:
 
 - **DeepSeek key** (mandatory) — for rephrasing and structuring. Sign up
   at <https://platform.deepseek.com> and generate a key.
-- **OpenAI key** (optional) — only if you use cloud Whisper for
-  transcription. Sign up at <https://platform.openai.com>.
+- **OpenAI key** (optional) — needed if you use cloud Whisper for
+  transcription, **slide analysis** on video sources, or the Dialogue's
+  semantic search. Sign up at <https://platform.openai.com>.
 
 **To enter them**:
 
@@ -60,14 +61,25 @@ configure the generation (6-category view):
 
 | Category | Fields |
 |----------|--------|
-| **Sources** | Input folder (videos/audio/documents) · YouTube links · Source ordering & exclusion |
+| **Sources** | Input folder (videos/audio/documents) · YouTube links · Source ordering & exclusion · **Slide analysis**: tick the ☑ box on a video/YouTube row to have its slides read by an OpenAI vision model and woven, timestamped, into the transcript (OpenAI key required) |
 | **Style** | Style (`casual`/`standard`/`professional`/`academic`) · **Consolidation mode** (Ordered: one chapter per source, in order; or Thematic rewrite: the AI reorganises and merges everything by themes, like a synthesis — source order then has no effect) · Free directives · Document languages (produced languages + which one is the **primary**/original) |
-| **Transcription** | STT provider (`openai_cloud` without a GPU, otherwise `faster_whisper_local`) · *Simultaneous transcriptions* (cloud) |
+| **Transcription** | STT provider (`openai_cloud` without a GPU, otherwise `faster_whisper_local`) · *Simultaneous transcriptions* (cloud) · **Vision model (slides)** · **Keep slide images** (one `slide_001.jpg`… per detected slide, for viewing) |
 | **AI generation** | LLM model (`deepseek-v4-flash` to start) · Budget cap · *Simultaneous AI calls* |
 | **AI phases** | Thinking, effort, temperature, retries per LLM phase (advanced) |
 | **Export** | Offered export formats: Markdown / PDF / HTML / Word (`.docx`) (none by default) |
 
 Validate: the detected sources preview appears in the cockpit.
+
+**About slide analysis.** When a video shows slides (fullscreen, half-page
+or as a window next to the presenter), ticking its box makes Fahmi2 detect
+each slide (progressively revealed ones are captured once fully shown, and
+a slide shown again later is not re-analysed), read its text **and** the
+meaning of its charts/diagrams, and insert everything at the right moment
+of the transcript — so the final document combines what was **said** with
+what was **shown**. Cost is small (about $0.003 per slide with the default
+model) and appears in the pre-run estimate and the cost matrix. For a
+YouTube source, the video (≤ 720p) is downloaded instead of the audio
+only.
 
 ## 5. Launching the processing
 
@@ -372,6 +384,14 @@ The `<location>/generation/` folder contains the working files. If you
 only want the final deliverables, you can delete this folder after
 retrieval. But keep it if you might re-edit or re-run specific phases.
 
+### Seeing the analysed slides
+
+With **Keep slide images** ticked (Transcription page), each detected
+slide is kept as `frames/<source>/slide_001.jpg`, `slide_002.jpg`… in the
+project's working folder — handy to check what the vision model actually
+read. The transcript itself (`transcripts/<source>.json`) shows the
+injected `[Slide affichée de mm:ss à mm:ss] …` segments.
+
 ### Rendering style
 
 If you don't like the rendering (too dry, too verbose, etc.), edit the
@@ -392,7 +412,8 @@ Investment* for ROI, even in a French glossary).
 - **No telemetry** is sent by the application.
 - **Your content never leaves your machine** except towards the APIs you
   have explicitly configured (DeepSeek + possibly OpenAI for cloud
-  Whisper).
+  Whisper, slide analysis or semantic search). Slide images are sent to
+  OpenAI **only** for the sources where you ticked the option.
 - **Your API keys are encrypted** on disk by Windows DPAPI: only your
   Windows account can read them.
 

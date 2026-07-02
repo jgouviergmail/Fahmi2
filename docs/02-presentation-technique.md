@@ -180,9 +180,28 @@ External adapters (ports/adapters):
   `CostEstimator`).
 - `infra/ingestion/` — polymorphic source routing (phase 0): `SourceKind →
   SourceIngestor` dispatcher (modelled after `PhaseRegistry`), `classify`
-  (extension → type mapping), `MediaIngestor` (video/audio: ffmpeg + STT),
-  `DocumentIngestor` (pdf/docx/md/txt → single-segment transcription via
-  `TextExtractor`), `YoutubeIngestor` + `YtDlpDownloader` (yt-dlp binary).
+  (extension → type mapping), `MediaIngestor` (video/audio: ffmpeg + STT;
+  with the per-source slide-analysis option on, runs the `SlideAnalyzer`
+  after STT and merges the result via `slide_merge`), `DocumentIngestor`
+  (pdf/docx/md/txt → single-segment transcription via `TextExtractor`),
+  `YoutubeIngestor` + `YtDlpDownloader` (yt-dlp binary; downloads the
+  **≤ 720p progressive video** instead of audio-only when slide analysis
+  is on), `slide_merge` (pure function interleaving timestamped
+  `[Slide affichée de mm:ss à mm:ss] …` segments into the transcription).
+- `infra/video/` — **slide detection** (no vision calls): `frame_extractor`
+  (`SlideFrameExtractor`: one ffmpeg pass, 1 frame / 2 s, longest side
+  ≤ 1280 px) + `tiles`/`grouping` (pure tile-dHash two-pass grouping —
+  per-video temporal-noise mask + dynamic region, scale-free change
+  fraction with a recall-biased threshold, transition-fade coalescing,
+  re-displayed-slide dedup by content, per-video caps) + `_constants`
+  (every detection knob) + `_fakes` (`FakeSlideFrameExtractor`).
+- `infra/vision/` — slide reading (ports/adapters): `SlideVisionProvider`
+  port + `OpenAIVisionAdapter` (JSON mode `{texte, visuels}`, per-call
+  cost, typed retryable errors) + `_pricing` (USD/token per `VisionModel`
+  + per-slide estimate) + `SlideAnalyzer` façade (vision calls
+  parallelised via `map_bounded`, **globally** bounded by `llm_workers`
+  across parallel sources, per-source cost/warning accounting, frames
+  cleanup or `slide_NNN.jpg` retention) + `_fakes`.
 - `infra/llm/` — `LLMProvider` interface, `FakeLLMProvider`,
   `DeepSeekAdapter`, `_pricing` module, generalised `invocation.py`
   helpers (`invoke_llm_chat`, `parse_llm_json`).
@@ -193,7 +212,8 @@ External adapters (ports/adapters):
 - `infra/secrets/` — `SecretsStore` Protocol, `InMemorySecretsStore`,
   `DPAPISecretsStore` (Windows).
 - `infra/prompts/` — `PromptLoader` with `%APPDATA%/Fahmi2/prompts/`
-  override + **bundled Jinja2 templates**: 8 generation phases + **3
+  override + **bundled Jinja2 templates**: 8 generation phases +
+  **`phase_0_slide_analysis`** (content-focused slide reading) + **3
   `phase_5_*` thematic-mode** + **`phase_6_glossary_localization`**
   (glossary term localisation) + 8 `pedagogy_*` + 3 `chat_*` + **5 `visuals_*`**
   (`visuals_graph_extraction`, `visuals_community_report`, `visuals_idea_chains`,
@@ -653,8 +673,9 @@ loss):
 
 ```
 <workspace_folder>/
-├── transcripts/{source_id}.json       ← Phase 0 STT
+├── transcripts/{source_id}.json       ← Phase 0 STT (+ interleaved [Slide …] segments when slide analysis is on)
 ├── audio/{source_id}.wav              ← Extracted audio (deletable)
+├── frames/{source_id}/slide_NNN.jpg   ← Kept slide images (only with « keep slide images » on; transient otherwise)
 ├── candidates/{source_id}.json        ← Phase 1
 ├── glossary_master.json              ← Phase 2
 ├── reformulated/{source_id}.md        ← Phase 3

@@ -97,6 +97,7 @@ produced languages. **7 languages** are available, on input and output:
 | **STT provider** | `faster_whisper_local` (NVIDIA GPU required) or `openai_cloud`. In cloud mode, audio is **compressed to Opus** (and split on silences if > ~2 h) to fit OpenAI Whisper's **25 MB** limit — transparent, any duration, and the upload is much faster. | Local: free / Cloud: ~$0.003–0.006/min |
 | **Local model** | faster-whisper model (active in local mode): `large-v3-turbo` (default, balanced), `large-v3` (max precision), `medium` or `small` (faster, lower VRAM). **Downloaded on first use** (cached under `%LOCALAPPDATA%/Fahmi2/models/`) — no weights are packaged. | free |
 | **Cloud model** | OpenAI transcription model (active in cloud mode): `whisper-1` (default, fine-grained timestamps), `gpt-4o-transcribe` (higher precision) or `gpt-4o-mini-transcribe` (2× cheaper). The `gpt-4o-*` models do not return segment timestamps (the transcribed content is identical). | whisper-1 / gpt-4o: $0.006/min; gpt-4o-mini: $0.003/min |
+| **Vision model (slides)** | OpenAI vision model used by the per-source **slide analysis** option: `gpt-5-mini` (default, best quality/price ratio), `gpt-5-nano` (budget, simple slides) or `gpt-5.4-mini` (higher quality, dense slides). Requires the OpenAI key. | ≈ $0.003 per analysed slide (gpt-5-mini) — one call per detected slide |
 | **LLM model** | `deepseek-v4-flash` (fast/economical) or `deepseek-v4-pro` (higher capacity). | Flash: ~$0.14–0.28/Mt / Pro: ~$0.435–0.87/Mt |
 
 The non-relevant model combo (local in cloud mode, or the other way
@@ -163,6 +164,8 @@ The residual spread is around ±20 % depending on the video content.
 |-----------|-------------|---------|
 | **Location (workspace)** | Working folder picked at creation. Generation artefacts live under `<location>/generation/` (deliverables under `<location>/generation/output/`). | chosen at creation |
 | **Delete audio after STT** | Deletes the extracted WAVs after transcription | `True` (saves disk) |
+| **Slide analysis, per source** (`slides_sources`) | On the source list (Sources page), every **video/YouTube** row carries an « Analyser les slides » checkbox: the slides are detected (fullscreen, half-page or windowed; progressive reveals captured at their final state; re-displayed slides not re-analysed), read by the vision model, and **interleaved timestamped into the transcript** — the whole pipeline then aligns the speech with the matching slide. Requires the OpenAI key (checked before the run, only when at least one ticked source is actually included). | none ticked |
+| **Keep slide images** (`delete_frames_after_analysis`) | When ticked, one representative image per detected slide is kept as `frames/<source>/slide_001.jpg`… (viewing / troubleshooting); otherwise every frame is removed after the analysis. | off (frames deleted) |
 | **Simultaneous transcriptions** (`stt_cloud_workers`) | Concurrent cloud STT transcriptions (effective; no effect in local STT: single GPU). Range 1–8 (Transcription page). | 3 |
 | **Simultaneous LLM calls** (`llm_workers`) | Concurrent pipeline LLM calls (per-source phases + translation/coherence/summaries). Effective; DeepSeek's limit being per-concurrency, a high value stays safe. Range 1–64 (Model & cost page). | 16 |
 | **Export formats** (`export_formats`) | Formats offered by the **Export** button of the Generation tab (page **Export**): **Markdown / PDF / HTML / Word (`.docx`)**. On export, the **consolidated document** and the **glossary** are written, one file per language, in the chosen format (`consolidated.{lang}.<ext>`, `glossary.{lang}.<ext>`). PDF handles Chinese (YaHei font, automatic line breaks) and Arabic (RTL); the glossary is laid out in **landscape** (PDF and Word). | none (opt-in) |
@@ -177,11 +180,12 @@ a `.j2` file.
 
 **Edit → Edit prompts…** opens a dedicated dialog:
 
-- **Left sidebar**: list of **every** editable LLM template — generation
-  phases (1–7, including the consolidation sub-prompts, the **thematic
-  rewrite** variants and the **glossary localisation**), revision
-  materials, and Dialogue. An asterisk ` *` is appended next to a
-  template that has an active override.
+- **Left sidebar**: list of **every** editable LLM template — the
+  **slide-analysis vision prompt** (phase 0), generation phases (1–7,
+  including the consolidation sub-prompts, the **thematic rewrite**
+  variants and the **glossary localisation**), revision materials, and
+  Dialogue. An asterisk ` *` is appended next to a template that has an
+  active override.
 - **Short description** of each phase and its role in the pipeline.
 - **Status banner**: *"📦 Default prompt"* or *"✏️ Custom override
   active"*.
